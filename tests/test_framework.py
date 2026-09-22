@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import matplotlib
@@ -110,6 +112,17 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         ).TSNE(perplexity=5, max_iter=250)
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
 
+    def test_umap_produce_dos_dimensiones(self) -> None:
+        """UMAP sustituye una caché de Numba configurada pero no escribible."""
+        with patch.dict("os.environ", {"NUMBA_CACHE_DIR": "/proc/numba_cache"}):
+            resultado = ReduccionDimensional(
+                dataframe=self.datos,
+                features=["x", "y", "z"],
+            ).UMAP(n_neighbors=5, min_dist=0.1)
+            self.assertNotEqual(os.environ["NUMBA_CACHE_DIR"], "/proc/numba_cache")
+        self.assertEqual(resultado.coordenadas.shape, (30, 2))
+        self.assertFalse(resultado.coordenadas.isna().any().any())
+
     def test_arquitectura_declara_clases_y_metodos(self) -> None:
         """Las extensiones pendientes existen como contratos utilizables."""
         self.assertTrue(issubclass(NoSupervisado, EDA))
@@ -139,6 +152,13 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(resultado.algoritmo, "RF")
         self.assertEqual(len(resultado.y_true), len(resultado.y_pred))
         self.assertIn("accuracy", resultado.metricas)
+        previsualizacion = clasif.previsualizar_particion(
+            test_size=0.25,
+            random_state=1,
+            stratify=True,
+        )
+        self.assertEqual(previsualizacion["tam_train"], 30)
+        self.assertEqual(previsualizacion["tam_test"], 10)
         with self.assertRaises(NotImplementedError):
             Progresion(dataframe=self.datos, target="x").RLS()
 
