@@ -12,14 +12,14 @@ Jerarquía:
     EDA
     └── Supervisado
            ├── Clasificacion
-           └── Progresion
+           └── Regresion
 """
 
 from __future__ import annotations
 
 import pandas as pd
 
-from ..datos.eda import EDA
+from ...datos.eda import EDA
 
 
 class Supervisado(EDA):
@@ -51,11 +51,11 @@ class Supervisado(EDA):
         return self.target
 
     def _tipo_target(self):
-        """'clasificacion' si el target es categórico; 'progresion' si es numérico."""
+        """Indica clasificación si el target es categórico o regresión si es numérico."""
         self._definir_target()
         serie = self.datos[self.target]
         if pd.api.types.is_numeric_dtype(serie):
-            return "progresion"
+            return "regresion"
         return "clasificacion"
 
     def _definir_features(self):

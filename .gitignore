@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 salida_lab01/
+.superdesign/tmp/
+.superdesign/init/
+.superdesign/resume.json
+.impeccable/hook.cache.json

@@ -1,31 +1,45 @@
 [theme]
 base = "light"
-primaryColor = "#2563eb"
+primaryColor = "#1a3c2b"
 font = "sans serif"
-baseRadius = "medium"
-buttonRadius = "medium"
+baseRadius = "small"
+buttonRadius = "small"
 showWidgetBorder = true
 showSidebarBorder = true
 
 [theme.light]
-backgroundColor = "#f7f9fc"
-secondaryBackgroundColor = "#eef2f7"
-textColor = "#1f2a37"
-borderColor = "#cbd5e1"
-chartCategoricalColors = ["#3b82f6", "#0ea5e9", "#16a34a", "#8b5cf6", "#ea580c", "#db2777"]
+backgroundColor = "#f7f7f5"
+secondaryBackgroundColor = "#eeeee9"
+textColor = "#242523"
+borderColor = "#a8aaa2"
+chartCategoricalColors = ["#1a3c2b", "#b84c35", "#806000", "#2d7456", "#77512f", "#65416f"]
+redColor = "#b42318"
+orangeColor = "#a9471e"
+yellowColor = "#715600"
+blueColor = "#1a5f8f"
+greenColor = "#1f6b4f"
+violetColor = "#65416f"
+grayColor = "#535750"
 
 [theme.dark]
-backgroundColor = "#0f172a"
-secondaryBackgroundColor = "#162033"
-textColor = "#f8fafc"
-borderColor = "#334155"
-primaryColor = "#2563eb"
-chartCategoricalColors = ["#60a5fa", "#38bdf8", "#4ade80", "#a78bfa", "#fb923c", "#f472b6"]
+backgroundColor = "#111713"
+secondaryBackgroundColor = "#1a241d"
+textColor = "#f7f7f5"
+borderColor = "#556158"
+primaryColor = "#9effbf"
+chartCategoricalColors = ["#9effbf", "#ff9a7f", "#ffd166", "#7ddcaa", "#f3bf8c", "#d8b4fe"]
+redColor = "#ffb4ab"
+orangeColor = "#ffb68c"
+yellowColor = "#ffe08a"
+blueColor = "#9ed0ff"
+greenColor = "#8cf0c0"
+violetColor = "#d8b4fe"
+grayColor = "#c5c9c3"
 
 [theme.light.sidebar]
-backgroundColor = "#eef2f7"
-secondaryBackgroundColor = "#ffffff"
+backgroundColor = "#1a3c2b"
+secondaryBackgroundColor = "#264a37"
 
 [theme.dark.sidebar]
-backgroundColor = "#111c2e"
-secondaryBackgroundColor = "#1e293b"
+backgroundColor = "#0e2016"
+secondaryBackgroundColor = "#193324"

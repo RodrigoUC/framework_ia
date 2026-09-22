@@ -1,4 +1,4 @@
-"""Abstracciones compartidas por los análisis no supervisados."""
+"""Abstracciones base compartidas por los análisis no supervisados."""
 
 from __future__ import annotations
 
@@ -6,12 +6,12 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from ..datos.eda import EDA
-from ..datos.preprocesamiento import (
+from ...datos.eda import EDA
+from ...datos.preprocesamiento import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
 )
-from ..resultados import DatosPreparados
+from ...resultados import DatosPreparados
 
 
 class NoSupervisado(EDA, ABC):

@@ -26,12 +26,17 @@ from framework_ia.datos.preprocesamiento import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
 )
-from framework_ia.modelos.clasificacion import Clasificacion
-from framework_ia.modelos.cluster import Cluster
-from framework_ia.modelos.no_supervisado import NoSupervisado
+from framework_ia.modelos.no_supervisado import (
+    Cluster,
+    NoSupervisado,
+    ReduccionDimensional,
+)
 from framework_ia.modelos.progresion import Progresion
-from framework_ia.modelos.reduccion_dimensional import ReduccionDimensional
-from framework_ia.modelos.supervisado import Supervisado
+from framework_ia.modelos.supervisado import (
+    Clasificacion,
+    Regresion,
+    Supervisado,
+)
 from framework_ia.visualizacion import VisualizadorNoSupervisado
 
 
@@ -128,13 +133,13 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertTrue(issubclass(NoSupervisado, EDA))
         self.assertTrue(issubclass(Supervisado, EDA))
         self.assertTrue(issubclass(Clasificacion, Supervisado))
-        self.assertTrue(issubclass(Progresion, Supervisado))
+        self.assertTrue(issubclass(Regresion, Supervisado))
         self.assertTrue(issubclass(Cluster, NoSupervisado))
         self.assertTrue(issubclass(ReduccionDimensional, NoSupervisado))
 
         for clase, metodos in (
             (Clasificacion, ("RF", "NR")),
-            (Progresion, ("RLS", "RLM", "RL")),
+            (Regresion, ("RLS", "RLM", "RL")),
         ):
             for metodo in metodos:
                 self.assertTrue(callable(getattr(clase, metodo, None)))
@@ -160,7 +165,11 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(previsualizacion["tam_train"], 30)
         self.assertEqual(previsualizacion["tam_test"], 10)
         with self.assertRaises(NotImplementedError):
-            Progresion(dataframe=self.datos, target="x").RLS()
+            Regresion(dataframe=self.datos, target="x").RLS()
+
+    def test_alias_progresion_conserva_compatibilidad(self) -> None:
+        """El nombre anterior sigue disponible, pero Regresion es el oficial."""
+        self.assertIs(Progresion, Regresion)
 
     def test_aliases_pythonicos_conservan_la_interfaz_existente(self) -> None:
         cluster = Cluster(dataframe=self.datos, features=["x", "y", "z"])

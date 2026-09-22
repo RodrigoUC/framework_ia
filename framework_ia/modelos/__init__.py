@@ -1,7 +1,13 @@
-"""Algoritmos supervisados y no supervisados."""
+"""Punto de acceso público a los modelos del framework."""
 
-from .clasificacion import Clasificacion
-from .cluster import Cluster
-from .reduccion_dimensional import ReduccionDimensional
+from .no_supervisado import Cluster, NoSupervisado, ReduccionDimensional
+from .supervisado import Clasificacion, Regresion, Supervisado
 
-__all__ = ["Clasificacion", "Cluster", "ReduccionDimensional"]
+__all__ = [
+    "Clasificacion",
+    "Regresion",
+    "Supervisado",
+    "Cluster",
+    "NoSupervisado",
+    "ReduccionDimensional",
+]

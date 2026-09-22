@@ -21,9 +21,16 @@ En la barra lateral:
 
 1. Seleccione un CSV ubicado en `framework_start` o suba uno desde el navegador.
 2. Ajuste separador, decimal, codificación e índice según el archivo.
-3. Elija las variables de análisis.
-4. Active la codificación categórica si desea incluir columnas de texto.
-5. Ejecute el análisis requerido desde sus pestañas.
+3. Navegue por Datos, Exploración o los tres pilares: Agrupamiento,
+   Clasificación y Regresión.
+4. Seleccione una técnica; la configuración relevante aparece de forma
+   contextual en la barra lateral.
+5. Ejecute el análisis y consulte sus métricas, gráficos, trazabilidad y
+   exportaciones desde la vista activa.
+
+ACP, t-SNE y UMAP se mantienen bajo Exploración y reducción dimensional. La
+regresión aparece como pilar independiente, marcada como próxima mientras sus
+métodos sigan siendo una plantilla.
 
 El archivo `data/ejemplo_analisis.csv` permite comprobar la aplicación de inmediato;
 puede reemplazarse por cualquier otro CSV.
@@ -37,7 +44,9 @@ Por ello, reemplazar el CSV no exige modificar el código.
 app.py                         Punto de entrada de Streamlit.
 framework_ia/
   datos/                       Carga, EDA y preprocesamiento.
-  modelos/                     Contratos y algoritmos de aprendizaje.
+  modelos/
+    supervisado/               Clasificación y regresión.
+    no_supervisado/            Agrupamiento y reducción dimensional.
   resultados.py                Objetos de transferencia entre capas.
   visualizacion.py             Figuras independientes de Streamlit.
   ui/streamlit_app.py          Interfaz y estado de sesión.
@@ -66,11 +75,11 @@ las versiones de scikit-learn que nombran el parámetro de iteraciones como
 | Módulo | Clase o capacidad | Estado |
 | --- | --- | --- |
 | `framework_ia/datos` | Operaciones tabulares, EDA y preprocesamiento | Implementada |
-| `framework_ia/modelos/cluster.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
-| `framework_ia/modelos/reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
+| `framework_ia/modelos/no_supervisado/agrupamiento.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
+| `framework_ia/modelos/no_supervisado/reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
 | `framework_ia/visualizacion.py` | Figuras Matplotlib/Seaborn | Implementada |
-| `framework_ia/modelos/clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
-| `framework_ia/modelos/progresion.py` | `Progresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
+| `framework_ia/modelos/supervisado/clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
+| `framework_ia/modelos/supervisado/regresion.py` | `Regresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
 
 Las clases supervisadas y sus métodos existen para completar el framework por
 etapas; actualmente `Clasificacion` (RF/NR) y su flujo de métricas y predicciones

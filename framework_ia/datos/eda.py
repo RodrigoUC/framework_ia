@@ -20,7 +20,7 @@ Jerarquía del framework:
     │      └── Cluster -> K-Means, K-Medoids, HAC
     └── Supervisado   (modelos/supervisado.py)
            ├── Clasificacion  ->  RF, NR
-           └── Progresion     ->  RLS, RLM, RL
+           └── Regresion      ->  RLS, RLM, RL
 """
 
 from __future__ import annotations

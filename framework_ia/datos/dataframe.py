@@ -242,7 +242,7 @@ class DataFrame:
         )
         ejes = np.array(ejes).ravel()
         for eje, columna in zip(ejes, numericas):
-            sns.histplot(data=self.datos, x=columna, kde=True, ax=eje, color="#2878B5")
+            sns.histplot(data=self.datos, x=columna, kde=True, ax=eje, color="#1A3C2B")
             eje.set_title(f"Distribución de {columna}")
         for eje in ejes[cantidad:]:
             eje.axis("off")

@@ -1,8 +1,6 @@
-"""Framework de análisis exploratorio y aprendizaje no supervisado."""
+"""Framework de análisis exploratorio y aprendizaje automático."""
 
 from .datos.eda import EDA
-from .modelos.clasificacion import Clasificacion
-from .modelos.cluster import Cluster
-from .modelos.reduccion_dimensional import ReduccionDimensional
+from .modelos import Clasificacion, Cluster, ReduccionDimensional, Regresion
 
-__all__ = ["Clasificacion", "Cluster", "EDA", "ReduccionDimensional"]
+__all__ = ["Clasificacion", "Cluster", "EDA", "ReduccionDimensional", "Regresion"]

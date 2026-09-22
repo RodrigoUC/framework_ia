@@ -7,6 +7,7 @@ analizar otro dataset basta con reemplazar un CSV local o subir uno nuevo.
 from __future__ import annotations
 
 import hashlib
+from html import escape
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,9 +16,12 @@ import streamlit as st
 
 from ..datos.eda import EDA
 from ..datos.fuentes import CargadorCSV, ConfiguracionCSV
-from ..modelos.clasificacion import Clasificacion
-from ..modelos.cluster import Cluster
-from ..modelos.reduccion_dimensional import DependenciaOpcionalError, ReduccionDimensional
+from ..modelos.no_supervisado import (
+    Cluster,
+    DependenciaOpcionalError,
+    ReduccionDimensional,
+)
+from ..modelos.supervisado import Clasificacion
 from ..visualizacion import (
     VisualizadorNoSupervisado,
     VisualizadorSupervisado,
@@ -26,22 +30,92 @@ from ..visualizacion import (
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PALETA = {
-    "fondo": "#f7f9fc",
-    "superficie": "#eef2f7",
-    "texto": "#1f2a37",
-    "acento": "#3b82f6",
-    "acento_alt": "#0ea5e9",
-    "muted": "#6b7280",
-    "borde": "#cbd5e1",
+    "fondo": "#f7f7f5",
+    "superficie": "#eeeee9",
+    "texto": "#242523",
+    "acento": "#1a3c2b",
+    "acento_alt": "#ff8c69",
+    "muted": "#5f635e",
+    "borde": "#a8aaa2",
 }
 
 
 PALETA_OSCURA = {
-    "fondo": "#0f172a",
-    "superficie": "#162033",
-    "texto": "#f8fafc",
-    "borde": "#334155",
+    "fondo": "#111713",
+    "superficie": "#1a241d",
+    "texto": "#f7f7f5",
+    "borde": "#556158",
 }
+
+
+VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "hac", "tsne", "umap"}
+TITULOS_VISTA = {
+    "datos": "Datos y preparación",
+    "eda": "Exploración de datos",
+    "acp": "ACP",
+    "kmeans": "K-Means y K-Medoids",
+    "hac": "Clustering jerárquico",
+    "tsne": "Proyección t-SNE",
+    "umap": "Proyección UMAP",
+    "clasificacion": "Clasificación",
+    "comparacion": "Comparación de modelos",
+    "regresion": "Regresión",
+}
+RUTAS_VISTA = {
+    "datos": "Datos / Preparación",
+    "eda": "Exploración / EDA",
+    "acp": "Exploración / Reducción dimensional / ACP",
+    "kmeans": "Agrupamiento / Particional / K-Means",
+    "hac": "Agrupamiento / Jerárquico / HAC",
+    "tsne": "Exploración / Reducción dimensional / t-SNE",
+    "umap": "Exploración / Reducción dimensional / UMAP",
+    "clasificacion": "Clasificación / Modelos disponibles",
+    "comparacion": "Resultados / Comparación de modelos",
+    "regresion": "Regresión / Próximamente",
+}
+
+
+def _aplicar_estilos_atlas() -> None:
+    """Instala la capa visual compartida de la experiencia Atlas Analítico."""
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap');
+        @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap');
+
+        .stApp { font-family: 'General Sans', sans-serif; }
+        .stApp::selection { background: #9effbf; color: #1a3c2b; }
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -0.02em; }
+        code, [data-testid="stCaptionContainer"] { font-family: 'JetBrains Mono', monospace; }
+        [data-testid="stSidebar"] { background: #1a3c2b; border-right: 1px solid #365342; }
+        [data-testid="stSidebar"] * { color: #f7f7f5; }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #d9e3db !important; }
+        [data-testid="stSidebar"] input, [data-testid="stSidebar"] [data-baseweb="select"] > div { background: #f7f7f5 !important; color: #242523 !important; border-color: #6f8477 !important; }
+        [data-testid="stSidebar"] input *, [data-testid="stSidebar"] [data-baseweb="select"] * { color: #242523 !important; }
+        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #f7f7f5; font-family: 'General Sans', sans-serif; font-size: .88rem; }
+        [data-testid="stSidebar"] .stButton > button:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.28); color: #f7f7f5; }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid #f4d35e; background: rgba(255,255,255,.14); color: #f7f7f5; }
+        [data-testid="stSidebar"] details { border: 1px solid rgba(255,255,255,.22); border-radius: 2px; background: rgba(255,255,255,.04); }
+        [data-testid="stSidebar"] summary { font-family: 'Space Grotesk', sans-serif; font-size: .9rem; }
+        .atlas-nav-label { margin: 1.35rem 0 .35rem; color: #b9cbbd; font-family: 'JetBrains Mono', monospace; font-size: .67rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+        .atlas-family { margin: .7rem 0 .15rem; color: #b9cbbd; font-family: 'JetBrains Mono', monospace; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; }
+        .atlas-header { margin: .25rem 0 1.25rem; padding: 1.35rem 1.55rem; border: 1px solid color-mix(in srgb, currentColor 28%, transparent); background: transparent; }
+        .atlas-breadcrumb { color: inherit; opacity: .82; font-family: 'JetBrains Mono', monospace; font-size: .68rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+        .atlas-title { margin: .45rem 0 .25rem; color: inherit; font-family: 'Space Grotesk', sans-serif; font-size: 2.15rem; font-weight: 600; letter-spacing: -.03em; }
+        .atlas-subtitle { margin: 0; color: inherit; opacity: .78; font-size: .94rem; }
+        [data-testid="stMetric"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 2px; background: transparent; padding: .8rem .9rem; }
+        [data-testid="stMetricLabel"] { font-family: 'JetBrains Mono', monospace; font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; }
+        [data-testid="stMetricValue"] { font-family: 'Space Grotesk', sans-serif; }
+        .stButton > button[kind="primary"] { border-radius: 2px; background: #1a3c2b; color: #f7f7f5; }
+        .stButton > button[kind="primary"]:hover { background: #122d20; color: #f7f7f5; }
+        .stButton > button:focus-visible, input:focus-visible { outline: 2px solid #1a3c2b !important; outline-offset: 2px; }
+        [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
+        [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
+        @media (max-width: 900px) { .atlas-header { padding: 1rem; } .atlas-title { font-size: 1.65rem; } }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _configuracion_csv() -> ConfiguracionCSV:
@@ -106,6 +180,109 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
         return None, "", ""
     digest = hashlib.sha256(contenido).hexdigest()
     return datos, archivo.name, f"upload:{digest}:{configuracion}"
+
+
+def _seleccionar_vista() -> str:
+    """Renderiza la navegación multinivel y devuelve la vista activa."""
+    vista = st.session_state.setdefault("vista_activa", "datos")
+
+    def navegar(destino: str) -> None:
+        st.session_state["vista_activa"] = destino
+
+    def boton(etiqueta: str, destino: str, *, disabled: bool = False) -> None:
+        st.button(
+            etiqueta,
+            key=f"nav_{destino}",
+            type="primary" if vista == destino else "secondary",
+            disabled=disabled,
+            on_click=navegar if not disabled else None,
+            args=(destino,) if not disabled else None,
+        )
+
+    with st.sidebar:
+        st.markdown(
+            '<p class="atlas-nav-label">Navegación</p>', unsafe_allow_html=True
+        )
+        boton("Datos y preparación", "datos")
+
+        with st.expander(
+            "Exploración y reducción dimensional",
+            expanded=vista in {"eda", "acp", "tsne", "umap"},
+        ):
+            boton("EDA", "eda")
+            st.markdown(
+                '<p class="atlas-family">Reducción dimensional</p>',
+                unsafe_allow_html=True,
+            )
+            boton("ACP", "acp")
+            boton("t-SNE", "tsne")
+            boton("UMAP", "umap")
+
+        st.markdown(
+            '<p class="atlas-nav-label">Pilares del framework</p>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Agrupamiento", expanded=vista in {"kmeans", "hac"}):
+            st.markdown(
+                '<p class="atlas-family">Particional</p>', unsafe_allow_html=True
+            )
+            boton("K-Means y K-Medoids", "kmeans")
+            st.markdown(
+                '<p class="atlas-family">Jerárquico</p>', unsafe_allow_html=True
+            )
+            boton("HAC", "hac")
+
+        with st.expander("Clasificación", expanded=vista == "clasificacion"):
+            st.markdown(
+                '<p class="atlas-family">Modelos disponibles</p>',
+                unsafe_allow_html=True,
+            )
+            boton("Random Forest y Naive Bayes", "clasificacion")
+
+        with st.expander("Regresión", expanded=vista == "regresion"):
+            st.markdown(
+                '<p class="atlas-family">En preparación</p>',
+                unsafe_allow_html=True,
+            )
+            boton("Regresión · Próximamente", "regresion")
+
+        st.markdown(
+            '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
+        )
+        boton("Comparar modelos", "comparacion")
+    return st.session_state["vista_activa"]
+
+
+def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> None:
+    """Muestra contexto, ruta y salud de datos antes de cada vista."""
+    resumen = EDA(dataframe=datos).resumen_calidad()
+    titulo = TITULOS_VISTA[vista]
+    ruta = RUTAS_VISTA[vista]
+    nombre_dataset = escape(etiqueta)
+    st.markdown(
+        f"""
+        <section class="atlas-header">
+          <div class="atlas-breadcrumb">{ruta}</div>
+          <h1 class="atlas-title">{titulo}</h1>
+          <p class="atlas-subtitle">Dataset activo: <strong>{nombre_dataset}</strong></p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    columnas = st.columns(4)
+    columnas[0].metric("Filas", resumen["filas"])
+    columnas[1].metric("Columnas", resumen["columnas"])
+    columnas[2].metric("Nulos", resumen["nulos"])
+    columnas[3].metric("Duplicados", resumen["duplicados"])
+
+
+def _render_regresion() -> None:
+    """Explica con claridad el estado actual del contrato de regresión."""
+    st.info(
+        "La capa de regresión ya está separada dentro de `modelos.supervisado`, "
+        "pero sus métodos todavía son una plantilla. Esta vista estará disponible "
+        "cuando se implementen regresión lineal simple y múltiple."
+    )
 
 
 def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
@@ -324,8 +501,8 @@ def _render_eda(datos: pd.DataFrame) -> None:
 
 def _configurar_modelos(datos: pd.DataFrame) -> dict:
     """Recopila una configuración común para todos los modelos no supervisados."""
-    st.sidebar.markdown("## Modelos no supervisados")
-    incluir_categoricas = st.sidebar.checkbox(
+    st.markdown("### Configuración de agrupamiento y reducción")
+    incluir_categoricas = st.checkbox(
         "Codificar variables categóricas", value=False, key="modelo_categoricas"
     )
     if incluir_categoricas:
@@ -337,18 +514,18 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
     guardadas = st.session_state.get("modelo_features", [])
     if any(columna not in opciones for columna in guardadas):
         del st.session_state["modelo_features"]
-    features = st.sidebar.multiselect(
+    features = st.multiselect(
         "Variables de análisis",
         options=opciones,
         default=predeterminadas,
         key="modelo_features",
     )
-    estandarizar = st.sidebar.checkbox(
+    estandarizar = st.checkbox(
         "Estandarizar para modelado", value=True, key="modelo_estandarizar"
     )
     maximo = min(len(datos), 3000)
     if maximo > 20:
-        filas = st.sidebar.slider(
+        filas = st.slider(
             "Máximo de filas por modelo",
             min_value=20,
             max_value=maximo,
@@ -368,8 +545,8 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
 
 def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
     """Recopila configuración de target, split y preprocesamiento."""
-    st.sidebar.markdown("## Modelos supervisados")
-    objetivo = st.sidebar.selectbox(
+    st.markdown("### Configuración de clasificación")
+    objetivo = st.selectbox(
         "Variable objetivo (target)",
         options=datos.columns.tolist(),
         index=max(0, len(datos.columns) - 1),
@@ -379,17 +556,17 @@ def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
     caracteristicas_guardadas = st.session_state.get("clasif_features", opcional_features)
     if any(columna not in opcional_features for columna in caracteristicas_guardadas):
         st.session_state["clasif_features"] = opcional_features
-    caracteristicas = st.sidebar.multiselect(
+    caracteristicas = st.multiselect(
         "Variables predictoras",
         options=opcional_features,
         default=opcional_features,
         key="clasif_features",
     )
     if not caracteristicas:
-        st.sidebar.warning("Seleccione al menos una feature antes de entrenar.")
+        st.warning("Seleccione al menos una feature antes de entrenar.")
 
-    st.sidebar.markdown("### Partición y reproducibilidad")
-    test_size = st.sidebar.slider(
+    st.markdown("#### Partición y reproducibilidad")
+    test_size = st.slider(
         "Tamaño de prueba (%)",
         min_value=10,
         max_value=60,
@@ -397,7 +574,7 @@ def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
         step=5,
         key="clasif_test_size",
     ) / 100.0
-    estado_aleatorio = st.sidebar.number_input(
+    estado_aleatorio = st.number_input(
         "Random state",
         min_value=0,
         max_value=10_000,
@@ -405,16 +582,16 @@ def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
         step=1,
         key="clasif_random_state",
     )
-    estratificar = st.sidebar.checkbox("Estratificar por target", value=True, key="clasif_strat")
+    estratificar = st.checkbox("Estratificar por target", value=True, key="clasif_strat")
 
-    st.sidebar.markdown("### Preprocesamiento")
-    incluir_categoricas = st.sidebar.checkbox(
+    st.markdown("#### Preprocesamiento")
+    incluir_categoricas = st.checkbox(
         "Codificar categóricas",
         value=False,
         key="clasif_incluir_categoricas",
     )
-    imputar = st.sidebar.checkbox("Imputar nulos", value=True, key="clasif_imputar")
-    estandarizar = st.sidebar.checkbox("Escalar (solo numéricas)", value=True, key="clasif_escalar")
+    imputar = st.checkbox("Imputar nulos", value=True, key="clasif_imputar")
+    estandarizar = st.checkbox("Escalar (solo numéricas)", value=True, key="clasif_escalar")
     return {
         "target": objetivo,
         "features": caracteristicas,
@@ -1029,57 +1206,60 @@ def _render_umap(datos: pd.DataFrame, configuracion: dict) -> None:
 def main() -> None:
     """Punto de entrada de la aplicación Streamlit."""
     st.set_page_config(
-        page_title="Framework de análisis de datos",
+        page_title="Atlas Analítico",
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    st.title("Framework de análisis y modelos supervisados")
-    st.caption(
-        "Cambie el CSV y configure las variables; la misma arquitectura ejecuta "
-        "EDA, ACP, clasificación supervisada, agrupamiento y proyecciones."
-    )
+    _aplicar_estilos_atlas()
 
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()
     if datos_cargados is None:
+        st.markdown("# Atlas Analítico")
         st.info("Seleccione un CSV local o suba un archivo para comenzar.")
         return
     _sincronizar_dataset(datos_cargados, identidad)
     datos = st.session_state["dataset_preparado"]
-    st.markdown(f"**Dataset activo:** `{etiqueta}`")
+    vista = _seleccionar_vista()
+    _render_encabezado_atlas(datos, etiqueta, vista)
 
-    configuracion = _configurar_modelos(datos)
-    configuracion_clasif = _configurar_modelos_clasificacion(datos)
-    dataset, eda, acp, clasificacion, comparacion, particional, hac, tsne, umap = st.tabs(
-        [
-            "Dataset",
-            "EDA",
-            "ACP",
-            "Clasificación",
-            "Comparación de modelos",
-            "K-Means",
-            "HAC",
-            "t-SNE",
-            "UMAP",
-        ]
-    )
-    with dataset:
+    configuracion = None
+    configuracion_clasif = None
+    if vista in VISTAS_NO_SUPERVISADAS:
+        with st.sidebar:
+            with st.expander("Configuración de análisis", expanded=True):
+                configuracion = _configurar_modelos(datos)
+    elif vista in {"clasificacion", "comparacion"}:
+        with st.sidebar:
+            with st.expander("Configuración supervisada", expanded=True):
+                configuracion_clasif = _configurar_modelos_clasificacion(datos)
+
+    if vista == "datos":
         _render_dataset()
-    with eda:
+    elif vista == "eda":
         _render_eda(datos)
-    with acp:
+    elif vista == "acp":
+        assert configuracion is not None
         _render_acp(datos, configuracion)
-    with clasificacion:
+    elif vista == "clasificacion":
+        assert configuracion_clasif is not None
         _render_clasificacion(datos, configuracion_clasif)
-    with comparacion:
+    elif vista == "comparacion":
+        assert configuracion_clasif is not None
         _render_comparacion(datos, configuracion_clasif)
-    with particional:
+    elif vista == "kmeans":
+        assert configuracion is not None
         _render_particional(datos, configuracion)
-    with hac:
+    elif vista == "hac":
+        assert configuracion is not None
         _render_hac(datos, configuracion)
-    with tsne:
+    elif vista == "tsne":
+        assert configuracion is not None
         _render_tsne(datos, configuracion)
-    with umap:
+    elif vista == "umap":
+        assert configuracion is not None
         _render_umap(datos, configuracion)
+    else:
+        _render_regresion()
 
 
 if __name__ == "__main__":

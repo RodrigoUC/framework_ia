@@ -44,7 +44,7 @@ class VisualizadorNoSupervisado:
             cargas = cargas.loc[importancia]
 
         figura, eje = plt.subplots(figsize=(9, 8))
-        circulo = plt.Circle((0, 0), 1, fill=False, color="#2878B5")
+        circulo = plt.Circle((0, 0), 1, fill=False, color="#1A3C2B")
         eje.add_patch(circulo)
         for variable, fila in cargas.iterrows():
             x, y = float(fila.iloc[0]), float(fila.iloc[1])
@@ -53,7 +53,7 @@ class VisualizadorNoSupervisado:
                 0,
                 x * 0.95,
                 y * 0.95,
-                color="#2878B5",
+                color="#1A3C2B",
                 alpha=0.65,
                 head_width=0.025,
                 length_includes_head=True,
@@ -95,7 +95,7 @@ class VisualizadorNoSupervisado:
                 0,
                 x,
                 y,
-                color="#2878B5",
+                color="#1A3C2B",
                 alpha=0.7,
                 head_width=0.025,
                 length_includes_head=True,
@@ -121,13 +121,13 @@ class VisualizadorNoSupervisado:
             }
         )
         figura, eje = plt.subplots(figsize=(9, 5))
-        tabla["Individual"].plot.bar(ax=eje, color="#4ECDC4", alpha=0.8)
+        tabla["Individual"].plot.bar(ax=eje, color="#3C7D65", alpha=0.8)
         eje.set_ylabel("Varianza explicada (%)")
         eje.set_xlabel("Componente")
         eje.set_title("Varianza explicada por el ACP")
         eje_secundario = eje.twinx()
         tabla["Acumulada"].plot(
-            ax=eje_secundario, color="#FF7F0E", marker="o", linewidth=2
+            ax=eje_secundario, color="#FF8C69", marker="o", linewidth=2
         )
         eje_secundario.set_ylim(0, 105)
         eje_secundario.set_ylabel("Varianza acumulada (%)")
@@ -217,7 +217,7 @@ class VisualizadorNoSupervisado:
                 x="k",
                 y="silhouette",
                 marker="o",
-                color="#2878B5",
+                color="#1A3C2B",
                 ax=eje,
             )
         eje.set_title(f"Evaluación de {algoritmo}")

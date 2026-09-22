@@ -65,6 +65,7 @@ crear `ID-1_ID-2.zip`.
 
 La aplicación acepta CSV locales ubicados en este directorio o archivos
 subidos desde el navegador. Permite configurar separador, decimal, codificación
-y uso de la primera columna como índice. Las clases supervisadas están
-declaradas como plantillas y todavía no aparecen como flujo ejecutable en la
-interfaz.
+y uso de la primera columna como índice. La navegación lateral agrupa el
+trabajo en Datos, Exploración y tres pilares: Agrupamiento, Clasificación y
+Regresión. La regresión se muestra como próxima porque sus métodos todavía son
+una plantilla.
