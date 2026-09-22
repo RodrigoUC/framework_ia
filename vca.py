@@ -624,7 +624,7 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
             preview = clasificador.previsualizar_particion(
                 test_size=configuracion["test_size"],
                 random_state=configuracion["random_state"],
-                estratify=configuracion["estratificar"],
+                stratify=configuracion["estratificar"],
                 incluir_categoricas=configuracion["incluir_categoricas"],
                 imputar=configuracion["imputar"],
                 estandarizar=configuracion["estandarizar"],
