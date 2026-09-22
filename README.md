@@ -110,7 +110,27 @@ python -m unittest discover -s tests -v
 ```
 
 Las pruebas cubren carga de CSV, limpieza, preprocesamiento, ACP, t-SNE,
-clustering, herencia, existencia de métodos pendientes y alias pythonicos.
+UMAP, clustering, herencia, existencia de métodos pendientes y alias pythonicos.
+
+## Experimentos reproducibles de Lab01
+
+Para ejecutar las configuraciones base y sus variaciones sobre el CSV del
+profesor, use el siguiente comando:
+
+```bash
+python ejecutar_lab01.py datos_profesor.csv --salida salida_lab01 --semilla 42
+```
+
+El directorio de salida contiene la configuración exacta (`configuracion.json`),
+un resumen (`resumen_experimentos.json`), las comparaciones de ACP, K-Means,
+HAC, t-SNE y UMAP, y las asignaciones de los modelos seleccionados. La métrica
+``trustworthiness`` para t-SNE/UMAP sirve de apoyo: la elección final debe
+justificarse también con las visualizaciones y el contexto del dataset.
+
+UMAP inicializa automáticamente un directorio de caché temporal para Numba,
+por lo que puede ejecutarse incluso cuando el caché por defecto no es
+escribible. Se recomienda usar Python 3.11 o 3.12 para un entorno estable con
+las dependencias científicas del laboratorio.
 
 ## Referencia de implementación
 

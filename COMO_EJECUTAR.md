@@ -24,6 +24,45 @@ Para validar el framework sin abrir la interfaz:
 python -m unittest discover -s tests -v
 ```
 
+## Experimentos para Lab01
+
+Use Python 3.11 o 3.12 y ejecute el script con el CSV asignado por el profesor:
+
+```bash
+python ejecutar_lab01.py datos_profesor.csv --salida salida_lab01 --semilla 42
+```
+
+Si debe limitar las variables o cambiar el formato del CSV:
+
+```bash
+python ejecutar_lab01.py datos_profesor.csv \
+  --separador ";" --decimal "," \
+  --features edad ingresos visitas satisfaccion \
+  --salida salida_lab01 --semilla 42
+```
+
+El comando conserva parámetros, comparaciones y asignaciones en
+`salida_lab01/`. Use esos archivos para completar las tablas, figuras y el
+análisis del informe LaTeX. La plantilla inicial se encuentra en
+`PLANTILLA_INFORME_LAB01.tex`; reemplácela por la plantilla oficial cuando el
+profesor la facilite y complete los nombres, ID, referencias y resultados del
+dataset asignado.
+
+## Empaquetado final
+
+Después de completar el informe PDF con la plantilla oficial y ejecutar los
+experimentos, cree el ZIP con los ID reales:
+
+```bash
+python preparar_entrega_lab01.py \
+  --ids ID-1 ID-2 \
+  --resultados salida_lab01 \
+  --informe informe_lab01.pdf
+```
+
+El script valida que el informe sea un PDF y que existan resultados antes de
+crear `ID-1_ID-2.zip`.
+
 La aplicación acepta CSV locales ubicados en este directorio o archivos
 subidos desde el navegador. Permite configurar separador, decimal, codificación
 y uso de la primera columna como índice. Las clases supervisadas están
