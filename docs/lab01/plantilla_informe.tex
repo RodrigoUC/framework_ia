@@ -1,0 +1,81 @@
+\documentclass[11pt]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+
+\title{Lab 01: Métodos no supervisados}
+\author{Nombre completo (ID) \\ Nombre completo (ID)}
+\date{EIF420O -- I Ciclo 2026}
+
+\begin{document}
+\maketitle
+
+% Reemplace esta estructura por la plantilla oficial del profesor si se proporciona.
+\section{Introducción y objetivos}
+Describa el conjunto de datos provisto por el profesor, su procedencia, tamaño,
+variables y el objetivo del análisis.
+
+\section{Fundamentos teóricos}
+El EDA permite caracterizar distribuciones, valores faltantes, atípicos y
+relaciones entre variables antes de modelar. Esta etapa define decisiones de
+limpieza, codificación y escala que deben conservarse para reproducir los
+experimentos.
+
+El ACP transforma variables posiblemente correlacionadas en componentes
+ortogonales que retienen la mayor varianza posible \cite{jolliffe2002}. Para
+cada configuración se reporta la varianza explicada y acumulada, junto con la
+interpretación de las cargas.
+
+K-Means asigna observaciones a $k$ centroides minimizando la suma de cuadrados
+intra-grupo \cite{macqueen1967}. HAC construye una jerarquía de fusiones; el
+enlace elegido determina cómo se calcula la distancia entre grupos
+\cite{murtagh2012}. En ambos casos, silhouette es evidencia para comparar
+configuraciones, no un sustituto de la interpretación de los grupos.
+
+t-SNE conserva vecindades locales en una proyección de baja dimensionalidad
+\cite{vandermaaten2008}; UMAP modela una estructura de vecindad para producir
+una representación compacta \cite{mcinnes2018}. Sus gráficos son herramientas
+exploratorias y no prueban por sí solos la existencia de clústeres.
+
+\begin{center}
+\fbox{\parbox{0.88\linewidth}{\centering
+\textbf{Mapa conceptual:} datos $\rightarrow$ EDA $\rightarrow$
+limpieza/codificación/escala $\rightarrow$
+\{ACP, t-SNE, UMAP, K-Means, HAC\} $\rightarrow$
+evaluación (varianza, silhouette, trustworthiness) $\rightarrow$
+interpretación y selección del modelo.}}
+\end{center}
+
+\section{Metodología reproducible}
+Indique versión de Python, dependencias, semilla, variables seleccionadas,
+tratamiento de faltantes, codificación y estandarización. Adjunte el comando
+utilizado, por ejemplo:
+\begin{verbatim}
+python -m scripts.ejecutar_lab01 data/datos_profesor.csv --salida salida_lab01 --semilla 42
+\end{verbatim}
+
+\section{Resultados y análisis}
+\subsection{ACP}
+Reporte las configuraciones de componentes, varianza explicada/acumulada y
+analice la configuración seleccionada. Inserte sus figuras y tablas.
+
+\subsection{K-Means}
+Compare valores de $k$ con inercia y silhouette. Justifique el modelo elegido.
+
+\subsection{HAC}
+Compare enlaces y número de grupos; interprete el dendrograma y silhouette.
+
+\subsection{t-SNE y UMAP}
+Compare perplexity (t-SNE), vecinos y distancia mínima (UMAP). Use las
+proyecciones y trustworthiness como evidencia de apoyo, no como única decisión.
+
+\section{Conclusiones}
+Sintetice los hallazgos, limitaciones y la justificación final de cada modelo.
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+\end{document}

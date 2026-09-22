@@ -3,7 +3,7 @@
 ```bash
 cd framework_start
 python -m pip install -r requirements.txt
-python -m streamlit run vca.py
+python -m streamlit run app.py
 ```
 
 Abra la dirección que Streamlit muestre en la terminal.
@@ -15,7 +15,7 @@ aplicación. Por ejemplo:
 
 ```bash
 conda activate base
-python -m streamlit run vca.py
+python -m streamlit run app.py
 ```
 
 Para validar el framework sin abrir la interfaz:
@@ -29,13 +29,13 @@ python -m unittest discover -s tests -v
 Use Python 3.11 o 3.12 y ejecute el script con el CSV asignado por el profesor:
 
 ```bash
-python ejecutar_lab01.py datos_profesor.csv --salida salida_lab01 --semilla 42
+python -m scripts.ejecutar_lab01 data/datos_profesor.csv --salida salida_lab01 --semilla 42
 ```
 
 Si debe limitar las variables o cambiar el formato del CSV:
 
 ```bash
-python ejecutar_lab01.py datos_profesor.csv \
+python -m scripts.ejecutar_lab01 data/datos_profesor.csv \
   --separador ";" --decimal "," \
   --features edad ingresos visitas satisfaccion \
   --salida salida_lab01 --semilla 42
@@ -44,7 +44,7 @@ python ejecutar_lab01.py datos_profesor.csv \
 El comando conserva parámetros, comparaciones y asignaciones en
 `salida_lab01/`. Use esos archivos para completar las tablas, figuras y el
 análisis del informe LaTeX. La plantilla inicial se encuentra en
-`PLANTILLA_INFORME_LAB01.tex`; reemplácela por la plantilla oficial cuando el
+`docs/lab01/plantilla_informe.tex`; reemplácela por la plantilla oficial cuando el
 profesor la facilite y complete los nombres, ID, referencias y resultados del
 dataset asignado.
 
@@ -54,7 +54,7 @@ Después de completar el informe PDF con la plantilla oficial y ejecutar los
 experimentos, cree el ZIP con los ID reales:
 
 ```bash
-python preparar_entrega_lab01.py \
+python -m scripts.preparar_entrega_lab01 \
   --ids ID-1 ID-2 \
   --resultados salida_lab01 \
   --informe informe_lab01.pdf

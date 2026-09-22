@@ -20,19 +20,19 @@ RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from cluster import Cluster
-from clasificacion import Clasificacion
-from eda import EDA
-from fuentes_datos import CargadorCSV, ConfiguracionCSV
-from preprocesamiento import (
+from framework_ia.datos.eda import EDA
+from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
+from framework_ia.datos.preprocesamiento import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
 )
-from reduccion_dimensional import ReduccionDimensional
-from no_supervisado import NoSupervisado
-from progresion import Progresion
-from supervisado import Supervisado
-from visualizacion import VisualizadorNoSupervisado
+from framework_ia.modelos.clasificacion import Clasificacion
+from framework_ia.modelos.cluster import Cluster
+from framework_ia.modelos.no_supervisado import NoSupervisado
+from framework_ia.modelos.progresion import Progresion
+from framework_ia.modelos.reduccion_dimensional import ReduccionDimensional
+from framework_ia.modelos.supervisado import Supervisado
+from framework_ia.visualizacion import VisualizadorNoSupervisado
 
 
 class FrameworkNoSupervisadoTests(unittest.TestCase):

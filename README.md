@@ -4,15 +4,14 @@ Framework modular para cargar cualquier archivo CSV, preparar sus datos y
 ejecutar EDA, ACP, K-Means, K-Medoids, clustering jerárquico, t-SNE y UMAP.
 La interfaz gráfica usa Streamlit, mientras que los algoritmos permanecen en
 clases independientes y reutilizables. La versión oficial del proyecto es
-este directorio (`framework_start`); las carpetas `Framework` y los archivos
-de la raíz son versiones anteriores o material de referencia.
+este directorio (`framework_start`).
 
 ## Inicio rápido
 
 ```bash
 cd framework_start
 python -m pip install -r requirements.txt
-python -m streamlit run vca.py
+python -m streamlit run app.py
 ```
 
 En Anaconda también puede usarse `conda activate base` (o el entorno donde
@@ -26,7 +25,7 @@ En la barra lateral:
 4. Active la codificación categórica si desea incluir columnas de texto.
 5. Ejecute el análisis requerido desde sus pestañas.
 
-El archivo `ejemplo_analisis.csv` permite comprobar la aplicación de inmediato;
+El archivo `data/ejemplo_analisis.csv` permite comprobar la aplicación de inmediato;
 puede reemplazarse por cualquier otro CSV.
 
 No existen nombres de columnas ni rutas de datasets codificados en los modelos.
@@ -35,17 +34,17 @@ Por ello, reemplazar el CSV no exige modificar el código.
 ## Arquitectura
 
 ```text
-fuentes_datos.py          Carga configurable desde ruta o memoria.
-DataFrame.py              Operaciones tabulares, limpieza y EDA.
-eda.py                    Pipeline general de preparación.
-preprocesamiento.py       Imputación, codificación y escala para modelos.
-no_supervisado.py         Contrato y comportamiento compartido.
-reduccion_dimensional.py  ACP, t-SNE y UMAP.
-algoritmos_cluster.py     Implementación independiente de K-Medoids.
-cluster.py                K-Means, K-Medoids y HAC.
-resultados.py             Objetos de transferencia entre capas.
-visualizacion.py          Figuras Matplotlib sin dependencia de Streamlit.
-vca.py                    Interfaz y estado de sesión de Streamlit.
+app.py                         Punto de entrada de Streamlit.
+framework_ia/
+  datos/                       Carga, EDA y preprocesamiento.
+  modelos/                     Contratos y algoritmos de aprendizaje.
+  resultados.py                Objetos de transferencia entre capas.
+  visualizacion.py             Figuras independientes de Streamlit.
+  ui/streamlit_app.py          Interfaz y estado de sesión.
+scripts/                       Automatización de Lab01 y empaquetado.
+tests/                         Pruebas automatizadas.
+data/                          Datasets locales de ejemplo.
+docs/lab01/                    Guías, plantilla y referencias del laboratorio.
 ```
 
 La separación aplica responsabilidad única y composición: Streamlit no calcula
@@ -55,7 +54,7 @@ ya calculados.
 ## Dependencias
 
 UMAP está incluido en `requirements.txt` mediante `umap-learn`. K-Medoids se
-implementa en `algoritmos_cluster.py`, por lo que no requiere una biblioteca
+implementa en `framework_ia/modelos/algoritmos_cluster.py`, por lo que no requiere una biblioteca
 adicional.
 
 Las versiones mínimas están en `requirements.txt`. El código de t-SNE admite
@@ -66,14 +65,12 @@ las versiones de scikit-learn que nombran el parámetro de iteraciones como
 
 | Módulo | Clase o capacidad | Estado |
 | --- | --- | --- |
-| `DataFrame.py` | Operaciones tabulares y EDA | Implementada |
-| `eda.py` | Preparación y calidad del dataset | Implementada |
-| `preprocesamiento.py` | Imputación, codificación y escala | Implementada |
-| `cluster.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
-| `reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
-| `visualizacion.py` | Figuras Matplotlib/Seaborn | Implementada |
-| `clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
-| `progresion.py` | `Progresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
+| `framework_ia/datos` | Operaciones tabulares, EDA y preprocesamiento | Implementada |
+| `framework_ia/modelos/cluster.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
+| `framework_ia/modelos/reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
+| `framework_ia/visualizacion.py` | Figuras Matplotlib/Seaborn | Implementada |
+| `framework_ia/modelos/clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
+| `framework_ia/modelos/progresion.py` | `Progresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
 
 Las clases supervisadas y sus métodos existen para completar el framework por
 etapas; actualmente `Clasificacion` (RF/NR) y su flujo de métricas y predicciones
@@ -82,9 +79,8 @@ ya están funcionales.
 ## Uso desde Python
 
 ```python
-from eda import EDA
-from cluster import Cluster
-from reduccion_dimensional import ReduccionDimensional
+from framework_ia.datos import EDA
+from framework_ia.modelos import Cluster, ReduccionDimensional
 
 eda = EDA(ruta_datos="mis_datos.csv")
 datos = eda.preparar_dataset()
@@ -118,7 +114,7 @@ Para ejecutar las configuraciones base y sus variaciones sobre el CSV del
 profesor, use el siguiente comando:
 
 ```bash
-python ejecutar_lab01.py datos_profesor.csv --salida salida_lab01 --semilla 42
+python -m scripts.ejecutar_lab01 data/datos_profesor.csv --salida salida_lab01 --semilla 42
 ```
 
 El directorio de salida contiene la configuración exacta (`configuracion.json`),
