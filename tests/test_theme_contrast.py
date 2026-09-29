@@ -111,8 +111,21 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
             ),
             3,
         )
+        self.assertNotEqual(figura.data[0].marker.color, "#ffffff")
 
-    def test_colores_css_con_nombre_se_ajustan_en_ambos_temas(self):
+    def test_colores_de_traza_conservan_matiz_en_ambos_temas(self):
+        for oscuro, color, fondo in (
+            (False, "#ff8c69", streamlit_app.PALETA["superficie"]),
+            (True, "#1a3c2b", streamlit_app.PALETA_OSCURA["superficie"]),
+        ):
+            with self.subTest(oscuro=oscuro):
+                ajustado = streamlit_app._ajustar_color_traza(color, oscuro)
+                canales = streamlit_app._color_rgb(ajustado)
+                self.assertGreaterEqual(self._contraste(ajustado, fondo), 3)
+                self.assertGreater(max(canales) - min(canales), 15)
+                self.assertNotIn(ajustado.lower(), ("#000000", "#ffffff"))
+
+    def test_colores_css_con_nombre_no_se_ajustan_si_tienen_contraste(self):
         for oscuro, fondo in (
             (False, streamlit_app.PALETA["superficie"]),
             (True, streamlit_app.PALETA_OSCURA["superficie"]),
@@ -124,7 +137,7 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                 streamlit_app._aplicar_tema_figura(figura, oscuro)
 
                 color = figura.data[0].marker.color
-                self.assertNotEqual(color.lower(), "gray")
+                self.assertEqual(color.lower(), "gray")
                 self.assertGreaterEqual(self._contraste(color, fondo), 3)
 
     def test_etiquetas_de_heatmap_usen_blanco_y_negro_segun_la_celda(self):
@@ -244,15 +257,43 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                 self.assertTrue(etiquetas.textfont.color)
                 self.assertEqual(themed.data[0].z, z_original)
 
-    def test_figura_pie_de_tipos_se_adapta_sin_asumir_marker_color(self):
-        figura = VisualizadorDatos.tipos_columnas(
-            pd.DataFrame({"tipo": ["Numérica", "Categórica", "Numérica"]})
-        )
-        streamlit_app._aplicar_tema_figura(figura, oscuro=True)
+    def test_figura_pie_de_tipos_conserva_sectores_y_etiquetas_legibles(self):
+        for oscuro, fondo in (
+            (False, streamlit_app.PALETA["superficie"]),
+            (True, streamlit_app.PALETA_OSCURA["superficie"]),
+        ):
+            with self.subTest(oscuro=oscuro):
+                figura = VisualizadorDatos.tipos_columnas(
+                    pd.DataFrame({"tipo": ["Numérica", "Categórica", "Numérica"]})
+                )
+                traza = figura.data[0]
+                etiquetas, valores = list(traza.labels), list(traza.values)
+                streamlit_app._aplicar_tema_figura(figura, oscuro)
 
-        self.assertEqual(figura.layout.paper_bgcolor, "#111713")
-        self.assertEqual(list(figura.data[0].labels), ["Numérica", "Categórica"])
-        self.assertTrue(figura.data[0].marker.colors)
+                colores = list(traza.marker.colors)
+                textos = list(traza.textfont.color)
+                self.assertEqual(list(traza.labels), etiquetas)
+                self.assertEqual(list(traza.values), valores)
+                self.assertEqual(len(set(colores)), 2)
+                self.assertEqual(len(textos), len(colores))
+                for color, texto in zip(colores, textos):
+                    self.assertGreaterEqual(self._contraste(color, fondo), 3)
+                    self.assertGreaterEqual(self._contraste(texto, color), 4.5)
+                    self.assertNotIn(color.lower(), ("#000000", "#ffffff"))
+
+    def test_figura_pie_se_mantiene_legible_al_cambiar_de_tema(self):
+        figura = VisualizadorDatos.tipos_columnas(
+            pd.DataFrame({"tipo": ["Numérica", "Categórica"]})
+        )
+        for oscuro in (True, False, True):
+            with self.subTest(oscuro=oscuro):
+                streamlit_app._aplicar_tema_figura(figura, oscuro)
+                fondo = (streamlit_app.PALETA_OSCURA if oscuro else streamlit_app.PALETA)["superficie"]
+                traza = figura.data[0]
+                self.assertEqual(len(set(traza.marker.colors)), 2)
+                for color, texto in zip(traza.marker.colors, traza.textfont.color):
+                    self.assertGreaterEqual(self._contraste(color, fondo), 3)
+                    self.assertGreaterEqual(self._contraste(texto, color), 4.5)
 
     @staticmethod
     def _contraste(primer_color, segundo_color):

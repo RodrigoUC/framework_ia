@@ -898,6 +898,14 @@ def _color_texto_celda(color: str) -> str:
     return "#172019" if contraste_oscuro >= contraste_claro else "#ffffff"
 
 
+def _color_texto_sector(color: str, predeterminado: str) -> str:
+    """Elige texto AA para una sección circular con color explícito."""
+    luminancia = _luminancia(color)
+    if luminancia is None:
+        return predeterminado
+    return "#000000" if (luminancia + 0.05) / 0.05 >= 4.5 else "#ffffff"
+
+
 def _ajustar_color_traza(color, oscuro: bool):
     """Eleva el contraste de colores de marcas y líneas sin perder su matiz."""
     if isinstance(color, (list, tuple)):
@@ -909,8 +917,8 @@ def _ajustar_color_traza(color, oscuro: bool):
     luminancia_fondo = _luminancia(fondo)
 
     def contraste(luminancia: float) -> float:
-        claro, oscuro_relativo = sorted((luminancia, luminancia_fondo))
-        return (claro + 0.05) / (oscuro_relativo + 0.05)
+        menor, mayor = sorted((luminancia, luminancia_fondo))
+        return (mayor + 0.05) / (menor + 0.05)
 
     luminancia = _luminancia(color)
     if luminancia is None or contraste(luminancia) >= 3:
@@ -1048,7 +1056,13 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
                 and traza.meta == "plotly-theme-cell-labels"
             )
         ):
-            traza.textfont.color = color_texto
+            if traza.type == "pie" and traza.marker.colors:
+                traza.textfont.color = [
+                    _color_texto_sector(color, color_texto)
+                    for color in traza.marker.colors
+                ]
+            else:
+                traza.textfont.color = color_texto
     for traza in _texto_mapa_calor(figura):
         figura.add_trace(traza)
 
