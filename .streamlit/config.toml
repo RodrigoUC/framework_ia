@@ -37,9 +37,15 @@ violetColor = "#d8b4fe"
 grayColor = "#c5c9c3"
 
 [theme.light.sidebar]
-backgroundColor = "#1a3c2b"
-secondaryBackgroundColor = "#264a37"
+backgroundColor = "#eeeee9"
+secondaryBackgroundColor = "#e3e4dd"
+textColor = "#242523"
+primaryColor = "#1a3c2b"
+borderColor = "#a8aaa2"
 
 [theme.dark.sidebar]
 backgroundColor = "#0e2016"
 secondaryBackgroundColor = "#193324"
+textColor = "#f7f7f5"
+primaryColor = "#9effbf"
+borderColor = "#556158"

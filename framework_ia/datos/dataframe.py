@@ -15,6 +15,26 @@ import pandas as pd
 import seaborn as sns
 
 
+def _color_texto_por_luminancia(color) -> str:
+    """Elige texto legible sobre un color de celda RGBA."""
+    def luminancia_rgb(rgb) -> float:
+        canales = [
+            canal / 12.92 if canal <= 0.04045 else ((canal + 0.055) / 1.055) ** 2.4
+            for canal in rgb
+        ]
+        return 0.2126 * canales[0] + 0.7152 * canales[1] + 0.0722 * canales[2]
+
+    luminancia_celda = luminancia_rgb(color[:3])
+    candidatos = {"#000000": (0.0, 0.0, 0.0), "#ffffff": (1.0, 1.0, 1.0)}
+    return max(
+        candidatos,
+        key=lambda foreground: (
+            max(luminancia_rgb(candidatos[foreground]), luminancia_celda) + 0.05
+        )
+        / (min(luminancia_rgb(candidatos[foreground]), luminancia_celda) + 0.05),
+    )
+
+
 class DataFrame:
     """Encapsula un :class:`pandas.DataFrame` con operaciones simples de EDA."""
 
@@ -298,7 +318,7 @@ class DataFrame:
         numericas = self._seleccionar_numericas(columnas)
         correlacion = self.datos[numericas].corr(method=metodo)
         figura, eje = plt.subplots(figsize=(9, 7))
-        sns.heatmap(
+        mapa = sns.heatmap(
             correlacion,
             annot=True,
             fmt=".2f",
@@ -309,6 +329,14 @@ class DataFrame:
             square=True,
             ax=eje,
         )
+        # Cada anotación debe contrastar con su propia celda: un color
+        # global de tema vuelve ilegibles los valores de las celdas claras.
+        imagen = mapa.collections[0]
+        for anotacion in mapa.texts:
+            fila = int(anotacion.get_position()[1] - 0.5)
+            columna = int(anotacion.get_position()[0] - 0.5)
+            rgba = imagen.cmap(imagen.norm(correlacion.iloc[fila, columna]))
+            anotacion.set_color(_color_texto_por_luminancia(rgba))
         eje.set_title(f"Correlación ({metodo})")
         figura.tight_layout()
         if mostrar:
