@@ -60,6 +60,7 @@ class EDA(DataFrameBase):
     def preparar_dataset(
         self,
         *,
+        columnas_eliminar: list[str] | tuple[str, ...] | None = None,
         eliminar_duplicados: bool = True,
         imputar_nulos: bool = True,
         normalizar: bool = False,
@@ -69,6 +70,8 @@ class EDA(DataFrameBase):
         if self.datos.empty:
             raise ValueError("El DataFrame está vacío.")
 
+        if columnas_eliminar:
+            self.eliminar_columnas(columnas_eliminar)
         if eliminar_duplicados:
             self.eliminar_duplicados()
         if imputar_nulos:

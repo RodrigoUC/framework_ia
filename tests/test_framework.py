@@ -8,12 +8,9 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -22,6 +19,7 @@ if str(RAIZ) not in sys.path:
 
 from framework_ia.datos.eda import EDA
 from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
+from framework_ia.datos.particion import ConfiguracionParticion, Particionador
 from framework_ia.datos.preprocesamiento import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
@@ -89,11 +87,9 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
         self.assertEqual(resultado.cargas.shape, (3, 2))
         figura = VisualizadorNoSupervisado.circulo_correlacion(resultado)
-        self.assertIsNotNone(figura)
-        plt.close(figura)
+        self.assertIsInstance(figura, go.Figure)
         biplot = VisualizadorNoSupervisado.sobreposicion_acp(resultado)
-        self.assertIsNotNone(biplot)
-        plt.close(biplot)
+        self.assertIsInstance(biplot, go.Figure)
 
     def test_kmeans_kmedoids_y_hac_generan_clusters(self) -> None:
         modelo = Cluster(
@@ -179,6 +175,64 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
             features=["x", "y", "z"],
         )
         self.assertEqual(reduccion.acp(n_componentes=2).coordenadas.shape, (30, 2))
+
+    def test_resumen_columnas_identifica_tipos_numerica_y_categorica(self) -> None:
+        tabla = EDA(dataframe=self.datos).resumen_columnas()
+        self.assertEqual(tabla.loc["x", "tipo"], "Numérica")
+        self.assertEqual(tabla.loc["categoria", "tipo"], "Categórica")
+        self.assertEqual(int(tabla.loc["x", "nulos"]), 1)
+        self.assertEqual(int(tabla.loc["categoria", "valores_unicos"]), 2)
+
+    def test_eliminar_columnas_valida_existencia_y_totalidad(self) -> None:
+        eda = EDA(dataframe=self.datos)
+        eda.eliminar_columnas(["categoria"])
+        self.assertNotIn("categoria", eda.datos.columns)
+        with self.assertRaises(KeyError):
+            eda.eliminar_columnas(["no_existe"])
+        with self.assertRaises(ValueError):
+            eda.eliminar_columnas(list(eda.datos.columns))
+
+    def test_particionador_divide_train_test_validacion_estratificado(self) -> None:
+        configuracion = ConfiguracionParticion(
+            porcentaje_test=0.2,
+            porcentaje_validacion=0.2,
+            columna_estratificacion="categoria",
+            semilla=1,
+        )
+        resultado = Particionador(configuracion).dividir(self.datos)
+        self.assertEqual(len(resultado.train), 18)
+        self.assertEqual(len(resultado.test), 6)
+        self.assertIsNotNone(resultado.validacion)
+        self.assertEqual(len(resultado.validacion), 6)
+        self.assertIsNone(resultado.advertencia)
+        self.assertEqual(sum(resultado.distribucion_train.values()), 18)
+        self.assertEqual(sum(resultado.distribucion_test.values()), 6)
+        self.assertTrue(
+            set(resultado.train.index)
+            .isdisjoint(resultado.test.index)
+        )
+        self.assertTrue(set(resultado.train.index).isdisjoint(resultado.validacion.index))
+
+    def test_clasificacion_reutiliza_particion_externa(self) -> None:
+        datos_clasificacion = pd.DataFrame(
+            {
+                "feat1": np.arange(40),
+                "feat2": np.arange(40) * 2 + 1,
+                "target": ["clase_a", "clase_b"] * 20,
+            }
+        )
+        particion = Particionador(
+            ConfiguracionParticion(
+                porcentaje_test=0.25,
+                columna_estratificacion="target",
+                semilla=7,
+            )
+        ).dividir(datos_clasificacion)
+
+        clasif = Clasificacion(dataframe=datos_clasificacion, target="target")
+        resultado = clasif.RF(n_estimators=20, particion=particion)
+        self.assertEqual(resultado.muestra_train, len(particion.train))
+        self.assertEqual(resultado.muestra_test, len(particion.test))
 
 
 if __name__ == "__main__":

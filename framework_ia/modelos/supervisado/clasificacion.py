@@ -22,7 +22,7 @@ from ...datos.preprocesamiento import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
 )
-from ...resultados import ResultadoClasificacion
+from ...resultados import ResultadoClasificacion, ResultadoParticion
 from .base import Supervisado
 
 
@@ -60,12 +60,18 @@ class Clasificacion(Supervisado):
         incluir_categoricas: bool = False,
         imputar: bool = True,
         estandarizar: bool = True,
+        particion: ResultadoParticion | None = None,
         **kwargs,
     ) -> ResultadoClasificacion:
-        """Prepara datos, separa train/test y entrena el clasificador."""
+        """Prepara datos, separa train/test y entrena el clasificador.
+
+        Si se entrega ``particion`` (calculada una sola vez en la vista de
+        Datos), se reutilizan esas filas de train/test en lugar de generar
+        una partición aleatoria nueva con ``test_size``/``random_state``.
+        """
         self._definir_target()
         self._definir_features()
-        if not 0 < test_size < 1:
+        if particion is None and not 0 < test_size < 1:
             raise ValueError("test_size debe estar entre 0 y 1 (excluido).")
         if self._tipo_target() != "clasificacion":
             raise TypeError("La variable objetivo debe ser categórica para clasificación.")
@@ -85,8 +91,7 @@ class Clasificacion(Supervisado):
             raise ValueError("No hay filas válidas para entrenar tras depurar nulos.")
 
         X = base[self.features]
-        y = base[self.target].reset_index(drop=True)
-        X = X.reset_index(drop=True)
+        y = base[self.target]
 
         preprocesador = PreprocesadorNoSupervisado(
             ConfiguracionPreprocesamiento(
@@ -99,18 +104,28 @@ class Clasificacion(Supervisado):
         preparados = preprocesador.ajustar_transformar(X)
         self._preparados = preparados
 
-        estrato = (
-            y
-            if stratify and y.nunique(dropna=False) > 1
-            else None
-        )
-        X_train, X_test, y_train, y_test = train_test_split(
-            preparados.matriz,
-            y,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=estrato,
-        )
+        if particion is not None:
+            indice_train = preparados.matriz.index.intersection(particion.train.index)
+            indice_test = preparados.matriz.index.intersection(particion.test.index)
+            if indice_train.empty or indice_test.empty:
+                raise ValueError(
+                    "La partición externa no comparte filas con los datos seleccionados."
+                )
+            X_train, X_test = preparados.matriz.loc[indice_train], preparados.matriz.loc[indice_test]
+            y_train, y_test = y.loc[indice_train], y.loc[indice_test]
+        else:
+            estrato = (
+                y
+                if stratify and y.nunique(dropna=False) > 1
+                else None
+            )
+            X_train, X_test, y_train, y_test = train_test_split(
+                preparados.matriz,
+                y,
+                test_size=test_size,
+                random_state=random_state,
+                stratify=estrato,
+            )
         if X_train.empty or X_test.empty:
             raise ValueError("La partición quedó vacía; ajuste el porcentaje de prueba.")
 

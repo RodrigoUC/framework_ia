@@ -10,20 +10,22 @@ import hashlib
 from html import escape
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-from matplotlib.collections import QuadMesh
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from ..datos.eda import EDA
 from ..datos.fuentes import CargadorCSV, ConfiguracionCSV
+from ..datos.particion import ConfiguracionParticion, Particionador
 from ..modelos.no_supervisado import (
     Cluster,
     DependenciaOpcionalError,
     ReduccionDimensional,
 )
 from ..modelos.supervisado import Clasificacion
+from ..resultados import ResultadoParticion
 from ..visualizacion import (
+    VisualizadorDatos,
     VisualizadorNoSupervisado,
     VisualizadorSupervisado,
 )
@@ -307,6 +309,7 @@ def _limpiar_resultados() -> None:
             or clave.startswith("comparacion_")
         ):
             del st.session_state[clave]
+    st.session_state.pop("particion_global", None)
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:
@@ -326,6 +329,22 @@ def _render_dataset() -> None:
     _resumen_calidad(actual)
     _resumen_dataset_modulo(actual)
 
+    st.markdown("#### Tipos de columna")
+    tabla_tipos = EDA(dataframe=actual).resumen_columnas()
+    tabla_col, grafico_col = st.columns([3, 2])
+    with tabla_col:
+        st.dataframe(tabla_tipos, width="stretch")
+    with grafico_col:
+        _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
+
+    st.markdown("#### Preparación y limpieza")
+    columnas_eliminar = st.multiselect(
+        "Columnas a eliminar",
+        options=original.columns.tolist(),
+        default=[],
+        key="dataset_columnas_eliminar",
+        help="Se descartan del dataset original antes de aplicar el resto de la preparación.",
+    )
     c1, c2, c3 = st.columns(3)
     eliminar_duplicados = c1.checkbox("Eliminar duplicados", value=True)
     imputar_nulos = c2.checkbox("Imputar valores nulos", value=True)
@@ -339,6 +358,7 @@ def _render_dataset() -> None:
         try:
             eda = EDA(dataframe=original)
             preparado = eda.preparar_dataset(
+                columnas_eliminar=columnas_eliminar,
                 eliminar_duplicados=eliminar_duplicados,
                 imputar_nulos=imputar_nulos,
                 normalizar=escalado == "Normalizar",
@@ -364,6 +384,117 @@ def _render_dataset() -> None:
         file_name="dataset_preparado.csv",
         mime="text/csv",
     )
+
+    _render_particion(actual)
+
+
+def _render_particion(datos: pd.DataFrame) -> None:
+    """Calcula una partición train/test/validación reutilizable en el framework."""
+    st.markdown("#### División en entrenamiento y prueba")
+    st.caption(
+        "La partición calculada aquí queda disponible para Clasificación y "
+        "Regresión, que pueden reutilizarla en vez de dividir los datos de nuevo."
+    )
+    c1, c2 = st.columns(2)
+    porcentaje_test = c1.slider(
+        "Porcentaje de prueba (%)", 10, 50, 20, 5, key="particion_test_pct"
+    )
+    porcentaje_val = c2.slider(
+        "Porcentaje de validación (%) · opcional",
+        0,
+        30,
+        0,
+        5,
+        key="particion_val_pct",
+    )
+    porcentaje_train = 100 - porcentaje_test - porcentaje_val
+    if porcentaje_train <= 0:
+        st.error("La suma de prueba y validación debe ser menor a 100 %.")
+        return
+    resumen = f"Train: **{porcentaje_train}%** · Test: **{porcentaje_test}%**"
+    if porcentaje_val:
+        resumen += f" · Validación: **{porcentaje_val}%**"
+    st.caption(resumen)
+
+    columna_seleccionada = st.selectbox(
+        "Columna para estratificar (opcional)",
+        options=["Ninguna"] + datos.columns.tolist(),
+        key="particion_columna_estrato",
+    )
+    semilla = st.number_input(
+        "Semilla (random_state)",
+        min_value=0,
+        max_value=10_000,
+        value=42,
+        step=1,
+        key="particion_semilla",
+    )
+
+    if st.button("Calcular partición", type="primary", key="particion_calcular"):
+        try:
+            configuracion = ConfiguracionParticion(
+                porcentaje_test=porcentaje_test / 100.0,
+                porcentaje_validacion=porcentaje_val / 100.0,
+                columna_estratificacion=(
+                    None if columna_seleccionada == "Ninguna" else columna_seleccionada
+                ),
+                semilla=int(semilla),
+            )
+            st.session_state["particion_global"] = Particionador(configuracion).dividir(datos)
+            st.success("Partición calculada y disponible para el resto del framework.")
+        except Exception as exc:  # pylint: disable=broad-except
+            st.error(f"No fue posible calcular la partición: {exc}")
+
+    particion: ResultadoParticion | None = st.session_state.get("particion_global")
+    if particion is None:
+        return
+
+    if particion.advertencia:
+        st.warning(particion.advertencia)
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Train", len(particion.train))
+    m2.metric("Test", len(particion.test))
+    m3.metric(
+        "Validación", len(particion.validacion) if particion.validacion is not None else 0
+    )
+
+    grafico_izq, grafico_der = st.columns(2)
+    with grafico_izq:
+        _mostrar_figura(VisualizadorDatos.tamanos_particion(particion))
+    with grafico_der:
+        grafico_distribucion = VisualizadorDatos.distribucion_particion(particion)
+        if grafico_distribucion is not None:
+            _mostrar_figura(grafico_distribucion)
+
+    vista_train, vista_test = st.columns(2)
+    with vista_train:
+        st.markdown("**Vista previa de train**")
+        st.dataframe(particion.train.head(5), width="stretch")
+    with vista_test:
+        st.markdown("**Vista previa de test**")
+        st.dataframe(particion.test.head(5), width="stretch")
+
+    descarga_train, descarga_test, descarga_val = st.columns(3)
+    descarga_train.download_button(
+        "Descargar train.csv",
+        particion.train.to_csv(index=False).encode("utf-8"),
+        file_name="train.csv",
+        mime="text/csv",
+    )
+    descarga_test.download_button(
+        "Descargar test.csv",
+        particion.test.to_csv(index=False).encode("utf-8"),
+        file_name="test.csv",
+        mime="text/csv",
+    )
+    if particion.validacion is not None:
+        descarga_val.download_button(
+            "Descargar validacion.csv",
+            particion.validacion.to_csv(index=False).encode("utf-8"),
+            file_name="validacion.csv",
+            mime="text/csv",
+        )
 
 
 def _columnas_numericas(datos: pd.DataFrame) -> list[str]:
@@ -435,7 +566,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
             key="eda_histogramas",
         )
         if seleccion:
-            figura, _ = eda.histogramas(seleccion, mostrar=False)
+            figura = eda.histogramas(seleccion, mostrar=False)
             _mostrar_figura(figura)
 
     with boxplots:
@@ -446,7 +577,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
             key="eda_boxplots",
         )
         if seleccion:
-            figura, _ = eda.boxplots(seleccion, mostrar=False)
+            figura = eda.boxplots(seleccion, mostrar=False)
             _mostrar_figura(figura)
 
     with dispersion:
@@ -458,7 +589,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
         )
         if len(seleccion) >= 2 and st.button("Generar dispersión"):
             grafico = eda.scatterplots(seleccion, mostrar=False)
-            _mostrar_figura(grafico.figure)
+            _mostrar_figura(grafico)
 
     with correlacion:
         seleccion = st.multiselect(
@@ -471,8 +602,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
             "Método", ["pearson", "spearman", "kendall"], key="eda_metodo"
         )
         if len(seleccion) >= 2:
-            matriz = eda.mapa_calor(seleccion, metodo=metodo, mostrar=False)
-            figura = plt.gcf()
+            figura, matriz = eda.mapa_calor(seleccion, metodo=metodo, mostrar=False)
             _mostrar_figura(figura)
             st.dataframe(matriz, width="stretch")
 
@@ -565,23 +695,53 @@ def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
         st.warning("Seleccione al menos una feature antes de entrenar.")
 
     st.markdown("#### Partición y reproducibilidad")
-    test_size = st.slider(
-        "Tamaño de prueba (%)",
-        min_value=10,
-        max_value=60,
-        value=25,
-        step=5,
-        key="clasif_test_size",
-    ) / 100.0
-    estado_aleatorio = st.number_input(
-        "Random state",
-        min_value=0,
-        max_value=10_000,
-        value=42,
-        step=1,
-        key="clasif_random_state",
-    )
-    estratificar = st.checkbox("Estratificar por target", value=True, key="clasif_strat")
+    particion_global: ResultadoParticion | None = st.session_state.get("particion_global")
+    usar_particion_global = False
+    if particion_global is not None:
+        usar_particion_global = st.checkbox(
+            "Usar partición calculada en Datos",
+            value=False,
+            key="clasif_usar_particion_global",
+            help=(
+                f"Train: {len(particion_global.train)} filas · "
+                f"Test: {len(particion_global.test)} filas."
+            ),
+        )
+    else:
+        st.caption(
+            "No hay una partición calculada en la vista Datos. Calcule una allí "
+            "para reutilizarla aquí, o configure el split manualmente."
+        )
+
+    if usar_particion_global:
+        test_size = particion_global.porcentaje_test
+        estado_aleatorio = particion_global.semilla
+        estratificar = particion_global.columna_estratificacion is not None
+        resumen = (
+            f"Partición global → Train {particion_global.porcentaje_train:.0%} · "
+            f"Test {particion_global.porcentaje_test:.0%}"
+        )
+        if particion_global.porcentaje_validacion:
+            resumen += f" · Validación {particion_global.porcentaje_validacion:.0%}"
+        st.caption(resumen)
+    else:
+        test_size = st.slider(
+            "Tamaño de prueba (%)",
+            min_value=10,
+            max_value=60,
+            value=25,
+            step=5,
+            key="clasif_test_size",
+        ) / 100.0
+        estado_aleatorio = st.number_input(
+            "Random state",
+            min_value=0,
+            max_value=10_000,
+            value=42,
+            step=1,
+            key="clasif_random_state",
+        )
+        estratificar = st.checkbox("Estratificar por target", value=True, key="clasif_strat")
 
     st.markdown("#### Preprocesamiento")
     incluir_categoricas = st.checkbox(
@@ -600,6 +760,8 @@ def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
         "incluir_categoricas": incluir_categoricas,
         "imputar": imputar,
         "estandarizar": estandarizar,
+        "usar_particion_global": usar_particion_global,
+        "particion_global": particion_global if usar_particion_global else None,
     }
 
 
@@ -643,6 +805,7 @@ def _firma(configuracion: dict, *parametros) -> tuple:
 
 def _firma_clasificacion(configuracion: dict, *parametros) -> tuple:
     """Firma específica para resultados supervisados."""
+    particion = configuracion.get("particion_global")
     return (
         configuracion["target"],
         tuple(configuracion["features"]),
@@ -652,6 +815,7 @@ def _firma_clasificacion(configuracion: dict, *parametros) -> tuple:
         configuracion["incluir_categoricas"],
         configuracion["imputar"],
         configuracion["estandarizar"],
+        particion.huella if particion is not None else None,
         *parametros,
     )
 
@@ -669,43 +833,17 @@ def _recuperar_resultado(clave: str, firma: tuple):
     return None
 
 
-def _aplicar_tema_oscuro_a_figura(figura) -> None:
-    """Alinea las figuras de Matplotlib con el tema activo de la app."""
-    paleta = PALETA_OSCURA if st.context.theme.type == "dark" else PALETA
-    fondo = paleta["fondo"]
-    superficie = paleta["superficie"]
-    texto = paleta["texto"]
-    borde = paleta["borde"]
-    figura.patch.set_facecolor(fondo)
-    figura.patch.set_edgecolor(fondo)
-    for eje in figura.get_axes():
-        eje.set_facecolor(superficie)
-        eje.tick_params(colors=texto)
-        eje.xaxis.label.set_color(texto)
-        eje.yaxis.label.set_color(texto)
-        eje.title.set_color(texto)
-        for borde_eje in eje.spines.values():
-            borde_eje.set_color(borde)
-        for etiqueta in (*eje.get_xticklabels(), *eje.get_yticklabels()):
-            etiqueta.set_color(texto)
-        if not any(
-            isinstance(coleccion, QuadMesh) for coleccion in eje.collections
-        ):
-            for anotacion in eje.texts:
-                anotacion.set_color(texto)
-        leyenda = eje.get_legend()
-        if leyenda is not None:
-            leyenda.get_frame().set_facecolor(superficie)
-            leyenda.get_frame().set_edgecolor(borde)
-            for etiqueta in leyenda.get_texts():
-                etiqueta.set_color(texto)
-
-
-def _mostrar_figura(figura) -> None:
-    """Renderiza una figura con el tema activo y después la libera."""
-    _aplicar_tema_oscuro_a_figura(figura)
-    st.pyplot(figura)
-    plt.close(figura)
+def _mostrar_figura(figura: go.Figure) -> None:
+    """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
+    oscuro = st.context.theme.type == "dark"
+    figura.update_layout(
+        template="plotly_dark" if oscuro else "plotly_white",
+        paper_bgcolor=PALETA_OSCURA["fondo"] if oscuro else PALETA["fondo"],
+        plot_bgcolor=PALETA_OSCURA["superficie"] if oscuro else PALETA["superficie"],
+        font_color=PALETA_OSCURA["texto"] if oscuro else PALETA["texto"],
+        margin=dict(l=40, r=20, t=60, b=40),
+    )
+    st.plotly_chart(figura, width="stretch")
 
 
 def _seleccionar_entero(
@@ -792,52 +930,63 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     else:
         rf_kwargs = {}
 
-    firma_preview = _firma_clasificacion(configuracion, "preview")
-    if st.button("Previsualizar partición", type="secondary"):
-        try:
-            clasificador = Clasificacion(
-                dataframe=datos,
-                target=objetivo,
-                features=configuracion["features"],
-            )
-            preview = clasificador.previsualizar_particion(
-                test_size=configuracion["test_size"],
-                random_state=configuracion["random_state"],
-                stratify=configuracion["estratificar"],
-                incluir_categoricas=configuracion["incluir_categoricas"],
-                imputar=configuracion["imputar"],
-                estandarizar=configuracion["estandarizar"],
-            )
-            _guardar_resultado("preview_clasificacion", firma_preview, preview)
-        except Exception as exc:  # pylint: disable=broad-except
-            st.error(f"No fue posible previsualizar: {exc}")
-    preview = _recuperar_resultado("preview_clasificacion", firma_preview)
+    particion_global = configuracion.get("particion_global")
+    if configuracion["usar_particion_global"] and particion_global is not None:
+        st.markdown("#### Partición reutilizada de la vista Datos")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Train", len(particion_global.train))
+        c2.metric("Test", len(particion_global.test))
+        c3.metric(
+            "Validación",
+            len(particion_global.validacion) if particion_global.validacion is not None else 0,
+        )
+    else:
+        firma_preview = _firma_clasificacion(configuracion, "preview")
+        if st.button("Previsualizar partición", type="secondary"):
+            try:
+                clasificador = Clasificacion(
+                    dataframe=datos,
+                    target=objetivo,
+                    features=configuracion["features"],
+                )
+                preview = clasificador.previsualizar_particion(
+                    test_size=configuracion["test_size"],
+                    random_state=configuracion["random_state"],
+                    stratify=configuracion["estratificar"],
+                    incluir_categoricas=configuracion["incluir_categoricas"],
+                    imputar=configuracion["imputar"],
+                    estandarizar=configuracion["estandarizar"],
+                )
+                _guardar_resultado("preview_clasificacion", firma_preview, preview)
+            except Exception as exc:  # pylint: disable=broad-except
+                st.error(f"No fue posible previsualizar: {exc}")
+        preview = _recuperar_resultado("preview_clasificacion", firma_preview)
 
-    if preview is not None:
-        st.markdown("#### Vista previa de partición")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Train", preview["tam_train"])
-        c2.metric("Test", preview["tam_test"])
-        c3.metric("Duplicados (sel.)", preview["duplicados"])
-        c4.metric("Nulos (sel.)", preview["nulos"])
-        st.caption(f"Nulos % en selección: {preview['nulos_porcentaje']:.2f}%")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**Distribución Train**")
-            st.dataframe(
-                pd.DataFrame.from_dict(preview["distribucion_train"], orient="index", columns=["frecuencia"]),
-                width="stretch",
-            )
-        with c2:
-            st.markdown("**Distribución Test**")
-            st.dataframe(
-                pd.DataFrame.from_dict(preview["distribucion_test"], orient="index", columns=["frecuencia"]),
-                width="stretch",
-            )
-        st.markdown("**Head del split train (bruto)**")
-        st.dataframe(preview["head"], width="stretch")
-        st.markdown("**Tail del split test (bruto)**")
-        st.dataframe(preview["tail"], width="stretch")
+        if preview is not None:
+            st.markdown("#### Vista previa de partición")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Train", preview["tam_train"])
+            c2.metric("Test", preview["tam_test"])
+            c3.metric("Duplicados (sel.)", preview["duplicados"])
+            c4.metric("Nulos (sel.)", preview["nulos"])
+            st.caption(f"Nulos % en selección: {preview['nulos_porcentaje']:.2f}%")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Distribución Train**")
+                st.dataframe(
+                    pd.DataFrame.from_dict(preview["distribucion_train"], orient="index", columns=["frecuencia"]),
+                    width="stretch",
+                )
+            with c2:
+                st.markdown("**Distribución Test**")
+                st.dataframe(
+                    pd.DataFrame.from_dict(preview["distribucion_test"], orient="index", columns=["frecuencia"]),
+                    width="stretch",
+                )
+            st.markdown("**Head del split train (bruto)**")
+            st.dataframe(preview["head"], width="stretch")
+            st.markdown("**Tail del split test (bruto)**")
+            st.dataframe(preview["tail"], width="stretch")
 
     if algoritmo == "RF":
         firma_entrenar = _firma_clasificacion(configuracion, "RF", tuple(sorted(rf_kwargs.items())))
@@ -850,25 +999,19 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
                 target=objetivo,
                 features=configuracion["features"],
             )
+            argumentos_split = dict(
+                test_size=configuracion["test_size"],
+                random_state=configuracion["random_state"],
+                stratify=configuracion["estratificar"],
+                incluir_categoricas=configuracion["incluir_categoricas"],
+                imputar=configuracion["imputar"],
+                estandarizar=configuracion["estandarizar"],
+                particion=particion_global,
+            )
             if algoritmo == "RF":
-                resultado = clasificador.RF(
-                    test_size=configuracion["test_size"],
-                    random_state=configuracion["random_state"],
-                    stratify=configuracion["estratificar"],
-                    incluir_categoricas=configuracion["incluir_categoricas"],
-                    imputar=configuracion["imputar"],
-                    estandarizar=configuracion["estandarizar"],
-                    **rf_kwargs,
-                )
+                resultado = clasificador.RF(**argumentos_split, **rf_kwargs)
             else:
-                resultado = clasificador.NR(
-                    test_size=configuracion["test_size"],
-                    random_state=configuracion["random_state"],
-                    stratify=configuracion["estratificar"],
-                    incluir_categoricas=configuracion["incluir_categoricas"],
-                    imputar=configuracion["imputar"],
-                    estandarizar=configuracion["estandarizar"],
-                )
+                resultado = clasificador.NR(**argumentos_split)
             _guardar_resultado("resultado_clasificacion", firma_entrenar, resultado)
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible entrenar el modelo: {exc}")
@@ -936,6 +1079,15 @@ def _render_comparacion(datos: pd.DataFrame, configuracion: dict) -> None:
     firma = _firma_clasificacion(configuracion, "comparacion", metrica)
     if st.button("Comparar modelos", type="primary"):
         try:
+            argumentos_split = dict(
+                test_size=configuracion["test_size"],
+                random_state=configuracion["random_state"],
+                stratify=configuracion["estratificar"],
+                incluir_categoricas=configuracion["incluir_categoricas"],
+                imputar=configuracion["imputar"],
+                estandarizar=configuracion["estandarizar"],
+                particion=configuracion.get("particion_global"),
+            )
             resultados = []
             for nombre in ("RF", "NR"):
                 clasificador = Clasificacion(
@@ -944,23 +1096,9 @@ def _render_comparacion(datos: pd.DataFrame, configuracion: dict) -> None:
                     features=configuracion["features"],
                 )
                 if nombre == "RF":
-                    resultado = clasificador.RF(
-                        test_size=configuracion["test_size"],
-                        random_state=configuracion["random_state"],
-                        stratify=configuracion["estratificar"],
-                        incluir_categoricas=configuracion["incluir_categoricas"],
-                        imputar=configuracion["imputar"],
-                        estandarizar=configuracion["estandarizar"],
-                    )
+                    resultado = clasificador.RF(**argumentos_split)
                 else:
-                    resultado = clasificador.NR(
-                        test_size=configuracion["test_size"],
-                        random_state=configuracion["random_state"],
-                        stratify=configuracion["estratificar"],
-                        incluir_categoricas=configuracion["incluir_categoricas"],
-                        imputar=configuracion["imputar"],
-                        estandarizar=configuracion["estandarizar"],
-                    )
+                    resultado = clasificador.NR(**argumentos_split)
                 resultados.append(resultado)
             tabla = pd.DataFrame(
                 {
@@ -976,11 +1114,10 @@ def _render_comparacion(datos: pd.DataFrame, configuracion: dict) -> None:
     if tabla is None:
         return
     st.dataframe(tabla, width="stretch")
-    figura = plt.figure(figsize=(8, 4))
-    ejes = figura.add_subplot(1, 1, 1)
-    ejes.bar(tabla["algoritmo"], tabla[metrica], color=PALETA["acento"])
-    ejes.set_ylabel(metrica)
-    ejes.set_title("Comparación")
+    figura = go.Figure(
+        go.Bar(x=tabla["algoritmo"], y=tabla[metrica], marker_color=PALETA["acento"])
+    )
+    figura.update_layout(title="Comparación", yaxis_title=metrica)
     _mostrar_figura(figura)
 
 
