@@ -1555,6 +1555,17 @@ def main() -> None:
     )
     _aplicar_estilos_atlas()
 
+    with st.sidebar:
+        st.button(
+            "Actualizar gráficos",
+            key="actualizar_graficos",
+            icon=":material/refresh:",
+            help=(
+                "Úselo después de cambiar el tema en Configuración para "
+                "actualizar los colores de gráficos y estilos."
+            ),
+        )
+
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()
     if datos_cargados is None:
         st.markdown("# Atlas Analítico")

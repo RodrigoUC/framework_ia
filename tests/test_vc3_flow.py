@@ -34,6 +34,21 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertFalse(self.app.exception)
         self.assertEqual(applied_identity, self.app.session_state["dataset_identidad"])
 
+    def test_theme_refresh_reruns_without_clearing_applied_data_or_results(self):
+        active_identity = self.app.session_state["dataset_identidad"]
+        preserved_result = {"firma": ("test",), "resultado": "resultado conservado"}
+        self.app.session_state["resultado_acp"] = preserved_result
+
+        refresh = self.app.sidebar.button(key="actualizar_graficos")
+        self.assertEqual(refresh.label, "Actualizar gráficos")
+        self.assertIn("después de cambiar el tema", refresh.proto.help)
+
+        refresh.click().run()
+
+        self.assertFalse(self.app.exception)
+        self.assertEqual(active_identity, self.app.session_state["dataset_identidad"])
+        self.assertEqual(preserved_result, self.app.session_state["resultado_acp"])
+
     def test_navigation_follows_analysis_to_results_and_uses_section_label(self):
         labels = [item.label for item in self.app.sidebar.button]
         self.assertLess(labels.index("Datos y preparación"), labels.index("EDA"))
