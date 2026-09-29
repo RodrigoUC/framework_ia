@@ -131,68 +131,69 @@ def _aplicar_estilos_atlas() -> None:
     )
 
 
-def _configuracion_csv() -> ConfiguracionCSV:
-    """Recopila las opciones necesarias para interpretar diferentes CSV."""
-    separador = st.sidebar.text_input("Separador", value=",", max_chars=3)
-    decimal = st.sidebar.text_input("Separador decimal", value=".", max_chars=1)
-    encoding = st.sidebar.selectbox(
-        "Codificación", options=["utf-8", "latin-1", "cp1252"]
-    )
-    usar_indice = st.sidebar.checkbox(
-        "Usar primera columna como índice", value=False
-    )
-    if not separador:
-        raise ValueError("El separador del CSV no puede estar vacío.")
-    return ConfiguracionCSV(
-        separador=separador,
-        decimal=decimal,
-        encoding=encoding,
-        usar_primera_columna_como_indice=usar_indice,
-    )
-
-
 def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
-    """Carga un CSV local o subido y construye una identidad estable."""
-    st.sidebar.markdown("## Fuente de datos")
-    origen = st.sidebar.radio("Origen", options=["CSV local", "Subir CSV"])
-    try:
-        configuracion = _configuracion_csv()
-    except ValueError as exc:
-        st.sidebar.error(str(exc))
-        return None, "", ""
-
-    if origen == "CSV local":
-        archivos = sorted((BASE_DIR / "data").glob("*.csv"))
-        if not archivos:
-            st.sidebar.warning(
-                "No hay archivos CSV en data/. Use la opción de carga."
-            )
-            return None, "", ""
-        seleccion = st.sidebar.selectbox(
-            "Archivo", options=archivos, format_func=lambda ruta: ruta.name
-        )
+    """Permite preparar una fuente y aplicarla solo al confirmar el formulario."""
+    archivos = sorted((BASE_DIR / "data").glob("*.csv"))
+    error_inicio = None
+    if "fuente_aplicada" not in st.session_state and archivos:
         try:
-            datos = CargadorCSV.cargar_ruta(seleccion, configuracion)
+            _cargar_fuente_csv(archivos[0], ConfiguracionCSV())
         except Exception as exc:  # pylint: disable=broad-except
-            st.sidebar.error(f"No fue posible cargar el CSV: {exc}")
-            return None, "", ""
-        identidad = (
-            f"local:{seleccion.resolve()}:{seleccion.stat().st_mtime_ns}:"
-            f"{configuracion}"
-        )
-        return datos, seleccion.name, identidad
+            error_inicio = str(exc)
 
-    archivo = st.sidebar.file_uploader("Archivo CSV", type=["csv"])
-    if archivo is None:
-        return None, "", ""
-    contenido = archivo.getvalue()
-    try:
-        datos = CargadorCSV.cargar_bytes(contenido, configuracion)
-    except Exception as exc:  # pylint: disable=broad-except
-        st.sidebar.error(f"No fue posible cargar el CSV: {exc}")
-        return None, "", ""
-    digest = hashlib.sha256(contenido).hexdigest()
-    return datos, archivo.name, f"upload:{digest}:{configuracion}"
+    with st.sidebar:
+        with st.expander("Fuente de datos", expanded=False):
+            if error_inicio:
+                st.error(
+                    "No fue posible cargar el CSV inicial. Elija otra fuente y "
+                    f"pulse «Aplicar fuente». Detalle: {error_inicio}"
+                )
+            with st.form("form_fuente_datos"):
+                origen = st.radio("Origen", ["CSV local", "Subir CSV"], key="fuente_origen")
+                separador = st.text_input("Separador", value=",", max_chars=3, key="fuente_separador")
+                decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
+                encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
+                usar_indice = st.checkbox("Usar primera columna como índice", key="fuente_usar_indice")
+                seleccion = None
+                archivo = None
+                if origen == "CSV local":
+                    if archivos:
+                        seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: ruta.name, key="fuente_archivo")
+                    else:
+                        st.warning("No hay archivos CSV en data/. Use la opción de carga.")
+                else:
+                    archivo = st.file_uploader("Archivo CSV", type=["csv"], key="fuente_upload")
+                aplicar = st.form_submit_button("Aplicar fuente", type="primary")
+
+            if aplicar:
+                try:
+                    configuracion = ConfiguracionCSV(
+                        separador=separador, decimal=decimal, encoding=encoding,
+                        usar_primera_columna_como_indice=usar_indice,
+                    )
+                    if not separador:
+                        raise ValueError("El separador del CSV no puede estar vacío.")
+                    if origen == "CSV local" and seleccion is not None:
+                        _cargar_fuente_csv(seleccion, configuracion)
+                    elif origen == "Subir CSV" and archivo is not None:
+                        contenido = archivo.getvalue()
+                        datos = CargadorCSV.cargar_bytes(contenido, configuracion)
+                        digest = hashlib.sha256(contenido).hexdigest()
+                        st.session_state["fuente_aplicada"] = (
+                            datos, archivo.name, f"upload:{digest}:{configuracion}"
+                        )
+                    else:
+                        st.warning("Seleccione un archivo CSV antes de aplicarlo.")
+                except Exception as exc:  # pylint: disable=broad-except
+                    st.error(f"No fue posible aplicar la fuente: {exc}")
+    return st.session_state.get("fuente_aplicada", (None, "", ""))
+
+
+def _cargar_fuente_csv(seleccion: Path, configuracion: ConfiguracionCSV) -> None:
+    """Carga un CSV local y conserva la identidad de archivo y lectura."""
+    datos = CargadorCSV.cargar_ruta(seleccion, configuracion)
+    identidad = f"local:{seleccion.resolve()}:{seleccion.stat().st_mtime_ns}:{configuracion}"
+    st.session_state["fuente_aplicada"] = (datos, seleccion.name, identidad)
 
 
 def _seleccionar_vista() -> str:
@@ -232,7 +233,7 @@ def _seleccionar_vista() -> str:
             boton("UMAP", "umap")
 
         st.markdown(
-            '<p class="atlas-nav-label">Pilares del framework</p>',
+            '<p class="atlas-nav-label">Análisis y modelos</p>',
             unsafe_allow_html=True,
         )
         with st.expander("Agrupamiento", expanded=vista in {"kmeans", "hac"}):
@@ -1578,13 +1579,9 @@ def main() -> None:
     configuracion = None
     configuracion_clasif = None
     if vista in VISTAS_NO_SUPERVISADAS:
-        with st.sidebar:
-            with st.expander("Configuración de análisis", expanded=True):
-                configuracion = _configurar_modelos(datos)
+        configuracion = _configurar_modelos(datos)
     elif vista in {"clasificacion", "comparacion"}:
-        with st.sidebar:
-            with st.expander("Configuración supervisada", expanded=True):
-                configuracion_clasif = _configurar_modelos_clasificacion(datos)
+        configuracion_clasif = _configurar_modelos_clasificacion(datos)
 
     if vista == "datos":
         _render_dataset()
