@@ -1055,10 +1055,13 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
         figura.add_trace(traza)
 
 
-def _mostrar_figura(figura: go.Figure) -> None:
+def _mostrar_figura(figura: go.Figure, key: str | None = None) -> None:
     """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
     _aplicar_tema_figura(figura, st.context.theme.type == "dark")
-    st.plotly_chart(figura, width="stretch")
+    if key is None:
+        st.plotly_chart(figura, width="stretch")
+    else:
+        st.plotly_chart(figura, width="stretch", key=key)
 
 
 def _seleccionar_entero(
@@ -1092,26 +1095,6 @@ def _mostrar_metricas_clasificacion(resultado) -> None:
     c4.metric("F1", f"{metricas['f1']['global']:.4f}")
 
 
-def _valor_metrica(resultado, nombre: str) -> float:
-    """Extrae un valor estable de la métrica seleccionada."""
-    metricas = resultado.metricas
-    if nombre == "accuracy":
-        return metricas["accuracy"]
-    if nombre == "precision_global":
-        return metricas["precision"]["global"]
-    if nombre == "precision_macro":
-        return metricas["precision"]["macro"]
-    if nombre == "recall_global":
-        return metricas["recall"]["global"]
-    if nombre == "recall_macro":
-        return metricas["recall"]["macro"]
-    if nombre == "f1_global":
-        return metricas["f1"]["global"]
-    if nombre == "f1_macro":
-        return metricas["f1"]["macro"]
-    raise ValueError(f"Métrica no soportada: {nombre}")
-
-
 def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     """Flujo de configuración, previsualización y ejecución de clasificación."""
     _resumen_dataset_modulo(datos, configuracion["target"])
@@ -1124,26 +1107,7 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     st.markdown(
         f"**Target:** `{objetivo}`  \n**Features:** {', '.join(configuracion['features'])}"
     )
-    algoritmo = st.selectbox("Algoritmo", ["RF", "NR"], index=0, key="clasif_algoritmo")
-    if algoritmo == "RF":
-        with st.expander("Parámetros de Random Forest"):
-            n_estimators = st.slider("N estimadores", 10, 500, 200, 10, key="clasif_rf_n")
-            max_depth = st.slider("Profundidad máxima", 1, 30, 8, 1, key="clasif_rf_depth")
-            min_samples_split = st.slider(
-                "Min samples split",
-                2,
-                20,
-                2,
-                1,
-                key="clasif_rf_split",
-            )
-        rf_kwargs = {
-            "n_estimators": n_estimators,
-            "max_depth": max_depth,
-            "min_samples_split": min_samples_split,
-        }
-    else:
-        rf_kwargs = {}
+    modelos = {"RF": "Random Forest", "NR": "Naive Bayes"}
 
     particion_global = configuracion.get("particion_global")
     if configuracion["usar_particion_global"] and particion_global is not None:
@@ -1203,136 +1167,149 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
             st.markdown("**Tail del split test (bruto)**")
             st.dataframe(preview["tail"], width="stretch")
 
-    if algoritmo == "RF":
-        firma_entrenar = _firma_clasificacion(configuracion, "RF", tuple(sorted(rf_kwargs.items())))
-    else:
-        firma_entrenar = _firma_clasificacion(configuracion, "NR")
-    if st.button("Entrenar modelo", type="primary"):
-        try:
-            clasificador = Clasificacion(
-                dataframe=datos,
-                target=objetivo,
-                features=configuracion["features"],
-            )
-            argumentos_split = dict(
-                test_size=configuracion["test_size"],
-                random_state=configuracion["random_state"],
-                stratify=configuracion["estratificar"],
-                incluir_categoricas=configuracion["incluir_categoricas"],
-                imputar=configuracion["imputar"],
-                estandarizar=configuracion["estandarizar"],
-                particion=particion_global,
-            )
-            if algoritmo == "RF":
-                resultado = clasificador.RF(**argumentos_split, **rf_kwargs)
-            else:
-                resultado = clasificador.NR(**argumentos_split)
-            _guardar_resultado("resultado_clasificacion", firma_entrenar, resultado)
-        except Exception as exc:  # pylint: disable=broad-except
-            st.error(f"No fue posible entrenar el modelo: {exc}")
+    firma_contexto = _firma_clasificacion(
+        configuracion,
+        st.session_state.get("dataset_identidad"),
+        "modelos_entrenados",
+    )
+    resultados = st.session_state.setdefault("resultado_modelos_clasificacion", {})
+    modelos_entrenados = resultados.setdefault(firma_contexto, {})
+    argumentos_split = dict(
+        test_size=configuracion["test_size"],
+        random_state=configuracion["random_state"],
+        stratify=configuracion["estratificar"],
+        incluir_categoricas=configuracion["incluir_categoricas"],
+        imputar=configuracion["imputar"],
+        estandarizar=configuracion["estandarizar"],
+        particion=particion_global,
+    )
+    for codigo, nombre in modelos.items():
+        with st.container(border=True):
+            st.markdown(f"#### {nombre}")
+            kwargs = {}
+            if codigo == "RF":
+                with st.expander("Parámetros de Random Forest"):
+                    kwargs = {
+                        "n_estimators": st.slider(
+                            "N estimadores", 10, 500, 200, 10, key="clasif_rf_n"
+                        ),
+                        "max_depth": st.slider(
+                            "Profundidad máxima", 1, 30, 8, 1, key="clasif_rf_depth"
+                        ),
+                        "min_samples_split": st.slider(
+                            "Min samples split", 2, 20, 2, 1, key="clasif_rf_split"
+                        ),
+                    }
+            firma_modelo = tuple(sorted(kwargs.items()))
+            boton_key = f"entrenar_clasificacion_{codigo.lower()}"
+            if st.button(f"Entrenar {nombre}", type="primary", key=boton_key):
+                try:
+                    clasificador = Clasificacion(
+                        dataframe=datos,
+                        target=objetivo,
+                        features=configuracion["features"],
+                    )
+                    if codigo == "RF":
+                        resultado = clasificador.RF(**argumentos_split, **kwargs)
+                    else:
+                        resultado = clasificador.NR(**argumentos_split)
+                    modelos_entrenados[codigo] = {
+                        "firma": firma_modelo,
+                        "resultado": resultado,
+                    }
+                except Exception as exc:  # pylint: disable=broad-except
+                    st.error(f"No fue posible entrenar {nombre}: {exc}")
+            guardado = modelos_entrenados.get(codigo)
+            if not guardado or guardado["firma"] != firma_modelo:
+                st.caption("Todavía no hay un resultado entrenado con esta configuración.")
+                continue
+            resultado = guardado["resultado"]
+            _mostrar_resultado_clasificacion(resultado, codigo)
 
-    resultado = _recuperar_resultado("resultado_clasificacion", firma_entrenar)
-    if resultado is None:
-        return
 
-    st.markdown("#### Resultado del entrenamiento")
+def _mostrar_resultado_clasificacion(resultado, codigo: str) -> None:
+    """Muestra métricas, diagnósticos y exportación de un resultado entrenado."""
     _mostrar_metricas_clasificacion(resultado)
-    _mostrar_figura(VisualizadorSupervisado.matriz_confusion(resultado))
+    _mostrar_figura(
+        VisualizadorSupervisado.matriz_confusion(resultado),
+        key=f"matriz_confusion_{codigo}",
+    )
     barras = VisualizadorSupervisado.metricas_barras(resultado)
     if barras is not None:
-        _mostrar_figura(barras)
+        _mostrar_figura(barras, key=f"metricas_clasificacion_{codigo}")
     distribucion = VisualizadorSupervisado.distribucion_estratificada(resultado)
     if distribucion is not None:
-        _mostrar_figura(distribucion)
-
+        _mostrar_figura(distribucion, key=f"distribucion_clasificacion_{codigo}")
     errores = pd.DataFrame(
         {"real": resultado.y_true, "prediccion": resultado.y_pred}
     ).reset_index(drop=True)
     errores["error"] = errores["real"] != errores["prediccion"]
-    resumen_error = (
-        errores.groupby("real")
-        .agg(total=("error", "size"), errores=("error", "sum"))
-        .assign(tasa_error=lambda x: (x["errores"] / x["total"]).round(4))
+    resumen_error = errores.groupby("real").agg(
+        total=("error", "size"), errores=("error", "sum")
+    ).assign(
+        tasa_error=lambda datos: (datos["errores"] / datos["total"]).round(4)
     )
     st.markdown("**Error por clase**")
     st.dataframe(resumen_error, width="stretch")
-    pred_csv = pd.DataFrame(
-        {
-            "y_true": resultado.y_true,
-            "y_pred": resultado.y_pred,
-        }
-    )
+    pred_csv = pd.DataFrame({"y_true": resultado.y_true, "y_pred": resultado.y_pred})
     st.download_button(
         "Exportar predicciones",
         data=pred_csv.to_csv(index=True).encode("utf-8"),
         file_name=f"predicciones_{resultado.algoritmo}.csv",
         mime="text/csv",
+        key=f"exportar_predicciones_{resultado.algoritmo}",
     )
 
 
 def _render_comparacion(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Compara RF y Naive Bayes con la configuración activa."""
+    """Compara resultados ya entrenados para la configuración activa."""
     _resumen_dataset_modulo(datos, configuracion["target"])
     st.markdown("### Comparación de modelos")
     if not configuracion["features"]:
         st.warning("Seleccione al menos una feature para comparar.")
         return
-    metrica = st.selectbox(
-        "Métrica",
-        options=[
-            "accuracy",
-            "precision_global",
-            "precision_macro",
-            "recall_global",
-            "recall_macro",
-            "f1_global",
-            "f1_macro",
-        ],
-        index=0,
-        key="clasif_metrica_comparar",
+    firma_contexto = _firma_clasificacion(
+        configuracion, st.session_state.get("dataset_identidad"), "modelos_entrenados"
     )
-    firma = _firma_clasificacion(configuracion, "comparacion", metrica)
-    if st.button("Comparar modelos", type="primary"):
-        try:
-            argumentos_split = dict(
-                test_size=configuracion["test_size"],
-                random_state=configuracion["random_state"],
-                stratify=configuracion["estratificar"],
-                incluir_categoricas=configuracion["incluir_categoricas"],
-                imputar=configuracion["imputar"],
-                estandarizar=configuracion["estandarizar"],
-                particion=configuracion.get("particion_global"),
-            )
-            resultados = []
-            for nombre in ("RF", "NR"):
-                clasificador = Clasificacion(
-                    dataframe=datos,
-                    target=configuracion["target"],
-                    features=configuracion["features"],
-                )
-                if nombre == "RF":
-                    resultado = clasificador.RF(**argumentos_split)
-                else:
-                    resultado = clasificador.NR(**argumentos_split)
-                resultados.append(resultado)
-            tabla = pd.DataFrame(
-                {
-                    "algoritmo": [r.algoritmo for r in resultados],
-                    metrica: [_valor_metrica(r, metrica) for r in resultados],
-                }
-            )
-            _guardar_resultado("resultado_comparacion_clasificacion", firma, tabla)
-        except Exception as exc:  # pylint: disable=broad-except
-            st.error(f"No fue posible comparar: {exc}")
-
-    tabla = _recuperar_resultado("resultado_comparacion_clasificacion", firma)
-    if tabla is None:
+    entrenados = st.session_state.get("resultado_modelos_clasificacion", {}).get(
+        firma_contexto, {}
+    )
+    rf_kwargs_actuales = {
+        "n_estimators": st.session_state.get("clasif_rf_n", 200),
+        "max_depth": st.session_state.get("clasif_rf_depth", 8),
+        "min_samples_split": st.session_state.get("clasif_rf_split", 2),
+    }
+    firma_rf_actual = tuple(sorted(rf_kwargs_actuales.items()))
+    entrenados_comparables = {
+        codigo: entrada
+        for codigo, entrada in entrenados.items()
+        if codigo != "RF" or entrada["firma"] == firma_rf_actual
+    }
+    if not entrenados_comparables:
+        st.info("Entrene al menos un modelo en la vista de clasificación para comparar resultados.")
         return
+    filas = []
+    for codigo, entrada in entrenados_comparables.items():
+        resultado = entrada["resultado"]
+        parametros = resultado.modelo.get_params(deep=True)
+        filas.append(
+            {
+                "algoritmo": "Random Forest" if codigo == "RF" else "Naive Bayes",
+                "hiperparámetros efectivos": str(dict(sorted(parametros.items()))),
+                "accuracy": resultado.metricas["accuracy"],
+                "precision": resultado.metricas["precision"]["global"],
+            }
+        )
+    tabla = pd.DataFrame(filas)
     st.dataframe(tabla, width="stretch")
     figura = go.Figure(
-        go.Bar(x=tabla["algoritmo"], y=tabla[metrica], marker_color=PALETA["acento"])
+        go.Bar(
+            x=tabla["algoritmo"],
+            y=tabla["accuracy"],
+            marker_color=PALETA["acento"],
+        )
     )
-    figura.update_layout(title="Comparación", yaxis_title=metrica)
+    figura.update_layout(title="Accuracy por modelo entrenado", yaxis_title="accuracy")
     _mostrar_figura(figura)
 
 
