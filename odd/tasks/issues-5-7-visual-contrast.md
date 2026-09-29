@@ -19,8 +19,8 @@ El usuario reportó puntos, números y etiquetas indistinguibles del fondo, adem
 
 ## Tareas
 
-- [ ] VC-1 — Corregir de forma compartida los fondos, trazas, texto, ejes y anotaciones de Plotly para ambos temas, con pruebas de regresión. Ruta: delegada; afecta implementación y pruebas en varios archivos. Aceptación: puntos, números y letras legibles en ambos temas; ningún fondo negro heredado en modo claro; cálculos intactos. Verificación: 22 pruebas unitarias completas pasaron; 8 pruebas focalizadas repetidas por el orquestador pasaron; `git diff --check` pasó; comprobación visual representativa pendiente porque la exportación PNG de Plotly falló en este entorno. Commit: pendiente.
-- [ ] VC-2 — Auditar la coherencia final de los colores de Streamlit y figuras, cubrir rutas de gráficos faltantes y contrastar el resultado con el alcance exacto de los issues cuando esté autorizado. Ruta: delegada si requiere varias ediciones no triviales. Aceptación: temas claro/oscuro consistentes en las vistas afectadas y evidencia explícita para #5 y #7. Verificación: pruebas completas, detector Impeccable y revisión visual acotada. Commit: pendiente.
+- [ ] VC-1 — Corregir de forma compartida los fondos, trazas, texto, ejes y anotaciones de Plotly para ambos temas, con pruebas de regresión. Ruta: delegada; afecta implementación y pruebas en varios archivos. Aceptación: puntos, números y letras legibles en ambos temas; ningún fondo negro heredado en modo claro; cálculos intactos. Verificación: 22 pruebas unitarias completas pasaron; 8 pruebas focalizadas repetidas por el orquestador pasaron; `git diff --check` pasó; comprobación visual representativa pendiente porque la exportación PNG de Plotly falló en este entorno. Commit: `18f67ec`.
+- [ ] VC-2 — Auditar la coherencia final de los colores de Streamlit y figuras, cubrir rutas de gráficos faltantes y contrastar el resultado con el alcance exacto de los issues cuando esté autorizado. Ruta: delegada; se detectaron colores CSS con nombre y gráficos circulares que requerían adaptación adicional. Aceptación: temas claro/oscuro consistentes en las vistas afectadas y evidencia explícita para #5 y #7. Verificación: 24 pruebas completas pasaron, 10 pruebas focalizadas repetidas por el orquestador pasaron, Streamlit AppTest sin errores, detector Impeccable sin hallazgos; revisión visual en navegador y texto de los issues pendientes. Commit: pendiente.
 
 ## Progreso y evidencia
 
@@ -28,6 +28,7 @@ El usuario reportó puntos, números y etiquetas indistinguibles del fondo, adem
 - Plotly ya está integrado en `main`; `_mostrar_figura` cambia fondo y fuente general, pero las factorías fijan algunos colores de trazas. Los tests de contraste previos incluyen referencias Matplotlib obsoletas.
 - Se pidió autorización para leer los issues con la sesión de GitHub configurada; aún no hubo respuesta.
 - La implementación actual adapta trazas, ejes, anotaciones y fondos al tema; las etiquetas de mapas de calor se superponen con un color por celda sin modificar la matriz. El detector de Impeccable no reportó hallazgos. La inspección visual sigue pendiente.
+- Se verificó que los gráficos circulares exponen `marker.colors`, no necesariamente `marker.color`; el adaptador contempla ambos y los nombres CSS usados por Plotly.
 
 ## Próximo paso
 

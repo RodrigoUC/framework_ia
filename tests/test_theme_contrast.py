@@ -10,7 +10,11 @@ import plotly.graph_objects as go
 
 from framework_ia.datos.dataframe import DataFrame
 from framework_ia.ui import streamlit_app
-from framework_ia.visualizacion import VisualizadorNoSupervisado, VisualizadorSupervisado
+from framework_ia.visualizacion import (
+    VisualizadorDatos,
+    VisualizadorNoSupervisado,
+    VisualizadorSupervisado,
+)
 
 
 class ContrasteTemaPlotlyTests(unittest.TestCase):
@@ -69,6 +73,21 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
             ),
             3,
         )
+
+    def test_colores_css_con_nombre_se_ajustan_en_ambos_temas(self):
+        for oscuro, fondo in (
+            (False, streamlit_app.PALETA["superficie"]),
+            (True, streamlit_app.PALETA_OSCURA["superficie"]),
+        ):
+            with self.subTest(oscuro=oscuro):
+                figura = go.Figure(
+                    go.Scatter(x=[0], y=[1], mode="markers", marker={"color": "gray"})
+                )
+                streamlit_app._aplicar_tema_figura(figura, oscuro)
+
+                color = figura.data[0].marker.color
+                self.assertNotEqual(color.lower(), "gray")
+                self.assertGreaterEqual(self._contraste(color, fondo), 3)
 
     def test_etiquetas_de_heatmap_usen_blanco_y_negro_segun_la_celda(self):
         for oscuro in (False, True):
@@ -158,6 +177,16 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                         for traza in figura.data
                     )
                 )
+
+    def test_figura_pie_de_tipos_se_adapta_sin_asumir_marker_color(self):
+        figura = VisualizadorDatos.tipos_columnas(
+            pd.DataFrame({"tipo": ["Numérica", "Categórica", "Numérica"]})
+        )
+        streamlit_app._aplicar_tema_figura(figura, oscuro=True)
+
+        self.assertEqual(figura.layout.paper_bgcolor, "#111713")
+        self.assertEqual(list(figura.data[0].labels), ["Numérica", "Categórica"])
+        self.assertTrue(figura.data[0].marker.colors)
 
     @staticmethod
     def _contraste(primer_color, segundo_color):

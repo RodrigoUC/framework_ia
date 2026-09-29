@@ -853,7 +853,19 @@ def _color_rgb(color: str) -> tuple[int, int, int] | None:
             return tuple(int(float(channel.strip())) for channel in color[4:-1].split(",")[:3])
         except ValueError:
             return None
-    return None
+    colores_css = {
+        "black": (0, 0, 0), "white": (255, 255, 255),
+        "gray": (128, 128, 128), "grey": (128, 128, 128),
+        "silver": (192, 192, 192), "red": (255, 0, 0),
+        "green": (0, 128, 0), "blue": (0, 0, 255),
+        "orange": (255, 165, 0), "yellow": (255, 255, 0),
+        "purple": (128, 0, 128), "pink": (255, 192, 203),
+        "brown": (165, 42, 42), "cyan": (0, 255, 255),
+        "magenta": (255, 0, 255), "lime": (0, 255, 0),
+        "navy": (0, 0, 128), "teal": (0, 128, 128),
+        "olive": (128, 128, 0), "maroon": (128, 0, 0),
+    }
+    return colores_css.get(color.lower())
 
 
 def _luminancia(color: str) -> float | None:
@@ -1004,8 +1016,9 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
     for traza in figura.data:
         for atributo in ("marker", "line"):
             estilo = getattr(traza, atributo, None)
-            if estilo is not None and estilo.color is not None:
-                estilo.color = _ajustar_color_traza(estilo.color, oscuro)
+            color = getattr(estilo, "color", None) if estilo is not None else None
+            if color is not None:
+                estilo.color = _ajustar_color_traza(color, oscuro)
             if estilo is not None and getattr(estilo, "colors", None) is not None:
                 estilo.colors = _ajustar_color_traza(estilo.colors, oscuro)
         if (
