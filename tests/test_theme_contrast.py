@@ -19,6 +19,30 @@ from framework_ia.visualizacion import (
 
 
 class ContrasteTemaPlotlyTests(unittest.TestCase):
+    def test_keyboard_focus_outline_has_contrast_in_both_themes(self):
+        casos = (("light", "#1a3c2b", "#f7f7f5"), ("dark", "#9effbf", "#111713"))
+        for theme, focus_color, background in casos:
+            with self.subTest(theme=theme):
+                context = SimpleNamespace(theme=SimpleNamespace(type=theme))
+                with (
+                    patch.object(streamlit_app.st, "context", context),
+                    patch.object(streamlit_app.st, "markdown") as markdown,
+                ):
+                    streamlit_app._aplicar_estilos_atlas()
+
+                stylesheet = markdown.call_args.args[0]
+                self.assertIn(
+                    f":root {{ --atlas-focus-color: {focus_color}; }}", stylesheet
+                )
+                self.assertIn("outline: 2px solid var(--atlas-focus-color)", stylesheet)
+                self.assertIn("input:focus-visible", stylesheet)
+                self.assertIn(
+                    '[data-testid="stSidebar"] .stButton > button:focus-visible',
+                    stylesheet,
+                )
+                self.assertIn("outline-color: #f4d35e !important", stylesheet)
+                self.assertGreaterEqual(self._contraste(focus_color, background), 3)
+
     def test_multiselect_chip_palette_meets_wcag_in_both_themes(self):
         with patch.object(streamlit_app.st, "markdown") as markdown:
             streamlit_app._aplicar_estilos_atlas()
