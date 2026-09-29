@@ -44,17 +44,30 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                 self.assertGreaterEqual(self._contraste(focus_color, background), 3)
 
     def test_multiselect_chip_palette_meets_wcag_in_both_themes(self):
-        with patch.object(streamlit_app.st, "markdown") as markdown:
-            streamlit_app._aplicar_estilos_atlas()
-
-        stylesheet = markdown.call_args.args[0]
-        self.assertIn('[data-testid="stMultiSelect"] [data-tag]', stylesheet)
-        self.assertIn("background-color: #1a3c2b", stylesheet)
-        self.assertIn("color: #f7f7f5", stylesheet)
-        self.assertNotIn("        [data-tag] {", stylesheet)
-        self.assertGreaterEqual(
-            self._contraste("#f7f7f5", "#1a3c2b"), 4.5
+        casos = (
+            ("light", "#1a3c2b", "#f7f7f5"),
+            ("dark", "#9effbf", "#111713"),
         )
+        for theme, background, foreground in casos:
+            with self.subTest(theme=theme):
+                context = SimpleNamespace(theme=SimpleNamespace(type=theme))
+                with (
+                    patch.object(streamlit_app.st, "context", context),
+                    patch.object(streamlit_app.st, "markdown") as markdown,
+                ):
+                    streamlit_app._aplicar_estilos_atlas()
+
+                stylesheet = markdown.call_args.args[0]
+                self.assertIn(
+                    '[data-testid="stMultiSelect"] [data-tag]', stylesheet
+                )
+                self.assertIn(f"background-color: {background}", stylesheet)
+                self.assertIn(f"color: {foreground}", stylesheet)
+                self.assertIn("[data-tag] svg", stylesheet)
+                self.assertNotIn("        [data-tag] {", stylesheet)
+                self.assertGreaterEqual(
+                    self._contraste(foreground, background), 4.5
+                )
 
     def test_fondo_ejes_y_anotaciones_siguen_el_tema_activo(self):
         casos = (

@@ -6,32 +6,36 @@ Corregir el contraste de gráficos y superficies en temas claro y oscuro en una 
 
 ## Problema y motivo
 
-El usuario reportó puntos, números y etiquetas indistinguibles del fondo, además de gráficos con fondo oscuro en el tema claro. El contenido exacto de los issues #5 y #7 queda pendiente de consulta autorizada.
+El usuario reportó puntos, números y etiquetas indistinguibles del fondo, además de gráficos con fondo oscuro en el tema claro. Los [issues #5](https://github.com/RodrigoUC/framework_ia/issues/5) y [#7](https://github.com/RodrigoUC/framework_ia/issues/7) también exigen una fuente desplegable que se aplique una sola vez, navegación acorde al flujo, configuración visible, paneles separados por modelo y comparación de modelos realmente entrenados con hiperparámetros y precisión.
 
 ## Alcance y restricciones
 
 - Rama: `fix/issues-5-7-visual-contrast`, desde `main` en `1386588`.
 - Alcance autorizado: sistema visual local de Streamlit y gráficos Plotly, pruebas correspondientes.
-- Sin acceso remoto, push, PR ni review de Gentle AI.
+- Se autorizó únicamente consultar los issues #5 y #7 con la sesión de GitHub configurada. Sin push, PR ni review de Gentle AI.
 - Preservar la identidad visual existente y los cálculos de las figuras.
 - TDD: no se halló configuración explícita; usar verificación funcional ordinaria con `python -m unittest discover -s tests -v`.
-- Estrategia de entrega: `ask-on-risk`; previsión aproximada: menos de 400 líneas, reevaluar con el diff real.
+- Estrategia de entrega: `ask-on-risk` → `stacked-to-main`, elegida por el usuario. Cada PR integraría una unidad independiente hacia `main`; no se autorizó crearlos ni publicarlos todavía. El primer commit `18f67ec` ya excede por sí solo 400 líneas por incluir comportamiento y pruebas; una división honesta de ese work unit puede requerir `size:exception` antes de abrir su PR. No recortar pruebas ni código para ajustar el presupuesto.
 
 ## Tareas
 
 - [x] VC-1 — Corregir de forma compartida los fondos, trazas, texto, ejes y anotaciones de Plotly para ambos temas, con pruebas de regresión. Ruta: delegada; afecta implementación y pruebas en varios archivos. Aceptación: puntos, números y letras legibles en ambos temas; ningún fondo negro heredado en modo claro; cálculos intactos. Verificación: 25 pruebas unitarias completas pasaron; 11 pruebas focalizadas repetidas por el orquestador pasaron; `git diff --check` pasó; captura HTML local en Chromium de correlación, círculo y plano ACP en ambos temas mostró fondos y etiquetas legibles. Commits: `18f67ec`, `f370118`, `3439df7`.
-- [ ] VC-2 — Auditar la coherencia final de los colores de Streamlit y figuras, cubrir rutas de gráficos faltantes y contrastar el resultado con el alcance exacto de los issues cuando esté autorizado. Ruta: delegada; se detectaron colores CSS con nombre, gráficos circulares y foco de teclado de bajo contraste en tema oscuro. Aceptación: temas claro/oscuro consistentes en las vistas afectadas y evidencia explícita para #5 y #7. Verificación: 26 pruebas completas pasaron, 12 pruebas focalizadas repetidas por el orquestador pasaron, Streamlit AppTest sin errores, detector Impeccable sin hallazgos; captura representativa de seis gráficos, pero revisión de la app completa y texto de los issues pendientes. Commit: pendiente para foco de teclado.
+- [x] VC-2 — Cerrar el sistema de contraste claro/oscuro, incluidos chips de variables y controles, sin alterar la identidad existente. Ruta: delegada; afectó código y pruebas. Aceptación: temas y chips legibles con contraste medido y controles de foco visibles; gráficos sin fondo negro en tema claro. Verificación: 26 pruebas completas pasaron, 12 focalizadas repetidas, Streamlit AppTest y detector Impeccable sin hallazgos; prueba de chips en ambos temas exige al menos 4,5:1. La revisión visual de la app completa queda en VC-5. Commits: `0f1260f` y cambio de chips pendiente de commit.
+- [ ] VC-3 — Unificar el flujo de fuente y configuración: fuente plegable, aplicación explícita una vez por selección, configuración de cada análisis visible cerca del trabajo, navegación ordenada y encabezado representativo en vez de «Pilares del framework». Ruta: delegada; afecta UI y pruebas. Aceptación: cambio de fuente no se aplica hasta confirmar, la configuración se encuentra sin recorrer toda la barra lateral y la navegación sigue Datos → análisis/modelos → resultados. Verificación: AppTest y pruebas de estado/rerun; commit pendiente.
+- [ ] VC-4 — Presentar modelos de clasificación en paneles independientes y comparar solo modelos entrenados/utilizados, con hiperparámetros efectivos y precisión por modelo. Ruta: delegada; afecta UI, resultados y pruebas. Aceptación: RF y Naive Bayes tienen paneles separados extensibles a más modelos; entrenar uno no borra el otro; comparación muestra nombre, parámetros usados y accuracy de cada resultado comparable sin reentrenamiento implícito. Verificación: pruebas de dominio y AppTest; commit pendiente.
+- [ ] VC-5 — Verificar de extremo a extremo ambos issues y los gráficos en ambos temas; revisar el resultado visual con Impeccable y cerrar únicamente requisitos probados. Ruta: delegada para ejecución/inspección extensa. Aceptación: evidencia por punto de #5/#7, pruebas completas y sin errores en recorridos representativos. Verificación y commit pendientes.
 
 ## Progreso y evidencia
 
 - `main` local estaba limpio y en `1386588`; se creó la rama indicada.
 - Plotly ya está integrado en `main`; `_mostrar_figura` cambia fondo y fuente general, pero las factorías fijan algunos colores de trazas. Los tests de contraste previos incluyen referencias Matplotlib obsoletas.
-- Se pidió autorización para leer los issues con la sesión de GitHub configurada; aún no hubo respuesta.
+- Se consultaron los dos issues OPEN con autorización del usuario; ambos comparten la fuente desplegable. El contraste implementado antes de leerlos solo cubre parte de su alcance.
 - La implementación actual adapta trazas, ejes, anotaciones y fondos al tema; las etiquetas de mapas de calor se superponen con un color por celda sin modificar la matriz. El detector de Impeccable no reportó hallazgos. La inspección visual sigue pendiente.
 - Se verificó que los gráficos circulares exponen `marker.colors`, no necesariamente `marker.color`; el adaptador contempla ambos y los nombres CSS usados por Plotly.
 - Un round-trip JSON de Plotly transformó `heatmap.z` en un diccionario de arreglo tipado; el adaptador ya lo decodifica para etiquetas sin alterar los datos. Se inspeccionó una captura de seis gráficos reales (tres por tema); no sustituye una revisión de la app completa en navegador.
 - El foco de botones y campos usaba verde oscuro sobre el tema oscuro (1,49:1); ahora su color se selecciona desde `st.context.theme.type`, manteniendo el borde dorado del sidebar.
+- Se eligió `stacked-to-main` para futuros PRs. Límite de revisión: máximo 400 líneas por PR salvo excepción explícita. Orden previsto: (1) contraste visual; (2) flujo/fuente y navegación; (3) paneles/comparación de modelos; cada PR pendiente de autorización y de un diff aislado.
 
 ## Próximo paso
 
-Obtener autorización para consultar los issues #5 y #7, contrastar su alcance exacto y cerrar VC-2 tras la revisión visual restante.
+Registrar el cambio de chips y continuar con VC-3 a VC-5. Antes de abrir el primer PR, aislar su diff y resolver la posible excepción de tamaño sin omitir pruebas.

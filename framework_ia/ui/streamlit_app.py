@@ -85,7 +85,10 @@ RUTAS_VISTA = {
 
 def _aplicar_estilos_atlas() -> None:
     """Instala la capa visual compartida de la experiencia Atlas Analítico."""
-    focus_color = "#9effbf" if st.context.theme.type == "dark" else "#1a3c2b"
+    oscuro = st.context.theme.type == "dark"
+    focus_color = "#9effbf" if oscuro else "#1a3c2b"
+    chip_background = "#9effbf" if oscuro else "#1a3c2b"
+    chip_foreground = "#111713" if oscuro else "#f7f7f5"
     st.markdown(
         """
         <style>
@@ -117,11 +120,13 @@ def _aplicar_estilos_atlas() -> None:
         .stButton > button:focus-visible, input:focus-visible { outline: 2px solid var(--atlas-focus-color) !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
         [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
-        [data-testid="stMultiSelect"] [data-tag] { background-color: #1a3c2b; color: #f7f7f5; }
-        [data-testid="stMultiSelect"] [data-tag] * { color: #f7f7f5; }
+        [data-testid="stMultiSelect"] [data-tag] { background-color: __ATLAS_CHIP_BACKGROUND__; color: __ATLAS_CHIP_FOREGROUND__; }
+        [data-testid="stMultiSelect"] [data-tag] *, [data-testid="stMultiSelect"] [data-tag] svg { color: __ATLAS_CHIP_FOREGROUND__; fill: __ATLAS_CHIP_FOREGROUND__; }
         @media (max-width: 900px) { .atlas-header { padding: 1rem; } .atlas-title { font-size: 1.65rem; } }
         </style>
-        """.replace("__ATLAS_FOCUS_COLOR__", focus_color),
+        """.replace("__ATLAS_FOCUS_COLOR__", focus_color)
+        .replace("__ATLAS_CHIP_BACKGROUND__", chip_background)
+        .replace("__ATLAS_CHIP_FOREGROUND__", chip_foreground),
         unsafe_allow_html=True,
     )
 
