@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
 
 from framework_ia.datos.dataframe import DataFrame
 from framework_ia.ui import streamlit_app
@@ -177,6 +178,34 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                         for traza in figura.data
                     )
                 )
+
+    def test_heatmap_real_redondeado_json_conserva_etiquetas_y_datos(self):
+        datos = DataFrame(pd.DataFrame({"A": [1, 2, 3], "B": [3, 2, 1]}))
+        figura, matriz = datos.mapa_calor(mostrar=False)
+        serializada = pio.from_json(pio.to_json(figura))
+        z_original = serializada.data[0].z.copy()
+        self.assertIsInstance(z_original, dict)
+
+        for oscuro in (False, True):
+            with self.subTest(oscuro=oscuro):
+                themed = pio.from_json(pio.to_json(figura))
+                z_original = themed.data[0].z.copy()
+                streamlit_app._aplicar_tema_figura(themed, oscuro)
+
+                etiquetas = next(
+                    traza for traza in themed.data
+                    if traza.meta == "plotly-theme-cell-labels"
+                )
+                self.assertEqual(len(etiquetas.text), matriz.size)
+                self.assertEqual(
+                    list(etiquetas.text),
+                    [str(valor) for valor in matriz.to_numpy().ravel()],
+                )
+                self.assertTrue(
+                    set(etiquetas.textfont.color) <= {"#172019", "#ffffff"}
+                )
+                self.assertTrue(etiquetas.textfont.color)
+                self.assertEqual(themed.data[0].z, z_original)
 
     def test_figura_pie_de_tipos_se_adapta_sin_asumir_marker_color(self):
         figura = VisualizadorDatos.tipos_columnas(

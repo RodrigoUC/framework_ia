@@ -6,12 +6,14 @@ analizar otro dataset basta con reemplazar un CSV local o subir uno nuevo.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 from html import escape
 import math
 from pathlib import Path
 import re
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.colors import sample_colorscale
@@ -927,6 +929,18 @@ def _texto_mapa_calor(figura: go.Figure) -> list[go.Scatter]:
         if traza.type != "heatmap" or not traza.texttemplate:
             continue
         valores = traza.z
+        if isinstance(valores, dict):
+            try:
+                forma = tuple(int(dimension) for dimension in valores["shape"].split(","))
+                arreglo = np.frombuffer(
+                    base64.b64decode(valores["bdata"], validate=True),
+                    dtype=np.dtype(valores["dtype"]),
+                )
+                if not forma or arreglo.size != math.prod(forma):
+                    continue
+                valores = arreglo.reshape(forma).tolist()
+            except (KeyError, TypeError, ValueError):
+                continue
         if valores is None or not len(valores) or not len(valores[0]):
             continue
         coloraxis = getattr(traza, "coloraxis", None)
