@@ -11,6 +11,7 @@ from html import escape
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import QuadMesh
 import pandas as pd
 import streamlit as st
 
@@ -107,6 +108,8 @@ def _aplicar_estilos_atlas() -> None:
         .stButton > button:focus-visible, input:focus-visible { outline: 2px solid #1a3c2b !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
         [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
+        [data-testid="stMultiSelect"] [data-tag] { background-color: #1a3c2b; color: #f7f7f5; }
+        [data-testid="stMultiSelect"] [data-tag] * { color: #f7f7f5; }
         @media (max-width: 900px) { .atlas-header { padding: 1rem; } .atlas-title { font-size: 1.65rem; } }
         </style>
         """,
@@ -667,14 +670,12 @@ def _recuperar_resultado(clave: str, firma: tuple):
 
 
 def _aplicar_tema_oscuro_a_figura(figura) -> None:
-    """Alinea las figuras de Matplotlib con la apariencia oscura de la app."""
-    if st.context.theme.type != "dark":
-        return
-
-    fondo = PALETA_OSCURA["fondo"]
-    superficie = PALETA_OSCURA["superficie"]
-    texto = PALETA_OSCURA["texto"]
-    borde = PALETA_OSCURA["borde"]
+    """Alinea las figuras de Matplotlib con el tema activo de la app."""
+    paleta = PALETA_OSCURA if st.context.theme.type == "dark" else PALETA
+    fondo = paleta["fondo"]
+    superficie = paleta["superficie"]
+    texto = paleta["texto"]
+    borde = paleta["borde"]
     figura.patch.set_facecolor(fondo)
     figura.patch.set_edgecolor(fondo)
     for eje in figura.get_axes():
@@ -687,6 +688,11 @@ def _aplicar_tema_oscuro_a_figura(figura) -> None:
             borde_eje.set_color(borde)
         for etiqueta in (*eje.get_xticklabels(), *eje.get_yticklabels()):
             etiqueta.set_color(texto)
+        if not any(
+            isinstance(coleccion, QuadMesh) for coleccion in eje.collections
+        ):
+            for anotacion in eje.texts:
+                anotacion.set_color(texto)
         leyenda = eje.get_legend()
         if leyenda is not None:
             leyenda.get_frame().set_facecolor(superficie)
