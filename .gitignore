@@ -6,3 +6,7 @@ salida_lab01/
 .superdesign/init/
 .superdesign/resume.json
 .impeccable/hook.cache.json
+.atl/.skill-registry.cache.json
+.atl/skill-registry.md
+.agents/skills/developing-with-streamlit
+.claude/skills/developing-with-streamlit

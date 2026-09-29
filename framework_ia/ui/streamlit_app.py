@@ -11,6 +11,7 @@ from html import escape
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import QuadMesh
 import pandas as pd
 import streamlit as st
 
@@ -87,18 +88,14 @@ def _aplicar_estilos_atlas() -> None:
         .stApp::selection { background: #9effbf; color: #1a3c2b; }
         h1, h2, h3 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -0.02em; }
         code, [data-testid="stCaptionContainer"] { font-family: 'JetBrains Mono', monospace; }
-        [data-testid="stSidebar"] { background: #1a3c2b; border-right: 1px solid #365342; }
-        [data-testid="stSidebar"] * { color: #f7f7f5; }
-        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #d9e3db !important; }
-        [data-testid="stSidebar"] input, [data-testid="stSidebar"] [data-baseweb="select"] > div { background: #f7f7f5 !important; color: #242523 !important; border-color: #6f8477 !important; }
-        [data-testid="stSidebar"] input *, [data-testid="stSidebar"] [data-baseweb="select"] * { color: #242523 !important; }
-        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #f7f7f5; font-family: 'General Sans', sans-serif; font-size: .88rem; }
-        [data-testid="stSidebar"] .stButton > button:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.28); color: #f7f7f5; }
-        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid #f4d35e; background: rgba(255,255,255,.14); color: #f7f7f5; }
-        [data-testid="stSidebar"] details { border: 1px solid rgba(255,255,255,.22); border-radius: 2px; background: rgba(255,255,255,.04); }
+        [data-testid="stSidebar"] { border-right: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
+        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; background: transparent; color: inherit; font-family: 'General Sans', sans-serif; font-size: .88rem; }
+        [data-testid="stSidebar"] .stButton > button:hover { background: color-mix(in srgb, currentColor 10%, transparent); border-color: color-mix(in srgb, currentColor 28%, transparent); color: inherit; }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid var(--primary-color); background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; }
+        [data-testid="stSidebar"] details { border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 2px; background: color-mix(in srgb, currentColor 4%, transparent); }
         [data-testid="stSidebar"] summary { font-family: 'Space Grotesk', sans-serif; font-size: .9rem; }
-        .atlas-nav-label { margin: 1.35rem 0 .35rem; color: #b9cbbd; font-family: 'JetBrains Mono', monospace; font-size: .67rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
-        .atlas-family { margin: .7rem 0 .15rem; color: #b9cbbd; font-family: 'JetBrains Mono', monospace; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; }
+        .atlas-nav-label { margin: 1.35rem 0 .35rem; color: color-mix(in srgb, currentColor 72%, transparent); font-family: 'JetBrains Mono', monospace; font-size: .67rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+        .atlas-family { margin: .7rem 0 .15rem; color: color-mix(in srgb, currentColor 72%, transparent); font-family: 'JetBrains Mono', monospace; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; }
         .atlas-header { margin: .25rem 0 1.25rem; padding: 1.35rem 1.55rem; border: 1px solid color-mix(in srgb, currentColor 28%, transparent); background: transparent; }
         .atlas-breadcrumb { color: inherit; opacity: .82; font-family: 'JetBrains Mono', monospace; font-size: .68rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
         .atlas-title { margin: .45rem 0 .25rem; color: inherit; font-family: 'Space Grotesk', sans-serif; font-size: 2.15rem; font-weight: 600; letter-spacing: -.03em; }
@@ -111,6 +108,8 @@ def _aplicar_estilos_atlas() -> None:
         .stButton > button:focus-visible, input:focus-visible { outline: 2px solid #1a3c2b !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
         [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
+        [data-testid="stMultiSelect"] [data-tag] { background-color: #1a3c2b; color: #f7f7f5; }
+        [data-testid="stMultiSelect"] [data-tag] * { color: #f7f7f5; }
         @media (max-width: 900px) { .atlas-header { padding: 1rem; } .atlas-title { font-size: 1.65rem; } }
         </style>
         """,
@@ -671,14 +670,12 @@ def _recuperar_resultado(clave: str, firma: tuple):
 
 
 def _aplicar_tema_oscuro_a_figura(figura) -> None:
-    """Alinea las figuras de Matplotlib con la apariencia oscura de la app."""
-    if st.context.theme.type != "dark":
-        return
-
-    fondo = PALETA_OSCURA["fondo"]
-    superficie = PALETA_OSCURA["superficie"]
-    texto = PALETA_OSCURA["texto"]
-    borde = PALETA_OSCURA["borde"]
+    """Alinea las figuras de Matplotlib con el tema activo de la app."""
+    paleta = PALETA_OSCURA if st.context.theme.type == "dark" else PALETA
+    fondo = paleta["fondo"]
+    superficie = paleta["superficie"]
+    texto = paleta["texto"]
+    borde = paleta["borde"]
     figura.patch.set_facecolor(fondo)
     figura.patch.set_edgecolor(fondo)
     for eje in figura.get_axes():
@@ -689,8 +686,13 @@ def _aplicar_tema_oscuro_a_figura(figura) -> None:
         eje.title.set_color(texto)
         for borde_eje in eje.spines.values():
             borde_eje.set_color(borde)
-        for etiqueta in (*eje.get_xticklabels(), *eje.get_yticklabels(), *eje.texts):
+        for etiqueta in (*eje.get_xticklabels(), *eje.get_yticklabels()):
             etiqueta.set_color(texto)
+        if not any(
+            isinstance(coleccion, QuadMesh) for coleccion in eje.collections
+        ):
+            for anotacion in eje.texts:
+                anotacion.set_color(texto)
         leyenda = eje.get_legend()
         if leyenda is not None:
             leyenda.get_frame().set_facecolor(superficie)
