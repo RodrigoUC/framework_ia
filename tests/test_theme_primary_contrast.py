@@ -3,6 +3,10 @@
 import tomllib
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from framework_ia.ui import streamlit_app
 
 
 THEME_CONFIG = Path(__file__).parents[1] / ".streamlit" / "config.toml"
@@ -65,6 +69,38 @@ class PrimaryThemeContrastTests(unittest.TestCase):
             with self.subTest(location=location):
                 self.assertGreaterEqual(_contrast(primary, "#ffffff"), 4.5)
                 self.assertGreaterEqual(_contrast(primary, background), 3)
+
+    def test_primary_button_fill_text_and_hover_remain_owned_by_theme(self):
+        for theme_name in ("light", "dark"):
+            with self.subTest(theme=theme_name):
+                context = SimpleNamespace(theme=SimpleNamespace(type=theme_name))
+                with (
+                    patch.object(streamlit_app.st, "context", context),
+                    patch.object(streamlit_app.st, "markdown") as markdown,
+                ):
+                    streamlit_app._aplicar_estilos_atlas()
+
+                stylesheet = markdown.call_args.args[0]
+                self.assertNotIn("#122d20", stylesheet)
+                self.assertNotIn('button[kind="primary"]:hover', stylesheet)
+
+                primary_rules = (
+                    rule.split("}", 1)[0]
+                    for rule in stylesheet.split("{")
+                    if 'button[kind="primary"]' in rule
+                )
+                for rule in primary_rules:
+                    self.assertNotIn("background", rule)
+                    self.assertNotIn("color:", rule)
+
+        # The stylesheet no longer overrides Streamlit's native button colors;
+        # both configured primary tokens contrast with white text.
+        for theme_name, primary in (
+            ("light", self.theme["primaryColor"]),
+            ("dark", self.theme["dark"]["primaryColor"]),
+        ):
+            with self.subTest(theme=theme_name, state="normal-and-hover-token"):
+                self.assertGreaterEqual(_contrast(primary, "#ffffff"), 4.5)
 
 
 if __name__ == "__main__":

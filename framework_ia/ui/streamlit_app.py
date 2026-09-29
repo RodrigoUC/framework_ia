@@ -101,9 +101,8 @@ def _aplicar_estilos_atlas() -> None:
         h1, h2, h3 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -0.02em; }
         code, [data-testid="stCaptionContainer"] { font-family: 'JetBrains Mono', monospace; }
         [data-testid="stSidebar"] { border-right: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
-        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; background: transparent; color: inherit; font-family: 'General Sans', sans-serif; font-size: .88rem; }
-        [data-testid="stSidebar"] .stButton > button:hover { background: color-mix(in srgb, currentColor 10%, transparent); border-color: color-mix(in srgb, currentColor 28%, transparent); color: inherit; }
-        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid var(--primary-color); background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; }
+        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; font-family: 'General Sans', sans-serif; font-size: .88rem; }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid var(--primary-color); }
         [data-testid="stSidebar"] details { border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 2px; background: color-mix(in srgb, currentColor 4%, transparent); }
         [data-testid="stSidebar"] summary { font-family: 'Space Grotesk', sans-serif; font-size: .9rem; }
         .atlas-nav-label { margin: 1.35rem 0 .35rem; color: color-mix(in srgb, currentColor 72%, transparent); font-family: 'JetBrains Mono', monospace; font-size: .67rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
@@ -115,8 +114,7 @@ def _aplicar_estilos_atlas() -> None:
         [data-testid="stMetric"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 2px; background: transparent; padding: .8rem .9rem; }
         [data-testid="stMetricLabel"] { font-family: 'JetBrains Mono', monospace; font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; }
         [data-testid="stMetricValue"] { font-family: 'Space Grotesk', sans-serif; }
-        .stButton > button[kind="primary"] { border-radius: 2px; background: #1a3c2b; color: #f7f7f5; }
-        .stButton > button[kind="primary"]:hover { background: #122d20; color: #f7f7f5; }
+        .stButton > button[kind="primary"] { border-radius: 2px; }
         .stButton > button:focus-visible, input:focus-visible { outline: 2px solid var(--atlas-focus-color) !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
         [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
