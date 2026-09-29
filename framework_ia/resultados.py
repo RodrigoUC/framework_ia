@@ -60,6 +60,40 @@ class ResultadoCluster:
 
 
 @dataclass(frozen=True)
+class ResultadoParticion:
+    """Partición reproducible de un dataset en train/test y validación opcional.
+
+    Se calcula una sola vez sobre el dataset activo (vista Datos) y puede
+    reutilizarse en Clasificación o Regresión en lugar de generar una
+    partición aleatoria distinta en cada vista.
+    """
+
+    train: pd.DataFrame
+    test: pd.DataFrame
+    validacion: pd.DataFrame | None
+    porcentaje_train: float
+    porcentaje_test: float
+    porcentaje_validacion: float
+    columna_estratificacion: str | None
+    distribucion_train: dict[Any, int] | None
+    distribucion_test: dict[Any, int] | None
+    distribucion_validacion: dict[Any, int] | None
+    semilla: int
+    advertencia: str | None = None
+
+    @property
+    def huella(self) -> tuple:
+        """Identifica la partición para invalidar resultados dependientes."""
+        return (
+            tuple(self.train.index),
+            tuple(self.test.index),
+            tuple(self.validacion.index) if self.validacion is not None else (),
+            self.columna_estratificacion,
+            self.semilla,
+        )
+
+
+@dataclass(frozen=True)
 class ResultadoClasificacion:
     """Salida de entrenamiento y evaluación supervisada para clasificación."""
 

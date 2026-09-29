@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from scipy.stats import gaussian_kde
 
 
 class DataFrame:
@@ -88,6 +90,35 @@ class DataFrame:
         """Cuenta los valores faltantes por columna."""
         return self.datos.isnull().sum()
 
+    def resumen_columnas(self) -> pd.DataFrame:
+        """Describe cada columna: tipo analítico, nulos y cardinalidad.
+
+        Sirve de base para que la interfaz muestre qué columnas son
+        numéricas o categóricas antes de preparar o modelar el dataset.
+        """
+        total = len(self.datos)
+        filas = []
+        for columna in self.datos.columns:
+            serie = self.datos[columna]
+            nulos = int(serie.isna().sum())
+            filas.append(
+                {
+                    "columna": columna,
+                    "dtype": str(serie.dtype),
+                    "tipo": (
+                        "Numérica"
+                        if pd.api.types.is_numeric_dtype(serie)
+                        else "Categórica"
+                    ),
+                    "nulos": nulos,
+                    "porcentaje_nulos": (
+                        round(nulos / total * 100, 2) if total else 0.0
+                    ),
+                    "valores_unicos": int(serie.nunique(dropna=True)),
+                }
+            )
+        return pd.DataFrame(filas).set_index("columna")
+
     # ==========================================================
     # Limpieza
     # ==========================================================
@@ -95,6 +126,19 @@ class DataFrame:
     def eliminar_duplicados(self):
         """Elimina registros duplicados y reconstruye el índice."""
         self.datos = self.datos.drop_duplicates().reset_index(drop=True)
+        return self.datos
+
+    def eliminar_columnas(self, columnas):
+        """Elimina columnas indicadas manualmente y valida su existencia."""
+        columnas = list(columnas)
+        if not columnas:
+            return self.datos
+        inexistentes = [c for c in columnas if c not in self.datos.columns]
+        if inexistentes:
+            raise KeyError(f"Columnas inexistentes: {inexistentes}")
+        if len(set(columnas)) >= self.datos.shape[1]:
+            raise ValueError("No se pueden eliminar todas las columnas del dataset.")
+        self.datos = self.datos.drop(columns=columnas)
         return self.datos
 
     def imputar_nulos(
@@ -226,94 +270,114 @@ class DataFrame:
             )
         return resultado
 
-    def histogramas(self, columnas=None, mostrar: bool = True):
-        """Histogramas (con KDE) de cada variable numérica."""
+    def histogramas(self, columnas=None, mostrar: bool = True) -> go.Figure:
+        """Histogramas (con KDE) de cada variable numérica, en Plotly."""
         numericas = self._seleccionar_numericas(columnas)
         cantidad = len(numericas)
         if cantidad == 0:
             raise ValueError("No hay columnas numéricas para graficar.")
 
-        filas = int(np.ceil(cantidad / 3))
-        figura, ejes = plt.subplots(
-            filas,
-            min(cantidad, 3),
-            figsize=(12, 3.5 * filas),
-            squeeze=False,
+        columnas_grilla = min(cantidad, 3)
+        filas = int(np.ceil(cantidad / columnas_grilla))
+        figura = make_subplots(
+            rows=filas,
+            cols=columnas_grilla,
+            subplot_titles=[f"Distribución de {columna}" for columna in numericas],
         )
-        ejes = np.array(ejes).ravel()
-        for eje, columna in zip(ejes, numericas):
-            sns.histplot(data=self.datos, x=columna, kde=True, ax=eje, color="#1A3C2B")
-            eje.set_title(f"Distribución de {columna}")
-        for eje in ejes[cantidad:]:
-            eje.axis("off")
-
-        figura.tight_layout()
+        for indice, columna in enumerate(numericas):
+            fila, col = divmod(indice, columnas_grilla)
+            valores = self.datos[columna].dropna()
+            figura.add_trace(
+                go.Histogram(
+                    x=valores,
+                    histnorm="probability density",
+                    marker_color="#1A3C2B",
+                    showlegend=False,
+                ),
+                row=fila + 1,
+                col=col + 1,
+            )
+            if valores.nunique() > 1:
+                densidad = gaussian_kde(valores)
+                rango = np.linspace(valores.min(), valores.max(), 200)
+                figura.add_trace(
+                    go.Scatter(
+                        x=rango,
+                        y=densidad(rango),
+                        mode="lines",
+                        line=dict(color="#FF8C69", width=2),
+                        showlegend=False,
+                    ),
+                    row=fila + 1,
+                    col=col + 1,
+                )
+        figura.update_layout(height=320 * filas, margin=dict(t=60))
         if mostrar:
-            plt.show()
-        return figura, ejes[:cantidad]
+            figura.show()
+        return figura
 
-    def boxplots(self, columnas=None, mostrar: bool = True):
-        """Diagramas de caja de cada variable numérica."""
+    def boxplots(self, columnas=None, mostrar: bool = True) -> go.Figure:
+        """Diagramas de caja de cada variable numérica, en Plotly."""
         numericas = self._seleccionar_numericas(columnas)
         cantidad = len(numericas)
         if cantidad == 0:
             raise ValueError("No hay columnas numéricas para graficar.")
 
-        filas = int(np.ceil(cantidad / 3))
-        figura, ejes = plt.subplots(
-            filas,
-            min(cantidad, 3),
-            figsize=(12, 3.0 * filas),
-            squeeze=False,
+        columnas_grilla = min(cantidad, 3)
+        filas = int(np.ceil(cantidad / columnas_grilla))
+        figura = make_subplots(
+            rows=filas,
+            cols=columnas_grilla,
+            subplot_titles=[f"Diagrama de caja de {columna}" for columna in numericas],
         )
-        ejes = np.array(ejes).ravel()
-        for eje, columna in zip(ejes, numericas):
-            sns.boxplot(data=self.datos, x=columna, ax=eje, color="#7DBE76")
-            eje.set_title(f"Diagrama de caja de {columna}")
-        for eje in ejes[cantidad:]:
-            eje.axis("off")
-
-        figura.tight_layout()
+        for indice, columna in enumerate(numericas):
+            fila, col = divmod(indice, columnas_grilla)
+            figura.add_trace(
+                go.Box(
+                    y=self.datos[columna],
+                    name=columna,
+                    marker_color="#7DBE76",
+                    showlegend=False,
+                ),
+                row=fila + 1,
+                col=col + 1,
+            )
+        figura.update_layout(height=300 * filas, margin=dict(t=60))
         if mostrar:
-            plt.show()
-        return figura, ejes[:cantidad]
+            figura.show()
+        return figura
 
-
-    def scatterplots(self, columnas=None, mostrar: bool = True):
-        """Matriz de dispersión (pairplot) entre variables numéricas."""
+    def scatterplots(self, columnas=None, mostrar: bool = True) -> go.Figure:
+        """Matriz de dispersión entre variables numéricas, en Plotly."""
         numericas = self._seleccionar_numericas(columnas)
         if len(numericas) < 2:
             raise ValueError("Se requieren al menos dos columnas numéricas.")
-        grafico = sns.pairplot(
-            self.datos[numericas],
-            diag_kind="hist",
-            corner=True,
-        )
+        figura = px.scatter_matrix(self.datos[numericas], dimensions=numericas)
+        figura.update_traces(diagonal_visible=False, showupperhalf=False, marker=dict(color="#1A3C2B", opacity=0.7))
+        figura.update_layout(height=max(500, 220 * len(numericas)))
         if mostrar:
-            plt.show()
-        return grafico
+            figura.show()
+        return figura
 
-    def mapa_calor(self, columnas=None, metodo: str = "pearson", mostrar: bool = True):
+    def mapa_calor(
+        self, columnas=None, metodo: str = "pearson", mostrar: bool = True
+    ) -> tuple[go.Figure, pd.DataFrame]:
         """Grafica y retorna la matriz de correlación de variables numéricas."""
         numericas = self._seleccionar_numericas(columnas)
-        correlacion = self.datos[numericas].corr(method=metodo)
-        figura, eje = plt.subplots(figsize=(9, 7))
-        sns.heatmap(
+        correlacion = self.datos[numericas].corr(method=metodo).round(3)
+        figura = px.imshow(
             correlacion,
-            annot=True,
-            fmt=".2f",
-            cmap="vlag",
-            center=0,
-            vmin=-1,
-            vmax=1,
-            square=True,
-            ax=eje,
+            text_auto=".2f",
+            color_continuous_scale="RdBu",
+            zmin=-1,
+            zmax=1,
+            aspect="auto",
+            title=f"Correlación ({metodo})",
         )
-        eje.set_title(f"Correlación ({metodo})")
-        figura.tight_layout()
+        figura.update_layout(height=max(400, 60 * len(numericas)))
         if mostrar:
-            plt.show()
-        return correlacion.round(3)
+            figura.show()
+        return figura, correlacion
 
     def detectar_outliers(self, columnas=None, factor_iqr: float = 1.5):
         """Detecta valores atípicos mediante límites de rango intercuartílico."""

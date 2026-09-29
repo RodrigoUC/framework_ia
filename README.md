@@ -2,9 +2,10 @@
 
 Framework modular para cargar cualquier archivo CSV, preparar sus datos y
 ejecutar EDA, ACP, K-Means, K-Medoids, clustering jerárquico, t-SNE y UMAP.
-La interfaz gráfica usa Streamlit, mientras que los algoritmos permanecen en
-clases independientes y reutilizables. La versión oficial del proyecto es
-este directorio (`framework_start`).
+La interfaz gráfica usa Streamlit y Plotly para los gráficos interactivos,
+mientras que los algoritmos permanecen en clases independientes y
+reutilizables. La versión oficial del proyecto es este directorio
+(`framework_start`).
 
 ## Inicio rápido
 
@@ -28,6 +29,16 @@ En la barra lateral:
 5. Ejecute el análisis y consulte sus métricas, gráficos, trazabilidad y
    exportaciones desde la vista activa.
 
+En la vista **Datos y preparación** también puede:
+
+- Ver el tipo analítico de cada columna (numérica/categórica), sus nulos y
+  su cardinalidad.
+- Eliminar columnas manualmente antes de aplicar el resto de la preparación.
+- Calcular una partición train/test/validación eligiendo el porcentaje de
+  cada subconjunto y, de forma opcional, una columna para estratificar. Esa
+  partición queda disponible para Clasificación (y, a futuro, Regresión),
+  que pueden reutilizarla en vez de dividir los datos de nuevo.
+
 ACP, t-SNE y UMAP se mantienen bajo Exploración y reducción dimensional. La
 regresión aparece como pilar independiente, marcada como próxima mientras sus
 métodos sigan siendo una plantilla.
@@ -43,12 +54,12 @@ Por ello, reemplazar el CSV no exige modificar el código.
 ```text
 app.py                         Punto de entrada de Streamlit.
 framework_ia/
-  datos/                       Carga, EDA y preprocesamiento.
+  datos/                       Carga, EDA, preprocesamiento y partición.
   modelos/
     supervisado/               Clasificación y regresión.
     no_supervisado/            Agrupamiento y reducción dimensional.
   resultados.py                Objetos de transferencia entre capas.
-  visualizacion.py             Figuras independientes de Streamlit.
+  visualizacion.py             Figuras Plotly independientes de Streamlit.
   ui/streamlit_app.py          Interfaz y estado de sesión.
 scripts/                       Automatización de Lab01 y empaquetado.
 tests/                         Pruebas automatizadas.
@@ -62,9 +73,11 @@ ya calculados.
 
 ## Dependencias
 
-UMAP está incluido en `requirements.txt` mediante `umap-learn`. K-Medoids se
-implementa en `framework_ia/modelos/algoritmos_cluster.py`, por lo que no requiere una biblioteca
-adicional.
+Todos los gráficos del framework (EDA, ACP, clustering, t-SNE/UMAP y
+clasificación) se generan con Plotly, incluido en `requirements.txt`. UMAP
+está incluido mediante `umap-learn`. K-Medoids se implementa en
+`framework_ia/modelos/algoritmos_cluster.py`, por lo que no requiere una
+biblioteca adicional.
 
 Las versiones mínimas están en `requirements.txt`. El código de t-SNE admite
 las versiones de scikit-learn que nombran el parámetro de iteraciones como
