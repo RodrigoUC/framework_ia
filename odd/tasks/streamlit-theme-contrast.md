@@ -30,7 +30,7 @@ El CSS fija el sidebar oscuro y fuerza colores sobre todos sus descendientes y c
 
 - TDD: no configurado explícitamente; pruebas funcionales con `python -m unittest discover -s tests -v` y `streamlit.testing.v1.AppTest`.
 - Estrategia de entrega: `ask-on-risk`; estimación inferior a 400 líneas redactadas.
-- Rama: `fix/streamlit-contrast-theme`. TC-1 en commit `8f2c516` y PR #6; TC-2 implementada y pendiente de commit local.
+- Rama: `fix/streamlit-contrast-theme`. TC-1 en commit `8f2c516` y PR #6; TC-2 en commit local `300f3eb`, todavía sin push.
 - Inspección visual real de navegador: no disponible; verificación manual pendiente en ambos temas.
 - Review de Gentle AI omitido por petición expresa del usuario.
-- Próximo paso: registrar TC-2 en un commit local; revisar visualmente cuando haya navegador disponible. Push de TC-2 requiere solicitud explícita.
+- Próximo paso: revisar visualmente cuando haya navegador disponible. Push de TC-2 requiere solicitud explícita.
