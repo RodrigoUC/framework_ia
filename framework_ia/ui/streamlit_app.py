@@ -326,10 +326,14 @@ def _limpiar_resultados() -> None:
 def _resumen_calidad(datos: pd.DataFrame) -> None:
     """Muestra indicadores básicos del dataset activo."""
     resumen = EDA(dataframe=datos).resumen_calidad()
-    columnas = st.columns(len(resumen))
-    for columna, (nombre, valor) in zip(columnas, resumen.items()):
-        etiqueta = nombre.replace("_", " ").title()
-        columna.metric(etiqueta, valor)
+    indicadores = list(resumen.items())
+    metricas_por_fila = 3
+    for inicio in range(0, len(indicadores), metricas_por_fila):
+        fila = indicadores[inicio : inicio + metricas_por_fila]
+        columnas = st.columns(len(fila))
+        for columna, (nombre, valor) in zip(columnas, fila):
+            etiqueta = nombre.replace("_", " ").title()
+            columna.metric(etiqueta, valor)
 
 
 def _render_dataset() -> None:
