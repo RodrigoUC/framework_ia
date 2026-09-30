@@ -18,11 +18,9 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 
-from ...datos.preprocesamiento import (
-    ConfiguracionPreprocesamiento,
-    PreprocesadorNoSupervisado,
-)
+from ...datos.preprocesamiento import PreprocesadorNoSupervisado
 from ...resultados import ResultadoClasificacion, ResultadoParticion
+from ...utils import ConfiguracionPreprocesamiento
 from .base import Supervisado
 
 

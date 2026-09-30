@@ -1,4 +1,4 @@
-"""Algoritmos de agrupamiento no supervisado del framework."""
+"""Algoritmos no supervisados del framework: agrupamiento, ACP, t-SNE y UMAP."""
 
 from __future__ import annotations
 
@@ -11,18 +11,28 @@ from sklearn.metrics import silhouette_score
 
 from .algoritmos_cluster import ModeloKMedoids
 from .base import NoSupervisado
-from ...resultados import DatosPreparados, ResultadoCluster
+from ...resultados import (
+    DatosPreparados,
+    ResultadoACP,
+    ResultadoCluster,
+    ResultadoProyeccion,
+)
+from ...utils import configurar_cache_numba, crear_tsne
+
+
+class DependenciaOpcionalError(ImportError):
+    """Indica que una capacidad opcional requiere instalar una dependencia."""
 
 
 class Cluster(NoSupervisado):
-    """Ejecuta K-Means, K-Medoids y clustering jerárquico."""
+    """Ejecuta K-Means, K-Medoids, HAC y las proyecciones ACP, t-SNE y UMAP."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.centroides: pd.DataFrame | None = None
         self.inercia: float | None = None
 
-    def ajustar(self, algoritmo: str = "KMEANS", **kwargs) -> ResultadoCluster:
+    def ajustar(self, algoritmo: str = "KMEANS", **kwargs):
         """Despacha el algoritmo solicitado con una interfaz común."""
         metodos = {
             "KMEANS": self.K_means,
@@ -31,6 +41,10 @@ class Cluster(NoSupervisado):
             "K-MEDOIDS": self.K_medoids,
             "HAC": self.HAC,
             "HPC": self.HAC,
+            "ACP": self.ACP,
+            "TSNE": self.TSNE,
+            "T-SNE": self.TSNE,
+            "UMAP": self.UMAP,
         }
         try:
             metodo = metodos[algoritmo.upper()]
@@ -152,6 +166,142 @@ class Cluster(NoSupervisado):
     def hac(self, *args, **kwargs) -> ResultadoCluster:
         """Alias pythonico de :meth:`HAC`."""
         return self.HAC(*args, **kwargs)
+
+    # ==========================================================
+    # Reducción dimensional: ACP, t-SNE y UMAP
+    # ==========================================================
+
+    def ACP(self, n_componentes: int = 2) -> ResultadoACP:
+        """Calcula componentes, cargas y varianza explicada con sklearn."""
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        maximo = min(matriz.shape)
+        if not 1 <= n_componentes <= maximo:
+            raise ValueError(
+                f"n_componentes debe estar entre 1 y {maximo}."
+            )
+
+        modelo = PCA(n_components=n_componentes)
+        valores = modelo.fit_transform(matriz)
+        nombres = [f"CP{i + 1}" for i in range(n_componentes)]
+        coordenadas = pd.DataFrame(valores, index=matriz.index, columns=nombres)
+
+        cargas_np = modelo.components_.T * np.sqrt(modelo.explained_variance_)
+        cargas = pd.DataFrame(cargas_np, index=matriz.columns, columns=nombres)
+        varianza = pd.Series(
+            modelo.explained_variance_ratio_ * 100,
+            index=nombres,
+            name="varianza_explicada_porcentaje",
+        )
+        acumulada = varianza.cumsum().rename("varianza_acumulada_porcentaje")
+        self.modelo = modelo
+        return ResultadoACP(
+            coordenadas=coordenadas,
+            cargas=cargas,
+            varianza_explicada=varianza,
+            varianza_acumulada=acumulada,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def acp(self, n_componentes: int = 2) -> ResultadoACP:
+        """Alias pythonico de :meth:`ACP`."""
+        return self.ACP(n_componentes=n_componentes)
+
+    def TSNE(
+        self,
+        *,
+        perplexity: float = 30.0,
+        max_iter: int = 1000,
+        random_state: int = 42,
+    ) -> ResultadoProyeccion:
+        """Genera una proyección t-SNE bidimensional."""
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        if len(matriz) < 3:
+            raise ValueError("t-SNE requiere al menos tres filas.")
+        if not 1 <= perplexity < len(matriz):
+            raise ValueError(
+                f"perplexity debe ser menor que el número de filas ({len(matriz)})."
+            )
+
+        modelo = crear_tsne(
+            perplexity=perplexity, max_iter=max_iter, random_state=random_state
+        )
+        valores = modelo.fit_transform(matriz)
+        coordenadas = pd.DataFrame(
+            valores,
+            index=matriz.index,
+            columns=["TSNE1", "TSNE2"],
+        )
+        self.modelo = modelo
+        return ResultadoProyeccion(
+            algoritmo="t-SNE",
+            coordenadas=coordenadas,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def tsne(self, *args, **kwargs) -> ResultadoProyeccion:
+        """Alias pythonico de :meth:`TSNE`."""
+        return self.TSNE(*args, **kwargs)
+
+    def UMAP(
+        self,
+        *,
+        n_neighbors: int = 15,
+        min_dist: float = 0.1,
+        random_state: int = 42,
+    ) -> ResultadoProyeccion:
+        """Genera una proyección UMAP bidimensional y reproducible.
+
+        ``umap-learn`` usa Numba durante la importación; si el directorio de
+        caché no es escribible se configura uno temporal (ver
+        :func:`utils.configurar_cache_numba`).
+        """
+        configurar_cache_numba()
+        try:
+            import umap.umap_ as umap
+        except (ImportError, RuntimeError) as exc:
+            raise DependenciaOpcionalError(
+                "No fue posible inicializar UMAP. Instale 'umap-learn' y "
+                "verifique que Numba tenga un directorio de caché escribible. "
+                f"Detalle técnico: {exc}"
+            ) from exc
+
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        if len(matriz) < 3:
+            raise ValueError("UMAP requiere al menos tres filas.")
+        if not 2 <= n_neighbors < len(matriz):
+            raise ValueError(
+                f"n_neighbors debe estar entre 2 y {len(matriz) - 1}."
+            )
+
+        modelo = umap.UMAP(
+            n_components=2,
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            random_state=random_state,
+            n_jobs=1,
+        )
+        valores = modelo.fit_transform(matriz)
+        coordenadas = pd.DataFrame(
+            valores,
+            index=matriz.index,
+            columns=["UMAP1", "UMAP2"],
+        )
+        self.modelo = modelo
+        return ResultadoProyeccion(
+            algoritmo="UMAP",
+            coordenadas=coordenadas,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def umap(self, *args, **kwargs) -> ResultadoProyeccion:
+        """Alias pythonico de :meth:`UMAP`."""
+        return self.UMAP(*args, **kwargs)
 
     def evaluar_kmeans(
         self,

@@ -9,32 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from scipy.stats import gaussian_kde
-
-
-def _color_texto_por_luminancia(color) -> str:
-    """Elige texto legible sobre un color de celda RGBA."""
-    def luminancia_rgb(rgb) -> float:
-        canales = [
-            canal / 12.92 if canal <= 0.04045 else ((canal + 0.055) / 1.055) ** 2.4
-            for canal in rgb
-        ]
-        return 0.2126 * canales[0] + 0.7152 * canales[1] + 0.0722 * canales[2]
-
-    luminancia_celda = luminancia_rgb(color[:3])
-    candidatos = {"#000000": (0.0, 0.0, 0.0), "#ffffff": (1.0, 1.0, 1.0)}
-    return max(
-        candidatos,
-        key=lambda foreground: (
-            max(luminancia_rgb(candidatos[foreground]), luminancia_celda) + 0.05
-        )
-        / (min(luminancia_rgb(candidatos[foreground]), luminancia_celda) + 0.05),
-    )
 
 
 class DataFrame:
@@ -252,7 +227,7 @@ class DataFrame:
 
 
     # ==========================================================
-    # Análisis EDA
+    # Análisis estadístico
     # ==========================================================
 
     def distribucion_variables(self):
@@ -289,115 +264,6 @@ class DataFrame:
                 }
             )
         return resultado
-
-    def histogramas(self, columnas=None, mostrar: bool = True) -> go.Figure:
-        """Histogramas (con KDE) de cada variable numérica, en Plotly."""
-        numericas = self._seleccionar_numericas(columnas)
-        cantidad = len(numericas)
-        if cantidad == 0:
-            raise ValueError("No hay columnas numéricas para graficar.")
-
-        columnas_grilla = min(cantidad, 3)
-        filas = int(np.ceil(cantidad / columnas_grilla))
-        figura = make_subplots(
-            rows=filas,
-            cols=columnas_grilla,
-            subplot_titles=[f"Distribución de {columna}" for columna in numericas],
-        )
-        for indice, columna in enumerate(numericas):
-            fila, col = divmod(indice, columnas_grilla)
-            valores = self.datos[columna].dropna()
-            figura.add_trace(
-                go.Histogram(
-                    x=valores,
-                    histnorm="probability density",
-                    marker_color="#1A3C2B",
-                    showlegend=False,
-                ),
-                row=fila + 1,
-                col=col + 1,
-            )
-            if valores.nunique() > 1:
-                densidad = gaussian_kde(valores)
-                rango = np.linspace(valores.min(), valores.max(), 200)
-                figura.add_trace(
-                    go.Scatter(
-                        x=rango,
-                        y=densidad(rango),
-                        mode="lines",
-                        line=dict(color="#FF8C69", width=2),
-                        showlegend=False,
-                    ),
-                    row=fila + 1,
-                    col=col + 1,
-                )
-        figura.update_layout(height=320 * filas, margin=dict(t=60))
-        if mostrar:
-            figura.show()
-        return figura
-
-    def boxplots(self, columnas=None, mostrar: bool = True) -> go.Figure:
-        """Diagramas de caja de cada variable numérica, en Plotly."""
-        numericas = self._seleccionar_numericas(columnas)
-        cantidad = len(numericas)
-        if cantidad == 0:
-            raise ValueError("No hay columnas numéricas para graficar.")
-
-        columnas_grilla = min(cantidad, 3)
-        filas = int(np.ceil(cantidad / columnas_grilla))
-        figura = make_subplots(
-            rows=filas,
-            cols=columnas_grilla,
-            subplot_titles=[f"Diagrama de caja de {columna}" for columna in numericas],
-        )
-        for indice, columna in enumerate(numericas):
-            fila, col = divmod(indice, columnas_grilla)
-            figura.add_trace(
-                go.Box(
-                    y=self.datos[columna],
-                    name=columna,
-                    marker_color="#7DBE76",
-                    showlegend=False,
-                ),
-                row=fila + 1,
-                col=col + 1,
-            )
-        figura.update_layout(height=300 * filas, margin=dict(t=60))
-        if mostrar:
-            figura.show()
-        return figura
-
-    def scatterplots(self, columnas=None, mostrar: bool = True) -> go.Figure:
-        """Matriz de dispersión entre variables numéricas, en Plotly."""
-        numericas = self._seleccionar_numericas(columnas)
-        if len(numericas) < 2:
-            raise ValueError("Se requieren al menos dos columnas numéricas.")
-        figura = px.scatter_matrix(self.datos[numericas], dimensions=numericas)
-        figura.update_traces(diagonal_visible=False, showupperhalf=False, marker=dict(color="#1A3C2B", opacity=0.7))
-        figura.update_layout(height=max(500, 220 * len(numericas)))
-        if mostrar:
-            figura.show()
-        return figura
-
-    def mapa_calor(
-        self, columnas=None, metodo: str = "pearson", mostrar: bool = True
-    ) -> tuple[go.Figure, pd.DataFrame]:
-        """Grafica y retorna la matriz de correlación de variables numéricas."""
-        numericas = self._seleccionar_numericas(columnas)
-        correlacion = self.datos[numericas].corr(method=metodo).round(3)
-        figura = px.imshow(
-            correlacion,
-            text_auto=".2f",
-            color_continuous_scale="RdBu",
-            zmin=-1,
-            zmax=1,
-            aspect="auto",
-            title=f"Correlación ({metodo})",
-        )
-        figura.update_layout(height=max(400, 60 * len(numericas)))
-        if mostrar:
-            figura.show()
-        return figura, correlacion
 
     def detectar_outliers(self, columnas=None, factor_iqr: float = 1.5):
         """Detecta valores atípicos mediante límites de rango intercuartílico."""

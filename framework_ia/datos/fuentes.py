@@ -2,21 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
 
-
-@dataclass(frozen=True)
-class ConfiguracionCSV:
-    """Parámetros explícitos para interpretar un archivo CSV."""
-
-    separador: str = ","
-    decimal: str = "."
-    encoding: str = "utf-8"
-    usar_primera_columna_como_indice: bool = False
+from ..utils import ConfiguracionCSV
 
 
 class CargadorCSV:

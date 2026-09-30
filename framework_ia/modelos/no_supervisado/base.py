@@ -7,11 +7,9 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from ...datos.eda import EDA
-from ...datos.preprocesamiento import (
-    ConfiguracionPreprocesamiento,
-    PreprocesadorNoSupervisado,
-)
+from ...datos.preprocesamiento import PreprocesadorNoSupervisado
 from ...resultados import DatosPreparados
+from ...utils import ConfiguracionPreprocesamiento
 
 
 class NoSupervisado(EDA, ABC):

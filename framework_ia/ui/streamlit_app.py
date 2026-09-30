@@ -22,11 +22,7 @@ import streamlit as st
 from ..datos.eda import EDA
 from ..datos.fuentes import CargadorCSV, ConfiguracionCSV
 from ..datos.particion import ConfiguracionParticion, Particionador
-from ..modelos.no_supervisado import (
-    Cluster,
-    DependenciaOpcionalError,
-    ReduccionDimensional,
-)
+from ..modelos.no_supervisado import Cluster, DependenciaOpcionalError
 from ..modelos.supervisado import Clasificacion
 from ..resultados import ResultadoParticion
 from ..visualizacion import (
@@ -787,9 +783,9 @@ def _muestrear(datos: pd.DataFrame, cantidad: int) -> pd.DataFrame:
     return datos.sample(n=cantidad, random_state=42).sort_index()
 
 
-def _crear_reductor(datos: pd.DataFrame, configuracion: dict) -> ReduccionDimensional:
-    """Construye un reductor a partir de la configuración de la interfaz."""
-    return ReduccionDimensional(
+def _crear_reductor(datos: pd.DataFrame, configuracion: dict) -> Cluster:
+    """Construye el modelo usado para ACP, t-SNE y UMAP desde la interfaz."""
+    return Cluster(
         dataframe=datos,
         features=configuracion["features"],
         incluir_categoricas=configuracion["incluir_categoricas"],

@@ -7,26 +7,15 @@ modelos para mantener una sola responsabilidad por clase.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 
 from ..resultados import DatosPreparados
-
-
-@dataclass(frozen=True)
-class ConfiguracionPreprocesamiento:
-    """Opciones para convertir un dataset arbitrario en una matriz numérica."""
-
-    columnas: tuple[str, ...] | None = None
-    incluir_categoricas: bool = False
-    imputar: bool = True
-    estandarizar: bool = True
+from ..utils import ConfiguracionPreprocesamiento, crear_codificador_denso
 
 
 class PreprocesadorNoSupervisado:
@@ -34,14 +23,6 @@ class PreprocesadorNoSupervisado:
 
     def __init__(self, configuracion: ConfiguracionPreprocesamiento) -> None:
         self._configuracion = configuracion
-
-    @staticmethod
-    def _crear_codificador() -> OneHotEncoder:
-        """Crea un codificador denso compatible con distintas versiones."""
-        try:
-            return OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-        except TypeError:
-            return OneHotEncoder(handle_unknown="ignore", sparse=False)
 
     def ajustar_transformar(self, datos: pd.DataFrame) -> DatosPreparados:
         """Valida, limpia y transforma el dataset seleccionado."""
@@ -96,7 +77,7 @@ class PreprocesadorNoSupervisado:
                     "categoricas",
                     Pipeline(
                         pasos_categoricos
-                        + [("codificar", self._crear_codificador())]
+                        + [("codificar", crear_codificador_denso())]
                     ),
                     categoricas,
                 )

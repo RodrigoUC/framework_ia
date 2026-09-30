@@ -1,12 +1,10 @@
-"""Modelos no supervisados: agrupamiento y reducción dimensional."""
+"""Modelos no supervisados: agrupamiento (incluye ACP, t-SNE y UMAP)."""
 
-from .agrupamiento import Cluster
+from .agrupamiento import Cluster, DependenciaOpcionalError
 from .base import NoSupervisado
-from .reduccion_dimensional import DependenciaOpcionalError, ReduccionDimensional
 
 __all__ = [
     "NoSupervisado",
     "Cluster",
-    "ReduccionDimensional",
     "DependenciaOpcionalError",
 ]
