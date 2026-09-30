@@ -6,12 +6,17 @@ analizar otro dataset basta con reemplazar un CSV local o subir uno nuevo.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 from html import escape
+import math
 from pathlib import Path
+import re
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.colors import sample_colorscale
 import streamlit as st
 
 from ..datos.eda import EDA
@@ -80,6 +85,10 @@ RUTAS_VISTA = {
 
 def _aplicar_estilos_atlas() -> None:
     """Instala la capa visual compartida de la experiencia Atlas Analítico."""
+    oscuro = st.context.theme.type == "dark"
+    focus_color = "#9effbf" if oscuro else "#1a3c2b"
+    chip_background = "#9effbf" if oscuro else "#1a3c2b"
+    chip_foreground = "#111713" if oscuro else "#f7f7f5"
     st.markdown(
         """
         <style>
@@ -87,13 +96,13 @@ def _aplicar_estilos_atlas() -> None:
         @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap');
 
         .stApp { font-family: 'General Sans', sans-serif; }
+        :root { --atlas-focus-color: __ATLAS_FOCUS_COLOR__; }
         .stApp::selection { background: #9effbf; color: #1a3c2b; }
         h1, h2, h3 { font-family: 'Space Grotesk', sans-serif !important; letter-spacing: -0.02em; }
         code, [data-testid="stCaptionContainer"] { font-family: 'JetBrains Mono', monospace; }
         [data-testid="stSidebar"] { border-right: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
-        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; background: transparent; color: inherit; font-family: 'General Sans', sans-serif; font-size: .88rem; }
-        [data-testid="stSidebar"] .stButton > button:hover { background: color-mix(in srgb, currentColor 10%, transparent); border-color: color-mix(in srgb, currentColor 28%, transparent); color: inherit; }
-        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid var(--primary-color); background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; }
+        [data-testid="stSidebar"] .stButton > button { width: 100%; min-height: 2.35rem; justify-content: flex-start; border: 1px solid transparent; border-radius: 2px; font-family: 'General Sans', sans-serif; font-size: .88rem; }
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] { border-left: 2px solid var(--primary-color); }
         [data-testid="stSidebar"] details { border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 2px; background: color-mix(in srgb, currentColor 4%, transparent); }
         [data-testid="stSidebar"] summary { font-family: 'Space Grotesk', sans-serif; font-size: .9rem; }
         .atlas-nav-label { margin: 1.35rem 0 .35rem; color: color-mix(in srgb, currentColor 72%, transparent); font-family: 'JetBrains Mono', monospace; font-size: .67rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
@@ -105,82 +114,84 @@ def _aplicar_estilos_atlas() -> None:
         [data-testid="stMetric"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 2px; background: transparent; padding: .8rem .9rem; }
         [data-testid="stMetricLabel"] { font-family: 'JetBrains Mono', monospace; font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; }
         [data-testid="stMetricValue"] { font-family: 'Space Grotesk', sans-serif; }
-        .stButton > button[kind="primary"] { border-radius: 2px; background: #1a3c2b; color: #f7f7f5; }
-        .stButton > button[kind="primary"]:hover { background: #122d20; color: #f7f7f5; }
-        .stButton > button:focus-visible, input:focus-visible { outline: 2px solid #1a3c2b !important; outline-offset: 2px; }
+        .stButton > button[kind="primary"] { border-radius: 2px; }
+        .stButton > button:focus-visible, input:focus-visible { outline: 2px solid var(--atlas-focus-color) !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
         [data-testid="stDataFrame"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); }
-        [data-testid="stMultiSelect"] [data-tag] { background-color: #1a3c2b; color: #f7f7f5; }
-        [data-testid="stMultiSelect"] [data-tag] * { color: #f7f7f5; }
+        [data-testid="stMultiSelect"] [data-tag] { background-color: __ATLAS_CHIP_BACKGROUND__; color: __ATLAS_CHIP_FOREGROUND__; }
+        [data-testid="stMultiSelect"] [data-tag] *, [data-testid="stMultiSelect"] [data-tag] svg { color: __ATLAS_CHIP_FOREGROUND__; fill: __ATLAS_CHIP_FOREGROUND__; }
         @media (max-width: 900px) { .atlas-header { padding: 1rem; } .atlas-title { font-size: 1.65rem; } }
         </style>
-        """,
+        """.replace("__ATLAS_FOCUS_COLOR__", focus_color)
+        .replace("__ATLAS_CHIP_BACKGROUND__", chip_background)
+        .replace("__ATLAS_CHIP_FOREGROUND__", chip_foreground),
         unsafe_allow_html=True,
     )
 
 
-def _configuracion_csv() -> ConfiguracionCSV:
-    """Recopila las opciones necesarias para interpretar diferentes CSV."""
-    separador = st.sidebar.text_input("Separador", value=",", max_chars=3)
-    decimal = st.sidebar.text_input("Separador decimal", value=".", max_chars=1)
-    encoding = st.sidebar.selectbox(
-        "Codificación", options=["utf-8", "latin-1", "cp1252"]
-    )
-    usar_indice = st.sidebar.checkbox(
-        "Usar primera columna como índice", value=False
-    )
-    if not separador:
-        raise ValueError("El separador del CSV no puede estar vacío.")
-    return ConfiguracionCSV(
-        separador=separador,
-        decimal=decimal,
-        encoding=encoding,
-        usar_primera_columna_como_indice=usar_indice,
-    )
-
-
 def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
-    """Carga un CSV local o subido y construye una identidad estable."""
-    st.sidebar.markdown("## Fuente de datos")
-    origen = st.sidebar.radio("Origen", options=["CSV local", "Subir CSV"])
-    try:
-        configuracion = _configuracion_csv()
-    except ValueError as exc:
-        st.sidebar.error(str(exc))
-        return None, "", ""
-
-    if origen == "CSV local":
-        archivos = sorted((BASE_DIR / "data").glob("*.csv"))
-        if not archivos:
-            st.sidebar.warning(
-                "No hay archivos CSV en data/. Use la opción de carga."
-            )
-            return None, "", ""
-        seleccion = st.sidebar.selectbox(
-            "Archivo", options=archivos, format_func=lambda ruta: ruta.name
-        )
+    """Permite preparar una fuente y aplicarla solo al confirmar el formulario."""
+    archivos = sorted((BASE_DIR / "data").glob("*.csv"))
+    error_inicio = None
+    if "fuente_aplicada" not in st.session_state and archivos:
         try:
-            datos = CargadorCSV.cargar_ruta(seleccion, configuracion)
+            _cargar_fuente_csv(archivos[0], ConfiguracionCSV())
         except Exception as exc:  # pylint: disable=broad-except
-            st.sidebar.error(f"No fue posible cargar el CSV: {exc}")
-            return None, "", ""
-        identidad = (
-            f"local:{seleccion.resolve()}:{seleccion.stat().st_mtime_ns}:"
-            f"{configuracion}"
-        )
-        return datos, seleccion.name, identidad
+            error_inicio = str(exc)
 
-    archivo = st.sidebar.file_uploader("Archivo CSV", type=["csv"])
-    if archivo is None:
-        return None, "", ""
-    contenido = archivo.getvalue()
-    try:
-        datos = CargadorCSV.cargar_bytes(contenido, configuracion)
-    except Exception as exc:  # pylint: disable=broad-except
-        st.sidebar.error(f"No fue posible cargar el CSV: {exc}")
-        return None, "", ""
-    digest = hashlib.sha256(contenido).hexdigest()
-    return datos, archivo.name, f"upload:{digest}:{configuracion}"
+    with st.sidebar:
+        with st.expander("Fuente de datos", expanded=False):
+            if error_inicio:
+                st.error(
+                    "No fue posible cargar el CSV inicial. Elija otra fuente y "
+                    f"pulse «Aplicar fuente». Detalle: {error_inicio}"
+                )
+            with st.form("form_fuente_datos"):
+                origen = st.radio("Origen", ["CSV local", "Subir CSV"], key="fuente_origen")
+                separador = st.text_input("Separador", value=",", max_chars=3, key="fuente_separador")
+                decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
+                encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
+                usar_indice = st.checkbox("Usar primera columna como índice", key="fuente_usar_indice")
+                seleccion = None
+                archivo = None
+                if origen == "CSV local":
+                    if archivos:
+                        seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: ruta.name, key="fuente_archivo")
+                    else:
+                        st.warning("No hay archivos CSV en data/. Use la opción de carga.")
+                else:
+                    archivo = st.file_uploader("Archivo CSV", type=["csv"], key="fuente_upload")
+                aplicar = st.form_submit_button("Aplicar fuente", type="primary")
+
+            if aplicar:
+                try:
+                    configuracion = ConfiguracionCSV(
+                        separador=separador, decimal=decimal, encoding=encoding,
+                        usar_primera_columna_como_indice=usar_indice,
+                    )
+                    if not separador:
+                        raise ValueError("El separador del CSV no puede estar vacío.")
+                    if origen == "CSV local" and seleccion is not None:
+                        _cargar_fuente_csv(seleccion, configuracion)
+                    elif origen == "Subir CSV" and archivo is not None:
+                        contenido = archivo.getvalue()
+                        datos = CargadorCSV.cargar_bytes(contenido, configuracion)
+                        digest = hashlib.sha256(contenido).hexdigest()
+                        st.session_state["fuente_aplicada"] = (
+                            datos, archivo.name, f"upload:{digest}:{configuracion}"
+                        )
+                    else:
+                        st.warning("Seleccione un archivo CSV antes de aplicarlo.")
+                except Exception as exc:  # pylint: disable=broad-except
+                    st.error(f"No fue posible aplicar la fuente: {exc}")
+    return st.session_state.get("fuente_aplicada", (None, "", ""))
+
+
+def _cargar_fuente_csv(seleccion: Path, configuracion: ConfiguracionCSV) -> None:
+    """Carga un CSV local y conserva la identidad de archivo y lectura."""
+    datos = CargadorCSV.cargar_ruta(seleccion, configuracion)
+    identidad = f"local:{seleccion.resolve()}:{seleccion.stat().st_mtime_ns}:{configuracion}"
+    st.session_state["fuente_aplicada"] = (datos, seleccion.name, identidad)
 
 
 def _seleccionar_vista() -> str:
@@ -220,7 +231,7 @@ def _seleccionar_vista() -> str:
             boton("UMAP", "umap")
 
         st.markdown(
-            '<p class="atlas-nav-label">Pilares del framework</p>',
+            '<p class="atlas-nav-label">Análisis y modelos</p>',
             unsafe_allow_html=True,
         )
         with st.expander("Agrupamiento", expanded=vista in {"kmeans", "hac"}):
@@ -315,10 +326,14 @@ def _limpiar_resultados() -> None:
 def _resumen_calidad(datos: pd.DataFrame) -> None:
     """Muestra indicadores básicos del dataset activo."""
     resumen = EDA(dataframe=datos).resumen_calidad()
-    columnas = st.columns(len(resumen))
-    for columna, (nombre, valor) in zip(columnas, resumen.items()):
-        etiqueta = nombre.replace("_", " ").title()
-        columna.metric(etiqueta, valor)
+    indicadores = list(resumen.items())
+    metricas_por_fila = 3
+    for inicio in range(0, len(indicadores), metricas_por_fila):
+        fila = indicadores[inicio : inicio + metricas_por_fila]
+        columnas = st.columns(len(fila))
+        for columna, (nombre, valor) in zip(columnas, fila):
+            etiqueta = nombre.replace("_", " ").title()
+            columna.metric(etiqueta, valor)
 
 
 def _render_dataset() -> None:
@@ -833,9 +848,188 @@ def _recuperar_resultado(clave: str, firma: tuple):
     return None
 
 
-def _mostrar_figura(figura: go.Figure) -> None:
-    """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
-    oscuro = st.context.theme.type == "dark"
+def _color_rgb(color: str) -> tuple[int, int, int] | None:
+    """Convierte colores hexadecimales o rgb() a canales RGB."""
+    if not isinstance(color, str):
+        return None
+    color = color.strip()
+    if color.startswith("#") and len(color) in {4, 7}:
+        if len(color) == 4:
+            color = "#" + "".join(channel * 2 for channel in color[1:])
+        try:
+            return tuple(int(color[index : index + 2], 16) for index in (1, 3, 5))
+        except ValueError:
+            return None
+    if color.startswith("rgb(") and color.endswith(")"):
+        try:
+            return tuple(int(float(channel.strip())) for channel in color[4:-1].split(",")[:3])
+        except ValueError:
+            return None
+    colores_css = {
+        "black": (0, 0, 0), "white": (255, 255, 255),
+        "gray": (128, 128, 128), "grey": (128, 128, 128),
+        "silver": (192, 192, 192), "red": (255, 0, 0),
+        "green": (0, 128, 0), "blue": (0, 0, 255),
+        "orange": (255, 165, 0), "yellow": (255, 255, 0),
+        "purple": (128, 0, 128), "pink": (255, 192, 203),
+        "brown": (165, 42, 42), "cyan": (0, 255, 255),
+        "magenta": (255, 0, 255), "lime": (0, 255, 0),
+        "navy": (0, 0, 128), "teal": (0, 128, 128),
+        "olive": (128, 128, 0), "maroon": (128, 0, 0),
+    }
+    return colores_css.get(color.lower())
+
+
+def _luminancia(color: str) -> float | None:
+    """Calcula luminancia relativa sRGB para etiquetas sobre celdas Plotly."""
+    canales = _color_rgb(color)
+    if canales is None:
+        return None
+    lineales = [
+        canal / 12.92 if canal / 255 <= 0.04045 else ((canal / 255 + 0.055) / 1.055) ** 2.4
+        for canal in canales
+    ]
+    return 0.2126 * lineales[0] + 0.7152 * lineales[1] + 0.0722 * lineales[2]
+
+
+def _color_texto_celda(color: str) -> str:
+    """Elige negro o blanco para mantener contraste en cada celda del mapa."""
+    luminancia = _luminancia(color)
+    if luminancia is None:
+        return "#172019"
+    contraste_oscuro = (luminancia + 0.05) / 0.05
+    contraste_claro = 1.05 / (luminancia + 0.05)
+    return "#172019" if contraste_oscuro >= contraste_claro else "#ffffff"
+
+
+def _color_texto_sector(color: str, predeterminado: str) -> str:
+    """Elige texto AA para una sección circular con color explícito."""
+    luminancia = _luminancia(color)
+    if luminancia is None:
+        return predeterminado
+    return "#000000" if (luminancia + 0.05) / 0.05 >= 4.5 else "#ffffff"
+
+
+def _ajustar_color_traza(color, oscuro: bool):
+    """Eleva el contraste de colores de marcas y líneas sin perder su matiz."""
+    if isinstance(color, (list, tuple)):
+        return [_ajustar_color_traza(valor, oscuro) for valor in color]
+    canales = _color_rgb(color)
+    if canales is None:
+        return color
+    fondo = PALETA_OSCURA["superficie"] if oscuro else PALETA["superficie"]
+    luminancia_fondo = _luminancia(fondo)
+
+    def contraste(luminancia: float) -> float:
+        menor, mayor = sorted((luminancia, luminancia_fondo))
+        return (mayor + 0.05) / (menor + 0.05)
+
+    luminancia = _luminancia(color)
+    if luminancia is None or contraste(luminancia) >= 3:
+        return color
+    destino = (255, 255, 255) if oscuro else (0, 0, 0)
+    for paso in range(1, 101):
+        proporcion = paso / 100
+        ajustado = tuple(
+            round(canal + (meta - canal) * proporcion)
+            for canal, meta in zip(canales, destino)
+        )
+        hexadecimal = "#" + "".join(f"{canal:02x}" for canal in ajustado)
+        if contraste(_luminancia(hexadecimal)) >= 3:
+            return hexadecimal
+    return "#ffffff" if oscuro else "#000000"
+
+
+def _texto_mapa_calor(figura: go.Figure) -> list[go.Scatter]:
+    """Superpone etiquetas por celda con colores contrastantes y formato Plotly."""
+    etiquetas = []
+    for traza in figura.data:
+        if traza.type != "heatmap" or not traza.texttemplate:
+            continue
+        valores = traza.z
+        if isinstance(valores, dict):
+            try:
+                forma = tuple(int(dimension) for dimension in valores["shape"].split(","))
+                arreglo = np.frombuffer(
+                    base64.b64decode(valores["bdata"], validate=True),
+                    dtype=np.dtype(valores["dtype"]),
+                )
+                if not forma or arreglo.size != math.prod(forma):
+                    continue
+                valores = arreglo.reshape(forma).tolist()
+            except (KeyError, TypeError, ValueError):
+                continue
+        if valores is None or not len(valores) or not len(valores[0]):
+            continue
+        coloraxis = getattr(traza, "coloraxis", None)
+        eje_color = getattr(figura.layout, coloraxis, None) if coloraxis else None
+        escala = (eje_color.colorscale if eje_color else None) or traza.colorscale or "Viridis"
+        minimo = eje_color.cmin if eje_color else traza.zmin
+        maximo = eje_color.cmax if eje_color else traza.zmax
+        centro = eje_color.cmid if eje_color else traza.zmid
+        rango_automatico = minimo is None and maximo is None
+        invertir = bool(
+            (eje_color and eje_color.reversescale) or traza.reversescale
+        )
+        valores_validos = [
+            float(valor)
+            for fila in valores
+            for valor in fila
+            if valor is not None and math.isfinite(float(valor))
+        ]
+        if not valores_validos:
+            continue
+        minimo = minimo if minimo is not None else min(valores_validos)
+        maximo = maximo if maximo is not None else max(valores_validos)
+        if centro is not None and rango_automatico:
+            radio = max(abs(minimo - centro), abs(maximo - centro))
+            minimo, maximo = centro - radio, centro + radio
+        xs = list(traza.x) if traza.x is not None else list(range(len(valores[0])))
+        ys = list(traza.y) if traza.y is not None else list(range(len(valores)))
+        xs_repetidos, ys_repetidos, celdas, posiciones = [], [], [], []
+        if not isinstance(escala, str):
+            escala = [list(punto) for punto in escala]
+        for fila, y in zip(valores, ys):
+            for valor, x in zip(fila, xs):
+                if valor is None or not math.isfinite(float(valor)):
+                    continue
+                posicion = 0.5 if maximo == minimo else min(1, max(0, (float(valor) - minimo) / (maximo - minimo)))
+                if centro is not None and rango_automatico and minimo < centro < maximo:
+                    posicion = (
+                        0.5 * (float(valor) - minimo) / (centro - minimo)
+                        if float(valor) <= centro
+                        else 0.5 + 0.5 * (float(valor) - centro) / (maximo - centro)
+                    )
+                if invertir:
+                    posicion = 1 - posicion
+                xs_repetidos.append(x)
+                ys_repetidos.append(y)
+                celdas.append(valor)
+                posiciones.append(posicion)
+        colores = [
+            _color_texto_celda(color)
+            for color in sample_colorscale(escala, posiciones)
+        ]
+        plantilla = re.sub(r"(%\{)z(?=[:}])", r"\1text", traza.texttemplate)
+        etiquetas.append(
+            go.Scatter(
+                x=xs_repetidos,
+                y=ys_repetidos,
+                text=celdas,
+                mode="text",
+                texttemplate=plantilla,
+                textfont={"color": colores, "size": 12},
+                hoverinfo="skip",
+                showlegend=False,
+                meta="plotly-theme-cell-labels",
+            )
+        )
+        traza.texttemplate = ""
+    return etiquetas
+
+
+def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
+    """Alinea fondo, ejes, trazas y anotaciones con el tema Streamlit activo."""
     figura.update_layout(
         template="plotly_dark" if oscuro else "plotly_white",
         paper_bgcolor=PALETA_OSCURA["fondo"] if oscuro else PALETA["fondo"],
@@ -843,7 +1037,47 @@ def _mostrar_figura(figura: go.Figure) -> None:
         font_color=PALETA_OSCURA["texto"] if oscuro else PALETA["texto"],
         margin=dict(l=40, r=20, t=60, b=40),
     )
-    st.plotly_chart(figura, width="stretch")
+    color_texto = PALETA_OSCURA["texto"] if oscuro else PALETA["texto"]
+    color_grid = "#46534a" if oscuro else "#d2d3cd"
+    figura.update_xaxes(color=color_texto, gridcolor=color_grid, zerolinecolor=color_grid, linecolor=color_grid)
+    figura.update_yaxes(color=color_texto, gridcolor=color_grid, zerolinecolor=color_grid, linecolor=color_grid)
+    figura.update_annotations(font_color=color_texto, arrowcolor=color_texto)
+    for forma in figura.layout.shapes or ():
+        if forma.line.color:
+            forma.line.color = _ajustar_color_traza(forma.line.color, oscuro)
+    for traza in figura.data:
+        for atributo in ("marker", "line"):
+            estilo = getattr(traza, atributo, None)
+            color = getattr(estilo, "color", None) if estilo is not None else None
+            if color is not None:
+                estilo.color = _ajustar_color_traza(color, oscuro)
+            if estilo is not None and getattr(estilo, "colors", None) is not None:
+                estilo.colors = _ajustar_color_traza(estilo.colors, oscuro)
+        if (
+            getattr(traza, "textfont", None) is not None
+            and not (
+                isinstance(traza.meta, str)
+                and traza.meta == "plotly-theme-cell-labels"
+            )
+        ):
+            if traza.type == "pie" and traza.marker.colors:
+                traza.textfont.color = [
+                    _color_texto_sector(color, color_texto)
+                    for color in traza.marker.colors
+                ]
+            else:
+                traza.textfont.color = color_texto
+    for traza in _texto_mapa_calor(figura):
+        figura.add_trace(traza)
+
+
+def _mostrar_figura(figura: go.Figure, key: str | None = None) -> None:
+    """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
+    _aplicar_tema_figura(figura, st.context.theme.type == "dark")
+    if key is None:
+        st.plotly_chart(figura, width="stretch")
+    else:
+        st.plotly_chart(figura, width="stretch", key=key)
 
 
 def _seleccionar_entero(
@@ -877,26 +1111,6 @@ def _mostrar_metricas_clasificacion(resultado) -> None:
     c4.metric("F1", f"{metricas['f1']['global']:.4f}")
 
 
-def _valor_metrica(resultado, nombre: str) -> float:
-    """Extrae un valor estable de la métrica seleccionada."""
-    metricas = resultado.metricas
-    if nombre == "accuracy":
-        return metricas["accuracy"]
-    if nombre == "precision_global":
-        return metricas["precision"]["global"]
-    if nombre == "precision_macro":
-        return metricas["precision"]["macro"]
-    if nombre == "recall_global":
-        return metricas["recall"]["global"]
-    if nombre == "recall_macro":
-        return metricas["recall"]["macro"]
-    if nombre == "f1_global":
-        return metricas["f1"]["global"]
-    if nombre == "f1_macro":
-        return metricas["f1"]["macro"]
-    raise ValueError(f"Métrica no soportada: {nombre}")
-
-
 def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     """Flujo de configuración, previsualización y ejecución de clasificación."""
     _resumen_dataset_modulo(datos, configuracion["target"])
@@ -909,26 +1123,7 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     st.markdown(
         f"**Target:** `{objetivo}`  \n**Features:** {', '.join(configuracion['features'])}"
     )
-    algoritmo = st.selectbox("Algoritmo", ["RF", "NR"], index=0, key="clasif_algoritmo")
-    if algoritmo == "RF":
-        with st.expander("Parámetros de Random Forest"):
-            n_estimators = st.slider("N estimadores", 10, 500, 200, 10, key="clasif_rf_n")
-            max_depth = st.slider("Profundidad máxima", 1, 30, 8, 1, key="clasif_rf_depth")
-            min_samples_split = st.slider(
-                "Min samples split",
-                2,
-                20,
-                2,
-                1,
-                key="clasif_rf_split",
-            )
-        rf_kwargs = {
-            "n_estimators": n_estimators,
-            "max_depth": max_depth,
-            "min_samples_split": min_samples_split,
-        }
-    else:
-        rf_kwargs = {}
+    modelos = {"RF": "Random Forest", "NR": "Naive Bayes"}
 
     particion_global = configuracion.get("particion_global")
     if configuracion["usar_particion_global"] and particion_global is not None:
@@ -988,136 +1183,149 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
             st.markdown("**Tail del split test (bruto)**")
             st.dataframe(preview["tail"], width="stretch")
 
-    if algoritmo == "RF":
-        firma_entrenar = _firma_clasificacion(configuracion, "RF", tuple(sorted(rf_kwargs.items())))
-    else:
-        firma_entrenar = _firma_clasificacion(configuracion, "NR")
-    if st.button("Entrenar modelo", type="primary"):
-        try:
-            clasificador = Clasificacion(
-                dataframe=datos,
-                target=objetivo,
-                features=configuracion["features"],
-            )
-            argumentos_split = dict(
-                test_size=configuracion["test_size"],
-                random_state=configuracion["random_state"],
-                stratify=configuracion["estratificar"],
-                incluir_categoricas=configuracion["incluir_categoricas"],
-                imputar=configuracion["imputar"],
-                estandarizar=configuracion["estandarizar"],
-                particion=particion_global,
-            )
-            if algoritmo == "RF":
-                resultado = clasificador.RF(**argumentos_split, **rf_kwargs)
-            else:
-                resultado = clasificador.NR(**argumentos_split)
-            _guardar_resultado("resultado_clasificacion", firma_entrenar, resultado)
-        except Exception as exc:  # pylint: disable=broad-except
-            st.error(f"No fue posible entrenar el modelo: {exc}")
+    firma_contexto = _firma_clasificacion(
+        configuracion,
+        st.session_state.get("dataset_identidad"),
+        "modelos_entrenados",
+    )
+    resultados = st.session_state.setdefault("resultado_modelos_clasificacion", {})
+    modelos_entrenados = resultados.setdefault(firma_contexto, {})
+    argumentos_split = dict(
+        test_size=configuracion["test_size"],
+        random_state=configuracion["random_state"],
+        stratify=configuracion["estratificar"],
+        incluir_categoricas=configuracion["incluir_categoricas"],
+        imputar=configuracion["imputar"],
+        estandarizar=configuracion["estandarizar"],
+        particion=particion_global,
+    )
+    for codigo, nombre in modelos.items():
+        with st.container(border=True):
+            st.markdown(f"#### {nombre}")
+            kwargs = {}
+            if codigo == "RF":
+                with st.expander("Parámetros de Random Forest"):
+                    kwargs = {
+                        "n_estimators": st.slider(
+                            "N estimadores", 10, 500, 200, 10, key="clasif_rf_n"
+                        ),
+                        "max_depth": st.slider(
+                            "Profundidad máxima", 1, 30, 8, 1, key="clasif_rf_depth"
+                        ),
+                        "min_samples_split": st.slider(
+                            "Min samples split", 2, 20, 2, 1, key="clasif_rf_split"
+                        ),
+                    }
+            firma_modelo = tuple(sorted(kwargs.items()))
+            boton_key = f"entrenar_clasificacion_{codigo.lower()}"
+            if st.button(f"Entrenar {nombre}", type="primary", key=boton_key):
+                try:
+                    clasificador = Clasificacion(
+                        dataframe=datos,
+                        target=objetivo,
+                        features=configuracion["features"],
+                    )
+                    if codigo == "RF":
+                        resultado = clasificador.RF(**argumentos_split, **kwargs)
+                    else:
+                        resultado = clasificador.NR(**argumentos_split)
+                    modelos_entrenados[codigo] = {
+                        "firma": firma_modelo,
+                        "resultado": resultado,
+                    }
+                except Exception as exc:  # pylint: disable=broad-except
+                    st.error(f"No fue posible entrenar {nombre}: {exc}")
+            guardado = modelos_entrenados.get(codigo)
+            if not guardado or guardado["firma"] != firma_modelo:
+                st.caption("Todavía no hay un resultado entrenado con esta configuración.")
+                continue
+            resultado = guardado["resultado"]
+            _mostrar_resultado_clasificacion(resultado, codigo)
 
-    resultado = _recuperar_resultado("resultado_clasificacion", firma_entrenar)
-    if resultado is None:
-        return
 
-    st.markdown("#### Resultado del entrenamiento")
+def _mostrar_resultado_clasificacion(resultado, codigo: str) -> None:
+    """Muestra métricas, diagnósticos y exportación de un resultado entrenado."""
     _mostrar_metricas_clasificacion(resultado)
-    _mostrar_figura(VisualizadorSupervisado.matriz_confusion(resultado))
+    _mostrar_figura(
+        VisualizadorSupervisado.matriz_confusion(resultado),
+        key=f"matriz_confusion_{codigo}",
+    )
     barras = VisualizadorSupervisado.metricas_barras(resultado)
     if barras is not None:
-        _mostrar_figura(barras)
+        _mostrar_figura(barras, key=f"metricas_clasificacion_{codigo}")
     distribucion = VisualizadorSupervisado.distribucion_estratificada(resultado)
     if distribucion is not None:
-        _mostrar_figura(distribucion)
-
+        _mostrar_figura(distribucion, key=f"distribucion_clasificacion_{codigo}")
     errores = pd.DataFrame(
         {"real": resultado.y_true, "prediccion": resultado.y_pred}
     ).reset_index(drop=True)
     errores["error"] = errores["real"] != errores["prediccion"]
-    resumen_error = (
-        errores.groupby("real")
-        .agg(total=("error", "size"), errores=("error", "sum"))
-        .assign(tasa_error=lambda x: (x["errores"] / x["total"]).round(4))
+    resumen_error = errores.groupby("real").agg(
+        total=("error", "size"), errores=("error", "sum")
+    ).assign(
+        tasa_error=lambda datos: (datos["errores"] / datos["total"]).round(4)
     )
     st.markdown("**Error por clase**")
     st.dataframe(resumen_error, width="stretch")
-    pred_csv = pd.DataFrame(
-        {
-            "y_true": resultado.y_true,
-            "y_pred": resultado.y_pred,
-        }
-    )
+    pred_csv = pd.DataFrame({"y_true": resultado.y_true, "y_pred": resultado.y_pred})
     st.download_button(
         "Exportar predicciones",
         data=pred_csv.to_csv(index=True).encode("utf-8"),
         file_name=f"predicciones_{resultado.algoritmo}.csv",
         mime="text/csv",
+        key=f"exportar_predicciones_{resultado.algoritmo}",
     )
 
 
 def _render_comparacion(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Compara RF y Naive Bayes con la configuración activa."""
+    """Compara resultados ya entrenados para la configuración activa."""
     _resumen_dataset_modulo(datos, configuracion["target"])
     st.markdown("### Comparación de modelos")
     if not configuracion["features"]:
         st.warning("Seleccione al menos una feature para comparar.")
         return
-    metrica = st.selectbox(
-        "Métrica",
-        options=[
-            "accuracy",
-            "precision_global",
-            "precision_macro",
-            "recall_global",
-            "recall_macro",
-            "f1_global",
-            "f1_macro",
-        ],
-        index=0,
-        key="clasif_metrica_comparar",
+    firma_contexto = _firma_clasificacion(
+        configuracion, st.session_state.get("dataset_identidad"), "modelos_entrenados"
     )
-    firma = _firma_clasificacion(configuracion, "comparacion", metrica)
-    if st.button("Comparar modelos", type="primary"):
-        try:
-            argumentos_split = dict(
-                test_size=configuracion["test_size"],
-                random_state=configuracion["random_state"],
-                stratify=configuracion["estratificar"],
-                incluir_categoricas=configuracion["incluir_categoricas"],
-                imputar=configuracion["imputar"],
-                estandarizar=configuracion["estandarizar"],
-                particion=configuracion.get("particion_global"),
-            )
-            resultados = []
-            for nombre in ("RF", "NR"):
-                clasificador = Clasificacion(
-                    dataframe=datos,
-                    target=configuracion["target"],
-                    features=configuracion["features"],
-                )
-                if nombre == "RF":
-                    resultado = clasificador.RF(**argumentos_split)
-                else:
-                    resultado = clasificador.NR(**argumentos_split)
-                resultados.append(resultado)
-            tabla = pd.DataFrame(
-                {
-                    "algoritmo": [r.algoritmo for r in resultados],
-                    metrica: [_valor_metrica(r, metrica) for r in resultados],
-                }
-            )
-            _guardar_resultado("resultado_comparacion_clasificacion", firma, tabla)
-        except Exception as exc:  # pylint: disable=broad-except
-            st.error(f"No fue posible comparar: {exc}")
-
-    tabla = _recuperar_resultado("resultado_comparacion_clasificacion", firma)
-    if tabla is None:
+    entrenados = st.session_state.get("resultado_modelos_clasificacion", {}).get(
+        firma_contexto, {}
+    )
+    rf_kwargs_actuales = {
+        "n_estimators": st.session_state.get("clasif_rf_n", 200),
+        "max_depth": st.session_state.get("clasif_rf_depth", 8),
+        "min_samples_split": st.session_state.get("clasif_rf_split", 2),
+    }
+    firma_rf_actual = tuple(sorted(rf_kwargs_actuales.items()))
+    entrenados_comparables = {
+        codigo: entrada
+        for codigo, entrada in entrenados.items()
+        if codigo != "RF" or entrada["firma"] == firma_rf_actual
+    }
+    if not entrenados_comparables:
+        st.info("Entrene al menos un modelo en la vista de clasificación para comparar resultados.")
         return
+    filas = []
+    for codigo, entrada in entrenados_comparables.items():
+        resultado = entrada["resultado"]
+        parametros = resultado.modelo.get_params(deep=True)
+        filas.append(
+            {
+                "algoritmo": "Random Forest" if codigo == "RF" else "Naive Bayes",
+                "hiperparámetros efectivos": str(dict(sorted(parametros.items()))),
+                "accuracy": resultado.metricas["accuracy"],
+                "precision": resultado.metricas["precision"]["global"],
+            }
+        )
+    tabla = pd.DataFrame(filas)
     st.dataframe(tabla, width="stretch")
     figura = go.Figure(
-        go.Bar(x=tabla["algoritmo"], y=tabla[metrica], marker_color=PALETA["acento"])
+        go.Bar(
+            x=tabla["algoritmo"],
+            y=tabla["accuracy"],
+            marker_color=PALETA["acento"],
+        )
     )
-    figura.update_layout(title="Comparación", yaxis_title=metrica)
+    figura.update_layout(title="Accuracy por modelo entrenado", yaxis_title="accuracy")
     _mostrar_figura(figura)
 
 
@@ -1351,6 +1559,17 @@ def main() -> None:
     )
     _aplicar_estilos_atlas()
 
+    with st.sidebar:
+        st.button(
+            "Actualizar gráficos",
+            key="actualizar_graficos",
+            icon=":material/refresh:",
+            help=(
+                "Úselo después de cambiar el tema en Configuración para "
+                "actualizar los colores de gráficos y estilos."
+            ),
+        )
+
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()
     if datos_cargados is None:
         st.markdown("# Atlas Analítico")
@@ -1364,13 +1583,9 @@ def main() -> None:
     configuracion = None
     configuracion_clasif = None
     if vista in VISTAS_NO_SUPERVISADAS:
-        with st.sidebar:
-            with st.expander("Configuración de análisis", expanded=True):
-                configuracion = _configurar_modelos(datos)
+        configuracion = _configurar_modelos(datos)
     elif vista in {"clasificacion", "comparacion"}:
-        with st.sidebar:
-            with st.expander("Configuración supervisada", expanded=True):
-                configuracion_clasif = _configurar_modelos_clasificacion(datos)
+        configuracion_clasif = _configurar_modelos_clasificacion(datos)
 
     if vista == "datos":
         _render_dataset()
