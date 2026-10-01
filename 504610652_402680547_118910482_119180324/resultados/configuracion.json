@@ -1,0 +1,54 @@
+{
+  "archivo": "ejemplo_analisis.csv",
+  "sha256_datos": "619c2c6fa684e1be8cf95630ddd62396368c45fa8c12162d8ec3959a6187cec3",
+  "filas": 16,
+  "columnas": [
+    "edad",
+    "ingresos",
+    "visitas",
+    "satisfaccion",
+    "segmento"
+  ],
+  "features": [
+    "edad",
+    "ingresos",
+    "visitas",
+    "satisfaccion"
+  ],
+  "separador": ",",
+  "decimal": ".",
+  "incluir_categoricas": false,
+  "estandarizar": true,
+  "semilla": 42,
+  "python": "3.12.14",
+  "versiones": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "umap-learn": "0.5.12",
+    "numba": "0.68.0"
+  },
+  "preprocesamiento": {
+    "numericas": "imputación por mediana; StandardScaler si estandarizar=true",
+    "categoricas": "imputación por moda y one-hot si incluir_categoricas=true",
+    "infinitos": "tratados como faltantes",
+    "constantes": "descartadas",
+    "columnas_origen": [
+      "edad",
+      "ingresos",
+      "visitas",
+      "satisfaccion"
+    ],
+    "columnas_descartadas": [],
+    "columnas_preparadas": [
+      "edad",
+      "ingresos",
+      "visitas",
+      "satisfaccion"
+    ],
+    "categoricas_excluidas": [
+      "segmento"
+    ]
+  }
+}

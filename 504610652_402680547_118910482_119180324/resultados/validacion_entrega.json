@@ -1,0 +1,20 @@
+{
+  "estado": "correcto",
+  "copia_fuera_del_repositorio": true,
+  "cluster_importado_desde_la_copia": true,
+  "csv_reproducidos_identicos": 41,
+  "archivos_framework_preservados": 31,
+  "pruebas_negativas_previas": 7,
+  "python": "3.12.14",
+  "compilacion_latex": "no verificada: compilador integrado falla al iniciar",
+  "diagnostico_compilador": "Unable to find standard directories for platform",
+  "validacion_estatica_latex": {
+    "llaves_y_entornos": "correctos",
+    "referencias_resueltas": 14,
+    "bibliografia_integrada": 14,
+    "figuras_integradas": 6,
+    "autores_e_ids": "correctos",
+    "sin_auxiliares_externos": true
+  },
+  "sha256_informe": "d7b1fb7cf3dd86f7e6356186835fc04634d7e13e99970657aa2ea560569d005b"
+}

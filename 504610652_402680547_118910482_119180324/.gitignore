@@ -1,0 +1,17 @@
+# Entornos y cachés locales: no forman parte de la entrega.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.numba_cache/
+
+# Archivos auxiliares de LaTeX; conservar las fuentes y el PDF final.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc

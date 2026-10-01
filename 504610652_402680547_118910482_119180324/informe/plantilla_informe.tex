@@ -1,81 +1,600 @@
 \documentclass[11pt]{article}
-\usepackage[spanish]{babel}
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{pgfplots}
+\usepackage{placeins}
+\usepackage[hidelinks]{hyperref}
 \usepackage[a4paper,margin=2.5cm]{geometry}
-
+\pgfplotsset{compat=1.18}
+\setlength{\emergencystretch}{2em}
+\renewcommand{\arraystretch}{1.12}
 \title{Lab 01: Métodos no supervisados}
-\author{Nombre completo (ID) \\ Nombre completo (ID)}
-\date{EIF420O -- I Ciclo 2026}
-
+\author{Dylan Elizondo Alvarado (504610652)\\
+Joseph Garcia Montero (402680547)\\
+Rodrigo Ureña Castillo (118910482)\\
+Mariana Ureña Padilla (119180324)}
+\date{EIF420O -- 2026}
 \begin{document}
 \maketitle
 
-% Reemplace esta estructura por la plantilla oficial del profesor si se proporciona.
 \section{Introducción y objetivos}
-Describa el conjunto de datos provisto por el profesor, su procedencia, tamaño,
-variables y el objetivo del análisis.
+Se analiza el conjunto de datos proporcionado para el laboratorio,
+conservado en \texttt{data/ejemplo\_analisis.csv}. Contiene 16 observaciones,
+cuatro variables numéricas (\texttt{edad}, \texttt{ingresos},
+\texttt{visitas} y \texttt{satisfaccion}) y la categoría \texttt{segmento}.
+No se dispone de un diccionario que establezca moneda, período de visitas,
+escala de satisfacción o población de origen; por ello, se interpretan
+relaciones dentro de la muestra, sin atribuirles un contexto comercial no
+documentado.
+
+El objetivo es caracterizar los datos mediante análisis exploratorio (EDA),
+comparar ACP, HAC, K-Means, t-SNE y UMAP, y seleccionar configuraciones
+justificadas por métricas y visualizaciones. La reducción dimensional y el
+agrupamiento responden preguntas distintas: representar información en pocos
+ejes no equivale a demostrar la existencia de grupos naturales.
+
+\subsection{Exploración de los datos}
+Las variables numéricas varían en escalas muy distintas, especialmente
+ingresos frente a satisfacción. Hay un faltante en ingresos (fila 6) y otro
+en satisfacción (fila 15), con numeración desde 1: dos celdas, en dos filas
+distintas. Cada variable afectada tiene 6.25\% de valores ausentes; no se
+eliminó ninguna observación. No hay filas completas duplicadas.
+La categoría segmento contiene Nuevo (6), Frecuente (6) y Ocasional (4).
+Se conserva para describir la entrada, pero se excluye de los modelos y no
+se utiliza como verdad de referencia.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Descriptivos originales, antes de imputar. DE: desviación estándar muestral.}\label{tab:eda}
+\begin{tabular}{lrrrrrr}\toprule
+Variable & Válidos & Media & Mediana & DE & Mín. & Máx. \\ \midrule
+edad & 16 & 38.31 & 38.00 & 11.31 & 22.0 & 56.0 \\
+ingresos & 15 & 1876.67 & 1800.00 & 798.95 & 850.0 & 3010.0 \\
+visitas & 16 & 8.75 & 8.00 & 5.30 & 2.0 & 18.0 \\
+satisfaccion & 15 & 7.82 & 7.70 & 1.01 & 6.2 & 9.3 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={Edad y visitas},xlabel={edad},ylabel={visitas},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(22.000000,2.000000) (24.000000,3.000000) (25.000000,2.000000) (27.000000,4.000000) (29.000000,5.000000) (31.000000,4.000000) (45.000000,12.000000) (47.000000,14.000000) (49.000000,13.000000) (52.000000,16.000000) (54.000000,15.000000) (56.000000,18.000000) (35.000000,7.000000) (37.000000,8.000000) (39.000000,9.000000) (41.000000,8.000000)};
+\end{axis}\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={Edad e ingresos observados},xlabel={edad},ylabel={ingresos},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(22.000000,850.000000) (24.000000,910.000000) (25.000000,880.000000) (27.000000,1020.000000) (29.000000,1100.000000) (45.000000,2450.000000) (47.000000,2580.000000) (49.000000,2630.000000) (52.000000,2790.000000) (54.000000,2880.000000) (56.000000,3010.000000) (35.000000,1620.000000) (37.000000,1710.000000) (39.000000,1800.000000) (41.000000,1920.000000)};
+\end{axis}\end{tikzpicture}
+\caption{Relaciones originales. El segundo panel omite la fila cuyo ingreso está ausente.}\label{fig:eda}
+\end{figure}
+
+Las seis correlaciones de Pearson, calculadas antes de imputar y con pares
+completos, están entre 0.9801 y 0.9942. La relación edad--ingresos es 0.9942;
+edad--visitas, 0.9842; edad--satisfacción, 0.9852;
+ingresos--visitas, 0.9882; ingresos--satisfacción, 0.9801;
+visitas--satisfacción, 0.9873. Son asociaciones descriptivas fuertes, no
+evidencia de causalidad. Se anticipa una dirección común dominante para ACP.
+Con la regla univariada de 1.5 veces el rango intercuartílico no se detectan
+valores atípicos numéricos; esto no descarta anomalías multivariadas.
+\FloatBarrier
+\clearpage
 
 \section{Fundamentos teóricos}
-El EDA permite caracterizar distribuciones, valores faltantes, atípicos y
-relaciones entre variables antes de modelar. Esta etapa define decisiones de
-limpieza, codificación y escala que deben conservarse para reproducir los
-experimentos.
+\subsection{Análisis exploratorio y preparación}
+EDA examina distribución, escala, faltantes y relaciones, combinando
+estadísticos y gráficos antes de imponer un modelo \cite{nisteda}.
+Permite justificar la preparación y detectar problemas que alterarían las
+distancias. La estandarización $z_{ij}=(x_{ij}-\mu_j)/\sigma_j$ evita que una
+variable domine solamente por sus unidades, aunque no elimina correlaciones
+ni vuelve equivalentes sus significados.
 
-El ACP transforma variables posiblemente correlacionadas en componentes
-ortogonales que retienen la mayor varianza posible \cite{jolliffe2002}. Para
-cada configuración se reporta la varianza explicada y acumulada, junto con la
-interpretación de las cargas.
+\subsection{Análisis de componentes principales (ACP)}
+ACP representa los datos centrados mediante ejes ortogonales ordenados por
+varianza. Para una matriz preparada $X$, las puntuaciones son $T=XV$ y la
+varianza explicada por el componente $j$ es
+$\lambda_j/\sum_\ell\lambda_\ell$. Conservar pocos componentes comprime
+información, pero puede perder señales de baja varianza \cite{jolliffe2002,jolliffecadima}.
+La implementación usa PCA de scikit-learn \cite{sklearnpca}.
+El framework exporta cargas $L=V\,\mathrm{diag}(\sqrt{\lambda_j})$:
+no son los vectores propios sin escalar ni correlaciones exactas.
+El signo de un componente puede invertirse sin cambiar su representación.
 
-K-Means asigna observaciones a $k$ centroides minimizando la suma de cuadrados
-intra-grupo \cite{macqueen1967}. HAC construye una jerarquía de fusiones; el
-enlace elegido determina cómo se calcula la distancia entre grupos
-\cite{murtagh2012}. En ambos casos, silhouette es evidencia para comparar
-configuraciones, no un sustituto de la interpretación de los grupos.
+\subsection{K-Means}
+K-Means alterna asignación al centro más próximo y actualización de
+centroides para reducir
+\[
+  J=\sum_{g=1}^{k}\sum_{i\in C_g}\lVert x_i-\mu_g\rVert^2.
+\]
+Su inercia mide compactación en el espacio utilizado. Requiere fijar $k$,
+puede alcanzar mínimos locales y es sensible a escala y valores extremos
+\cite{macqueen1967,sklearnkmeans}. Un $k$ mayor suele reducir la inercia:
+su mínimo por sí solo no determina una partición útil.
 
-t-SNE conserva vecindades locales en una proyección de baja dimensionalidad
-\cite{vandermaaten2008}; UMAP modela una estructura de vecindad para producir
-una representación compacta \cite{mcinnes2018}. Sus gráficos son herramientas
-exploratorias y no prueban por sí solos la existencia de clústeres.
+\subsection{Agrupamiento jerárquico aglomerativo (HAC)}
+HAC comienza con observaciones separadas y fusiona grupos hasta construir
+una jerarquía \cite{murtagh2012}. Los enlaces single, complete y average
+utilizan, respectivamente, la distancia mínima, máxima y promedio entre
+pares de puntos de grupos distintos; Ward minimiza el incremento de
+variabilidad intragrupo y se utiliza con distancia euclidiana
+\cite{scipylinkage}. El dendrograma registra las alturas de fusión; un corte
+produce una partición. Las fusiones no se deshacen, por lo que el enlace
+puede afectar el resultado.
+
+\subsection{t-SNE}
+t-SNE compara probabilidades de vecindad del espacio original y de la
+proyección; en el espacio reducido usa una distribución t de colas pesadas
+y minimiza una divergencia de Kullback--Leibler \cite{vandermaaten2008}.
+Perplexity controla el alcance efectivo de las vecindades y debe ser menor
+que el número de observaciones \cite{sklearntsne}. Es un método exploratorio
+no lineal: los ejes no representan variables originales y las separaciones
+visuales entre grupos no deben leerse como distancias globales preservadas.
+
+\subsection{UMAP}
+UMAP construye un grafo ponderado de vecindad y optimiza su representación
+en baja dimensión \cite{mcinnes2018}. El número de vecinos regula el énfasis
+local frente a uno más amplio; min\_dist controla cuán juntos pueden quedar
+los puntos en la representación \cite{umapparams}. Modificar estos parámetros
+puede cambiar la apariencia de los grupos, sin demostrar categorías reales.
+Se estudia como proyección, no como algoritmo de agrupamiento.
+
+\subsection{Criterios de evaluación}
+Silhouette contrasta distancia media dentro del grupo ($a$) y distancia
+media al grupo alternativo más cercano ($b$):
+$s=(b-a)/\max(a,b)$. Valores altos favorecen separación y cohesión; la media
+requiere entre 2 y $n-1$ grupos \cite{sklearnsilhouette}.
+Se calcula en las cuatro variables preparadas, no en las proyecciones.
+
+Trustworthiness $T_q$, entre 0 y 1, penaliza vecinos que aparecen en la
+proyección sin ser vecinos adecuados en el espacio original
+\cite{sklearntrust}. Aquí se fija $q=5$ para comparar proyecciones de las
+mismas 16 filas. Un valor alto indica preservación local, no garantiza
+conservación global, estabilidad o validez semántica de los grupos.
+Silhouette y trustworthiness no son métricas intercambiables.
 
 \begin{center}
-\fbox{\parbox{0.88\linewidth}{\centering
+\fbox{\parbox{0.90\linewidth}{\centering
 \textbf{Mapa conceptual:} datos $\rightarrow$ EDA $\rightarrow$
-limpieza/codificación/escala $\rightarrow$
-\{ACP, t-SNE, UMAP, K-Means, HAC\} $\rightarrow$
-evaluación (varianza, silhouette, trustworthiness) $\rightarrow$
-interpretación y selección del modelo.}}
+imputación y escala $\rightarrow$
+\{ACP, K-Means, HAC, t-SNE, UMAP\} $\rightarrow$
+varianza / silhouette / trustworthiness $\rightarrow$
+interpretación, comparación y selección.}}
 \end{center}
+\clearpage
 
 \section{Metodología reproducible}
-Indique versión de Python, dependencias, semilla, variables seleccionadas,
-tratamiento de faltantes, codificación y estandarización. Adjunte el comando
-utilizado, por ejemplo:
-\begin{verbatim}
-python -m scripts.ejecutar_lab01 data/datos_profesor.csv --salida salida_lab01 --semilla 42
-\end{verbatim}
+\subsection{Integración y ambiente}
+Los experimentos se ejecutan con el paquete local \texttt{framework\_ia}.
+La clase \texttt{Cluster}, en
+\texttt{framework\_ia/modelos/no\_supervisado/agrupamiento.py}, implementa
+los cinco métodos y comparte la matriz preparada mediante
+\texttt{PreprocesadorNoSupervisado}. El ejecutor
+\texttt{scripts/ejecutar\_lab01.py} organiza los barridos y exporta evidencia.
+
+La ejecución registrada usa Python 3.12.14, NumPy 2.5.3, pandas 3.0.6,
+SciPy 1.18.1, scikit-learn 1.9.1, umap-learn 0.5.12 y Numba 0.68.0.
+Se fija semilla 42 donde el método utiliza aleatoriedad; UMAP usa un
+trabajador. Las versiones y el hash SHA-256 de la entrada quedan en
+\texttt{resultados/configuracion.json}. Una semilla facilita repetir el
+experimento en ese ambiente, pero no prueba estabilidad ante otras
+semillas o versiones.
+
+\subsection{Preprocesamiento}
+Se seleccionan las cuatro variables numéricas y se mantienen las 16 filas.
+Los faltantes se imputan con la \textbf{mediana}: ingresos = 1800 y
+satisfacción = 7.7. Después se aplica StandardScaler, calculando medias y
+desviaciones poblacionales sobre los datos imputados.
+No se codifica segmento, no se descartan columnas constantes porque no las
+hay y la matriz final tiene dimensión $16\times4$. El EDA utiliza datos
+originales; los modelos y métricas usan la matriz imputada y estandarizada.
+Esta distinción evita confundir promedios originales con centroides preparados.
+
+\subsection{Configuraciones y selección}
+La configuración base se refiere a la interfaz del framework utilizado,
+no a todos los valores predeterminados de las bibliotecas subyacentes.
+\begin{table}[htbp]\centering\small
+\caption{Configuraciones base y variaciones evaluadas.}
+\begin{tabular}{lp{5cm}p{6cm}}\toprule
+Método & Base & Variaciones \\ \midrule
+ACP & 2 componentes & 2, 3 y 4 componentes \\
+K-Means & $k=3$, 20 inicializaciones, 500 iteraciones máximas &
+$k=2,\ldots,10$; demás parámetros fijos \\
+HAC & Ward, $k=3$, distancia euclidiana &
+Ward, average, complete y single; $k=2,\ldots,10$ \\
+t-SNE & Perplexity 30, 1000 iteraciones; base operativa 5 &
+5 y 15; 30 se omite por $30\not<16$ \\
+UMAP & 15 vecinos, min\_dist 0.1, dos dimensiones &
+Vecinos $\{5,10,15\}$ y min\_dist $\{0.0,0.1,0.5\}$ \\
+\bottomrule\end{tabular}\end{table}
+
+ACP selecciona el menor número \emph{evaluado} de componentes que alcanza
+95\% de varianza. K-Means y HAC seleccionan el mayor silhouette; en empate
+se prefiere menor $k$ y, para HAC, orden alfabético del enlace.
+t-SNE y UMAP seleccionan el mayor $T_5$; se desempata por menor perplexity,
+o por menor número de vecinos y después menor min\_dist. Estas reglas
+documentadas evitan escoger una figura solamente por su apariencia.
+
+\subsection{Evidencia conservada}
+Se generaron 41 CSV y dos JSON en \texttt{resultados}: EDA, matriz preparada,
+comparaciones, cargas y varianza ACP, proyecciones, asignaciones, centroides,
+perfiles y matrices de vinculación HAC. El resumen registra
+\texttt{estado: completado} y la única omisión es t-SNE con perplexity 30.
+Los CSV completos permiten verificar valores no redondeados. Las tablas y
+figuras de este documento incorporan una instantánea de esa ejecución;
+si cambia la entrada o la configuración, deben actualizarse también aquí.
+Las instrucciones operativas de instalación y ejecución están separadas
+en \texttt{COMO\_EJECUTAR.md}.
+\FloatBarrier
+\clearpage
 
 \section{Resultados y análisis}
 \subsection{ACP}
-Reporte las configuraciones de componentes, varianza explicada/acumulada y
-analice la configuración seleccionada. Inserte sus figuras y tablas.
+\begin{table}[htbp]
+\centering\small
+\caption{Varianza explicada del ACP sobre cuatro variables preparadas.}\label{tab:acp}
+\begin{tabular}{lrr}\toprule
+Componente & Varianza (\%) & Acumulada (\%) \\ \midrule
+CP1 & 98.2950 & 98.2950 \\
+CP2 & 1.1479 & 99.4429 \\
+CP3 & 0.3439 & 99.7868 \\
+CP4 & 0.2132 & 100.0000 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{table}[htbp]
+\centering\small
+\caption{Cargas exportadas por el framework para ACP de dos componentes.}\label{tab:cargas}
+\begin{tabular}{lrr}\toprule
+Variable & Carga CP1 & Carga CP2 \\ \midrule
+edad & 1.0291 & 0.0257 \\
+ingresos & 1.0179 & 0.1702 \\
+visitas & 1.0250 & -0.0851 \\
+satisfaccion & 1.0237 & -0.1099 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={ACP: dos componentes},xlabel={CP1},ylabel={CP2},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(-2.943800,0.132780) (-2.395665,-0.176025) (-2.626711,0.037120) (-1.927813,-0.264357) (-1.578954,-0.341383) (-1.278721,0.633586) (-0.656352,0.001864) (-0.300845,-0.064872) (-0.051624,-0.026009) (0.181829,0.035318)};
+\addlegendentry{Grupo 0}
+\addplot[only marks,mark=triangle*,color=orange!85!black,mark size=2pt] coordinates {(1.320704,0.112020) (1.906667,-0.094148) (1.827860,0.159144) (2.630389,-0.133327) (2.631322,0.108327) (3.261714,-0.120037)};
+\addlegendentry{Grupo 1}
+\end{axis}\end{tikzpicture}\hfill
+\begin{tikzpicture}\begin{axis}[width=7.4cm,height=5.4cm,title={Varianza por componente},xlabel={Componente},ylabel={Varianza (\%)},grid=major,tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[blue!70!black,mark=*] coordinates {(1.000000,98.294975) (2.000000,1.147884) (3.000000,0.343938) (4.000000,0.213203)};
+\end{axis}\end{tikzpicture}
+\caption{Proyección ACP y varianza. Los colores identifican los grupos K-Means, no las categorías de segmento.}\label{fig:acp}
+\end{figure}
+
+CP1 concentra 98.2950\% de la varianza y tiene cargas positivas similares
+en las cuatro variables: representa la dirección compartida de aumento de
+edad, ingresos, visitas y satisfacción en esta muestra. CP2 explica apenas
+1.1479\%, con una carga positiva mayor en ingresos y negativas en visitas
+y satisfacción; distingue variaciones relativas que no siguen exactamente
+esa dirección común.
+Las cargas pueden superar 1 porque no son correlaciones: StandardScaler
+usa desviación poblacional y la varianza del PCA utiliza el divisor $n-1$.
+
+Se seleccionan \textbf{dos componentes}, que conservan 99.4429\%.
+Agregar CP3 gana solo 0.3439 puntos porcentuales y CP4 otros 0.2132.
+La selección equilibra compresión e interpretación bidimensional. CP1 por
+sí solo supera 95\%, pero una sola dimensión no fue parte del barrido y no
+se presenta como la configuración seleccionada.
+La observación 6 sobresale en CP2 (aproximadamente 0.6336): su ingreso
+imputado puede influir en esa desviación, por lo que no se clasifica como
+anomalía real sin revisar el dato faltante.
+Los colores muestran asignaciones K-Means calculadas en cuatro dimensiones;
+ACP no generó esas etiquetas.
+\FloatBarrier
+\clearpage
 
 \subsection{K-Means}
-Compare valores de $k$ con inercia y silhouette. Justifique el modelo elegido.
+\begin{table}[htbp]
+\centering\small
+\caption{Comparación de K-Means. Configuración base: $k=3$.}\label{tab:kmeans}
+\begin{tabular}{rrr}\toprule
+$k$ & Inercia & Silhouette \\ \midrule
+2 & 14.8194 & 0.6261 \\
+3 & 5.8810 & 0.5828 \\
+4 & 3.8418 & 0.5334 \\
+5 & 2.1546 & 0.5029 \\
+6 & 1.4148 & 0.5046 \\
+7 & 1.1046 & 0.4270 \\
+8 & 0.8126 & 0.3819 \\
+9 & 0.6090 & 0.3434 \\
+10 & 0.4129 & 0.2827 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}\begin{axis}[width=7.4cm,height=5.4cm,title={Compactación},xlabel={$k$},ylabel={Inercia},grid=major,tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[blue!70!black,mark=*] coordinates {(2.000000,14.819415) (3.000000,5.881012) (4.000000,3.841822) (5.000000,2.154557) (6.000000,1.414805) (7.000000,1.104617) (8.000000,0.812576) (9.000000,0.609035) (10.000000,0.412947)};
+\end{axis}\end{tikzpicture}\hfill
+\begin{tikzpicture}\begin{axis}[width=7.4cm,height=5.4cm,title={Separación relativa},xlabel={$k$},ylabel={Silhouette},grid=major,tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[blue!70!black,mark=*] coordinates {(2.000000,0.626073) (3.000000,0.582774) (4.000000,0.533370) (5.000000,0.502946) (6.000000,0.504631) (7.000000,0.427043) (8.000000,0.381928) (9.000000,0.343411) (10.000000,0.282712)};
+\end{axis}\end{tikzpicture}
+\caption{Curvas de K-Means calculadas en la matriz de cuatro variables estandarizadas.}\label{fig:kmeans}
+\end{figure}
+\begin{table}[htbp]
+\centering\small
+\caption{Perfiles medios en unidades originales para K-Means seleccionado.}\label{tab:perfiles}
+\begin{tabular}{rrrrrr}\toprule
+Grupo & Filas & Edad & Ingresos & Visitas & Satisfacción \\ \midrule
+0 & 10 & 31.00 & 1312.22 & 5.20 & 7.12 \\
+1 & 6 & 50.50 & 2723.33 & 14.67 & 8.87 \\
+\bottomrule\end{tabular}
+\end{table}
+
+El máximo silhouette corresponde a \textbf{$k=2$}, con 0.6261.
+La base $k=3$ obtiene 0.5828 y reduce la inercia de 14.8194 a 5.8810
+(aproximadamente 60.3\%). El codo hace razonable considerar tres grupos
+para una descripción más detallada, pero no supera al modelo de dos grupos
+en el criterio de separación elegido. Para $k=10$ la inercia llega a
+0.4129 y silhouette baja a 0.2827: compactar fragmentando la muestra no
+implica mejorar la separación.
+
+Los grupos seleccionados contienen 10 y 6 observaciones. El grupo 1
+presenta mayores promedios en todas las variables originales que el grupo 0.
+Son perfiles descriptivos de esta entrada; no se les atribuyen categorías
+comerciales nuevas. Los perfiles originales omiten cada faltante al calcular
+su media: en el grupo 0 los promedios de ingresos y satisfacción utilizan
+9 valores, aunque su tamaño es 10. Los centroides preparados, en cambio,
+usan todas las filas después de imputar y no están expresados en las unidades
+de esta tabla.
+
+No se forzó $k=3$ para coincidir con las tres categorías de segmento:
+esa columna no intervino en el ajuste ni en la selección. Los resultados
+son internos a la muestra y no constituyen validación externa.
+\FloatBarrier
+\clearpage
 
 \subsection{HAC}
-Compare enlaces y número de grupos; interprete el dendrograma y silhouette.
+\begin{table}[htbp]
+\centering\small
+\caption{Silhouette para las 36 configuraciones HAC. En todas, $k_{\mathrm{real}}=k$.}\label{tab:hac}
+\begin{tabular}{rrrrr}\toprule
+$k$ & Ward & Average & Complete & Single \\ \midrule
+2 & 0.6261 & 0.6261 & 0.6261 & 0.6261 \\
+3 & 0.5744 & 0.5828 & 0.5744 & 0.5828 \\
+4 & 0.5447 & 0.4924 & 0.5447 & 0.4924 \\
+5 & 0.5029 & 0.4714 & 0.5029 & 0.4714 \\
+6 & 0.5046 & 0.5046 & 0.5046 & 0.4225 \\
+7 & 0.4558 & 0.4558 & 0.4039 & 0.3753 \\
+8 & 0.3572 & 0.3640 & 0.3572 & 0.4086 \\
+9 & 0.3180 & 0.3278 & 0.2973 & 0.3278 \\
+10 & 0.2581 & 0.2671 & 0.2581 & 0.2671 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}\begin{axis}[width=15cm,height=5.5cm,xmin=0.5,xmax=16.5,ymin=0,xlabel={Observación (fila original, numerada desde 1)},ylabel={Distancia de fusión},xtick={1,...,16},xticklabels={7,8,9,12,10,11,4,5,1,2,3,6,16,13,14,15},grid=major,tick label style={font=\scriptsize}]
+\addplot[blue!70!black,no marks] coordinates {(15,0.000000) (15,0.293046) (16,0.293046) (16,0.000000)};
+\addplot[blue!70!black,no marks] coordinates {(5,0.000000) (5,0.311733) (6,0.311733) (6,0.000000)};
+\addplot[blue!70!black,no marks] coordinates {(2,0.000000) (2,0.347939) (3,0.347939) (3,0.000000)};
+\addplot[blue!70!black,no marks] coordinates {(7,0.000000) (7,0.357827) (8,0.357827) (8,0.000000)};
+\addplot[blue!70!black,no marks] coordinates {(10,0.000000) (10,0.386875) (11,0.386875) (11,0.000000)};
+\addplot[blue!70!black,no marks] coordinates {(14,0.000000) (14,0.492759) (15.5,0.492759) (15.5,0.293046)};
+\addplot[blue!70!black,no marks] coordinates {(9,0.000000) (9,0.559294) (10.5,0.559294) (10.5,0.386875)};
+\addplot[blue!70!black,no marks] coordinates {(1,0.000000) (1,0.576882) (2.5,0.576882) (2.5,0.347939)};
+\addplot[blue!70!black,no marks] coordinates {(13,0.000000) (13,0.630237) (14.75,0.630237) (14.75,0.492759)};
+\addplot[blue!70!black,no marks] coordinates {(4,0.000000) (4,0.679159) (5.5,0.679159) (5.5,0.311733)};
+\addplot[blue!70!black,no marks] coordinates {(7.5,0.357827) (7.5,0.983176) (9.75,0.983176) (9.75,0.559294)};
+\addplot[blue!70!black,no marks] coordinates {(1.75,0.576882) (1.75,1.187553) (4.75,1.187553) (4.75,0.679159)};
+\addplot[blue!70!black,no marks] coordinates {(12,0.000000) (12,1.289526) (13.875,1.289526) (13.875,0.630237)};
+\addplot[blue!70!black,no marks] coordinates {(8.625,0.983176) (8.625,1.963654) (12.9375,1.963654) (12.9375,1.289526)};
+\addplot[blue!70!black,no marks] coordinates {(3.25,1.187553) (3.25,3.639737) (10.78125,3.639737) (10.78125,1.963654)};
+\addplot[orange!80!black,dashed,no marks] coordinates {(0.5,2.5) (16.5,2.5)};
+\end{axis}\end{tikzpicture}
+\caption{Dendrograma HAC average, derivado de hac\_linkage.csv. Un corte ilustrativo a 2.5 produce los dos grupos seleccionados.}\label{fig:hac}
+\end{figure}
 
-\subsection{t-SNE y UMAP}
-Compare perplexity (t-SNE), vecinos y distancia mínima (UMAP). Use las
-proyecciones y trustworthiness como evidencia de apoyo, no como única decisión.
+Los cuatro enlaces alcanzan el mismo máximo silhouette, 0.6261, con
+\textbf{dos grupos}. Se conserva \textbf{average, $k=2$} por la regla de
+desempate alfabética del ejecutor; no existe evidencia métrica de que average
+sea superior a Ward, complete o single en ese corte. La base Ward con
+tres grupos obtiene 0.5744. Para tres grupos, average y single mejoran a
+0.5828, pero siguen debajo del máximo de dos grupos.
+En las 36 configuraciones el número efectivo de grupos coincide con el
+solicitado; se registra este dato porque un corte maxclust puede dar menos
+grupos cuando existen empates de alturas.
+
+En el dendrograma average la penúltima fusión ocurre a 1.9637 y la última
+a 3.6397. Un corte entre esas alturas separa un conjunto de 6 observaciones
+(filas 7--12) y otro de 10 (filas 1--6 y 13--16). La partición coincide
+con K-Means seleccionado, aunque sus identificadores numéricos están
+intercambiados. Por tanto, los perfiles son los mismos y no es necesario
+reinterpretarlos como grupos diferentes. Esta concordancia entre dos
+procedimientos apoya la descripción dentro de la muestra, pero no demuestra
+estabilidad ni la existencia universal de dos clases.
+
+Las alturas del dendrograma dependen del enlace y la escala preparada;
+no deben compararse como si fueran una misma magnitud entre Ward y average.
+Las diferencias para cortes más finos muestran que el enlace sí importa
+aunque todos coincidan en el corte de dos grupos.
+\FloatBarrier
+\clearpage
+
+\subsection{t-SNE}
+\begin{table}[htbp]\centering\small
+\caption{Comparación t-SNE con cinco vecinos para trustworthiness.}
+\begin{tabular}{rrl}\toprule
+Perplexity & $T_5$ & Estado \\ \midrule
+5 & 0.992188 & Evaluada y seleccionada \\
+15 & 0.484375 & Evaluada \\
+30 & --- & Omitida: requiere menos de 16 \\
+\bottomrule\end{tabular}\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={Perplexity 5},xlabel={TSNE1},ylabel={TSNE2},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(17.717276,16.352869) (13.654519,15.647109) (16.468690,12.864045) (11.880482,12.130684) (8.954843,13.609158) (5.147303,10.489951) (0.734826,9.752356) (-1.503248,6.884070) (-3.793907,9.840516) (-5.558128,6.569969)};
+\addlegendentry{Grupo 0}
+\addplot[only marks,mark=triangle*,color=orange!85!black,mark size=2pt] coordinates {(-18.399223,1.906184) (-22.448467,2.017766) (-20.670805,-1.080053) (-24.813858,-2.771761) (-26.519115,0.672535) (-28.777363,-2.684981)};
+\addlegendentry{Grupo 1}
+\end{axis}\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={Perplexity 15},xlabel={TSNE1},ylabel={TSNE2},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(26.931580,-15.734031) (-55.313606,157.990890) (84.776020,-76.989914) (36.128986,242.841170) (-50.892540,-25.089685) (-146.132060,89.453255) (132.278170,128.022870) (182.272810,46.095615) (169.149370,-51.171524) (93.772690,33.815900)};
+\addlegendentry{Grupo 0}
+\addplot[only marks,mark=triangle*,color=orange!85!black,mark size=2pt] coordinates {(18.706718,77.433980) (33.059574,-148.425200) (-141.035550,-32.495335) (-62.595770,59.343760) (-59.092590,-114.353240) (47.158295,157.147280)};
+\addlegendentry{Grupo 1}
+\end{axis}\end{tikzpicture}
+\caption{Comparación t-SNE. Mismos colores K-Means en ambas proyecciones; las escalas de los paneles son independientes.}\label{fig:tsne}
+\end{figure}
+
+Se selecciona \textbf{perplexity 5}: preserva vecindades con $T_5=0.9922$,
+frente a 0.4844 con 15. La segunda configuración considera una vecindad
+muy amplia para 16 filas y, en esta ejecución, conserva peor los vecinos
+locales evaluados. El resultado no permite afirmar que perplexity 15 sea
+inadecuada para cualquier conjunto de datos.
+
+La base 30 no puede ejecutarse válidamente y se documenta su omisión,
+en lugar de sustituirla silenciosamente. La base operativa 5 mantiene el
+análisis factible. Los colores K-Means sirven como referencia visual:
+no se vuelven a ajustar grupos sobre el plano t-SNE.
+La diferencia entre proyecciones respalda la necesidad de comparar
+hiperparámetros; separaciones o tamaños visuales no son medidas fiables
+de diferencias globales entre grupos. Se mantuvo una sola semilla y no se
+comprobó estabilidad al repetir el ajuste con otras.
+\FloatBarrier
+\clearpage
+
+\subsection{UMAP}
+\begin{table}[htbp]
+\centering\small
+\caption{Trustworthiness de UMAP ($q=5$). $d$ representa min\_dist.}\label{tab:umap}
+\begin{tabular}{rrrr}\toprule
+Vecinos & $d=0.0$ & $d=0.1$ & $d=0.5$ \\ \midrule
+5 & 0.984375 & 0.987500 & 0.984375 \\
+10 & 0.987500 & 0.987500 & 0.984375 \\
+15 & 0.979688 & 0.967187 & 0.964063 \\
+\bottomrule\end{tabular}
+\end{table}
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={UMAP: vecinos 5, distancia 0.1},xlabel={UMAP1},ylabel={UMAP2},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(20.891651,16.333286) (20.477423,16.228674) (20.540997,16.689293) (19.883053,16.145176) (19.629248,15.637339) (19.400105,14.996707) (19.267610,14.348664) (18.969133,13.827809) (19.424652,13.642221) (19.048458,13.299770)};
+\addlegendentry{Grupo 0}
+\addplot[only marks,mark=triangle*,color=orange!85!black,mark size=2pt] coordinates {(6.381728,-2.367699) (6.767979,-2.972258) (6.862833,-2.579961) (7.542193,-2.984613) (7.458534,-2.397370) (7.971693,-2.740674)};
+\addlegendentry{Grupo 1}
+\end{axis}\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=7.4cm,height=5.4cm,title={UMAP: vecinos 15, distancia 0.1},xlabel={UMAP1},ylabel={UMAP2},grid=major,legend style={font=\scriptsize,at={(0.5,-0.24)},anchor=north,legend columns=2},tick label style={font=\scriptsize},title style={font=\small},label style={font=\small}]
+\addplot[only marks,mark=*,color=blue!70!black,mark size=2pt] coordinates {(-6.844625,-3.161221) (-6.454635,-3.678986) (-7.056901,-3.588043) (-6.179354,-3.017403) (-6.653932,-2.599771) (-7.369225,-2.342783) (-7.811707,-1.998959) (-8.108183,-3.045131) (-8.227003,-2.573164) (-8.861485,-2.656192)};
+\addlegendentry{Grupo 0}
+\addplot[only marks,mark=triangle*,color=orange!85!black,mark size=2pt] coordinates {(-9.157450,-1.862733) (-9.565391,-1.399811) (-8.999330,-1.087817) (-9.474153,-0.727848) (-10.041197,-0.876443) (-10.146044,-1.378657)};
+\addlegendentry{Grupo 1}
+\end{axis}\end{tikzpicture}
+\caption{UMAP seleccionado frente a la configuración base. Colores K-Means, escalas independientes.}\label{fig:umap}
+\end{figure}
+
+Se selecciona \textbf{5 vecinos y min\_dist 0.1}, con $T_5=0.9875$.
+Hay empate con 10 vecinos y min\_dist 0.0 o 0.1; se eligen menos vecinos
+según la regla documentada. Para 5 vecinos, min\_dist 0.0 y 0.5 obtienen
+0.9844. La base 15/0.1 obtiene 0.9672; reducir vecinos mejora la
+preservación local evaluada en esta muestra.
+
+La diferencia entre min\_dist 0.0 y 0.1 no tiene una dirección universal:
+con 15 vecinos, 0.0 obtiene 0.9797, mientras que con 5 vecinos gana 0.1.
+Esto muestra interacción entre parámetros y evita tratar un valor como
+óptimo independiente del contexto. Con 15 vecinos se conecta una fracción
+muy grande de las 16 filas; el criterio $T_5$ evalúa una vecindad más local.
+Por ello, su selección no equivale a optimizar toda la geometría global.
+
+El t-SNE seleccionado obtiene un $T_5$ ligeramente mayor (0.9922 frente a
+0.9875), bajo la misma matriz y vecindad de evaluación. Es una diferencia
+descriptiva, no una prueba estadística de superioridad. No se evaluaron
+tiempos ni capacidad de generalización. Ninguno de los dos métodos
+reemplaza la explicación de las variables que ofrece ACP.
+\FloatBarrier
 
 \section{Conclusiones}
-Sintetice los hallazgos, limitaciones y la justificación final de cada modelo.
+El EDA identifica escalas heterogéneas, dos faltantes y fuerte asociación
+positiva entre las cuatro variables numéricas. La imputación por mediana y
+la estandarización permiten conservar 16 observaciones y comparar métodos
+sobre una misma matriz. La categoría segmento queda fuera del ajuste para
+mantener el carácter no supervisado.
 
-\bibliographystyle{plain}
-\bibliography{referencias}
+ACP con dos componentes retiene 99.4429\% y describe una dirección dominante
+común. K-Means con dos grupos y HAC average con dos grupos alcanzan
+silhouette 0.6261 y la misma partición; el empate de los cuatro enlaces
+HAC se resuelve por una convención reproducible, no por superioridad
+estadística. La alternativa de tres grupos aporta más detalle y menor
+inercia, pero pierde en el criterio elegido. t-SNE con perplexity 5 y UMAP
+con 5 vecinos/min\_dist 0.1 preservan bien los vecinos locales de esta
+ejecución.
+
+Las conclusiones se restringen a una muestra pequeña, con unidades y
+población de origen no documentadas y dos imputaciones. Las métricas son
+internas y se evaluó una sola semilla; no hay prueba de estabilidad,
+validación externa ni inferencia causal. Un trabajo posterior podría
+comparar otras semillas y tratamientos de faltantes, y contrastar los
+grupos con información externa antes de utilizarlos para decisiones.
+La entrega conserva entrada, código y resultados completos, de modo que
+las selecciones pueden verificarse y repetirse.
+\clearpage
+
+% Referencias integradas para compilar este documento sin archivos auxiliares.
+% referencias.bib se conserva como apoyo para edición bibliográfica en Overleaf.
+\begin{thebibliography}{99}
+\bibitem{nisteda}
+NIST/SEMATECH. \emph{e-Handbook of Statistical Methods:
+Exploratory Data Analysis}. \url{https://www.itl.nist.gov/div898/handbook/eda/eda.htm}.
+
+\bibitem{jolliffe2002}
+I. T. Jolliffe. \emph{Principal Component Analysis}, segunda edición.
+Springer, 2002.
+
+\bibitem{jolliffecadima}
+I. T. Jolliffe y J. Cadima. Principal component analysis: a review and
+recent developments. \emph{Philosophical Transactions of the Royal Society A},
+374:20150202, 2016. \url{https://doi.org/10.1098/rsta.2015.0202}.
+
+\bibitem{macqueen1967}
+J. B. MacQueen. Some methods for classification and analysis of multivariate
+observations. \emph{Proceedings of the Fifth Berkeley Symposium on
+Mathematical Statistics and Probability}, vol. 1, pp. 281--297, 1967.
+\url{https://digicoll.lib.berkeley.edu/record/113015}.
+
+\bibitem{murtagh2012}
+F. Murtagh y P. Contreras. Algorithms for hierarchical clustering: an
+overview. \emph{WIREs Data Mining and Knowledge Discovery}, 2(1):86--97,
+2012. \url{https://doi.org/10.1002/widm.53}.
+
+\bibitem{vandermaaten2008}
+L. van der Maaten y G. Hinton. Visualizing data using t-SNE.
+\emph{Journal of Machine Learning Research}, 9:2579--2605, 2008.
+\url{https://www.jmlr.org/papers/v9/vandermaaten08a.html}.
+
+\bibitem{mcinnes2018}
+L. McInnes, J. Healy y J. Melville. UMAP: Uniform Manifold Approximation
+and Projection for Dimension Reduction, 2018.
+\url{https://arxiv.org/abs/1802.03426}.
+
+\bibitem{scipylinkage}
+SciPy. \emph{scipy.cluster.hierarchy.linkage}, documentación de referencia.
+\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html}.
+
+\bibitem{sklearnpca}
+scikit-learn. \emph{PCA}, documentación de referencia.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html}.
+
+\bibitem{sklearnkmeans}
+scikit-learn. \emph{KMeans}, documentación de referencia.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html}.
+
+\bibitem{sklearntsne}
+scikit-learn. \emph{TSNE}, documentación de referencia.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html}.
+
+\bibitem{sklearnsilhouette}
+scikit-learn. \emph{silhouette\_score}, documentación de referencia.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.metrics.silhouette_score.html}.
+
+\bibitem{sklearntrust}
+scikit-learn. \emph{trustworthiness}, documentación de referencia.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.manifold.trustworthiness.html}.
+
+\bibitem{umapparams}
+UMAP. \emph{Basic UMAP Parameters}, documentación oficial.
+\url{https://umap-learn.readthedocs.io/en/latest/parameters.html}.
+
+\end{thebibliography}
 \end{document}

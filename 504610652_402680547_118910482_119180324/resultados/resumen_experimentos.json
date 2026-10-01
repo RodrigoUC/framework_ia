@@ -1,0 +1,645 @@
+{
+  "estado": "completado",
+  "configuracion": {
+    "archivo": "ejemplo_analisis.csv",
+    "sha256_datos": "619c2c6fa684e1be8cf95630ddd62396368c45fa8c12162d8ec3959a6187cec3",
+    "filas": 16,
+    "columnas": [
+      "edad",
+      "ingresos",
+      "visitas",
+      "satisfaccion",
+      "segmento"
+    ],
+    "features": [
+      "edad",
+      "ingresos",
+      "visitas",
+      "satisfaccion"
+    ],
+    "separador": ",",
+    "decimal": ".",
+    "incluir_categoricas": false,
+    "estandarizar": true,
+    "semilla": 42,
+    "python": "3.12.14",
+    "versiones": {
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "umap-learn": "0.5.12",
+      "numba": "0.68.0"
+    },
+    "preprocesamiento": {
+      "numericas": "imputación por mediana; StandardScaler si estandarizar=true",
+      "categoricas": "imputación por moda y one-hot si incluir_categoricas=true",
+      "infinitos": "tratados como faltantes",
+      "constantes": "descartadas",
+      "columnas_origen": [
+        "edad",
+        "ingresos",
+        "visitas",
+        "satisfaccion"
+      ],
+      "columnas_descartadas": [],
+      "columnas_preparadas": [
+        "edad",
+        "ingresos",
+        "visitas",
+        "satisfaccion"
+      ],
+      "categoricas_excluidas": [
+        "segmento"
+      ]
+    }
+  },
+  "configuraciones_base": {
+    "acp": {
+      "componentes": 2
+    },
+    "kmeans": {
+      "k": 3,
+      "n_init": 20,
+      "max_iter": 500
+    },
+    "hac": {
+      "metodo": "ward",
+      "k": 3,
+      "metrica": "euclidean",
+      "k_real": 3
+    },
+    "tsne": {
+      "perplexity": 30,
+      "max_iter": 1000,
+      "base_operativa": 5
+    },
+    "umap": {
+      "n_neighbors": 15,
+      "min_dist": 0.1,
+      "n_components": 2
+    }
+  },
+  "omisiones": [
+    {
+      "metodo": "tsne",
+      "perplexity": 30,
+      "motivo": "Debe ser menor que las 16 filas."
+    }
+  ],
+  "selecciones": {
+    "acp": {
+      "componentes": 2.0,
+      "varianza_acumulada_pct": 99.44285919347858
+    },
+    "tsne": {
+      "perplexity": 5,
+      "trustworthiness": 0.9921875,
+      "archivo": "tsne_perplexity_5.csv"
+    },
+    "umap": {
+      "n_neighbors": 5,
+      "min_dist": 0.1,
+      "trustworthiness": 0.9875,
+      "archivo": "umap_vecinos_5_min_dist_0_1.csv"
+    }
+  },
+  "criterios": {
+    "acp": "mínimo número de componentes que alcanza 95% de varianza; si no, máximo evaluado",
+    "kmeans": "máximo silhouette; empate: menor k",
+    "hac": "máximo silhouette; empate: menor k y nombre de método en orden alfabético",
+    "tsne": "máximo trustworthiness; empate: menor perplexity",
+    "umap": "máximo trustworthiness; empate: menor n_neighbors y menor min_dist",
+    "advertencia": "Trustworthiness evalúa preservación local, no demuestra grupos reales ni conservación global.",
+    "vecinos_trustworthiness": 5
+  },
+  "archivos": {
+    "matriz_preparada.csv": {
+      "filas": 16,
+      "sha256": "73525ba32a1db5a1a31cb5e489f41e023a2ce2fe8a250317cd5072f43608170f"
+    },
+    "eda_descriptivos.csv": {
+      "filas": 5,
+      "sha256": "3411791cefbab77825ea2942e3e5223e39973ea5dea37a00ca324323446f1b0f"
+    },
+    "eda_nulos.csv": {
+      "filas": 5,
+      "sha256": "b139ddfaa9111aa42f9ea00107e7f9273feba802c4eb38cca71289bb42bb7547"
+    },
+    "eda_correlacion.csv": {
+      "filas": 4,
+      "sha256": "5933032f9a36280b3d58101186cf19391b7e04d35a58c84fa422ec53e49143d1"
+    },
+    "eda_frecuencias_categoricas.csv": {
+      "filas": 3,
+      "sha256": "91d0b3251909d672094540a3c7f12a52282a1df6dcd04b459ba5ea6437612b7b"
+    },
+    "acp_2_componentes.csv": {
+      "filas": 16,
+      "sha256": "88644e919bec8d9857439f696986de113b745d77678a241e0513a42ad751a32d"
+    },
+    "acp_2_cargas.csv": {
+      "filas": 4,
+      "sha256": "033f510eacc5048a14acacd81cae61547420697b548f39538326f6370f17a341"
+    },
+    "acp_2_varianza.csv": {
+      "filas": 2,
+      "sha256": "8b74dc6804c970ac7b71a2ba717d1e933d20b5890202c3c3545d88afec4dc9a5"
+    },
+    "acp_3_componentes.csv": {
+      "filas": 16,
+      "sha256": "97d7276c5353469bcf7bea46cb3342212d5d0d256498f1d4e902d040a36d6f36"
+    },
+    "acp_3_cargas.csv": {
+      "filas": 4,
+      "sha256": "8393eb2a970e737c4895515a6047ba3a75965b1369f1940732625d0dd00c9f41"
+    },
+    "acp_3_varianza.csv": {
+      "filas": 3,
+      "sha256": "d91b0a9b62f4c6440ce97d60efcb35b8d7878a69f11eea10e6a05ac9edadede1"
+    },
+    "acp_4_componentes.csv": {
+      "filas": 16,
+      "sha256": "84f228f930f2e35dee830f75df93d6827c43dffd9466314b71b2980b3a2b72ff"
+    },
+    "acp_4_cargas.csv": {
+      "filas": 4,
+      "sha256": "9877905603912ab415e45dd7a675570bb5da686e7f9334f69425f94b4eab6d11"
+    },
+    "acp_4_varianza.csv": {
+      "filas": 4,
+      "sha256": "98fe67bb2621c9b2732a2d968df2ed6a43f415de6c1c2875d4ab76c5ed249ff2"
+    },
+    "comparacion_acp.csv": {
+      "filas": 3,
+      "sha256": "180c855cf1219a89ee8a4850d9a4c17211bf6611779cc369e1162be444b100a4"
+    },
+    "comparacion_kmeans.csv": {
+      "filas": 9,
+      "sha256": "c1ec6827ec806bffbed93eb0a2375744061b6e9ad3c1d1de8e54eb46903aa251"
+    },
+    "kmeans_asignaciones.csv": {
+      "filas": 16,
+      "sha256": "035c34a6bdd0cab28fc3b97ead40ab5a7761bc2673891474755ec3ad31f99ea8"
+    },
+    "kmeans_centroides_preparados.csv": {
+      "filas": 2,
+      "sha256": "f344c5343071460e6dfd5fc8e7a35dd7246b22a53fb654259df66ff2ead99f2c"
+    },
+    "kmeans_perfiles_originales.csv": {
+      "filas": 2,
+      "sha256": "161ac65e268278a2080fb5b1e00689fb005e6a7620ec1fa07fba4349269c025d"
+    },
+    "comparacion_hac.csv": {
+      "filas": 36,
+      "sha256": "b057a01c476b916f61638de9b50ff82e0613dc1a24ee604ed289b4b256dabe46"
+    },
+    "hac_asignaciones.csv": {
+      "filas": 16,
+      "sha256": "cd4e6df5e75d31a86f5510c967a94a0c92befa3714d33d53563587a039489b77"
+    },
+    "hac_centroides_preparados.csv": {
+      "filas": 2,
+      "sha256": "676006c75edb2e6580168022ffc7001146206fe1e2083a9373038140b38ee53e"
+    },
+    "hac_perfiles_originales.csv": {
+      "filas": 2,
+      "sha256": "a92478e51668412630f986a07fe3dda0e4c7b90597134040c4fc459819834c1b"
+    },
+    "hac_linkage.csv": {
+      "filas": 15,
+      "sha256": "028d3c1e086edd56768430ef03d1992e9ecb01149e3f0d9d0fb8172db9940980"
+    },
+    "hac_linkage_ward.csv": {
+      "filas": 15,
+      "sha256": "c401c9f6692831d5752ba4f319b08515f236d075652b71948b955a37dc4bd9f9"
+    },
+    "hac_linkage_average.csv": {
+      "filas": 15,
+      "sha256": "028d3c1e086edd56768430ef03d1992e9ecb01149e3f0d9d0fb8172db9940980"
+    },
+    "hac_linkage_complete.csv": {
+      "filas": 15,
+      "sha256": "1b793790644baf96124c09a5b8644d6a238e33680ad0d681f8785c2e6c981460"
+    },
+    "hac_linkage_single.csv": {
+      "filas": 15,
+      "sha256": "760f701b334001eb2116faea95b19921281560cff9af8ebe56c189736194e40c"
+    },
+    "tsne_perplexity_5.csv": {
+      "filas": 16,
+      "sha256": "888185e6da89e0f54627c4614f39eb5bb4b83f39b5a22b256bf23b629cd19b4b"
+    },
+    "tsne_perplexity_15.csv": {
+      "filas": 16,
+      "sha256": "0575326bdf23cc63d29656753ec7a0ecd5e78c07b4e96ee8ae91bbb9d6b9e752"
+    },
+    "comparacion_tsne.csv": {
+      "filas": 2,
+      "sha256": "c5ecdbeedcc9253a952796a6c1517a4b1a24791a97376541d6bdf79a329d254f"
+    },
+    "umap_vecinos_5_min_dist_0_0.csv": {
+      "filas": 16,
+      "sha256": "700a18ef289fad69e032c4bd15915b59ccc5406e4b69d9e3c15cb4335ee43ea3"
+    },
+    "umap_vecinos_5_min_dist_0_1.csv": {
+      "filas": 16,
+      "sha256": "ab2d7d295ee0c48e10aa183016b31c19aea4501d3752df3db426491376d3f3c7"
+    },
+    "umap_vecinos_5_min_dist_0_5.csv": {
+      "filas": 16,
+      "sha256": "094ea2e64b7ce7700e464fa29c6b0c7fa46a57bfde25d7b233d91aa8545dfa63"
+    },
+    "umap_vecinos_10_min_dist_0_0.csv": {
+      "filas": 16,
+      "sha256": "9f8da896161711a10810931174b4dae365a9bc945b72ba7a8c8eba57d433d61e"
+    },
+    "umap_vecinos_10_min_dist_0_1.csv": {
+      "filas": 16,
+      "sha256": "d5c513d2ab6b61a152f665238e2c5f00a579e05eaead24ecebacab50feebbdae"
+    },
+    "umap_vecinos_10_min_dist_0_5.csv": {
+      "filas": 16,
+      "sha256": "7ff29c3c3b1b1568379e08b5c00c9cd3691b8dd3edf0c5935fa220442188bbe2"
+    },
+    "umap_vecinos_15_min_dist_0_0.csv": {
+      "filas": 16,
+      "sha256": "8ed3801de6bdcfb5e5204813df87e1473fd20b0c31324cef01205e0a449e4ff2"
+    },
+    "umap_vecinos_15_min_dist_0_1.csv": {
+      "filas": 16,
+      "sha256": "0d5b95e0ade3ba7d05fc44eea87ce6428aaf26af3cbae2af39994d810e1e3498"
+    },
+    "umap_vecinos_15_min_dist_0_5.csv": {
+      "filas": 16,
+      "sha256": "25e644a51cc36895e2c78dcff4ad0960b4c6bd969fe6f2352f57de22a462d17c"
+    },
+    "comparacion_umap.csv": {
+      "filas": 9,
+      "sha256": "4ad663de33802d886a073f4a92f4254e92aa0b1b5f9bc915a7206c60db005b1c"
+    }
+  },
+  "acp": [
+    {
+      "componentes": 2,
+      "varianza_acumulada_pct": 99.44285919347858
+    },
+    {
+      "componentes": 3,
+      "varianza_acumulada_pct": 99.786796737985
+    },
+    {
+      "componentes": 4,
+      "varianza_acumulada_pct": 100.00000000000003
+    }
+  ],
+  "kmeans": {
+    "comparacion": [
+      {
+        "k": 2,
+        "inercia": 14.819415450670139,
+        "silhouette": 0.6260729274520908
+      },
+      {
+        "k": 3,
+        "inercia": 5.881011589001435,
+        "silhouette": 0.582774053448374
+      },
+      {
+        "k": 4,
+        "inercia": 3.8418215196976186,
+        "silhouette": 0.5333697186137207
+      },
+      {
+        "k": 5,
+        "inercia": 2.1545570508677816,
+        "silhouette": 0.5029456650537698
+      },
+      {
+        "k": 6,
+        "inercia": 1.4148051249352092,
+        "silhouette": 0.5046306914377015
+      },
+      {
+        "k": 7,
+        "inercia": 1.1046167749388587,
+        "silhouette": 0.427042706899848
+      },
+      {
+        "k": 8,
+        "inercia": 0.8125759892205662,
+        "silhouette": 0.3819276029102892
+      },
+      {
+        "k": 9,
+        "inercia": 0.6090348366843127,
+        "silhouette": 0.34341050850987387
+      },
+      {
+        "k": 10,
+        "inercia": 0.4129472212018774,
+        "silhouette": 0.28271158449638456
+      }
+    ],
+    "seleccion_sugerida": {
+      "k": 2.0,
+      "inercia": 14.819415450670139,
+      "silhouette": 0.6260729274520908
+    }
+  },
+  "hac": {
+    "comparacion": [
+      {
+        "metodo": "ward",
+        "k": 2,
+        "silhouette": 0.6260729274520908,
+        "k_real": 2
+      },
+      {
+        "metodo": "ward",
+        "k": 3,
+        "silhouette": 0.5743751784225084,
+        "k_real": 3
+      },
+      {
+        "metodo": "ward",
+        "k": 4,
+        "silhouette": 0.5447048895506217,
+        "k_real": 4
+      },
+      {
+        "metodo": "ward",
+        "k": 5,
+        "silhouette": 0.5029456650537698,
+        "k_real": 5
+      },
+      {
+        "metodo": "ward",
+        "k": 6,
+        "silhouette": 0.5046306914377015,
+        "k_real": 6
+      },
+      {
+        "metodo": "ward",
+        "k": 7,
+        "silhouette": 0.4557934407331877,
+        "k_real": 7
+      },
+      {
+        "metodo": "ward",
+        "k": 8,
+        "silhouette": 0.35724335332015195,
+        "k_real": 8
+      },
+      {
+        "metodo": "ward",
+        "k": 9,
+        "silhouette": 0.3180215701428158,
+        "k_real": 9
+      },
+      {
+        "metodo": "ward",
+        "k": 10,
+        "silhouette": 0.25807041951916404,
+        "k_real": 10
+      },
+      {
+        "metodo": "average",
+        "k": 2,
+        "silhouette": 0.6260729274520908,
+        "k_real": 2
+      },
+      {
+        "metodo": "average",
+        "k": 3,
+        "silhouette": 0.582774053448374,
+        "k_real": 3
+      },
+      {
+        "metodo": "average",
+        "k": 4,
+        "silhouette": 0.4923974423046372,
+        "k_real": 4
+      },
+      {
+        "metodo": "average",
+        "k": 5,
+        "silhouette": 0.4713515648024222,
+        "k_real": 5
+      },
+      {
+        "metodo": "average",
+        "k": 6,
+        "silhouette": 0.5046306914377015,
+        "k_real": 6
+      },
+      {
+        "metodo": "average",
+        "k": 7,
+        "silhouette": 0.4557934407331877,
+        "k_real": 7
+      },
+      {
+        "metodo": "average",
+        "k": 8,
+        "silhouette": 0.36396422606645745,
+        "k_real": 8
+      },
+      {
+        "metodo": "average",
+        "k": 9,
+        "silhouette": 0.3278189740711196,
+        "k_real": 9
+      },
+      {
+        "metodo": "average",
+        "k": 10,
+        "silhouette": 0.26712005005763034,
+        "k_real": 10
+      },
+      {
+        "metodo": "complete",
+        "k": 2,
+        "silhouette": 0.6260729274520908,
+        "k_real": 2
+      },
+      {
+        "metodo": "complete",
+        "k": 3,
+        "silhouette": 0.5743751784225084,
+        "k_real": 3
+      },
+      {
+        "metodo": "complete",
+        "k": 4,
+        "silhouette": 0.5447048895506217,
+        "k_real": 4
+      },
+      {
+        "metodo": "complete",
+        "k": 5,
+        "silhouette": 0.5029456650537698,
+        "k_real": 5
+      },
+      {
+        "metodo": "complete",
+        "k": 6,
+        "silhouette": 0.5046306914377015,
+        "k_real": 6
+      },
+      {
+        "metodo": "complete",
+        "k": 7,
+        "silhouette": 0.4038944297582653,
+        "k_real": 7
+      },
+      {
+        "metodo": "complete",
+        "k": 8,
+        "silhouette": 0.35724335332015195,
+        "k_real": 8
+      },
+      {
+        "metodo": "complete",
+        "k": 9,
+        "silhouette": 0.2972922026965002,
+        "k_real": 9
+      },
+      {
+        "metodo": "complete",
+        "k": 10,
+        "silhouette": 0.25807041951916404,
+        "k_real": 10
+      },
+      {
+        "metodo": "single",
+        "k": 2,
+        "silhouette": 0.6260729274520908,
+        "k_real": 2
+      },
+      {
+        "metodo": "single",
+        "k": 3,
+        "silhouette": 0.582774053448374,
+        "k_real": 3
+      },
+      {
+        "metodo": "single",
+        "k": 4,
+        "silhouette": 0.4923974423046372,
+        "k_real": 4
+      },
+      {
+        "metodo": "single",
+        "k": 5,
+        "silhouette": 0.4713515648024222,
+        "k_real": 5
+      },
+      {
+        "metodo": "single",
+        "k": 6,
+        "silhouette": 0.42251431409790846,
+        "k_real": 6
+      },
+      {
+        "metodo": "single",
+        "k": 7,
+        "silhouette": 0.37529957935853675,
+        "k_real": 7
+      },
+      {
+        "metodo": "single",
+        "k": 8,
+        "silhouette": 0.408578705993816,
+        "k_real": 8
+      },
+      {
+        "metodo": "single",
+        "k": 9,
+        "silhouette": 0.3278189740711196,
+        "k_real": 9
+      },
+      {
+        "metodo": "single",
+        "k": 10,
+        "silhouette": 0.26712005005763034,
+        "k_real": 10
+      }
+    ],
+    "seleccion_sugerida": {
+      "metodo": "average",
+      "k": 2,
+      "silhouette": 0.6260729274520908,
+      "k_real": 2
+    },
+    "grupos_obtenidos": 2
+  },
+  "tsne": [
+    {
+      "perplexity": 5,
+      "trustworthiness": 0.9921875,
+      "archivo": "tsne_perplexity_5.csv"
+    },
+    {
+      "perplexity": 15,
+      "trustworthiness": 0.484375,
+      "archivo": "tsne_perplexity_15.csv"
+    }
+  ],
+  "umap": [
+    {
+      "n_neighbors": 5,
+      "min_dist": 0.0,
+      "trustworthiness": 0.984375,
+      "archivo": "umap_vecinos_5_min_dist_0_0.csv"
+    },
+    {
+      "n_neighbors": 5,
+      "min_dist": 0.1,
+      "trustworthiness": 0.9875,
+      "archivo": "umap_vecinos_5_min_dist_0_1.csv"
+    },
+    {
+      "n_neighbors": 5,
+      "min_dist": 0.5,
+      "trustworthiness": 0.984375,
+      "archivo": "umap_vecinos_5_min_dist_0_5.csv"
+    },
+    {
+      "n_neighbors": 10,
+      "min_dist": 0.0,
+      "trustworthiness": 0.9875,
+      "archivo": "umap_vecinos_10_min_dist_0_0.csv"
+    },
+    {
+      "n_neighbors": 10,
+      "min_dist": 0.1,
+      "trustworthiness": 0.9875,
+      "archivo": "umap_vecinos_10_min_dist_0_1.csv"
+    },
+    {
+      "n_neighbors": 10,
+      "min_dist": 0.5,
+      "trustworthiness": 0.984375,
+      "archivo": "umap_vecinos_10_min_dist_0_5.csv"
+    },
+    {
+      "n_neighbors": 15,
+      "min_dist": 0.0,
+      "trustworthiness": 0.9796875,
+      "archivo": "umap_vecinos_15_min_dist_0_0.csv"
+    },
+    {
+      "n_neighbors": 15,
+      "min_dist": 0.1,
+      "trustworthiness": 0.9671875,
+      "archivo": "umap_vecinos_15_min_dist_0_1.csv"
+    },
+    {
+      "n_neighbors": 15,
+      "min_dist": 0.5,
+      "trustworthiness": 0.9640625,
+      "archivo": "umap_vecinos_15_min_dist_0_5.csv"
+    }
+  ]
+}
