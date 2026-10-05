@@ -16,11 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.manifold import trustworthiness
 
-from framework_ia.modelos.no_supervisado import Cluster
-from framework_ia.modelos.no_supervisado.reduccion_dimensional import (
-    DependenciaOpcionalError,
-    ReduccionDimensional,
-)
+from framework_ia.modelos.no_supervisado import Cluster, DependenciaOpcionalError
 
 
 def _argumentos() -> argparse.Namespace:
@@ -63,8 +59,8 @@ def _confiabilidad(matriz: pd.DataFrame, coordenadas: pd.DataFrame) -> float | N
     )
 
 
-def _crear_reductor(datos: pd.DataFrame, configuracion: dict[str, Any]) -> ReduccionDimensional:
-    return ReduccionDimensional(
+def _crear_reductor(datos: pd.DataFrame, configuracion: dict[str, Any]) -> Cluster:
+    return Cluster(
         dataframe=datos,
         features=configuracion["features"],
         incluir_categoricas=configuracion["incluir_categoricas"],
