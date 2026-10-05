@@ -1,7 +1,7 @@
-# Framework de análisis exploratorio y clustering
+# Framework de análisis exploratorio y aprendizaje automático
 
 Framework modular para cargar cualquier archivo CSV, preparar sus datos y
-ejecutar EDA, ACP, K-Means, K-Medoids, clustering jerárquico, t-SNE y UMAP.
+ejecutar EDA, ACP, K-Means, K-Medoids, clustering jerárquico, t-SNE, UMAP y clasificación.
 La interfaz gráfica usa Streamlit y Plotly para los gráficos interactivos,
 mientras que los algoritmos permanecen en clases independientes y
 reutilizables. La versión oficial del proyecto es este directorio
@@ -79,7 +79,9 @@ está incluido mediante `umap-learn`. K-Medoids se implementa en
 `framework_ia/modelos/algoritmos_cluster.py`, por lo que no requiere una
 biblioteca adicional.
 
-Las versiones mínimas están en `requirements.txt`. El código de t-SNE admite
+Las versiones mínimas están en `requirements.txt`. LAB 02 requiere Streamlit
+1.65 o posterior para conservar controles al navegar y describir las tablas
+y gráficos de forma accesible. El código de t-SNE admite
 las versiones de scikit-learn que nombran el parámetro de iteraciones como
 `max_iter` y las versiones anteriores que lo nombran `n_iter`.
 
@@ -89,20 +91,20 @@ las versiones de scikit-learn que nombran el parámetro de iteraciones como
 | --- | --- | --- |
 | `framework_ia/datos` | Operaciones tabulares, EDA y preprocesamiento | Implementada |
 | `framework_ia/modelos/no_supervisado/agrupamiento.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
-| `framework_ia/modelos/no_supervisado/reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
-| `framework_ia/visualizacion.py` | Figuras Matplotlib/Seaborn | Implementada |
-| `framework_ia/modelos/supervisado/clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
+| `framework_ia/modelos/no_supervisado/agrupamiento.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
+| `framework_ia/visualizacion.py` | Figuras Plotly | Implementada |
+| `framework_ia/modelos/supervisado/clasificacion.py` | KNN, DT, RF, XGBoost, AdaBoost y NR | Implementada |
 | `framework_ia/modelos/supervisado/regresion.py` | `Regresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
 
 Las clases supervisadas y sus métodos existen para completar el framework por
-etapas; actualmente `Clasificacion` (RF/NR) y su flujo de métricas y predicciones
-ya están funcionales.
+etapas; `Clasificacion` incluye los cinco algoritmos del LAB 02, comparación por
+validación y evaluación en test reservado. Regresión permanece pendiente.
 
 ## Uso desde Python
 
 ```python
 from framework_ia.datos import EDA
-from framework_ia.modelos import Cluster, ReduccionDimensional
+from framework_ia.modelos import Cluster
 
 eda = EDA(ruta_datos="mis_datos.csv")
 datos = eda.preparar_dataset()
@@ -112,7 +114,7 @@ resultado_kmeans = cluster.K_means(n_clusters=3)
 # También están disponibles los nombres pythonicos:
 resultado_kmeans = cluster.k_means(n_clusters=3)
 
-reduccion = ReduccionDimensional(
+reduccion = Cluster(
     dataframe=datos,
     features=["variable_1", "variable_2"],
 )
@@ -124,7 +126,8 @@ resultado_acp = reduccion.acp(n_componentes=2)
 ## Validación
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
 ```
 
 Las pruebas cubren carga de CSV, limpieza, preprocesamiento, ACP, t-SNE,
@@ -158,3 +161,11 @@ independientes.
 
 Murillo-Morera, J. D. (2026). *Paquete 1: Análisis de datos exploratorios (EDA)*
 [Código fuente de curso no publicado]. Universidad Nacional de Costa Rica.
+
+## LAB 02: clasificación
+
+Consulte [la guía de implementación y reproducción](docs/lab02/README.md).
+Incluye KNN, árboles, Random Forest, XGBoost y AdaBoost, configuración estándar
+y variantes, selección por validación y test reservado, interfaz separada y CLI.
+Los CSV de Kaggle permanecen locales; no son automáticamente los archivos
+exactos del profesor. No se incluyen resultados académicos inventados.
