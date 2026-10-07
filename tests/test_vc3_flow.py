@@ -2,11 +2,8 @@
 
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
-from framework_ia.ui import streamlit_app
-
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -25,6 +22,8 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertEqual(active_identity, self.app.session_state["dataset_identidad"])
         self.assertFalse(self.app.exception)
 
+        # AppTest batches form edits with submit, just like the browser.
+        self.app.sidebar.text_input(key="fuente_separador").set_value(";")
         self.app.button(key="FormSubmitter:form_fuente_datos-Aplicar fuente").click().run()
         self.assertFalse(self.app.exception)
         self.assertNotEqual(active_identity, self.app.session_state["dataset_identidad"])
@@ -70,7 +69,9 @@ class VisualContrastFlowTests(unittest.TestCase):
 
     def test_invalid_default_csv_keeps_app_available_for_source_recovery(self):
         def run_with_broken_csv():
+            # AppTest executes this function in an isolated script namespace.
             from unittest.mock import patch
+
             from framework_ia.ui import streamlit_app
 
             with patch.object(
