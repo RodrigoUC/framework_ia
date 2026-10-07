@@ -8,16 +8,16 @@ from __future__ import annotations
 
 import base64
 import hashlib
-from html import escape
 import math
-from pathlib import Path
 import re
+from html import escape
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.colors import sample_colorscale
 import streamlit as st
+from plotly.colors import sample_colorscale
 
 from ..datos.eda import EDA
 from ..datos.fuentes import CargadorCSV, ConfiguracionCSV
@@ -30,7 +30,19 @@ from ..visualizacion import (
     VisualizadorNoSupervisado,
     VisualizadorSupervisado,
 )
-
+from .configuracion_clasificacion import (
+    configurar_clasificacion as _configurar_modelos_clasificacion,
+)
+from .configuracion_clasificacion import (
+    firma_clasificacion as _firma_clasificacion,
+)
+from .estado_clasificacion import sincronizar_contexto
+from .lab2 import (
+    preparacion_segura,
+    render_experimentos,
+    render_modelo_individual,
+    render_resultados,
+)
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PALETA = {
@@ -62,6 +74,9 @@ TITULOS_VISTA = {
     "tsne": "Proyección t-SNE",
     "umap": "Proyección UMAP",
     "clasificacion": "Clasificación",
+    "lab2_modelo": "Modelo individual · LAB02",
+    "lab2_experimentos": "Comparar variantes · LAB02",
+    "lab2_resultados": "Resultados · LAB02",
     "comparacion": "Comparación de modelos",
     "regresion": "Regresión",
 }
@@ -74,6 +89,9 @@ RUTAS_VISTA = {
     "tsne": "Exploración / Reducción dimensional / t-SNE",
     "umap": "Exploración / Reducción dimensional / UMAP",
     "clasificacion": "Clasificación / Modelos disponibles",
+    "lab2_modelo": "Clasificación / LAB02 / Modelo individual",
+    "lab2_experimentos": "Clasificación / LAB02 / Comparar variantes",
+    "lab2_resultados": "Resultados / LAB02 / Validación y prueba",
     "comparacion": "Resultados / Comparación de modelos",
     "regresion": "Regresión / Próximamente",
 }
@@ -142,8 +160,9 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     "No fue posible cargar el CSV inicial. Elija otra fuente y "
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
+            # Source type changes only the controls, never the applied dataset.
+            origen = st.radio("Origen", ["CSV local", "Subir CSV"], key="fuente_origen")
             with st.form("form_fuente_datos"):
-                origen = st.radio("Origen", ["CSV local", "Subir CSV"], key="fuente_origen")
                 separador = st.text_input("Separador", value=",", max_chars=3, key="fuente_separador")
                 decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
                 encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
@@ -240,12 +259,14 @@ def _seleccionar_vista() -> str:
             )
             boton("HAC", "hac")
 
-        with st.expander("Clasificación", expanded=vista == "clasificacion"):
+        with st.expander("Clasificación", expanded=vista in {"clasificacion", "lab2_modelo", "lab2_experimentos"}):
             st.markdown(
                 '<p class="atlas-family">Modelos disponibles</p>',
                 unsafe_allow_html=True,
             )
             boton("Random Forest y Naive Bayes", "clasificacion")
+            boton("Modelo individual · LAB02", "lab2_modelo")
+            boton("Comparar variantes · LAB02", "lab2_experimentos")
 
         with st.expander("Regresión", expanded=vista == "regresion"):
             st.markdown(
@@ -258,6 +279,7 @@ def _seleccionar_vista() -> str:
             '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
         )
         boton("Comparar modelos", "comparacion")
+        boton("Resultados · LAB02", "lab2_resultados")
     return st.session_state["vista_activa"]
 
 
@@ -301,8 +323,9 @@ def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
     st.session_state["dataset_original"] = datos.copy()
     st.session_state["dataset_preparado"] = datos.copy()
     _limpiar_resultados()
+    st.session_state.pop("dataset_preparacion", None)
     for clave in list(st.session_state):
-        if clave.startswith("modelo_"):
+        if clave.startswith(("modelo_", "clasif_", "dataset_")) and clave not in {"dataset_original", "dataset_preparado", "dataset_identidad"}:
             del st.session_state[clave]
 
 
@@ -317,6 +340,9 @@ def _limpiar_resultados() -> None:
         ):
             del st.session_state[clave]
     st.session_state.pop("particion_global", None)
+    st.session_state.pop("clasificacion_contexto", None)
+    st.session_state.pop("lab2_firma_experimento", None)
+    st.session_state.pop("lab2_firma_modelo", None)
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:
@@ -376,6 +402,10 @@ def _render_dataset() -> None:
                 estandarizar=escalado == "Estandarizar",
             )
             st.session_state["dataset_preparado"] = preparado.copy()
+            st.session_state["dataset_preparacion"] = {
+                "imputar": imputar_nulos, "escalado": escalado,
+                "eliminar_duplicados": eliminar_duplicados,
+            }
             _limpiar_resultados()
             st.success("La preparación se aplicó correctamente.")
             st.rerun()
@@ -384,6 +414,7 @@ def _render_dataset() -> None:
 
     if restaurar.button("Restaurar dataset original"):
         st.session_state["dataset_preparado"] = original.copy()
+        st.session_state.pop("dataset_preparacion", None)
         _limpiar_resultados()
         st.success("Se restauró el contenido original.")
         st.rerun()
@@ -452,6 +483,10 @@ def _render_particion(datos: pd.DataFrame) -> None:
                 semilla=int(semilla),
             )
             st.session_state["particion_global"] = Particionador(configuracion).dividir(datos)
+            # A new applied split invalidates even the read-only results route.
+            for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
+                          "resultado_lab2_modelo", "preview_clasificacion", "clasificacion_contexto"):
+                st.session_state.pop(clave, None)
             st.success("Partición calculada y disponible para el resto del framework.")
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible calcular la partición: {exc}")
@@ -683,98 +718,6 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
     }
 
 
-def _configurar_modelos_clasificacion(datos: pd.DataFrame) -> dict:
-    """Recopila configuración de target, split y preprocesamiento."""
-    st.markdown("### Configuración de clasificación")
-    objetivo = st.selectbox(
-        "Variable objetivo (target)",
-        options=datos.columns.tolist(),
-        index=max(0, len(datos.columns) - 1),
-        key="clasif_target",
-    )
-    opcional_features = [columna for columna in datos.columns if columna != objetivo]
-    caracteristicas_guardadas = st.session_state.get("clasif_features", opcional_features)
-    if any(columna not in opcional_features for columna in caracteristicas_guardadas):
-        st.session_state["clasif_features"] = opcional_features
-    caracteristicas = st.multiselect(
-        "Variables predictoras",
-        options=opcional_features,
-        default=opcional_features,
-        key="clasif_features",
-    )
-    if not caracteristicas:
-        st.warning("Seleccione al menos una feature antes de entrenar.")
-
-    st.markdown("#### Partición y reproducibilidad")
-    particion_global: ResultadoParticion | None = st.session_state.get("particion_global")
-    usar_particion_global = False
-    if particion_global is not None:
-        usar_particion_global = st.checkbox(
-            "Usar partición calculada en Datos",
-            value=False,
-            key="clasif_usar_particion_global",
-            help=(
-                f"Train: {len(particion_global.train)} filas · "
-                f"Test: {len(particion_global.test)} filas."
-            ),
-        )
-    else:
-        st.caption(
-            "No hay una partición calculada en la vista Datos. Calcule una allí "
-            "para reutilizarla aquí, o configure el split manualmente."
-        )
-
-    if usar_particion_global:
-        test_size = particion_global.porcentaje_test
-        estado_aleatorio = particion_global.semilla
-        estratificar = particion_global.columna_estratificacion is not None
-        resumen = (
-            f"Partición global → Train {particion_global.porcentaje_train:.0%} · "
-            f"Test {particion_global.porcentaje_test:.0%}"
-        )
-        if particion_global.porcentaje_validacion:
-            resumen += f" · Validación {particion_global.porcentaje_validacion:.0%}"
-        st.caption(resumen)
-    else:
-        test_size = st.slider(
-            "Tamaño de prueba (%)",
-            min_value=10,
-            max_value=60,
-            value=25,
-            step=5,
-            key="clasif_test_size",
-        ) / 100.0
-        estado_aleatorio = st.number_input(
-            "Random state",
-            min_value=0,
-            max_value=10_000,
-            value=42,
-            step=1,
-            key="clasif_random_state",
-        )
-        estratificar = st.checkbox("Estratificar por target", value=True, key="clasif_strat")
-
-    st.markdown("#### Preprocesamiento")
-    incluir_categoricas = st.checkbox(
-        "Codificar categóricas",
-        value=False,
-        key="clasif_incluir_categoricas",
-    )
-    imputar = st.checkbox("Imputar nulos", value=True, key="clasif_imputar")
-    estandarizar = st.checkbox("Escalar (solo numéricas)", value=True, key="clasif_escalar")
-    return {
-        "target": objetivo,
-        "features": caracteristicas,
-        "test_size": test_size,
-        "random_state": int(estado_aleatorio),
-        "estratificar": estratificar,
-        "incluir_categoricas": incluir_categoricas,
-        "imputar": imputar,
-        "estandarizar": estandarizar,
-        "usar_particion_global": usar_particion_global,
-        "particion_global": particion_global if usar_particion_global else None,
-    }
-
 
 def _muestrear(datos: pd.DataFrame, cantidad: int) -> pd.DataFrame:
     """Limita análisis costosos de forma reproducible."""
@@ -813,22 +756,6 @@ def _firma(configuracion: dict, *parametros) -> tuple:
         *parametros,
     )
 
-
-def _firma_clasificacion(configuracion: dict, *parametros) -> tuple:
-    """Firma específica para resultados supervisados."""
-    particion = configuracion.get("particion_global")
-    return (
-        configuracion["target"],
-        tuple(configuracion["features"]),
-        configuracion["test_size"],
-        configuracion["random_state"],
-        configuracion["estratificar"],
-        configuracion["incluir_categoricas"],
-        configuracion["imputar"],
-        configuracion["estandarizar"],
-        particion.huella if particion is not None else None,
-        *parametros,
-    )
 
 
 def _guardar_resultado(clave: str, firma: tuple, resultado) -> None:
@@ -1067,13 +994,15 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
         figura.add_trace(traza)
 
 
-def _mostrar_figura(figura: go.Figure, key: str | None = None) -> None:
+def _mostrar_figura(figura: go.Figure, key: str | None = None, *, alt: str | None = None) -> None:
     """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
     _aplicar_tema_figura(figura, st.context.theme.type == "dark")
-    if key is None:
-        st.plotly_chart(figura, width="stretch")
-    else:
-        st.plotly_chart(figura, width="stretch", key=key)
+    opciones = {"width": "stretch"}
+    if key is not None:
+        opciones["key"] = key
+    if alt is not None:
+        opciones["alt"] = alt
+    st.plotly_chart(figura, **opciones)
 
 
 def _seleccionar_entero(
@@ -1111,6 +1040,8 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
     """Flujo de configuración, previsualización y ejecución de clasificación."""
     _resumen_dataset_modulo(datos, configuracion["target"])
     st.markdown("### Clasificación supervisada")
+    if not preparacion_segura():
+        return
     if not configuracion["features"]:
         st.warning("Seleccione al menos una feature para entrenar.")
         return
@@ -1203,13 +1134,13 @@ def _render_clasificacion(datos: pd.DataFrame, configuracion: dict) -> None:
                 with st.expander("Parámetros de Random Forest"):
                     kwargs = {
                         "n_estimators": st.slider(
-                            "N estimadores", 10, 500, 200, 10, key="clasif_rf_n"
+                            "N estimadores", 10, 500, 200, 10, persist_state="session", key="clasif_rf_n"
                         ),
                         "max_depth": st.slider(
-                            "Profundidad máxima", 1, 30, 8, 1, key="clasif_rf_depth"
+                            "Profundidad máxima", 1, 30, 8, 1, persist_state="session", key="clasif_rf_depth"
                         ),
                         "min_samples_split": st.slider(
-                            "Min samples split", 2, 20, 2, 1, key="clasif_rf_split"
+                            "Min samples split", 2, 20, 2, 1, persist_state="session", key="clasif_rf_split"
                         ),
                     }
             firma_modelo = tuple(sorted(kwargs.items()))
@@ -1580,8 +1511,11 @@ def main() -> None:
     configuracion_clasif = None
     if vista in VISTAS_NO_SUPERVISADAS:
         configuracion = _configurar_modelos(datos)
-    elif vista in {"clasificacion", "comparacion"}:
+    elif vista in {"clasificacion", "comparacion", "lab2_modelo", "lab2_experimentos"}:
         configuracion_clasif = _configurar_modelos_clasificacion(datos)
+        if configuracion_clasif is None:
+            return
+        sincronizar_contexto(st.session_state, datos, configuracion_clasif)
 
     if vista == "datos":
         _render_dataset()
@@ -1596,6 +1530,12 @@ def main() -> None:
     elif vista == "comparacion":
         assert configuracion_clasif is not None
         _render_comparacion(datos, configuracion_clasif)
+    elif vista == "lab2_modelo":
+        render_modelo_individual(datos, configuracion_clasif, _mostrar_figura)
+    elif vista == "lab2_experimentos":
+        render_experimentos(datos, configuracion_clasif)
+    elif vista == "lab2_resultados":
+        render_resultados(_mostrar_figura)
     elif vista == "kmeans":
         assert configuracion is not None
         _render_particional(datos, configuracion)
