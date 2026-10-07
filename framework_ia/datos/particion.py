@@ -8,6 +8,7 @@ calcular su propia partición aleatoria.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -40,13 +41,17 @@ class Particionador:
         estrato, advertencia = self._resolver_estrato(datos, columna)
         if advertencia:
             advertencias.append(advertencia)
-        indice_train, indice_resto = train_test_split(
-            datos.index,
+        posiciones_train, posiciones_resto = train_test_split(
+            np.arange(len(datos)),
             test_size=porcentaje_resto,
             random_state=configuracion.semilla,
             stratify=estrato,
         )
 
+        # Split positions: pandas 3 Arrow-backed text indices cannot be indexed
+        # by sklearn's ndarray[...,] path. Keep original row identities with take.
+        indice_train = datos.index.take(posiciones_train)
+        indice_resto = datos.index.take(posiciones_resto)
         indice_test = indice_resto
         validacion = None
         distribucion_validacion = None
@@ -57,12 +62,14 @@ class Particionador:
             )
             if advertencia_resto:
                 advertencias.append(advertencia_resto)
-            indice_test, indice_validacion = train_test_split(
-                indice_resto,
+            posiciones_test, posiciones_validacion = train_test_split(
+                np.arange(len(indice_resto)),
                 test_size=proporcion_validacion,
                 random_state=configuracion.semilla,
                 stratify=estrato_resto,
             )
+            indice_test = indice_resto.take(posiciones_test)
+            indice_validacion = indice_resto.take(posiciones_validacion)
             validacion = datos.loc[indice_validacion].copy()
             distribucion_validacion = self._distribucion(validacion, columna)
 

@@ -108,3 +108,19 @@ class ResultadoClasificacion:
     muestra_train: int
     muestra_test: int
     modelo: Any = field(repr=False)
+    parametros: dict[str, Any] = field(default_factory=dict)
+    metadatos: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ResultadoExperimentoClasificacion:
+    """Selección por validación y evaluación final de los ganadores en prueba.
+
+    ``tabla`` nunca contiene métricas de prueba de candidatos descartados.
+    ``mejor_algoritmo`` se decide exclusivamente por la métrica de validación.
+    """
+
+    tabla: pd.DataFrame
+    mejores: dict[str, ResultadoClasificacion]
+    mejor_algoritmo: str | None
+    metadatos: dict[str, Any]

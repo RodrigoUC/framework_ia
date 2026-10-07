@@ -5,13 +5,12 @@ from __future__ import annotations
 import os
 import sys
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-
 
 RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ) not in sys.path:
@@ -27,7 +26,6 @@ from framework_ia.datos.preprocesamiento import (
 from framework_ia.modelos.no_supervisado import (
     Cluster,
     NoSupervisado,
-    ReduccionDimensional,
 )
 from framework_ia.modelos.progresion import Progresion
 from framework_ia.modelos.supervisado import (
@@ -80,7 +78,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(int(resultado.isna().sum().sum()), 0)
 
     def test_acp_retorna_componentes_y_figuras(self) -> None:
-        resultado = ReduccionDimensional(
+        resultado = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         ).ACP(n_componentes=2)
@@ -107,7 +105,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertIsNotNone(hac.matriz_vinculacion)
 
     def test_tsne_produce_dos_dimensiones(self) -> None:
-        resultado = ReduccionDimensional(
+        resultado = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         ).TSNE(perplexity=5, max_iter=250)
@@ -116,7 +114,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
     def test_umap_produce_dos_dimensiones(self) -> None:
         """UMAP sustituye una caché de Numba configurada pero no escribible."""
         with patch.dict("os.environ", {"NUMBA_CACHE_DIR": "/proc/numba_cache"}):
-            resultado = ReduccionDimensional(
+            resultado = Cluster(
                 dataframe=self.datos,
                 features=["x", "y", "z"],
             ).UMAP(n_neighbors=5, min_dist=0.1)
@@ -131,7 +129,6 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertTrue(issubclass(Clasificacion, Supervisado))
         self.assertTrue(issubclass(Regresion, Supervisado))
         self.assertTrue(issubclass(Cluster, NoSupervisado))
-        self.assertTrue(issubclass(ReduccionDimensional, NoSupervisado))
 
         for clase, metodos in (
             (Clasificacion, ("RF", "NR")),
@@ -170,7 +167,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
     def test_aliases_pythonicos_conservan_la_interfaz_existente(self) -> None:
         cluster = Cluster(dataframe=self.datos, features=["x", "y", "z"])
         self.assertEqual(cluster.k_means(n_clusters=2).etiquetas.nunique(), 2)
-        reduccion = ReduccionDimensional(
+        reduccion = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         )
