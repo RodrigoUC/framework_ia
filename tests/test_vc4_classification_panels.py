@@ -63,6 +63,14 @@ class ClassificationPanelTests(unittest.TestCase):
         self.assertTrue(
             any("no utilice esta tabla" in item.value for item in app.caption)
         )
+        for descripcion in (
+            "Métricas de prueba y parámetros de los modelos entrenados individualmente",
+            "Valores de la matriz de confusión de prueba",
+            "Clases reales, predicciones y aciertos de cada fila de prueba",
+        ):
+            self.assertTrue(
+                any(descripcion in item.value for item in app.caption), descripcion
+            )
         tabla = next(
             item.value for item in app.dataframe if "Algoritmo" in item.value.columns
         )

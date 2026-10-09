@@ -50,9 +50,28 @@ def ejecutar_comparacion(app):
 
 def test_navigation_separates_configuration_and_read_only_results():
     app = nueva_app()
+    labels = [button.label for button in app.sidebar.button]
+    assert labels.count("Configuración de clasificación") == 1
+    assert any("Configuración</p>" in item.value for item in app.sidebar.markdown)
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    assert any(widget.key == "clasif_target" for widget in app.selectbox)
+    assert any(widget.key == "clasif_features" for widget in app.multiselect)
+    assert any(widget.key == "clasif_test_size" for widget in app.slider)
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
+    assert not any(widget.key == "clasif_features" for widget in app.multiselect)
+    assert not any(widget.key == "clasif_test_size" for widget in app.slider)
+    assert not {"Filas", "Columnas", "Nulos", "Duplicados"} & {
+        metric.label for metric in app.metric
+    }
     app.sidebar.button(key="nav_lab2_resultados").click().run()
     assert any("Todavía no hay resultados" in alerta.value for alerta in app.info)
     assert not any("accuracy_validacion" in frame.value for frame in app.dataframe)
+    app.sidebar.button(key="nav_lab2_experimentos").click().run()
+    assert any(
+        "Configuraciones y parámetros que se ejecutarán" in caption.value
+        for caption in app.caption
+    )
     ejecutar_comparacion(app)
     with patch.object(
         Clasificacion,
@@ -62,6 +81,12 @@ def test_navigation_separates_configuration_and_read_only_results():
         app.button(key="lab2_ver_resultados").click().run()
         assert not app.exception
         assert not any(s.key == "clasif_target" for s in app.selectbox)
+        assert any(
+            "Todas las variantes comparadas" in caption.value for caption in app.caption
+        )
+        assert any(
+            "Puntuación de validación" in caption.value for caption in app.caption
+        )
         tabla = app.dataframe[0].value
         assert len(tabla) == 6
         assert {"accuracy_validacion", "f1_macro_validacion", "parametros"} <= set(
@@ -85,7 +110,8 @@ def test_navigation_separates_configuration_and_read_only_results():
 def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections():
     app = nueva_app()
     labels = [button.label for button in app.sidebar.button]
-    assert "EDA y ACP" in labels
+    assert "EDA" in labels
+    assert "ACP" in labels
     assert "K-Means" in labels
     assert "K-Medoids" in labels
     assert "HAC" in labels
@@ -100,9 +126,9 @@ def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections(
         assert model in labels
     assert not any("LAB02" in label or "Modelo individual" in label for label in labels)
     assert "K-Means y K-Medoids" not in labels
+    assert labels.index("ACP") < labels.index("K-Means")
     assert not any(
-        button.key in {"nav_acp", "nav_tsne", "nav_umap"}
-        for button in app.sidebar.button
+        button.key in {"nav_tsne", "nav_umap"} for button in app.sidebar.button
     )
 
     app.sidebar.button(key="nav_kmedoids").click().run()
@@ -162,7 +188,7 @@ def test_target_balance_reports_numeric_classes_missing_and_rare_without_mutatio
     dataset.loc[dataset.index[0], "clase"] = None
     dataset.loc[dataset.index[1], "clase"] = 2
     app.session_state["fuente_aplicada"] = (dataset, name, identity + ":missing-target")
-    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
     assert any("Valores faltantes en target: 1" in item.value for item in app.caption)
     assert any("Clases con dos o menos filas" in item.value for item in app.warning)
     assert not app.exception
@@ -173,14 +199,21 @@ def test_target_balance_reports_numeric_classes_missing_and_rare_without_mutatio
     assert figura_vacio is None
 
 
-def test_legacy_acp_destination_migrates_to_contextual_eda():
+def test_eda_and_acp_remain_independent_destinations():
     app = nueva_app()
-    app.session_state["vista_activa"] = "acp"
-    app.run()
+    app.sidebar.button(key="nav_eda").click().run()
     assert not app.exception
     assert app.session_state["vista_activa"] == "eda"
-    assert any(button.key == "nav_eda" for button in app.sidebar.button)
-    assert any(button.label == "Ejecutar ACP" for button in app.button)
+    assert any(tab.label == "Histogramas" for tab in app.tabs)
+
+    app.sidebar.button(key="nav_acp").click().run()
+    assert not app.exception
+    assert app.session_state["vista_activa"] == "acp"
+    next(
+        button for button in app.button if button.label == "Ejecutar ACP"
+    ).click().run()
+    assert not app.exception
+    assert any(tab.label == "Sobreposición" for tab in app.tabs)
 
 
 def test_benchmark_controls_persist_and_changes_invalidate_results():
@@ -207,6 +240,7 @@ def test_benchmark_controls_persist_and_changes_invalidate_results():
 def test_split_and_seed_changes_invalidate_benchmark(clave, valor):
     app = nueva_app()
     ejecutar_comparacion(app)
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
     app.get_by_key(clave).set_value(valor).run()
     assert not app.exception
     assert "resultado_lab2_experimento" not in app.session_state
@@ -215,8 +249,10 @@ def test_split_and_seed_changes_invalidate_benchmark(clave, valor):
 def test_features_and_source_changes_invalidate_benchmark():
     app = nueva_app()
     ejecutar_comparacion(app)
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
     app.multiselect(key="clasif_features").set_value(["a", "b"]).run()
     assert "resultado_lab2_experimento" not in app.session_state
+    app.sidebar.button(key="nav_lab2_experimentos").click().run()
     app.button(key="lab2_ejecutar").click().run()
     assert "resultado_lab2_experimento" in app.session_state
     datos, nombre, identidad = app.session_state["fuente_aplicada"]
@@ -324,6 +360,103 @@ def test_model_settings_and_results_are_scoped_to_each_classifier():
     assert app.number_input(key="lab2_param_KNN_n_neighbors").value == 7
     assert "resultado_lab2_modelo_KNN" in app.session_state
     assert "resultado_lab2_modelo_RF" in app.session_state
+    assert not app.exception
+
+
+def test_shared_classification_setup_applies_to_models_and_invalidates_them():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.selectbox(key="clasif_target").set_value("clase").run()
+    app.multiselect(key="clasif_features").set_value(["a", "b"]).run()
+    app.slider(key="clasif_test_size").set_value(30).run()
+    app.number_input(key="clasif_random_state").set_value(19).run()
+
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
+    assert not any(widget.key == "clasif_features" for widget in app.multiselect)
+    assert not any(widget.key == "clasif_test_size" for widget in app.slider)
+    assert not any(widget.key == "clasif_random_state" for widget in app.number_input)
+    assert not {"Filas", "Columnas", "Nulos", "Duplicados"} & {
+        metric.label for metric in app.metric
+    }
+    app.button(key="lab2_entrenar_KNN").click().run()
+    first = app.session_state["resultado_lab2_modelo_KNN"]
+
+    app.sidebar.button(key="nav_clasificacion").click().run()
+    assert not {"Filas", "Columnas", "Nulos", "Duplicados"} & {
+        metric.label for metric in app.metric
+    }
+    app.button(key="lab2_entrenar_RF").click().run()
+    second = app.session_state["resultado_lab2_modelo_RF"]
+    assert first.target == second.target == "clase"
+    assert first.features == second.features == ("a", "b")
+    assert first.y_true.index.equals(second.y_true.index)
+
+    app.sidebar.button(key="nav_lab2_experimentos").click().run()
+    app.multiselect(key="lab2_algoritmos").set_value(["KNN"]).run()
+    app.selectbox(key="lab2_modo_variantes").set_value("Solo estándar").run()
+    app.button(key="lab2_ejecutar").click().run()
+    assert not app.exception
+    assert (
+        app.session_state["resultado_lab2_experimento"]["contexto"]["target"] == "clase"
+    )
+    assert app.session_state["resultado_lab2_experimento"]["contexto"]["features"] == [
+        "a",
+        "b",
+    ]
+
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.number_input(key="clasif_random_state").set_value(20).run()
+    assert "resultado_lab2_modelo_KNN" not in app.session_state
+    assert "resultado_lab2_modelo_RF" not in app.session_state
+    assert "resultado_lab2_experimento" not in app.session_state
+    assert not app.exception
+
+
+def test_reused_global_partition_is_shared_across_classifier_routes():
+    from framework_ia.datos.particion import Particionador
+    from framework_ia.utils import ConfiguracionParticion
+
+    app = nueva_app()
+    datos = app.session_state["dataset_preparado"]
+    particion = Particionador(
+        ConfiguracionParticion(
+            porcentaje_test=0.25,
+            columna_estratificacion="clase",
+            semilla=31,
+        )
+    ).dividir(datos)
+    app.session_state["particion_global"] = particion
+    app.run()
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.checkbox(key="clasif_usar_particion_global").check().run()
+
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    app.button(key="lab2_entrenar_KNN").click().run()
+    knn = app.session_state["resultado_lab2_modelo_KNN"]
+    app.sidebar.button(key="nav_clasificacion").click().run()
+    app.button(key="lab2_entrenar_RF").click().run()
+    rf = app.session_state["resultado_lab2_modelo_RF"]
+    assert knn.y_true.index.equals(rf.y_true.index)
+    assert knn.y_true.index.equals(particion.test.index)
+    assert knn.target == rf.target == "clase"
+    assert not app.exception
+
+
+def test_classifier_route_offers_setup_path_when_dataset_is_not_configurable():
+    app = nueva_app()
+    app.session_state["dataset_preparado"] = app.session_state["dataset_preparado"][
+        ["a"]
+    ]
+    app.session_state["vista_activa"] = "clasificacion_knn"
+    app.run()
+    assert not app.exception
+    assert any(
+        item.label == "Abrir configuración de clasificación" for item in app.button
+    )
+    app.button(key="abrir_configuracion_clasificacion").click().run()
+    assert app.session_state["vista_activa"] == "clasificacion_configuracion"
+    assert any("al menos dos columnas" in item.value for item in app.warning)
     assert not app.exception
 
 

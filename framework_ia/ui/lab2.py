@@ -56,7 +56,7 @@ def _contexto_ejecucion(configuracion: dict) -> dict:
     }
 
 
-def preparacion_segura() -> bool:
+def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -65,20 +65,27 @@ def preparacion_segura() -> bool:
         st.error(
             "La preparación actual imputó o escaló antes de separar los datos. "
             "Para evitar fuga de información, restaure el dataset original en "
-            "Datos y preparación. Active la imputación y el escalado en estos "
-            "controles de clasificación: se ajustarán solo con entrenamiento."
+            "Datos y preparación. Ajuste imputación y escalado en Configuración "
+            "de clasificación para que se aprendan solo con entrenamiento."
         )
         return False
-    st.caption(
-        "Imputación, codificación y escalado se ajustan con entrenamiento. "
-        "Las filas con target vacío se excluyen. Seleccione su CSV de Potabilidad "
-        "o Diabetes en Fuente de datos; el CSV de ejemplo no reemplaza los datos del profesor."
-    )
+    if mostrar_guia:
+        st.caption(
+            "Imputación, codificación y escalado se ajustan con entrenamiento. "
+            "Las filas con target vacío se excluyen. Seleccione su CSV de Potabilidad "
+            "o Diabetes en Fuente de datos; el CSV de ejemplo no reemplaza los datos del profesor."
+        )
     return True
 
 
 def _json(datos) -> str:
     return json.dumps(datos, ensure_ascii=False, indent=2, default=str)
+
+
+def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
+    """Show an accessible text description beside the table across Streamlit APIs."""
+    st.caption(alt)
+    st.dataframe(data, **opciones)
 
 
 def render_modelo_individual(
@@ -214,11 +221,11 @@ def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
     st.caption(
         "Revise las familias, variantes y parámetros antes de ejecutar; no se entrena hasta pulsar el botón."
     )
-    st.dataframe(
+    _mostrar_dataframe(
         pd.DataFrame(filas),
+        alt="Configuraciones y parámetros que se ejecutarán para cada algoritmo",
         hide_index=True,
         width="stretch",
-        alt="Configuraciones y parámetros que se ejecutarán para cada algoritmo",
     )
     return configuraciones, valido
 
@@ -353,7 +360,7 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
             "Métricas de prueba de ejecuciones exploratorias; no utilice esta tabla "
             "para seleccionar hiperparámetros o comparar contra la selección de validación."
         )
-        st.dataframe(
+        _mostrar_dataframe(
             pd.DataFrame(
                 [
                     {
@@ -375,9 +382,9 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
                     for codigo, resultado in individuales
                 ]
             ),
+            alt="Métricas de prueba y parámetros de los modelos entrenados individualmente",
             hide_index=True,
             width="stretch",
-            alt="Métricas de prueba y parámetros de los modelos entrenados individualmente",
         )
         for codigo, resultado in individuales:
             contexto = st.session_state.get(f"contexto_lab2_modelo_{codigo}", {})
@@ -426,11 +433,11 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
     tabla["parametros"] = tabla["parametros"].map(
         lambda valor: _json(valor) if isinstance(valor, dict) else str(valor)
     )
-    st.dataframe(
+    _mostrar_dataframe(
         tabla,
+        alt="Todas las variantes comparadas: métricas de validación, parámetros, selección y errores",
         hide_index=True,
         width="stretch",
-        alt="Todas las variantes comparadas: métricas de validación, parámetros, selección y errores",
     )
     fallidos = tabla[tabla["estado"] != "ok"]
     if not fallidos.empty:
@@ -493,11 +500,11 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
                 "Parámetros efectivos": _json(modelo.parametros),
             }
         )
-    st.dataframe(
+    _mostrar_dataframe(
         pd.DataFrame(resumen),
+        alt="Accuracy y F1 macro de prueba para cada ganador seleccionado en validación",
         hide_index=True,
         width="stretch",
-        alt="Accuracy y F1 macro de prueba para cada ganador seleccionado en validación",
     )
     algoritmo = st.selectbox(
         "Ganador a analizar",
@@ -528,10 +535,10 @@ def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None
         alt="Matriz de confusión de prueba; filas de clases reales y columnas de predicciones",
     )
     # Numeric table is a keyboard and screen-reader alternative to the heatmap.
-    st.dataframe(
+    _mostrar_dataframe(
         resultado.matriz_confusion,
-        width="stretch",
         alt="Valores de la matriz de confusión de prueba",
+        width="stretch",
     )
     with st.expander("Parámetros efectivos y detalles del modelo"):
         st.json(
@@ -544,10 +551,10 @@ def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None
     )
     predicciones["acierto"] = predicciones["real"] == predicciones["prediccion"]
     with st.expander("Predicciones de prueba"):
-        st.dataframe(
+        _mostrar_dataframe(
             predicciones,
-            width="stretch",
             alt="Clases reales, predicciones y aciertos de cada fila de prueba",
+            width="stretch",
         )
     st.download_button(
         "Descargar predicciones de prueba",

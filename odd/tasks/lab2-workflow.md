@@ -33,7 +33,10 @@ but does not yet provide consistent typed class configuration.
 - Preserve train-only preprocessing, shared reproducible partitions, selection
   on validation, and final evaluation on test. No fabricated academic findings.
 - Synthetic fixtures prove software behavior, not professor-dataset outcomes.
-- Do not launch a Streamlit server without explicit permission.
+- The user explicitly authorized local Streamlit and browser QA on 2026-10-09.
+  The server is running only on `127.0.0.1:8502`, using the isolated environment.
+  No network exposure beyond loopback, remote publication, or main integration
+  is authorized.
 - Keep changes Pythonic, typed where useful, and independent of Streamlit in
   domain/configuration modules. Separate model screens must reuse shared logic.
 - Engram mirror: pending. Runtime session registration is unavailable; developer
@@ -219,15 +222,99 @@ but does not yet provide consistent typed class configuration.
   `docs/lab02/README.md` now describe the observed navigation, six classifier
   views, configuration variants and unified read-only results. Headless checks
   do not verify rendered contrast, light/dark appearance, mobile viewport or
-  keyboard behavior; no server/browser launch was authorized. T6 remains
-  partial only for those browser-dependent checks. Parent focused tests and
-  structural readback are separate completion checks, pending at this record.
+  keyboard behavior. Parent focused verification passed 26 tests in 13.53s;
+  structural readback and documentation reconciliation completed. The bounded
+  cleanup/docs unit was committed as `08102d9` (174 authored lines); native
+  assessment was medium / under_budget against `44b4989`, not a review approval.
+  The user subsequently authorized server/browser QA. The local server health
+  endpoint returned `ok`; owned foreground session `73714`, PID `106489`.
+  CUA had no connected browser; the user explicitly authorized isolated
+  Playwright/Chromium QA. The approved escalated launch rendered HTTP 200 with
+  no page errors. Captures at 1440px light/dark, 1024px light and 390px light
+  showed no horizontal page overflow. App text/background contrast measured
+  14.35:1 light and 16.94:1 dark (not an exhaustive control/chart audit).
+  K-Means, KNN, comparison and results routes rendered; Tab produced visible
+  focus. Evidence: `/tmp/lab2_qa_*.png`; parent inspected KNN desktop and the
+  collapsed-sidebar mobile capture. At 390px the initially expanded sidebar
+  obscures the main content until collapsed. Full keyboard-only navigation,
+  screen-reader behavior and exhaustive chart/control contrast remain pending.
+  T6 remains partial; no source change was made during this QA.
 - [ ] T7 — Produce real laboratory evidence and report material after verifying
   the required professor datasets, target columns, provenance, and report template.
   Route: delegated when prerequisites are provided.
   Status: prerequisite pending; only data/ejemplo_analisis.csv is present.
   Checks: five required model families, standard/variant validation comparison,
   final test metrics, reproducibility exports, evidence-based report.
+- [x] T8 — Separate EDA and ACP from the Clustering navigation group.
+  Route: delegated direct; user correction to the T3 navigation composition.
+  TDD: off, per existing project ODD record; runner is the isolated Python
+  environment documented above. Keep EDA and ACP as independent destinations
+  outside Clustering; Clustering contains K-Means, K-Medoids, and HAC only.
+  Preserve ACP's explicit execution and current rendering/domain API, EDA's
+  existing charts, and the K-Means-only t-SNE/UMAP projection composition.
+  Update canonical design maps and targeted navigation regression coverage.
+  Checks: clustering navigation has no EDA/ACP entries; EDA and ACP remain
+  independently reachable; existing clustering/projection behavior is retained;
+  focused UI tests, full pytest suite, `ruff check --select F821` on affected
+  Python modules, and `git diff --check`.
+  Outcome: EDA and ACP now have separate navigation buttons under Exploration;
+  the Clustering expander contains K-Means, K-Medoids, and HAC only. EDA no
+  longer renders clustering controls, and ACP retains its independent explicit
+  action and unchanged overlay tabs. Domain methods and K-Means projections are
+  unchanged. Focused suites — 31 passed in 15.56s; full suite — 86 passed,
+  52 subtests passed in 40.95s. `ruff check --select F821` and `git diff --check`
+  passed. Runtime/browser inspection is handed to the parent; no server launch
+  or overlay redesign occurred. Parent to record exact T8 authored count,
+  commit identity, and review boundary after spot check.
+- [x] T9 — Keep accessible descriptions compatible across installed Streamlit
+  versions. TDD: off; ordinary functional checks. Route: bounded delegated
+  writer, preparation spans Streamlit APIs, app rendering, and regression tests.
+  Root cause: global Streamlit 1.63's actual `DeltaGenerator.dataframe` and
+  `plotly_chart` signatures omit `alt`; isolated Streamlit 1.65 adds
+  `alt: str | None = None` to both. T8's AppTest only exercised 1.65, so the
+  unsupported arguments went undetected there. All eight table/chart
+  descriptions are now rendered as visible Streamlit captions and never passed
+  as unsupported kwargs. A real global 1.63 AppTest executed experiment and
+  results routes with synthetic data and confirmed tables/charts and captions
+  render. Isolated 1.65 AppTest asserts candidate, comparison, figure, confusion,
+  and prediction descriptions remain visible. T8 changes are preserved.
+  Checks: focused T9 suites — 26 passed in 13.29s; full suite — 86 passed, 52
+  subtests passed in 34.48s; `ruff check --select F821` on `lab2.py` and
+  `streamlit_app.py`, `ruff format --check` on changed implementation/tests,
+  and `git diff --check` passed. Global 1.63 was exercised with in-process
+  AppTest (not a server). No commit, remote work, or main merge.
+- [x] T10 — Move shared classifier configuration and reproducibility controls
+  into one dedicated classification-setup destination. TDD: off per this task
+  document; use the isolated pytest environment above. Render the target,
+  features, partition, preprocessing, and target-balance panel only on setup;
+  all classifier and experiment routes consume that saved configuration.
+  Preserve model-specific parameter controls and existing signature/state
+  invalidation. Keep dataset health counts on Data and EDA only, not classifier
+  screens or ACP. Before setup, classifier destinations must either use the
+  viable shared defaults or show an explicit actionable setup path. Update
+  accessible navigation copy and AppTest coverage for shared configuration,
+  multiple models, stale-result invalidation, and absence of repeated dataset
+  metrics/configuration. Check F821, format, focused and full suites, and diff.
+  Outcome: one dedicated Configuration section/button owns target, predictors,
+  balance chart, split/seed/global-partition choice, and preprocessing controls.
+  Classifier and experiment destinations consume the same persisted settings;
+  individual screens retain per-model parameters. Defaults remain usable before
+  visiting setup; an underspecified dataset shows an actionable setup path.
+  Dataset health counts are rendered only on Data and EDA. Documentation now
+  describes the shared flow. Tests assert common target/features and identical
+  train/test indices for multiple model families and experiments, invalidation
+  across model/experiment results when shared settings change, absence of
+  repeated configuration/health metrics, and the insufficient-dataset path.
+  Focused suites — 52 passed, 22 subtests passed in 20.32s. Full command with
+  thread limits and pytest cache disabled — `OPENBLAS_NUM_THREADS=1
+  OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_NUM_THREADS=1
+  /tmp/framework-start-lab2-venv/bin/python -m pytest -p no:cacheprovider -q` —
+  89 passed, 52 subtests passed in 35.41s. `ruff check --select F821` and
+  `ruff format --check` passed; `git diff --check` passed. No server launched.
+  Rollback: revert the new configuration route, renderer dispatch, header health
+  scoping, shared-flow tests, and README clarification; T8/T9 edits remain
+  independently identifiable in the worktree. Commit and review remain pending
+  parent ownership; no remote or main-branch changes.
 
 ## Progress and next step
 
@@ -236,9 +323,33 @@ committed on `lab_2`; all due native reviews were approved and acknowledged,
 with T5 the latest reviewed boundary. T6's headless regression and projection
 smoke passed, and documentation was reconciled. The parent removed the dead
 `comparacion` branch, the independent `F821` recheck passed, and the full suite
-passed again on the corrected bytes. Visual/accessibility browser checks remain
-pending authorization. Next: parent reads back the T6 docs, finishes its
-focused check, and owns the commit/review decision; obtain permission
-before any server/browser visual pass. T7 requires the professor's datasets,
+passed again on the corrected bytes. The parent committed the cleanup/docs as
+`08102d9` and completed the structural readback and focused check. Authored
+commit count through that unit is 2,082 (538 + 256 + 445 + 669 + 174); pending
+review slice is 174 lines after `44b4989`. Authorized Playwright browser QA
+rendered the principal routes without page errors or horizontal overflow;
+bounded contrast/focus checks passed, with the mobile expanded-sidebar issue
+and full accessibility coverage explicitly pending.
+Next: address the mobile first-view issue and complete keyboard-only coverage.
+T8 corrects T3's former combined EDA/ACP-in-Clustering UI grouping per the
+user's clarification; ACP is now an independent Exploration destination.
+T9 verified the version-dependent `alt` API mismatch and uses visible
+descriptions for both table and Plotly output; the 1.63 and 1.65 runtime checks
+passed. T8/T9 changes are preserved. T10 implementation and verification are
+complete. Independent verification passed 89 tests and 52 subtests in 34.79s,
+F821 and diff-check. Browser KNN and Random Forest training with unchanged
+shared settings succeeded, with both outputs in Results and no `alt` TypeError
+or dataset health tiles on model screens. Comparison setup rendered; browser
+benchmark execution was not checked. The owned localhost server was restarted
+to load current imports (session `73126`).
+ACP overlay visual verification FAILED: 16 points and four loading arrows
+render, but variable labels overlap and clip at 1024px dark mode. Evidence:
+`/tmp/lab2_t10_acp_overlay_1440_light.png` and
+`/tmp/lab2_t10_acp_overlay_1024_dark.png`; parent inspected the latter.
+The user's overlay request was verification-only; a bounded label-space and
+collision-layout correction awaits authorization. T8-T10 form one coherent
+navigation/shared-configuration compatibility work unit; local commit and
+native candidate assessment follow parent readback. No main or remote action.
+T7 requires the professor's datasets,
 provenance and report template. Do not invent academic results. Update the
 pending Engram mirror only after host session registration.

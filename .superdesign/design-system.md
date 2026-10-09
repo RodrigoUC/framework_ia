@@ -46,13 +46,14 @@ colapsados hasta que el usuario los necesite.
 
 - Encabezado compacto con marca geométrica, nombre del dataset, filas,
   columnas, nulos y estado de preparación.
-- Navegación lateral: Datos; **Clustering**, **Clasificación** y **Regresión**
-  como grupos expandibles; y Resultados de clasificación como destino propio.
+- Navegación lateral: Datos; los destinos independientes **EDA** y **ACP**;
+  **Clustering**, **Clasificación** y **Regresión** como grupos expandibles; y
+  Resultados de clasificación como destino propio.
   Las vistas disponibles son:
-  - Clustering → EDA y ACP; K-Means; K-Medoids; HAC. K-Means y K-Medoids
-    tienen destinos separados, no un selector compartido.
-  - EDA conserva sus gráficos; ACP se ejecuta mediante una acción opcional
-    dentro de esa vista, sin destino independiente.
+  - EDA → gráficos exploratorios existentes.
+  - ACP → análisis explícito independiente, fuera de Clustering.
+  - Clustering → K-Means; K-Medoids; HAC. K-Means y K-Medoids tienen destinos
+    separados, no un selector compartido.
   - K-Means → proyecciones opcionales t-SNE y UMAP, ejecutadas explícitamente
     y coloreadas por asignación de cluster cuando existe. No agrupan datos.
   - Clasificación → KNN; Árbol de decisión; Random Forest; XGBoost;

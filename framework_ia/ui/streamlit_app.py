@@ -40,6 +40,7 @@ from .estado_clasificacion import (
     sincronizar_contexto,
 )
 from .lab2 import (
+    preparacion_segura,
     render_experimentos,
     render_modelo_individual,
     render_resultados,
@@ -65,7 +66,7 @@ PALETA_OSCURA = {
 }
 
 
-VISTAS_NO_SUPERVISADAS = {"eda", "kmeans", "kmedoids", "hac"}
+VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac"}
 VISTAS_CLASIFICADORES = {
     "clasificacion": "RF",
     "clasificacion_knn": "KNN",
@@ -76,7 +77,8 @@ VISTAS_CLASIFICADORES = {
 }
 TITULOS_VISTA = {
     "datos": "Datos y preparación",
-    "eda": "EDA y ACP",
+    "eda": "Exploración de datos",
+    "acp": "ACP",
     "kmeans": "K-Means",
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
@@ -86,13 +88,15 @@ TITULOS_VISTA = {
     "clasificacion_xgboost": "XGBoost",
     "clasificacion_adaboost": "AdaBoost",
     "clasificacion_nb": "Naive Bayes",
+    "clasificacion_configuracion": "Configuración de clasificación",
     "lab2_experimentos": "Comparar configuraciones",
     "lab2_resultados": "Resultados de clasificación",
     "regresion": "Regresión",
 }
 RUTAS_VISTA = {
     "datos": "Datos / Preparación",
-    "eda": "Clustering / EDA y ACP",
+    "eda": "Exploración / EDA",
+    "acp": "Exploración / ACP",
     "kmeans": "Clustering / K-Means",
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
@@ -102,6 +106,7 @@ RUTAS_VISTA = {
     "clasificacion_xgboost": "Clasificación / XGBoost",
     "clasificacion_adaboost": "Clasificación / AdaBoost",
     "clasificacion_nb": "Clasificación / Naive Bayes",
+    "clasificacion_configuracion": "Configuración / Clasificación",
     "lab2_experimentos": "Clasificación / Comparar configuraciones",
     "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
     "regresion": "Regresión / Próximamente",
@@ -225,8 +230,6 @@ def _seleccionar_vista() -> str:
     vista = st.session_state.setdefault("vista_activa", "datos")
     if vista == "comparacion":
         vista = "lab2_resultados"
-    elif vista == "acp":
-        vista = "eda"
     elif vista in {"tsne", "umap"}:
         vista = "kmeans"
     st.session_state["vista_activa"] = vista
@@ -249,15 +252,25 @@ def _seleccionar_vista() -> str:
             '<p class="atlas-nav-label">Navegación</p>', unsafe_allow_html=True
         )
         boton("Datos y preparación", "datos")
+        st.markdown(
+            '<p class="atlas-nav-label">Exploración de datos</p>',
+            unsafe_allow_html=True,
+        )
+        boton("EDA", "eda")
+        boton("ACP", "acp")
 
         st.markdown(
             '<p class="atlas-nav-label">Análisis y modelos</p>',
             unsafe_allow_html=True,
         )
+        st.markdown(
+            '<p class="atlas-nav-label">Configuración</p>',
+            unsafe_allow_html=True,
+        )
+        boton("Configuración de clasificación", "clasificacion_configuracion")
         with st.expander(
-            "Clustering", expanded=vista in {"eda", "kmeans", "kmedoids", "hac"}
+            "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac"}
         ):
-            boton("EDA y ACP", "eda")
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
@@ -290,8 +303,7 @@ def _seleccionar_vista() -> str:
 
 
 def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> None:
-    """Muestra contexto, ruta y salud de datos antes de cada vista."""
-    resumen = EDA(dataframe=datos).resumen_calidad()
+    """Show the current dataset and route; data health belongs to data/EDA views."""
     titulo = TITULOS_VISTA[vista]
     ruta = RUTAS_VISTA[vista]
     nombre_dataset = escape(etiqueta)
@@ -305,11 +317,13 @@ def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> 
         """,
         unsafe_allow_html=True,
     )
-    columnas = st.columns(4)
-    columnas[0].metric("Filas", resumen["filas"])
-    columnas[1].metric("Columnas", resumen["columnas"])
-    columnas[2].metric("Nulos", resumen["nulos"])
-    columnas[3].metric("Duplicados", resumen["duplicados"])
+    if vista in {"datos", "eda"}:
+        resumen = EDA(dataframe=datos).resumen_calidad()
+        columnas = st.columns(4)
+        columnas[0].metric("Filas", resumen["filas"])
+        columnas[1].metric("Columnas", resumen["columnas"])
+        columnas[2].metric("Nulos", resumen["nulos"])
+        columnas[3].metric("Duplicados", resumen["duplicados"])
 
 
 def _render_regresion() -> None:
@@ -319,6 +333,22 @@ def _render_regresion() -> None:
         "pero sus métodos todavía son una plantilla. Esta vista estará disponible "
         "cuando se implementen regresión lineal simple y múltiple."
     )
+
+
+def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
+    """Offer a direct path when shared classification settings need attention."""
+    st.info(
+        "Seleccione al menos una variable predictora en Configuración de clasificación."
+        if sin_features
+        else "La clasificación necesita al menos una variable objetivo y una "
+        "variable predictora. Revise la configuración compartida antes de continuar."
+    )
+    if st.button(
+        "Abrir configuración de clasificación",
+        key="abrir_configuracion_clasificacion",
+    ):
+        st.session_state["vista_activa"] = "clasificacion_configuracion"
+        st.rerun()
 
 
 def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
@@ -585,7 +615,7 @@ def _resumen_dataset_modulo(datos: pd.DataFrame, objetivo: str | None = None) ->
             st.markdown(linea)
 
 
-def _render_eda(datos: pd.DataFrame, configuracion: dict) -> None:
+def _render_eda(datos: pd.DataFrame) -> None:
     """Presenta gráficos exploratorios generados por EDA."""
     _resumen_dataset_modulo(datos)
     eda = EDA(dataframe=datos)
@@ -679,16 +709,10 @@ def _render_eda(datos: pd.DataFrame, configuracion: dict) -> None:
             with st.expander(f"Frecuencias de {columna}"):
                 st.dataframe(tabla, width="stretch")
 
-    with st.expander("Análisis de componentes principales (ACP)"):
-        st.caption(
-            "ACP es una exploración complementaria; se ejecuta solo al solicitarlo."
-        )
-        _render_acp(datos, configuracion)
-
 
 def _configurar_modelos(datos: pd.DataFrame) -> dict:
     """Recopila una configuración común para todos los modelos no supervisados."""
-    st.markdown("### Configuración de agrupamiento y reducción")
+    st.markdown("### Configuración del análisis")
     incluir_categoricas = st.checkbox(
         "Codificar variables categóricas", value=False, key="modelo_categoricas"
     )
@@ -1013,7 +1037,7 @@ def _mostrar_figura(figura: go.Figure, key: str | None = None, *, alt: str | Non
     if key is not None:
         opciones["key"] = key
     if alt is not None:
-        opciones["alt"] = alt
+        st.caption(alt)
     st.plotly_chart(figura, **opciones)
 
 
@@ -1041,7 +1065,6 @@ def _seleccionar_entero(
 def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
     """Ejecuta y muestra el análisis de componentes principales."""
     st.markdown("### Análisis de componentes principales")
-    _resumen_dataset_modulo(datos)
     if len(datos) < 2 or len(configuracion["features"]) < 2:
         st.warning("Seleccione al menos dos variables y dos filas para ejecutar el ACP.")
         return
@@ -1084,7 +1107,6 @@ def _render_particional(
 ) -> None:
     """Renderiza una técnica particional con el flujo común de resultados."""
     st.markdown(f"### {algoritmo}")
-    _resumen_dataset_modulo(datos)
     if len(datos) < 3 or not configuracion["features"]:
         st.warning("Se requieren variables y al menos tres filas.")
         return
@@ -1165,7 +1187,6 @@ def _render_particional(
 def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
     """Ejecuta clustering jerárquico y presenta el dendrograma."""
     st.markdown("### Clustering jerárquico aglomerativo")
-    _resumen_dataset_modulo(datos)
     if len(datos) < 3 or not configuracion["features"]:
         st.warning("Se requieren variables y al menos tres filas.")
         return
@@ -1223,7 +1244,6 @@ def _render_tsne(
 ) -> None:
     """Ejecuta t-SNE bajo demanda para contextualizar la solución K-Means."""
     st.markdown("### Proyección t-SNE")
-    _resumen_dataset_modulo(datos)
     filas = min(configuracion["filas"], 2000)
     if filas < 3 or not configuracion["features"]:
         st.warning("t-SNE requiere variables y al menos tres filas.")
@@ -1268,7 +1288,6 @@ def _render_umap(
 ) -> None:
     """Ejecuta UMAP bajo demanda para contextualizar la solución K-Means."""
     st.markdown("### Proyección UMAP")
-    _resumen_dataset_modulo(datos)
     filas = min(configuracion["filas"], 3000)
     if filas < 3 or not configuracion["features"]:
         st.warning("UMAP requiere variables y al menos tres filas.")
@@ -1340,13 +1359,19 @@ def main() -> None:
     configuracion_clasif = None
     if vista in VISTAS_NO_SUPERVISADAS:
         configuracion = _configurar_modelos(datos)
-    elif vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos"}:
+    elif vista == "clasificacion_configuracion":
         configuracion_clasif = _configurar_modelos_clasificacion(
             datos, _mostrar_figura
         )
-        if configuracion_clasif is None:
-            return
-        sincronizar_contexto(st.session_state, datos, configuracion_clasif)
+        if configuracion_clasif is not None:
+            sincronizar_contexto(st.session_state, datos, configuracion_clasif)
+            preparacion_segura(mostrar_guia=True)
+    elif vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos"}:
+        configuracion_clasif = configuracion_clasificacion_actual(
+            datos, st.session_state
+        )
+        if configuracion_clasif is not None:
+            sincronizar_contexto(st.session_state, datos, configuracion_clasif)
 
     elif vista == "lab2_resultados":
         configuracion_clasif = configuracion_clasificacion_actual(datos, st.session_state)
@@ -1371,16 +1396,33 @@ def main() -> None:
     if vista == "datos":
         _render_dataset()
     elif vista == "eda":
+        _render_eda(datos)
+    elif vista == "clasificacion_configuracion":
+        if configuracion_clasif is None:
+            st.warning(
+                "El dataset necesita al menos dos columnas para configurar "
+                "clasificación."
+            )
+    elif vista == "acp":
         assert configuracion is not None
-        _render_eda(datos, configuracion)
+        _render_acp(datos, configuracion)
     elif vista in VISTAS_CLASIFICADORES:
-        assert configuracion_clasif is not None
-        render_modelo_individual(
-            datos, configuracion_clasif, _mostrar_figura,
-            algoritmo=VISTAS_CLASIFICADORES[vista],
-        )
+        if configuracion_clasif is None:
+            _render_configuracion_requerida()
+        elif not configuracion_clasif["features"]:
+            _render_configuracion_requerida(sin_features=True)
+        else:
+            render_modelo_individual(
+                datos, configuracion_clasif, _mostrar_figura,
+                algoritmo=VISTAS_CLASIFICADORES[vista],
+            )
     elif vista == "lab2_experimentos":
-        render_experimentos(datos, configuracion_clasif)
+        if configuracion_clasif is None:
+            _render_configuracion_requerida()
+        elif not configuracion_clasif["features"]:
+            _render_configuracion_requerida(sin_features=True)
+        else:
+            render_experimentos(datos, configuracion_clasif)
     elif vista == "lab2_resultados":
         if configuracion_clasif is None:
             st.info(

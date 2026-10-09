@@ -9,12 +9,19 @@ La guía permanece en su ubicación original; no es la guía de regresión.
 El laboratorio incorpora KNN, Árbol de Decisión, Random Forest, XGBoost y
 AdaBoost en `Supervisado → Clasificacion`. Conserva RF/NR y la organización
 `datos/`, `modelos/supervisado/`, `resultados.py`, `visualizacion.py`, `ui/`.
-ACP, t-SNE y UMAP siguen siendo métodos de `Cluster`, como pide el refactor
-del profesor. Regresión no forma parte de este cambio.
+ACP, t-SNE y UMAP siguen siendo métodos públicos de `Cluster`, como pide el
+refactor del profesor. En la interfaz, ACP tiene un destino propio junto a EDA;
+t-SNE y UMAP son proyecciones opcionales dentro de K-Means, no destinos ni
+algoritmos de agrupamiento. Regresión no forma parte de este cambio.
 
 En Streamlit, las seis vistas individuales (incluida Naive Bayes como
 compatibilidad, fuera de las cinco familias experimentales) permiten entrenar
-explícitamente. Antes del entrenamiento se presenta el balance del objetivo.
+explícitamente y reutilizan la configuración compartida elegida en
+**Configuración de clasificación**. Allí se eligen objetivo, predictoras,
+partición, semilla y preprocesamiento; el balance del objetivo aparece una sola
+vez en esa vista. Si no se visita antes, las vistas usan una configuración
+predeterminada viable. Las métricas de salud del dataset permanecen en Datos y
+EDA, no se repiten en cada pantalla de modelo.
 **Comparar configuraciones** permite usar variantes predefinidas, solo el
 estándar o variantes JSON; presenta los candidatos antes de ejecutar.
 **Resultados de clasificación** reúne, sin volver a entrenar, los modelos

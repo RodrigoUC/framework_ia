@@ -14,8 +14,10 @@ luego se ejecuta explícitamente; visitar resultados nunca entrena modelos.
 
 - Datos y preparación: CSV activo, lectura explícita, exclusión de columnas,
   preparación y partición compartida.
-- Clustering: EDA y ACP en una misma vista; K-Means, K-Medoids y HAC en
-  destinos separados. ACP requiere su propia acción dentro de EDA.
+- Exploración: EDA y ACP son destinos independientes fuera de Clustering. EDA
+  conserva sus gráficos; ACP conserva su ejecución explícita y vistas.
+- Clustering: K-Means, K-Medoids y HAC en destinos separados; solo algoritmos
+  de agrupamiento aparecen en este grupo.
 - K-Means: proyecciones opcionales t-SNE y UMAP dentro de la vista, ejecutadas
   explícitamente y coloreadas por las asignaciones activas cuando existen.
 - Clasificación: una vista por KNN, Árbol de decisión, Random Forest, XGBoost,
