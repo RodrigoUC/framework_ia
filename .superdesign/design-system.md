@@ -49,8 +49,12 @@ colapsados hasta que el usuario los necesite.
 - Navegación multinivel y expandible: Datos; Exploración; y los tres pilares
   del framework: **Agrupamiento**, **Clasificación** y **Regresión**. El segundo
   nivel presenta familias y técnicas disponibles:
-  - Agrupamiento → Particional → K-Means, K-Medoids; Jerárquico → HAC.
-  - Exploración → Reducción dimensional → ACP, t-SNE, UMAP.
+  - Clustering → EDA + ACP; K-Means; K-Medoids; HAC. K-Means and K-Medoids
+    are separate destinations, not a selector inside one screen.
+  - EDA keeps its existing charts. ACP is an explicit optional analysis within
+    that contextual destination; it is not a standalone navigation section.
+  - K-Means → optional t-SNE and UMAP visual projections, explicitly executed
+    and colored by cluster assignments when available. They are not algorithms.
   - Clasificación → Random Forest, Naive Bayes.
   - Regresión → lineal simple y múltiple (marcadas como próximas mientras sean
     plantillas).

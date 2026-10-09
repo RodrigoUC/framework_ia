@@ -82,6 +82,43 @@ def test_navigation_separates_configuration_and_read_only_results():
         )
 
 
+def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections():
+    app = nueva_app()
+    labels = [button.label for button in app.sidebar.button]
+    assert "EDA y ACP" in labels
+    assert "K-Means" in labels
+    assert "K-Medoids" in labels
+    assert "HAC" in labels
+    assert "K-Means y K-Medoids" not in labels
+    assert not any(
+        button.key in {"nav_acp", "nav_tsne", "nav_umap"}
+        for button in app.sidebar.button
+    )
+
+    app.sidebar.button(key="nav_kmedoids").click().run()
+    assert not app.exception
+    assert any(button.label == "Ejecutar K-Medoids" for button in app.button)
+    assert not any(button.label == "Ejecutar t-SNE" for button in app.button)
+
+    app.sidebar.button(key="nav_kmeans").click().run()
+    assert not app.exception
+    assert any(button.label == "Ejecutar K-Means" for button in app.button)
+    assert any(button.label == "Ejecutar t-SNE" for button in app.button)
+    assert any(button.label == "Ejecutar UMAP" for button in app.button)
+    assert "resultado_kmeans_tsne" not in app.session_state
+    assert "resultado_kmeans_umap" not in app.session_state
+
+
+def test_legacy_acp_destination_migrates_to_contextual_eda():
+    app = nueva_app()
+    app.session_state["vista_activa"] = "acp"
+    app.run()
+    assert not app.exception
+    assert app.session_state["vista_activa"] == "eda"
+    assert any(button.key == "nav_eda" for button in app.sidebar.button)
+    assert any(button.label == "Ejecutar ACP" for button in app.button)
+
+
 def test_benchmark_controls_persist_and_changes_invalidate_results():
     app = nueva_app()
     ejecutar_comparacion(app)

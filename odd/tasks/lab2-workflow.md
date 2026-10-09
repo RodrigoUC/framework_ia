@@ -50,8 +50,10 @@ but does not yet provide consistent typed class configuration.
   PR or integration is authorized; no additional delivery choice is needed.
 - Work-unit commits stay local on lab_2. No PR is created implicitly.
 - RDD: on (global), observed with gentle-ai review mode status. Candidate consent
-  remains separate. Initial reviewed boundary: 51d9adc.
-- Authored running count: 0. Commit/slice evidence: none yet.
+  remains separate. Last reviewed boundary: `d3fe83a` (T2 reliability review
+  acknowledged; authority burned).
+- Authored running count: 538 (T2 commit `d3fe83a`). Commit/slice evidence:
+  T2 `d3fe83a`; T3 remains uncommitted pending parent spot check and review.
 
 ## Checklist
 
@@ -97,13 +99,25 @@ but does not yet provide consistent typed class configuration.
   Runtime harness: N/A; no Streamlit server was launched. Rollback boundary:
   remove the new shared classification config module and restore the previous
   local experiment catalog and parameter-widget branching; no navigation or
-  clustering methods depend on this work. No commit yet; authored count to be
-  recorded from the final work-unit diff by the parent.
-- [ ] T3 — Restructure clustering: contextual EDA/ACP, distinct K-means and
+  clustering methods depend on this work. Commit `d3fe83a`; 538 authored lines;
+  last reviewed boundary is `d3fe83a`.
+- [x] T3 — Restructure clustering: contextual EDA/ACP, distinct K-means and
   K-medoids actions, t-SNE/UMAP visualization within K-means, no standalone
   dimensional-reduction destination.
-  Route: delegated; navigation, views, tests, and canonical design documentation.
-  Checks: independent actions, projection availability, no dropped algorithms.
+  Route: delegated direct; changed the navigation and shared rendering adapters
+  in `framework_ia/ui/streamlit_app.py`, added clustering navigation/state tests,
+  and updated `DESIGN.md` plus `.superdesign/design-system.md`. EDA charts remain
+  intact; ACP is explicitly run within EDA; K-Means and K-Medoids have separate
+  destinations; t-SNE/UMAP remain explicit projections inside K-Means.
+  Checks: focused UI/navigation/classification panel suites — 24 passed in
+  11.27s; full suite — 79 passed, 52 subtests passed in 30.69s. `git diff
+  --check` passed. `ruff check` was run and reports the same 18 pre-existing
+  issues present on HEAD across the app module; no new test-code issues were
+  reported.
+  Runtime harness: N/A; no Streamlit server/browser was authorized. Rollback:
+  revert the navigation and shared rendering adapter changes, the two design
+  map updates, and their navigation tests. Parent to record T3 authored lines,
+  commit identity, and next RDD boundary after spot check/review.
 - [ ] T4 — Give every available classifier its own action/view and add the
   source-target balance chart before training.
   Route: delegated; shared model UI and EDA visualization.

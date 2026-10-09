@@ -64,15 +64,13 @@ PALETA_OSCURA = {
 }
 
 
-VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "hac", "tsne", "umap"}
+VISTAS_NO_SUPERVISADAS = {"eda", "kmeans", "kmedoids", "hac"}
 TITULOS_VISTA = {
     "datos": "Datos y preparación",
-    "eda": "Exploración de datos",
-    "acp": "ACP",
-    "kmeans": "K-Means y K-Medoids",
+    "eda": "EDA y ACP",
+    "kmeans": "K-Means",
+    "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
-    "tsne": "Proyección t-SNE",
-    "umap": "Proyección UMAP",
     "clasificacion": "Clasificación",
     "lab2_modelo": "Modelo individual · LAB02",
     "lab2_experimentos": "Comparar variantes · LAB02",
@@ -82,12 +80,10 @@ TITULOS_VISTA = {
 }
 RUTAS_VISTA = {
     "datos": "Datos / Preparación",
-    "eda": "Exploración / EDA",
-    "acp": "Exploración / Reducción dimensional / ACP",
-    "kmeans": "Agrupamiento / Particional / K-Means",
-    "hac": "Agrupamiento / Jerárquico / HAC",
-    "tsne": "Exploración / Reducción dimensional / t-SNE",
-    "umap": "Exploración / Reducción dimensional / UMAP",
+    "eda": "Clustering / EDA y ACP",
+    "kmeans": "Clustering / K-Means",
+    "kmedoids": "Clustering / K-Medoids",
+    "hac": "Clustering / HAC",
     "clasificacion": "Clasificación / Modelos disponibles",
     "lab2_modelo": "Clasificación / LAB02 / Modelo individual",
     "lab2_experimentos": "Clasificación / LAB02 / Comparar variantes",
@@ -212,6 +208,11 @@ def _cargar_fuente_csv(seleccion: Path, configuracion: ConfiguracionCSV) -> None
 def _seleccionar_vista() -> str:
     """Renderiza la navegación multinivel y devuelve la vista activa."""
     vista = st.session_state.setdefault("vista_activa", "datos")
+    if vista == "acp":
+        vista = "eda"
+    elif vista in {"tsne", "umap"}:
+        vista = "kmeans"
+    st.session_state["vista_activa"] = vista
 
     def navegar(destino: str) -> None:
         st.session_state["vista_activa"] = destino
@@ -232,31 +233,16 @@ def _seleccionar_vista() -> str:
         )
         boton("Datos y preparación", "datos")
 
-        with st.expander(
-            "Exploración y reducción dimensional",
-            expanded=vista in {"eda", "acp", "tsne", "umap"},
-        ):
-            boton("EDA", "eda")
-            st.markdown(
-                '<p class="atlas-family">Reducción dimensional</p>',
-                unsafe_allow_html=True,
-            )
-            boton("ACP", "acp")
-            boton("t-SNE", "tsne")
-            boton("UMAP", "umap")
-
         st.markdown(
             '<p class="atlas-nav-label">Análisis y modelos</p>',
             unsafe_allow_html=True,
         )
-        with st.expander("Agrupamiento", expanded=vista in {"kmeans", "hac"}):
-            st.markdown(
-                '<p class="atlas-family">Particional</p>', unsafe_allow_html=True
-            )
-            boton("K-Means y K-Medoids", "kmeans")
-            st.markdown(
-                '<p class="atlas-family">Jerárquico</p>', unsafe_allow_html=True
-            )
+        with st.expander(
+            "Clustering", expanded=vista in {"eda", "kmeans", "kmedoids", "hac"}
+        ):
+            boton("EDA y ACP", "eda")
+            boton("K-Means", "kmeans")
+            boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
 
         with st.expander("Clasificación", expanded=vista in {"clasificacion", "lab2_modelo", "lab2_experimentos"}):
@@ -579,7 +565,7 @@ def _resumen_dataset_modulo(datos: pd.DataFrame, objetivo: str | None = None) ->
             st.markdown(linea)
 
 
-def _render_eda(datos: pd.DataFrame) -> None:
+def _render_eda(datos: pd.DataFrame, configuracion: dict) -> None:
     """Presenta las funciones de EDA disponibles en la clase DataFrame."""
     _resumen_dataset_modulo(datos)
     eda = EDA(dataframe=datos)
@@ -672,6 +658,12 @@ def _render_eda(datos: pd.DataFrame) -> None:
         for columna, tabla in eda.frecuencias(seleccion).items():
             with st.expander(f"Frecuencias de {columna}"):
                 st.dataframe(tabla, width="stretch")
+
+    with st.expander("Análisis de componentes principales (ACP)"):
+        st.caption(
+            "ACP es una exploración complementaria; se ejecuta solo al solicitarlo."
+        )
+        _render_acp(datos, configuracion)
 
 
 def _configurar_modelos(datos: pd.DataFrame) -> dict:
@@ -1297,20 +1289,22 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(VisualizadorNoSupervisado.sobreposicion_acp(resultado))
 
 
-def _render_particional(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Ejecuta K-Means o K-Medoids y permite evaluar el valor de k."""
-    st.markdown("### Agrupamiento particional")
+def _render_particional(
+    datos: pd.DataFrame, configuracion: dict, algoritmo: str
+) -> None:
+    """Renderiza una técnica particional con el flujo común de resultados."""
+    st.markdown(f"### {algoritmo}")
     _resumen_dataset_modulo(datos)
     if len(datos) < 3 or not configuracion["features"]:
         st.warning("Se requieren variables y al menos tres filas.")
         return
-    algoritmo = st.selectbox("Algoritmo", ["K-Means", "K-Medoids"])
     limite = min(12, len(datos) - 1)
     clusters = _seleccionar_entero(
-        "Número de clusters", 2, limite, 3, key="particional_clusters"
+        "Número de clusters", 2, limite, 3, key=f"{algoritmo.lower()}_clusters"
     )
     firma = _firma(configuracion, algoritmo, clusters)
-    if st.button("Ejecutar agrupamiento", type="primary"):
+    clave_resultado = f"resultado_{algoritmo.lower().replace('-', '_')}"
+    if st.button(f"Ejecutar {algoritmo}", type="primary"):
         try:
             muestra = _muestrear(datos, configuracion["filas"])
             modelo = _crear_cluster(muestra, configuracion)
@@ -1318,11 +1312,11 @@ def _render_particional(datos: pd.DataFrame, configuracion: dict) -> None:
                 resultado = modelo.K_means(clusters)
             else:
                 resultado = modelo.K_medoids(clusters)
-            _guardar_resultado("resultado_particional", firma, resultado)
+            _guardar_resultado(clave_resultado, firma, resultado)
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible agrupar el dataset: {exc}")
 
-    resultado = _recuperar_resultado("resultado_particional", firma)
+    resultado = _recuperar_resultado(clave_resultado, firma)
     if resultado is not None:
         c1, c2 = st.columns(2)
         c1.metric(
@@ -1363,6 +1357,19 @@ def _render_particional(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(
             VisualizadorNoSupervisado.curva_evaluacion(tabla, "K-Means")
         )
+
+    if algoritmo == "K-Means":
+        with st.expander("Proyecciones para visualizar los clusters"):
+            st.caption(
+                "t-SNE y UMAP proyectan los datos; no son algoritmos de clustering."
+            )
+            etiquetas = resultado.etiquetas if resultado is not None else None
+            _render_tsne(
+                datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
+            )
+            _render_umap(
+                datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
+            )
 
 
 def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
@@ -1417,8 +1424,14 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(VisualizadorNoSupervisado.curva_evaluacion(tabla, "HAC"))
 
 
-def _render_tsne(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Ejecuta la proyección t-SNE bajo demanda."""
+def _render_tsne(
+    datos: pd.DataFrame,
+    configuracion: dict,
+    *,
+    etiquetas=None,
+    firma_cluster=None,
+) -> None:
+    """Ejecuta t-SNE bajo demanda para contextualizar la solución K-Means."""
     st.markdown("### Proyección t-SNE")
     _resumen_dataset_modulo(datos)
     filas = min(configuracion["filas"], 2000)
@@ -1430,24 +1443,40 @@ def _render_tsne(datos: pd.DataFrame, configuracion: dict) -> None:
         "Perplexity", 2, max_perplexity, 30, key="tsne_perplexity"
     )
     iteraciones = st.slider("Iteraciones", 250, 2000, 1000, 250)
-    firma = _firma(configuracion, perplexity, iteraciones, filas)
+    firma = _firma(configuracion, perplexity, iteraciones, filas, firma_cluster)
+    clave = "resultado_kmeans_tsne"
     if st.button("Ejecutar t-SNE", type="primary"):
         try:
-            muestra = _muestrear(datos, filas)
+            muestra = (
+                datos.loc[etiquetas.index[:filas]]
+                if etiquetas is not None
+                else _muestrear(datos, filas)
+            )
             resultado = _crear_reductor(muestra, configuracion).TSNE(
                 perplexity=perplexity, max_iter=iteraciones
             )
-            _guardar_resultado("resultado_tsne", firma, resultado)
+            _guardar_resultado(clave, firma, resultado)
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible ejecutar t-SNE: {exc}")
-    resultado = _recuperar_resultado("resultado_tsne", firma)
+    resultado = _recuperar_resultado(clave, firma)
     if resultado is not None:
-        _mostrar_figura(VisualizadorNoSupervisado.proyeccion(resultado))
+        grupos = (
+            etiquetas.reindex(resultado.coordenadas.index)
+            if etiquetas is not None
+            else None
+        )
+        _mostrar_figura(VisualizadorNoSupervisado.proyeccion(resultado, grupos))
         st.dataframe(resultado.coordenadas, width="stretch")
 
 
-def _render_umap(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Ejecuta UMAP cuando la dependencia opcional está disponible."""
+def _render_umap(
+    datos: pd.DataFrame,
+    configuracion: dict,
+    *,
+    etiquetas=None,
+    firma_cluster=None,
+) -> None:
+    """Ejecuta UMAP bajo demanda para contextualizar la solución K-Means."""
     st.markdown("### Proyección UMAP")
     _resumen_dataset_modulo(datos)
     filas = min(configuracion["filas"], 3000)
@@ -1459,21 +1488,31 @@ def _render_umap(datos: pd.DataFrame, configuracion: dict) -> None:
         "Vecinos", 2, max_vecinos, 15, key="umap_vecinos"
     )
     distancia = st.slider("Distancia mínima", 0.0, 0.99, 0.1, 0.05)
-    firma = _firma(configuracion, vecinos, distancia, filas)
+    firma = _firma(configuracion, vecinos, distancia, filas, firma_cluster)
+    clave = "resultado_kmeans_umap"
     if st.button("Ejecutar UMAP", type="primary"):
         try:
-            muestra = _muestrear(datos, filas)
+            muestra = (
+                datos.loc[etiquetas.index[:filas]]
+                if etiquetas is not None
+                else _muestrear(datos, filas)
+            )
             resultado = _crear_reductor(muestra, configuracion).UMAP(
                 n_neighbors=vecinos, min_dist=distancia
             )
-            _guardar_resultado("resultado_umap", firma, resultado)
+            _guardar_resultado(clave, firma, resultado)
         except DependenciaOpcionalError as exc:
             st.warning(str(exc))
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible ejecutar UMAP: {exc}")
-    resultado = _recuperar_resultado("resultado_umap", firma)
+    resultado = _recuperar_resultado(clave, firma)
     if resultado is not None:
-        _mostrar_figura(VisualizadorNoSupervisado.proyeccion(resultado))
+        grupos = (
+            etiquetas.reindex(resultado.coordenadas.index)
+            if etiquetas is not None
+            else None
+        )
+        _mostrar_figura(VisualizadorNoSupervisado.proyeccion(resultado, grupos))
         st.dataframe(resultado.coordenadas, width="stretch")
 
 
@@ -1520,10 +1559,8 @@ def main() -> None:
     if vista == "datos":
         _render_dataset()
     elif vista == "eda":
-        _render_eda(datos)
-    elif vista == "acp":
         assert configuracion is not None
-        _render_acp(datos, configuracion)
+        _render_eda(datos, configuracion)
     elif vista == "clasificacion":
         assert configuracion_clasif is not None
         _render_clasificacion(datos, configuracion_clasif)
@@ -1538,16 +1575,13 @@ def main() -> None:
         render_resultados(_mostrar_figura)
     elif vista == "kmeans":
         assert configuracion is not None
-        _render_particional(datos, configuracion)
+        _render_particional(datos, configuracion, "K-Means")
+    elif vista == "kmedoids":
+        assert configuracion is not None
+        _render_particional(datos, configuracion, "K-Medoids")
     elif vista == "hac":
         assert configuracion is not None
         _render_hac(datos, configuracion)
-    elif vista == "tsne":
-        assert configuracion is not None
-        _render_tsne(datos, configuracion)
-    elif vista == "umap":
-        assert configuracion is not None
-        _render_umap(datos, configuracion)
     else:
         _render_regresion()
 

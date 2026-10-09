@@ -50,21 +50,24 @@ class VisualContrastFlowTests(unittest.TestCase):
 
     def test_navigation_follows_analysis_to_results_and_uses_section_label(self):
         labels = [item.label for item in self.app.sidebar.button]
-        self.assertLess(labels.index("Datos y preparación"), labels.index("EDA"))
-        self.assertLess(labels.index("EDA"), labels.index("K-Means y K-Medoids"))
-        self.assertLess(labels.index("K-Means y K-Medoids"), labels.index("Random Forest y Naive Bayes"))
+        self.assertLess(labels.index("Datos y preparación"), labels.index("EDA y ACP"))
+        self.assertLess(labels.index("EDA y ACP"), labels.index("K-Means"))
+        self.assertLess(labels.index("K-Means"), labels.index("K-Medoids"))
+        self.assertLess(labels.index("K-Medoids"), labels.index("HAC"))
+        self.assertLess(labels.index("HAC"), labels.index("Random Forest y Naive Bayes"))
         self.assertLess(labels.index("Random Forest y Naive Bayes"), labels.index("Comparar modelos"))
         markdown = " ".join(item.value for item in self.app.sidebar.markdown)
         self.assertIn("Análisis y modelos", markdown)
         self.assertNotIn("Pilares del framework", markdown)
 
     def test_analysis_configuration_is_visible_in_main_content(self):
-        self.app.sidebar.button(key="nav_acp").click().run()
+        self.app.sidebar.button(key="nav_eda").click().run()
         self.assertFalse(self.app.exception)
         main_markdown = " ".join(item.value for item in self.app.markdown)
         sidebar_markdown = " ".join(item.value for item in self.app.sidebar.markdown)
         self.assertIn("Configuración de agrupamiento y reducción", main_markdown)
         self.assertNotIn("Configuración de agrupamiento y reducción", sidebar_markdown)
+        self.assertTrue(any(item.label == "Análisis de componentes principales (ACP)" for item in self.app.expander))
         self.assertIn("atlas-title", main_markdown)
 
     def test_invalid_default_csv_keeps_app_available_for_source_recovery(self):

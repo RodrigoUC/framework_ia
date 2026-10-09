@@ -14,8 +14,10 @@ luego se ejecuta explícitamente; visitar resultados nunca entrena modelos.
 
 - Datos y preparación: CSV activo, lectura explícita, exclusión de columnas,
   preparación y partición compartida.
-- Exploración y reducción dimensional: EDA, ACP, t-SNE y UMAP.
-- Agrupamiento: K-Means/K-Medoids y HAC.
+- Clustering: contextual EDA + ACP, separate K-Means and K-Medoids destinations,
+  and HAC. ACP runs only through its explicit action within EDA.
+- K-Means visualizations: optional t-SNE and UMAP projections, each explicitly
+  run and colored by the active K-Means assignments when available.
 - Clasificación / RF y Naive Bayes: flujo previo conservado.
 - Clasificación / Modelo individual LAB02: algoritmo, hiperparámetros visibles,
   entrenamiento explícito y diagnóstico de test.
