@@ -1,4 +1,4 @@
-"""Vistas LAB02: configurar un modelo, comparar variantes y analizar ganadores.
+"""Vistas de clasificación individual, comparación y análisis de resultados.
 
 La UI conserva evidencia de la ejecución. Toda selección, partición y métrica
 se calcula en Clasificacion, nunca al abrir la vista de resultados.
@@ -82,52 +82,52 @@ def _json(datos) -> str:
 
 
 def render_modelo_individual(
-    datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
+    datos: pd.DataFrame,
+    configuracion: dict,
+    mostrar_figura: MostrarFigura,
+    *,
+    algoritmo: str,
 ) -> None:
     """Entrenamiento exploratorio de un único modelo con parámetros visibles."""
-    st.markdown("### Entrenar un modelo")
+    nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
+    st.markdown(f"### {nombre_modelo}")
     st.caption(
-        "Use esta vista para explorar una configuración. Para seleccionar variantes "
-        "sin usar prueba, abra Comparar variantes · LAB02."
+        "Explore una configuración individual. Para seleccionar variantes sin usar "
+        "prueba, abra Comparar configuraciones."
     )
     segura = preparacion_segura()
-    algoritmo = st.selectbox(
-        "Algoritmo",
-        list(NOMBRES_MODELOS),
-        format_func=NOMBRES_MODELOS.get,
-        key="lab2_algoritmo",
-        persist_state="session",
-    )
     parametros = parametros_individuales(algoritmo)
     st.caption("Parámetros solicitados; los efectivos se muestran después de entrenar.")
     st.json(parametros or {"configuracion": "estándar del algoritmo"}, expanded=False)
     firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
-    sincronizar_ejecucion(st.session_state, "modelo", firma)
+    estado_modelo = f"modelo_{algoritmo}"
+    resultado_modelo = f"resultado_lab2_{estado_modelo}"
+    sincronizar_ejecucion(st.session_state, estado_modelo, firma)
     if st.button(
         "Entrenar modelo",
-        key="lab2_entrenar",
+        key=f"lab2_entrenar_{algoritmo}",
         type="primary",
         disabled=not configuracion["features"] or not segura,
     ):
-        st.session_state.pop("resultado_lab2_modelo", None)
+        st.session_state.pop(resultado_modelo, None)
         try:
-            with st.spinner(f"Entrenando {NOMBRES_MODELOS[algoritmo]}…"):
+            with st.spinner(f"Entrenando {nombre_modelo}…"):
                 resultado = _modelo(datos, configuracion).entrenar(
                     algoritmo=algoritmo,
                     **_argumentos_comunes(configuracion),
                     **parametros,
                 )
-            st.session_state["resultado_lab2_modelo"] = resultado
+            st.session_state[resultado_modelo] = resultado
             st.success(
                 "Modelo entrenado. Las métricas siguientes corresponden a prueba."
             )
         except Exception as exc:  # noqa: BLE001 - isolate model failures at the UI boundary.
-            st.error(f"No fue posible entrenar {NOMBRES_MODELOS[algoritmo]}: {exc}")
-    resultado = st.session_state.get("resultado_lab2_modelo")
+            st.error(f"No fue posible entrenar {nombre_modelo}: {exc}")
+    resultado = st.session_state.get(resultado_modelo)
     if resultado is None:
         st.info("Configure el modelo y pulse Entrenar modelo para ver sus resultados.")
         return
-    _diagnostico(resultado, mostrar_figura, "lab2_individual")
+    _diagnostico(resultado, mostrar_figura, f"clasificacion_{algoritmo}")
 
 
 def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
@@ -194,14 +194,14 @@ def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
         pd.DataFrame(filas),
         hide_index=True,
         width="stretch",
-        alt="Configuraciones y parámetros que se ejecutarán para cada algoritmo de LAB02",
+        alt="Configuraciones y parámetros que se ejecutarán para cada algoritmo",
     )
     return configuraciones, valido
 
 
 def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
     """Compara variantes en validación y evalúa solo los ganadores en prueba."""
-    st.markdown("### Comparar configuraciones · LAB02")
+    st.markdown("### Comparar configuraciones")
     st.info(
         "Entrenamiento ajusta los modelos; validación elige la mejor variante de cada "
         "algoritmo y el ganador global. Prueba se reserva para la evaluación final."
@@ -294,16 +294,16 @@ def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
             }
             if resultado.mejores:
                 st.success(
-                    "Comparación terminada. Abra Resultados · LAB02 para analizar los ganadores."
+                    "Comparación terminada. Abra Resultados de clasificación para analizar los ganadores."
                 )
             else:
                 st.warning(
-                    "Ninguna configuración terminó correctamente. Consulte los errores en Resultados · LAB02."
+                    "Ninguna configuración terminó correctamente. Consulte los errores en Resultados de clasificación."
                 )
         except Exception as exc:  # noqa: BLE001 - keep configuration available for recovery.
             st.error(f"No fue posible comparar los modelos: {exc}")
     if st.session_state.get("resultado_lab2_experimento") and st.button(
-        "Ver resultados LAB02", key="lab2_ver_resultados"
+        "Ver resultados", key="lab2_ver_resultados"
     ):
         st.session_state["vista_activa"] = "lab2_resultados"
         st.rerun()
@@ -315,7 +315,7 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
     if guardado is None:
         st.info(
             "Todavía no hay una comparación vigente. Configure y ejecute los modelos "
-            "en Clasificación → Comparar variantes · LAB02. Si cambió los datos o la "
+            "en Clasificación → Comparar configuraciones. Si cambió los datos o la "
             "configuración, debe ejecutar de nuevo."
         )
         return

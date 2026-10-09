@@ -104,6 +104,31 @@ class EDA(DataFrameBase):
             "categoricas": int(datos.select_dtypes(exclude="number").shape[1]),
         }
 
+    def balance_objetivo(self, objetivo: str) -> tuple[pd.DataFrame, go.Figure | None]:
+        """Return class counts/proportions and an EDA chart for an active target."""
+        if objetivo not in self.datos.columns:
+            raise KeyError(f"No existe la columna objetivo {objetivo!r}.")
+        valores = self.datos[objetivo]
+        conteos = valores.value_counts(dropna=True, sort=False).rename("Cantidad")
+        conteos = conteos.loc[conteos > 0]
+        resumen = conteos.to_frame()
+        resumen["Proporción"] = resumen["Cantidad"] / max(int(valores.notna().sum()), 1)
+        if resumen.empty:
+            return resumen, None
+        figura = go.Figure(
+            go.Bar(
+                x=resumen.index.tolist(),
+                y=resumen["Cantidad"].tolist(),
+                marker_color="#1A3C2B",
+            )
+        )
+        figura.update_layout(
+            title=f"Distribución de clases de {objetivo}",
+            xaxis={"title": objetivo, "type": "category"},
+            yaxis_title="Cantidad",
+        )
+        return resumen, figura
+
     # ==========================================================
     # Gráficos del EDA
     # ==========================================================

@@ -14,7 +14,11 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertFalse(self.app.exception)
 
     def test_source_is_collapsed_and_changes_apply_only_on_submit(self):
-        source = next(item for item in self.app.sidebar.expander if item.label == "Fuente de datos")
+        source = next(
+            item
+            for item in self.app.sidebar.expander
+            if item.label == "Fuente de datos"
+        )
         self.assertFalse(source.proto.expanded)
         active_identity = self.app.session_state["dataset_identidad"]
 
@@ -24,9 +28,13 @@ class VisualContrastFlowTests(unittest.TestCase):
 
         # AppTest batches form edits with submit, just like the browser.
         self.app.sidebar.text_input(key="fuente_separador").set_value(";")
-        self.app.button(key="FormSubmitter:form_fuente_datos-Aplicar fuente").click().run()
+        self.app.button(
+            key="FormSubmitter:form_fuente_datos-Aplicar fuente"
+        ).click().run()
         self.assertFalse(self.app.exception)
-        self.assertNotEqual(active_identity, self.app.session_state["dataset_identidad"])
+        self.assertNotEqual(
+            active_identity, self.app.session_state["dataset_identidad"]
+        )
         self.assertEqual(len(self.app.session_state["dataset_preparado"].columns), 1)
         applied_identity = self.app.session_state["dataset_identidad"]
         self.app.sidebar.button(key="nav_datos").click().run()
@@ -54,8 +62,16 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertLess(labels.index("EDA y ACP"), labels.index("K-Means"))
         self.assertLess(labels.index("K-Means"), labels.index("K-Medoids"))
         self.assertLess(labels.index("K-Medoids"), labels.index("HAC"))
-        self.assertLess(labels.index("HAC"), labels.index("Random Forest y Naive Bayes"))
-        self.assertLess(labels.index("Random Forest y Naive Bayes"), labels.index("Comparar modelos"))
+        self.assertLess(labels.index("HAC"), labels.index("KNN"))
+        self.assertLess(labels.index("KNN"), labels.index("Árbol de decisión"))
+        self.assertLess(
+            labels.index("Árbol de decisión"), labels.index("Random Forest")
+        )
+        self.assertLess(labels.index("Random Forest"), labels.index("Naive Bayes"))
+        self.assertLess(labels.index("Naive Bayes"), labels.index("Comparar configuraciones"))
+        self.assertLess(
+            labels.index("Comparar configuraciones"), labels.index("Comparar modelos")
+        )
         markdown = " ".join(item.value for item in self.app.sidebar.markdown)
         self.assertIn("Análisis y modelos", markdown)
         self.assertNotIn("Pilares del framework", markdown)
@@ -67,7 +83,12 @@ class VisualContrastFlowTests(unittest.TestCase):
         sidebar_markdown = " ".join(item.value for item in self.app.sidebar.markdown)
         self.assertIn("Configuración de agrupamiento y reducción", main_markdown)
         self.assertNotIn("Configuración de agrupamiento y reducción", sidebar_markdown)
-        self.assertTrue(any(item.label == "Análisis de componentes principales (ACP)" for item in self.app.expander))
+        self.assertTrue(
+            any(
+                item.label == "Análisis de componentes principales (ACP)"
+                for item in self.app.expander
+            )
+        )
         self.assertIn("atlas-title", main_markdown)
 
     def test_invalid_default_csv_keeps_app_available_for_source_recovery(self):

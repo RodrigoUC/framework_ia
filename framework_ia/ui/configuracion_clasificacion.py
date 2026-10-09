@@ -6,13 +6,18 @@ interfaz; el particionado y el ajuste de transformadores pertenecen al dominio.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pandas as pd
 import streamlit as st
 
+from ..datos.eda import EDA
 from ..resultados import ResultadoParticion
 
 
-def configurar_clasificacion(datos: pd.DataFrame) -> dict | None:
+def configurar_clasificacion(
+    datos: pd.DataFrame, mostrar_figura: Callable | None = None
+) -> dict | None:
     """Recopila configuración de target, split y preprocesamiento."""
     if len(datos.columns) < 2:
         st.warning(
@@ -29,6 +34,24 @@ def configurar_clasificacion(datos: pd.DataFrame) -> dict | None:
         persist_state="session",
         key="clasif_target",
     )
+    balance, figura_balance = EDA(dataframe=datos).balance_objetivo(objetivo)
+    st.markdown("#### Balance del target en el dataset activo")
+    faltantes = int(datos[objetivo].isna().sum())
+    st.caption(f"Valores faltantes en target: {faltantes}")
+    if balance.empty:
+        st.info("El target no contiene clases observadas.")
+    else:
+        balance_ui = balance.reset_index(names="Clase")
+        st.dataframe(balance_ui, hide_index=True, width="stretch")
+        if figura_balance is not None and mostrar_figura is not None:
+            mostrar_figura(figura_balance)
+        clases_raras = balance.loc[balance["Cantidad"] <= 2].index.tolist()
+        if clases_raras:
+            st.warning(
+                "Clases con dos o menos filas: "
+                + ", ".join(str(clase) for clase in clases_raras)
+                + ". La partición estratificada puede no ser posible."
+            )
     opcional_features = [columna for columna in datos.columns if columna != objetivo]
     caracteristicas_guardadas = st.session_state.get(
         "clasif_features", opcional_features

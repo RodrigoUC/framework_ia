@@ -65,6 +65,14 @@ PALETA_OSCURA = {
 
 
 VISTAS_NO_SUPERVISADAS = {"eda", "kmeans", "kmedoids", "hac"}
+VISTAS_CLASIFICADORES = {
+    "clasificacion": "RF",
+    "clasificacion_knn": "KNN",
+    "clasificacion_dt": "DT",
+    "clasificacion_xgboost": "XGBoost",
+    "clasificacion_adaboost": "AdaBoost",
+    "clasificacion_nb": "NR",
+}
 TITULOS_VISTA = {
     "datos": "Datos y preparación",
     "eda": "EDA y ACP",
@@ -72,9 +80,13 @@ TITULOS_VISTA = {
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
     "clasificacion": "Clasificación",
-    "lab2_modelo": "Modelo individual · LAB02",
-    "lab2_experimentos": "Comparar variantes · LAB02",
-    "lab2_resultados": "Resultados · LAB02",
+    "clasificacion_knn": "KNN",
+    "clasificacion_dt": "Árbol de decisión",
+    "clasificacion_xgboost": "XGBoost",
+    "clasificacion_adaboost": "AdaBoost",
+    "clasificacion_nb": "Naive Bayes",
+    "lab2_experimentos": "Comparar configuraciones",
+    "lab2_resultados": "Resultados de clasificación",
     "comparacion": "Comparación de modelos",
     "regresion": "Regresión",
 }
@@ -85,9 +97,13 @@ RUTAS_VISTA = {
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
     "clasificacion": "Clasificación / Modelos disponibles",
-    "lab2_modelo": "Clasificación / LAB02 / Modelo individual",
-    "lab2_experimentos": "Clasificación / LAB02 / Comparar variantes",
-    "lab2_resultados": "Resultados / LAB02 / Validación y prueba",
+    "clasificacion_knn": "Clasificación / KNN",
+    "clasificacion_dt": "Clasificación / Árbol de decisión",
+    "clasificacion_xgboost": "Clasificación / XGBoost",
+    "clasificacion_adaboost": "Clasificación / AdaBoost",
+    "clasificacion_nb": "Clasificación / Naive Bayes",
+    "lab2_experimentos": "Clasificación / Comparar configuraciones",
+    "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
     "comparacion": "Resultados / Comparación de modelos",
     "regresion": "Regresión / Próximamente",
 }
@@ -245,14 +261,18 @@ def _seleccionar_vista() -> str:
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
 
-        with st.expander("Clasificación", expanded=vista in {"clasificacion", "lab2_modelo", "lab2_experimentos"}):
+        with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos"}):
             st.markdown(
                 '<p class="atlas-family">Modelos disponibles</p>',
                 unsafe_allow_html=True,
             )
-            boton("Random Forest y Naive Bayes", "clasificacion")
-            boton("Modelo individual · LAB02", "lab2_modelo")
-            boton("Comparar variantes · LAB02", "lab2_experimentos")
+            boton("KNN", "clasificacion_knn")
+            boton("Árbol de decisión", "clasificacion_dt")
+            boton("Random Forest", "clasificacion")
+            boton("XGBoost", "clasificacion_xgboost")
+            boton("AdaBoost", "clasificacion_adaboost")
+            boton("Naive Bayes", "clasificacion_nb")
+            boton("Comparar configuraciones", "lab2_experimentos")
 
         with st.expander("Regresión", expanded=vista == "regresion"):
             st.markdown(
@@ -265,7 +285,7 @@ def _seleccionar_vista() -> str:
             '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
         )
         boton("Comparar modelos", "comparacion")
-        boton("Resultados · LAB02", "lab2_resultados")
+        boton("Resultados de clasificación", "lab2_resultados")
     return st.session_state["vista_activa"]
 
 
@@ -566,7 +586,7 @@ def _resumen_dataset_modulo(datos: pd.DataFrame, objetivo: str | None = None) ->
 
 
 def _render_eda(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Presenta las funciones de EDA disponibles en la clase DataFrame."""
+    """Presenta gráficos exploratorios generados por EDA."""
     _resumen_dataset_modulo(datos)
     eda = EDA(dataframe=datos)
     resumen, histogramas, boxplots, dispersion, correlacion, outliers, frecuencias = (
@@ -1550,8 +1570,10 @@ def main() -> None:
     configuracion_clasif = None
     if vista in VISTAS_NO_SUPERVISADAS:
         configuracion = _configurar_modelos(datos)
-    elif vista in {"clasificacion", "comparacion", "lab2_modelo", "lab2_experimentos"}:
-        configuracion_clasif = _configurar_modelos_clasificacion(datos)
+    elif vista in {*VISTAS_CLASIFICADORES, "comparacion", "lab2_experimentos"}:
+        configuracion_clasif = _configurar_modelos_clasificacion(
+            datos, _mostrar_figura
+        )
         if configuracion_clasif is None:
             return
         sincronizar_contexto(st.session_state, datos, configuracion_clasif)
@@ -1561,14 +1583,15 @@ def main() -> None:
     elif vista == "eda":
         assert configuracion is not None
         _render_eda(datos, configuracion)
-    elif vista == "clasificacion":
+    elif vista in VISTAS_CLASIFICADORES:
         assert configuracion_clasif is not None
-        _render_clasificacion(datos, configuracion_clasif)
+        render_modelo_individual(
+            datos, configuracion_clasif, _mostrar_figura,
+            algoritmo=VISTAS_CLASIFICADORES[vista],
+        )
     elif vista == "comparacion":
         assert configuracion_clasif is not None
         _render_comparacion(datos, configuracion_clasif)
-    elif vista == "lab2_modelo":
-        render_modelo_individual(datos, configuracion_clasif, _mostrar_figura)
     elif vista == "lab2_experimentos":
         render_experimentos(datos, configuracion_clasif)
     elif vista == "lab2_resultados":

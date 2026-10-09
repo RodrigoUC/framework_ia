@@ -15,6 +15,8 @@ __all__ = ["METRICAS_SELECCION", "NOMBRES_MODELOS", "parametros_individuales"]
 
 def parametros_individuales(algoritmo: str) -> dict:
     """Expone ajustes frecuentes; la configuración estándar la define el dominio."""
+    if algoritmo == "NR":
+        return {}
     modo = st.radio(
         "Configuración del modelo",
         ["Estándar", "Personalizada"],

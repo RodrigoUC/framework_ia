@@ -89,6 +89,16 @@ def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections(
     assert "K-Means" in labels
     assert "K-Medoids" in labels
     assert "HAC" in labels
+    for model in (
+        "KNN",
+        "Árbol de decisión",
+        "Random Forest",
+        "XGBoost",
+        "AdaBoost",
+        "Naive Bayes",
+    ):
+        assert model in labels
+    assert not any("LAB02" in label or "Modelo individual" in label for label in labels)
     assert "K-Means y K-Medoids" not in labels
     assert not any(
         button.key in {"nav_acp", "nav_tsne", "nav_umap"}
@@ -107,6 +117,60 @@ def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections(
     assert any(button.label == "Ejecutar UMAP" for button in app.button)
     assert "resultado_kmeans_tsne" not in app.session_state
     assert "resultado_kmeans_umap" not in app.session_state
+
+
+def test_target_balance_reports_numeric_classes_missing_and_rare_without_mutation():
+    from framework_ia.datos.eda import EDA
+
+    datos = pd.DataFrame({"x": [1, 2, 3, 4, 5, 6], "clase": [0, 0, 1, 1, 2, None]})
+    original = datos.copy(deep=True)
+    conteos, figura = EDA(dataframe=datos).balance_objetivo("clase")
+    assert conteos["Cantidad"].to_dict() == {0.0: 2, 1.0: 2, 2.0: 1}
+    assert conteos["Proporción"].sum() == pytest.approx(1.0)
+    assert conteos["Proporción"].to_dict() == pytest.approx(
+        {0.0: 0.4, 1.0: 0.4, 2.0: 0.2}
+    )
+    assert figura is not None
+    assert datos.equals(original)
+
+    spaced = pd.DataFrame({"clase": [1, 1, 1000, None]})
+    _, figura_espaciada = EDA(dataframe=spaced).balance_objetivo("clase")
+    assert figura_espaciada.layout.xaxis.type == "category"
+    assert list(figura_espaciada.data[0].x) == [1, 1000]
+
+    for target in ("Cantidad", "Proporción"):
+        collision = pd.DataFrame({target: [target, target, "rare", None]})
+        summary, chart = EDA(dataframe=collision).balance_objetivo(target)
+        assert summary["Cantidad"].to_dict() == {target: 2, "rare": 1}
+        assert summary["Proporción"].to_dict() == pytest.approx(
+            {target: 2 / 3, "rare": 1 / 3}
+        )
+        assert chart.layout.xaxis.type == "category"
+        assert collision[target].isna().sum() == 1
+
+    category = pd.Series(
+        pd.Categorical(["seen", "seen", None], categories=["seen", "unseen"])
+    )
+    observed, _ = EDA(dataframe=pd.DataFrame({"target": category})).balance_objetivo(
+        "target"
+    )
+    assert observed["Cantidad"].to_dict() == {"seen": 2}
+
+    app = nueva_app()
+    dataset, name, identity = app.session_state["fuente_aplicada"]
+    dataset = dataset.copy()
+    dataset.loc[dataset.index[0], "clase"] = None
+    dataset.loc[dataset.index[1], "clase"] = 2
+    app.session_state["fuente_aplicada"] = (dataset, name, identity + ":missing-target")
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert any("Valores faltantes en target: 1" in item.value for item in app.caption)
+    assert any("Clases con dos o menos filas" in item.value for item in app.warning)
+    assert not app.exception
+
+    vacios = pd.DataFrame({"clase": [None, None]})
+    resumen, figura_vacio = EDA(dataframe=vacios).balance_objetivo("clase")
+    assert resumen.empty
+    assert figura_vacio is None
 
 
 def test_legacy_acp_destination_migrates_to_contextual_eda():
@@ -168,8 +232,8 @@ def test_global_imputation_blocks_lab2_until_source_is_restored():
     app.sidebar.button(key="nav_lab2_experimentos").click().run()
     assert app.button(key="lab2_ejecutar").disabled
     assert any("fuga de información" in e.value for e in app.error)
-    app.sidebar.button(key="nav_lab2_modelo").click().run()
-    assert app.button(key="lab2_entrenar").disabled
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert app.button(key="lab2_entrenar_KNN").disabled
     app.sidebar.button(key="nav_datos").click().run()
     next(b for b in app.button if b.label == "Restaurar dataset original").click().run()
     app.sidebar.button(key="nav_lab2_experimentos").click().run()
@@ -188,18 +252,51 @@ def test_invalid_json_and_empty_selection_cannot_train():
     assert not app.exception
 
 
-@pytest.mark.parametrize("algoritmo", ["KNN", "DT", "RF", "XGBoost", "AdaBoost"])
+@pytest.mark.parametrize("algoritmo", ["KNN", "DT", "RF", "XGBoost", "AdaBoost", "NR"])
 def test_individual_models_train_and_show_numeric_confusion_alternative(algoritmo):
     app = nueva_app()
-    app.sidebar.button(key="nav_lab2_modelo").click().run()
-    app.selectbox(key="lab2_algoritmo").set_value(algoritmo).run()
-    app.button(key="lab2_entrenar").click().run()
+    rutas = {
+        "KNN": "knn",
+        "DT": "dt",
+        "RF": "",
+        "XGBoost": "xgboost",
+        "AdaBoost": "adaboost",
+        "NR": "nb",
+    }
+    ruta = f"nav_clasificacion_{rutas[algoritmo]}".rstrip("_")
+    app.sidebar.button(key=ruta).click().run()
+    assert not any(widget.label == "Algoritmo" for widget in app.selectbox)
+    app.button(key=f"lab2_entrenar_{algoritmo}").click().run()
     assert not app.exception
     assert not app.error
-    resultado = app.session_state["resultado_lab2_modelo"]
-    assert app.dataframe[0].value.equals(resultado.matriz_confusion)
-    app.radio(key=f"lab2_modo_{algoritmo}").set_value("Personalizada").run()
-    assert "resultado_lab2_modelo" not in app.session_state
+    resultado = app.session_state[f"resultado_lab2_modelo_{algoritmo}"]
+    assert any(
+        frame.value.equals(resultado.matriz_confusion) for frame in app.dataframe
+    )
+    if algoritmo != "NR":
+        app.radio(key=f"lab2_modo_{algoritmo}").set_value("Personalizada").run()
+        assert f"resultado_lab2_modelo_{algoritmo}" not in app.session_state
+
+
+def test_model_settings_and_results_are_scoped_to_each_classifier():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    app.radio(key="lab2_modo_KNN").set_value("Personalizada").run()
+    app.number_input(key="lab2_param_KNN_n_neighbors").set_value(7).run()
+    app.button(key="lab2_entrenar_KNN").click().run()
+    assert "resultado_lab2_modelo_KNN" in app.session_state
+
+    app.sidebar.button(key="nav_clasificacion").click().run()
+    app.button(key="lab2_entrenar_RF").click().run()
+    assert "resultado_lab2_modelo_RF" in app.session_state
+    assert "resultado_lab2_modelo_KNN" in app.session_state
+
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert app.radio(key="lab2_modo_KNN").value == "Personalizada"
+    assert app.number_input(key="lab2_param_KNN_n_neighbors").value == 7
+    assert "resultado_lab2_modelo_KNN" in app.session_state
+    assert "resultado_lab2_modelo_RF" in app.session_state
+    assert not app.exception
 
 
 def test_result_signature_detects_content_and_target_changes():

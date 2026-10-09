@@ -52,8 +52,13 @@ but does not yet provide consistent typed class configuration.
 - RDD: on (global), observed with gentle-ai review mode status. Candidate consent
   remains separate. Last reviewed boundary: `d3fe83a` (T2 reliability review
   acknowledged; authority burned).
-- Authored running count: 538 (T2 commit `d3fe83a`). Commit/slice evidence:
-  T2 `d3fe83a`; T3 remains uncommitted pending parent spot check and review.
+- Authored running count: 538 through T2 commit `d3fe83a`. Commit/slice evidence:
+  T2 `d3fe83a`; T3 `d0e1fba` (256 authored lines; 79 verified lines + 52
+  full-suite subtests;
+  parent spot-check 22 focused cases). Native assessment for `d3fe83a..d0e1fba`
+  was medium / under_budget. The reviewed boundary remains `d3fe83a`; pending
+  slice count is 256. No PASS or approved review is inferred; the parent owns
+  candidate review and the next reviewed boundary.
 
 ## Checklist
 
@@ -116,13 +121,42 @@ but does not yet provide consistent typed class configuration.
   reported.
   Runtime harness: N/A; no Streamlit server/browser was authorized. Rollback:
   revert the navigation and shared rendering adapter changes, the two design
-  map updates, and their navigation tests. Parent to record T3 authored lines,
-  commit identity, and next RDD boundary after spot check/review.
-- [ ] T4 — Give every available classifier its own action/view and add the
+  map updates, and their navigation tests. Commit `d0e1fba`; 256 authored lines,
+  79 verified
+  lines + 52 full-suite subtests and parent spot-check of 22 focused cases.
+  Native assessment for `d3fe83a..d0e1fba` was medium / under_budget; reviewed
+  boundary remains `d3fe83a`, pending slice count 256. No approval is inferred.
+- [x] T4 — Give every available classifier its own action/view and add the
   source-target balance chart before training.
-  Route: delegated; shared model UI and EDA visualization.
-  Checks: all classifier routes, target counts/proportions/missing values,
-  rare classes, no target leakage, no implicit training.
+  Route: delegated direct; shared classifier renderer and EDA-owned chart.
+  Outcome: KNN, decision tree, Random Forest, XGBoost, AdaBoost, and Naive Bayes
+  each have a separate sidebar route and call the shared renderer. Parameters
+  and results are keyed per classifier; Naive Bayes uses the existing public NR
+  model entry point without entering the five-model experiment catalog. The
+  selected source target is summarized with class counts/proportions, a separate
+  missing-value count, rare-class warnings, and an EDA-owned bar figure before
+  model execution. Numeric labels use an explicit categorical chart axis;
+  collision-safe class data supports target names `Cantidad` and `Proporción`;
+  unobserved categorical values are excluded from stats and rarity warnings.
+  No chart or route trains a model implicitly. Removed the
+  legacy LAB02/individual-model wording from visible navigation and corrected
+  `_render_eda`'s ownership docstring.
+  Checks: AppTest covers all six separate routes and model execution, absence of
+  algorithm selector, per-model settings/results preservation, numeric classes,
+  missing target values, rare classes, spaced numeric labels, target names that
+  collide with metric labels, unobserved categories, missing-denominator
+  proportions, and no target mutation. Focused command (four UI/classification
+  suites) — 45 passed, 22 subtests passed in 18.39s. Full command with thread
+  limits and pytest cache disabled — `OPENBLAS_NUM_THREADS=1
+  OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_NUM_THREADS=1
+  /tmp/framework-start-lab2-venv/bin/python -m pytest -p no:cacheprovider -q` —
+  82 passed, 52 subtests passed in 32.70s. `git diff --check` passes. Ruff checks
+  passed on touched modules except `eda.py` and `streamlit_app.py`, which retain
+  pre-existing lint findings; no new findings were reported in the changed
+  lines. Runtime harness: N/A; no server launched.
+  Rollback: revert the T4 navigation/configuration/rendering, EDA balance factory,
+  state scoping, and corresponding tests; no domain training API was changed.
+  Commit: pending parent-owned candidate freeze/commit.
 - [ ] T5 — Unify comparison and results UX and repair confirmed execution/state
   defects. Remove LAB02 and Modelo individual from user-facing copy.
   Route: delegated; experiment rendering, state, and navigation.
@@ -142,10 +176,10 @@ but does not yet provide consistent typed class configuration.
 
 ## Progress and next step
 
-Read-only audit and baseline completed. The selected Streamlit AppTest/focused
-tests and full pytest suite pass, but no per-model failure has been reproduced
-from the existing tests; T1 therefore remains open pending the concrete user
-error scenario/traceback. Next: use the authorized AppTest or minimal command
-for each reported scenario and record exact behavior before proposing a source
-fix. Preserve each observed check and commit identity here; update the pending
-Engram mirror only after host session registration.
+T1 remains open pending the concrete user error scenario/traceback. T2 and T3
+are committed on `lab_2`; T3's native review assessment is medium/under-budget,
+not approved. T4 implementation and checks are complete but remain uncommitted
+for the parent-owned spot check, normalization, candidate assessment, and work-
+unit commit. Next: parent to run the required structural spot check and review
+handoff; T5 remains unstarted. Preserve each observed check and commit identity
+here; update the pending Engram mirror only after host session registration.

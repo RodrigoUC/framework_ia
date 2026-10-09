@@ -49,6 +49,9 @@ def sincronizar_contexto(
             "lab2_firma_modelo",
         ):
             estado.pop(clave, None)
+        for clave in tuple(estado):
+            if clave.startswith("resultado_lab2_modelo_"):
+                estado.pop(clave, None)
         estado["clasificacion_contexto"] = firma
     return firma
 
