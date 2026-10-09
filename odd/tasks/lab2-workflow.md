@@ -375,6 +375,18 @@ but does not yet provide consistent typed class configuration.
 
 ## Progress and next step
 
+Latest work-unit commits: `83e5f74` ACP overlay (181 authored lines) and
+`a33b9b8` shared summary/saved comparison/percentage results (1,137 authored
+lines). Parent spot check passed 25 UI tests in 9.45s. Native range assessment
+against `a154181` was medium, 1,306 net authored changed lines; user granted.
+Reliability review approved; exact acknowledgement burned authority for
+`review-dccd235fdfd1c9c5`. Latest reviewed boundary: `a33b9b8`.
+Nonblocking advisory R3-001 confirms the already-disclosed crowded ACP label
+intersection with CP2. It remains separate follow-up work; no correction
+transition or new review on the consumed candidate was requested.
+T12-T14 are committed and verified; T11 remains partial for that visual case.
+All commits are local on `lab_2`; no main integration or remote publication.
+
 T1 remains open pending the concrete user error scenario/traceback. T2–T5 are
 committed on `lab_2`; all due native reviews were approved and acknowledged,
 with T5 the latest reviewed boundary. T6's headless regression and projection
