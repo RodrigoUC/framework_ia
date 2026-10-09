@@ -4,19 +4,13 @@ from __future__ import annotations
 
 import streamlit as st
 
-NOMBRES_MODELOS = {
-    "KNN": "KNN · vecinos cercanos",
-    "DT": "DT · árbol de decisión",
-    "RF": "Random Forest",
-    "XGBoost": "XGBoost",
-    "AdaBoost": "AdaBoost",
-}
-METRICAS_SELECCION = {
-    "f1_macro": "F1 macro",
-    "accuracy": "Accuracy",
-    "precision_macro": "Precisión macro",
-    "recall_macro": "Recall macro",
-}
+from ..utils import (
+    CONFIGURACIONES_MODELO,
+    METRICAS_SELECCION,
+    NOMBRES_MODELOS,
+)
+
+__all__ = ["METRICAS_SELECCION", "NOMBRES_MODELOS", "parametros_individuales"]
 
 
 def parametros_individuales(algoritmo: str) -> dict:
@@ -31,93 +25,33 @@ def parametros_individuales(algoritmo: str) -> dict:
     if modo == "Estándar":
         return {}
     prefijo = f"lab2_param_{algoritmo}"
-    c1, c2 = st.columns(2)
-    if algoritmo == "KNN":
-        return {
-            "n_neighbors": c1.number_input(
-                "Vecinos (k)", 1, 99, 5, key=f"{prefijo}_k", persist_state="session"
-            ),
-            "weights": c2.selectbox(
-                "Pesos",
-                ["uniform", "distance"],
-                key=f"{prefijo}_weights",
+    columnas = st.columns(2)
+    resultado = {}
+    for indice, parametro in enumerate(CONFIGURACIONES_MODELO[algoritmo].parametros):
+        columna = columnas[indice % 2]
+        clave = f"{prefijo}_{parametro.nombre}"
+        if parametro.tipo == "select":
+            formato = None
+            if parametro.formato == "distance":
+                formato = lambda n: "Euclidiana (p=2)" if n == 2 else "Manhattan (p=1)"
+            valor = columna.selectbox(
+                parametro.etiqueta,
+                list(parametro.opciones),
+                key=clave,
                 persist_state="session",
-            ),
-            "p": st.selectbox(
-                "Distancia de Minkowski",
-                [2, 1],
-                format_func=lambda n: (
-                    "Euclidiana (p=2)" if n == 2 else "Manhattan (p=1)"
-                ),
-                key=f"{prefijo}_p",
-                persist_state="session",
-            ),
-        }
-    if algoritmo in {"DT", "RF"}:
-        profundidad = c1.number_input(
-            "Profundidad máxima (0 = sin límite)",
-            0,
-            100,
-            0,
-            key=f"{prefijo}_depth",
-            persist_state="session",
-        )
-        resultado = {
-            "max_depth": profundidad or None,
-            "min_samples_split": c2.number_input(
-                "Mínimo de muestras para dividir",
-                2,
-                100,
-                2,
-                key=f"{prefijo}_split",
-                persist_state="session",
-            ),
-        }
-        if algoritmo == "RF":
-            resultado["n_estimators"] = st.number_input(
-                "Número de árboles",
-                10,
-                1000,
-                100,
-                10,
-                key=f"{prefijo}_n",
-                persist_state="session",
+                **({"format_func": formato} if formato is not None else {}),
             )
         else:
-            resultado["criterion"] = st.selectbox(
-                "Criterio",
-                ["gini", "entropy", "log_loss"],
-                key=f"{prefijo}_criterion",
+            valor = columna.number_input(
+                parametro.etiqueta,
+                min_value=parametro.minimo,
+                max_value=parametro.maximo,
+                value=parametro.valor,
+                step=parametro.paso,
+                key=clave,
                 persist_state="session",
             )
-        return resultado
-    resultado = {
-        "n_estimators": c1.number_input(
-            "Número de estimadores",
-            10,
-            1000,
-            100 if algoritmo == "XGBoost" else 50,
-            10,
-            key=f"{prefijo}_n",
-            persist_state="session",
-        ),
-        "learning_rate": c2.number_input(
-            "Tasa de aprendizaje",
-            0.01,
-            2.0,
-            0.3 if algoritmo == "XGBoost" else 1.0,
-            0.01,
-            key=f"{prefijo}_lr",
-            persist_state="session",
-        ),
-    }
-    if algoritmo == "XGBoost":
-        resultado["max_depth"] = st.number_input(
-            "Profundidad máxima",
-            1,
-            30,
-            6,
-            key=f"{prefijo}_depth",
-            persist_state="session",
-        )
+            if parametro.tipo == "depth":
+                valor = valor or None
+        resultado[parametro.nombre] = valor
     return resultado

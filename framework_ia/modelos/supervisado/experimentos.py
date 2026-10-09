@@ -13,10 +13,11 @@ from typing import Any
 import pandas as pd
 
 from ...resultados import ResultadoExperimentoClasificacion
+from ...utils import METRICAS_SELECCION as ETIQUETAS_METRICAS
 from .clasificacion import ALGORITMOS_LAB2, configuraciones_lab2, normalizar_algoritmo
 from .particiones import comprobar_clases, dividir_indices
 
-METRICAS_SELECCION = ("accuracy", "precision_macro", "recall_macro", "f1_macro")
+METRICAS_SELECCION = tuple(ETIQUETAS_METRICAS)
 COLUMNAS_TABLA = (
     "algoritmo",
     "configuracion",

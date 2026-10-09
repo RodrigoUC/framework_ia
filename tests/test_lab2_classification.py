@@ -22,7 +22,11 @@ from framework_ia.modelos.supervisado import Clasificacion, Supervisado
 from framework_ia.modelos.supervisado.clasificacion import configuraciones_lab2
 from framework_ia.modelos.supervisado.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.resultados import ResultadoParticion
-from framework_ia.utils import ConfiguracionParticion
+from framework_ia.utils import (
+    CONFIGURACIONES_MODELO,
+    ConfiguracionParticion,
+    configuraciones_experimento,
+)
 
 
 def synthetic(n=120, classes=2):
@@ -301,6 +305,20 @@ class ClasificacionLab2Tests(unittest.TestCase):
         )
         first["KNN"][0]["parametros"]["n_neighbors"] = 100
         self.assertEqual(configuraciones_lab2()["KNN"][0]["parametros"], {})
+
+    def test_shared_model_configuration_covers_parameter_metadata_and_fresh_defaults(
+        self,
+    ):
+        self.assertEqual(
+            tuple(CONFIGURACIONES_MODELO), ("KNN", "DT", "RF", "XGBoost", "AdaBoost")
+        )
+        self.assertEqual(
+            [item.nombre for item in CONFIGURACIONES_MODELO["KNN"].parametros],
+            ["n_neighbors", "weights", "p"],
+        )
+        first = configuraciones_experimento()
+        first["RF"][0]["parametros"]["sentinel"] = True
+        self.assertNotIn("sentinel", configuraciones_lab2()["RF"][0]["parametros"])
 
     def test_benchmark_all_five_reproducible_and_exports_effective_parameters(self):
         first = Clasificacion(dataframe=self.data, target="target").experimentar(

@@ -23,6 +23,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils.multiclass import type_of_target
 
 from ...resultados import ResultadoClasificacion, ResultadoParticion
+from ...utils import ALGORITMOS_LAB2, configuraciones_experimento
 from .base import Supervisado
 from .particiones import (
     comprobar_clases,
@@ -31,8 +32,6 @@ from .particiones import (
     validar_particion,
 )
 from .preprocesamiento import PreprocesadorSupervisado
-
-ALGORITMOS_LAB2 = ("KNN", "DT", "RF", "XGBoost", "AdaBoost")
 
 
 def normalizar_algoritmo(algoritmo: str) -> str:
@@ -66,75 +65,8 @@ def normalizar_algoritmo(algoritmo: str) -> str:
 
 
 def configuraciones_lab2() -> dict[str, list[dict[str, Any]]]:
-    """Configuración estándar de sklearn/XGBoost y dos variantes acotadas.
-
-    La semilla y n_jobs=1 son controles de reproducibilidad, no optimización.
-    Se devuelven estructuras nuevas en cada llamada para permitir su edición.
-    """
-    return {
-        "KNN": [
-            {"nombre": "estandar", "parametros": {}},
-            {
-                "nombre": "vecinos_3_distancia",
-                "parametros": {"n_neighbors": 3, "weights": "distance"},
-            },
-            {"nombre": "vecinos_9_manhattan", "parametros": {"n_neighbors": 9, "p": 1}},
-        ],
-        "DT": [
-            {"nombre": "estandar", "parametros": {}},
-            {
-                "nombre": "profundidad_4",
-                "parametros": {"max_depth": 4, "min_samples_leaf": 2},
-            },
-            {
-                "nombre": "entropia_8",
-                "parametros": {"criterion": "entropy", "max_depth": 8},
-            },
-        ],
-        "RF": [
-            {"nombre": "estandar", "parametros": {}},
-            {
-                "nombre": "profundidad_6",
-                "parametros": {"max_depth": 6, "min_samples_leaf": 2},
-            },
-            {
-                "nombre": "200_arboles",
-                "parametros": {"n_estimators": 200, "max_features": "log2"},
-            },
-        ],
-        "XGBoost": [
-            {"nombre": "estandar", "parametros": {}},
-            {
-                "nombre": "profundidad_3",
-                "parametros": {
-                    "max_depth": 3,
-                    "learning_rate": 0.1,
-                    "n_estimators": 100,
-                },
-            },
-            {
-                "nombre": "submuestreo",
-                "parametros": {
-                    "max_depth": 4,
-                    "learning_rate": 0.05,
-                    "n_estimators": 150,
-                    "subsample": 0.8,
-                    "colsample_bytree": 0.8,
-                },
-            },
-        ],
-        "AdaBoost": [
-            {"nombre": "estandar", "parametros": {}},
-            {
-                "nombre": "100_estimadores",
-                "parametros": {"n_estimators": 100, "learning_rate": 0.5},
-            },
-            {
-                "nombre": "200_estimadores",
-                "parametros": {"n_estimators": 200, "learning_rate": 0.1},
-            },
-        ],
-    }
+    """Compatibility API for the shared experiment configuration registry."""
+    return configuraciones_experimento()
 
 
 class _XGBoostEtiquetas:
