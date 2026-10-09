@@ -51,8 +51,8 @@ def ejecutar_comparacion(app):
 def test_navigation_separates_configuration_and_read_only_results():
     app = nueva_app()
     app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("Todavía no hay una comparación" in alerta.value for alerta in app.info)
-    assert not app.dataframe
+    assert any("Todavía no hay resultados" in alerta.value for alerta in app.info)
+    assert not any("accuracy_validacion" in frame.value for frame in app.dataframe)
     ejecutar_comparacion(app)
     with patch.object(
         Clasificacion,
@@ -198,7 +198,7 @@ def test_benchmark_controls_persist_and_changes_invalidate_results():
     app.slider(key="lab2_validacion").set_value(25).run()
     assert "resultado_lab2_experimento" not in app.session_state
     app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("debe ejecutar de nuevo" in i.value for i in app.info)
+    assert any("ejecute de nuevo" in i.value for i in app.info)
 
 
 @pytest.mark.parametrize(
@@ -226,6 +226,33 @@ def test_features_and_source_changes_invalidate_benchmark():
     assert "resultado_lab2_experimento" not in app.session_state
 
 
+def test_results_route_invalidates_stale_classification_without_rendering_controls():
+    app = nueva_app()
+    ejecutar_comparacion(app)
+    app.session_state["clasif_random_state"] = 99
+    app.sidebar.button(key="nav_lab2_resultados").click().run()
+    assert not app.exception
+    assert "resultado_lab2_experimento" not in app.session_state
+    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
+    assert any("ejecute de nuevo" in alerta.value for alerta in app.info)
+
+
+def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair():
+    app = nueva_app()
+    ejecutar_comparacion(app)
+    app.session_state["dataset_preparado"] = app.session_state["dataset_preparado"][
+        ["a"]
+    ]
+    app.session_state["vista_activa"] = "lab2_resultados"
+    app.run()
+    assert not app.exception
+    assert "resultado_lab2_experimento" not in app.session_state
+    assert any("al menos una columna objetivo" in info.value for info in app.info)
+    assert not any(
+        "accuracy_validacion" in frame.value.columns for frame in app.dataframe
+    )
+
+
 def test_global_imputation_blocks_lab2_until_source_is_restored():
     app = nueva_app()
     app.session_state["dataset_preparacion"] = {"imputar": True, "escalado": "Ninguno"}
@@ -243,6 +270,7 @@ def test_global_imputation_blocks_lab2_until_source_is_restored():
 def test_invalid_json_and_empty_selection_cannot_train():
     app = nueva_app()
     app.sidebar.button(key="nav_lab2_experimentos").click().run()
+    app.selectbox(key="lab2_modo_variantes").set_value("Editar variantes").run()
     app.text_area(key="lab2_config_json").set_value('{"KNN": []}').run()
     assert app.button(key="lab2_ejecutar").disabled
     assert any("al menos una configuración" in e.value for e in app.error)
@@ -348,6 +376,32 @@ def test_test_evaluation_failures_are_visible_without_expanding_metadata():
     assert any("Valor faltante en prueba" in e.value for e in app.warning)
 
 
+def test_all_candidate_failures_remain_visible_without_claiming_a_winner():
+    from dataclasses import replace
+
+    app = nueva_app()
+    ejecutar_comparacion(app)
+    guardado = dict(app.session_state["resultado_lab2_experimento"])
+    resultado = guardado["resultado"]
+    tabla = resultado.tabla.copy()
+    tabla["estado"] = "error"
+    tabla["error"] = "Parámetro incompatible"
+    guardado["resultado"] = replace(
+        resultado,
+        tabla=tabla,
+        mejores={},
+        mejor_algoritmo=None,
+    )
+    app.session_state["resultado_lab2_experimento"] = guardado
+    app.sidebar.button(key="nav_lab2_resultados").click().run()
+    assert not app.exception
+    assert any(
+        "configuraciones no terminaron" in warning.value for warning in app.warning
+    )
+    assert not any("Mejor algoritmo" in item.value for item in app.success)
+    assert any("error" in frame.value.columns for frame in app.dataframe)
+
+
 def test_applying_a_new_global_split_invalidates_read_only_results():
     app = nueva_app()
     ejecutar_comparacion(app)
@@ -356,4 +410,4 @@ def test_applying_a_new_global_split_invalidates_read_only_results():
     assert not app.exception
     assert "resultado_lab2_experimento" not in app.session_state
     app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("Todavía no hay una comparación" in e.value for e in app.info)
+    assert any("Todavía no hay resultados" in e.value for e in app.info)

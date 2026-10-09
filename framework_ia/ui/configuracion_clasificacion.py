@@ -175,3 +175,45 @@ def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
         particion.huella if particion is not None else None,
         *parametros,
     )
+
+
+def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | None:
+    """Build the effective configuration from saved controls without rendering widgets."""
+    if len(datos.columns) < 2:
+        return None
+    objetivo = estado.get("clasif_target", datos.columns[-1])
+    if objetivo not in datos.columns:
+        objetivo = datos.columns[-1]
+    features = [columna for columna in datos.columns if columna != objetivo]
+    features_guardadas = estado.get("clasif_features", features)
+    if any(columna not in features for columna in features_guardadas):
+        features_guardadas = features
+    particion = estado.get("particion_global")
+    usar_particion = particion is not None and estado.get(
+        "clasif_usar_particion_global", False
+    )
+    return {
+        "target": objetivo,
+        "features": features_guardadas,
+        "test_size": particion.porcentaje_test
+        if usar_particion
+        else state_value(estado, "clasif_test_size", 25) / 100,
+        "random_state": int(
+            particion.semilla
+            if usar_particion
+            else state_value(estado, "clasif_random_state", 42)
+        ),
+        "estratificar": particion.columna_estratificacion is not None
+        if usar_particion
+        else state_value(estado, "clasif_strat", True),
+        "incluir_categoricas": state_value(estado, "clasif_incluir_categoricas", False),
+        "imputar": state_value(estado, "clasif_imputar", True),
+        "estandarizar": state_value(estado, "clasif_escalar", True),
+        "usar_particion_global": bool(usar_particion),
+        "particion_global": particion if usar_particion else None,
+    }
+
+
+def state_value(estado, clave: str, predeterminado):
+    """Read a widget value with the same default used by its renderer."""
+    return estado.get(clave, predeterminado)

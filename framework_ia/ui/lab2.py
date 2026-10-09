@@ -118,6 +118,9 @@ def render_modelo_individual(
                     **parametros,
                 )
             st.session_state[resultado_modelo] = resultado
+            st.session_state[f"contexto_lab2_{estado_modelo}"] = _contexto_ejecucion(
+                configuracion
+            )
             st.success(
                 "Modelo entrenado. Las métricas siguientes corresponden a prueba."
             )
@@ -136,18 +139,35 @@ def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
     predefinidas = configuraciones_lab2()
     configuraciones = {codigo: predefinidas[codigo] for codigo in algoritmos}
     valido = True
-    with st.expander("Personalizar variantes (JSON)"):
-        st.caption(
-            'Opcional: un objeto por algoritmo con una lista de {"nombre": ..., "parametros": {...}}. '
-            "Déjelo vacío para usar la configuración estándar y dos variantes de cada algoritmo."
-        )
-        texto = st.text_area(
-            "Configuraciones personalizadas",
-            value="",
-            key="lab2_config_json",
-            persist_state="session",
-            height=160,
-        )
+    modo = st.selectbox(
+        "Configuraciones por familia",
+        ["Variantes predefinidas", "Solo estándar", "Editar variantes"],
+        key="lab2_modo_variantes",
+        persist_state="session",
+        help="La comparación selecciona candidatos con validación y reserva prueba para la evaluación final.",
+    )
+    if modo == "Solo estándar":
+        configuraciones = {
+            codigo: [
+                variante
+                for variante in predefinidas[codigo]
+                if variante["nombre"] == "estandar"
+            ]
+            for codigo in algoritmos
+        }
+    elif modo == "Editar variantes":
+        with st.expander("Editar parámetros avanzados", expanded=False):
+            st.caption(
+                'Use un objeto JSON por familia: {"KNN": [{"nombre": "...", "parametros": {...}}]}. '
+                "Las variantes predefinidas se conservan en las familias que deje sin editar."
+            )
+            texto = st.text_area(
+                "Variantes JSON",
+                value="",
+                key="lab2_config_json",
+                persist_state="session",
+                height=130,
+            )
         if texto.strip():
             try:
                 personalizadas = json.loads(texto)
@@ -190,6 +210,10 @@ def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
         for codigo, variantes in configuraciones.items()
         for variante in variantes
     ]
+    st.markdown("#### Revisión de candidatos")
+    st.caption(
+        "Revise las familias, variantes y parámetros antes de ejecutar; no se entrena hasta pulsar el botón."
+    )
     st.dataframe(
         pd.DataFrame(filas),
         hide_index=True,
@@ -202,6 +226,7 @@ def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
 def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
     """Compara variantes en validación y evalúa solo los ganadores en prueba."""
     st.markdown("### Comparar configuraciones")
+    st.markdown("#### 1. Elija familias y selección")
     st.info(
         "Entrenamiento ajusta los modelos; validación elige la mejor variante de cada "
         "algoritmo y el ganador global. Prueba se reserva para la evaluación final."
@@ -271,6 +296,7 @@ def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
     )
     sincronizar_ejecucion(st.session_state, "experimento", firma)
     cantidad = sum(len(variantes) for variantes in configuraciones.values())
+    st.markdown("#### 2. Revise y ejecute explícitamente")
     if st.button(
         f"Ejecutar comparación ({cantidad} configuraciones)",
         key="lab2_ejecutar",
@@ -311,18 +337,73 @@ def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
 
 def render_resultados(mostrar_figura: MostrarFigura) -> None:
     """Vista de lectura; nunca ajusta ni selecciona modelos al abrirse."""
+    st.markdown("### Resultados de clasificación")
+    individuales = [
+        (codigo, st.session_state.get(f"resultado_lab2_modelo_{codigo}"))
+        for codigo in (*NOMBRES_MODELOS, "NR")
+    ]
+    individuales = [
+        (codigo, resultado)
+        for codigo, resultado in individuales
+        if resultado is not None
+    ]
+    if individuales:
+        st.markdown("#### Modelos entrenados individualmente")
+        st.caption(
+            "Métricas de prueba de ejecuciones exploratorias; no utilice esta tabla "
+            "para seleccionar hiperparámetros o comparar contra la selección de validación."
+        )
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Algoritmo": NOMBRES_MODELOS.get(
+                            codigo, "Naive Bayes" if codigo == "NR" else codigo
+                        ),
+                        "Accuracy prueba": resultado.metricas["accuracy"],
+                        "Precisión macro prueba": resultado.metricas["precision"][
+                            "macro"
+                        ],
+                        "Recall macro prueba": resultado.metricas["recall"]["macro"],
+                        "F1 macro prueba": resultado.metricas["f1"]["macro"],
+                        "Parámetros efectivos": _json(
+                            getattr(
+                                resultado, "parametros", resultado.modelo.get_params()
+                            )
+                        ),
+                    }
+                    for codigo, resultado in individuales
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+            alt="Métricas de prueba y parámetros de los modelos entrenados individualmente",
+        )
+        for codigo, resultado in individuales:
+            contexto = st.session_state.get(f"contexto_lab2_modelo_{codigo}", {})
+            nombre = NOMBRES_MODELOS.get(
+                codigo, "Naive Bayes" if codigo == "NR" else codigo
+            )
+            with st.expander(f"{nombre} · prueba", expanded=False):
+                st.caption(
+                    f"Dataset: {contexto.get('dataset', 'desconocido')} · "
+                    f"Target: {contexto.get('target', 'desconocido')} · "
+                    f"Features: {', '.join(contexto.get('features', []))}"
+                )
+                _diagnostico(resultado, mostrar_figura, f"clasificacion_{codigo}")
     guardado = st.session_state.get("resultado_lab2_experimento")
     if guardado is None:
-        st.info(
-            "Todavía no hay una comparación vigente. Configure y ejecute los modelos "
-            "en Clasificación → Comparar configuraciones. Si cambió los datos o la "
-            "configuración, debe ejecutar de nuevo."
-        )
+        if not individuales:
+            st.info(
+                "Todavía no hay resultados. Entrene un modelo individual o ejecute "
+                "una comparación de configuraciones. Si cambió los datos o la "
+                "configuración, ejecute de nuevo."
+            )
         return
     resultado = guardado["resultado"]
     contexto = guardado["contexto"]
     metrica = guardado["metrica"]
-    st.markdown("### Selección por validación")
+    st.markdown("#### Comparación de configuraciones · selección por validación")
     st.caption(
         f"Dataset: {contexto['dataset']} · Target: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica: {METRICAS_SELECCION[metrica]}"
@@ -381,7 +462,7 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
     st.download_button(
         "Descargar comparación CSV",
         tabla.to_csv(index=False).encode("utf-8"),
-        "lab02_comparacion_validacion.csv",
+        "comparacion_validacion.csv",
         "text/csv",
         key="lab2_descargar_tabla",
     )
@@ -395,7 +476,7 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
         st.download_button(
             "Descargar metadatos JSON",
             _json(evidencia),
-            "lab02_metadatos.json",
+            "metadatos_comparacion.json",
             "application/json",
             key="lab2_descargar_meta",
         )
@@ -471,7 +552,7 @@ def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None
     st.download_button(
         "Descargar predicciones de prueba",
         predicciones.to_csv(index=True).encode("utf-8"),
-        f"lab02_predicciones_{resultado.algoritmo}.csv",
+        f"predicciones_{resultado.algoritmo}.csv",
         "text/csv",
         key=f"{prefijo}_predicciones",
     )

@@ -50,10 +50,27 @@ def sincronizar_contexto(
         ):
             estado.pop(clave, None)
         for clave in tuple(estado):
-            if clave.startswith("resultado_lab2_modelo_"):
+            if clave.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
                 estado.pop(clave, None)
         estado["clasificacion_contexto"] = firma
     return firma
+
+
+def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
+    """Remove classification evidence when the active data cannot be configured."""
+    for clave in tuple(estado):
+        if clave.startswith(
+            (
+                "resultado_modelos_clasificacion",
+                "resultado_lab2_modelo",
+                "contexto_lab2_modelo_",
+                "lab2_firma_modelo",
+                "resultado_lab2_experimento",
+                "lab2_firma_experimento",
+            )
+        ):
+            estado.pop(clave, None)
+    estado.pop("clasificacion_contexto", None)
 
 
 def sincronizar_ejecucion(

@@ -50,15 +50,16 @@ but does not yet provide consistent typed class configuration.
   PR or integration is authorized; no additional delivery choice is needed.
 - Work-unit commits stay local on lab_2. No PR is created implicitly.
 - RDD: on (global), observed with gentle-ai review mode status. Candidate consent
-  remains separate. Last reviewed boundary: `d3fe83a` (T2 reliability review
-  acknowledged; authority burned).
-- Authored running count: 538 through T2 commit `d3fe83a`. Commit/slice evidence:
-  T2 `d3fe83a`; T3 `d0e1fba` (256 authored lines; 79 verified lines + 52
-  full-suite subtests;
-  parent spot-check 22 focused cases). Native assessment for `d3fe83a..d0e1fba`
-  was medium / under_budget. The reviewed boundary remains `d3fe83a`; pending
-  slice count is 256. No PASS or approved review is inferred; the parent owns
-  candidate review and the next reviewed boundary.
+  remains separate. Last reviewed boundary: `780a868` (T4 approved/acknowledged;
+  authority burned).
+- Authored running count: 1,906 through T5 (538 through T2, plus T3 256, T4
+  445, and T5 667 authored additions/deletions including the task-document
+  update). T2 `d3fe83a`; T3 `d0e1fba`;
+  T4 `780a868`. Native assessment for `d3fe83a..d0e1fba` was medium /
+  under_budget; T4 review was approved and acknowledged, authority burned, and
+  the last reviewed boundary is now `780a868`. T5 remains uncommitted for the
+  parent-owned candidate check and work-unit commit. No review approval for T5
+  is inferred.
 
 ## Checklist
 
@@ -157,11 +158,44 @@ but does not yet provide consistent typed class configuration.
   Rollback: revert the T4 navigation/configuration/rendering, EDA balance factory,
   state scoping, and corresponding tests; no domain training API was changed.
   Commit: pending parent-owned candidate freeze/commit.
-- [ ] T5 — Unify comparison and results UX and repair confirmed execution/state
+- [x] T5 — Unify comparison and results UX and repair confirmed execution/state
   defects. Remove LAB02 and Modelo individual from user-facing copy.
   Route: delegated; experiment rendering, state, and navigation.
-  Checks: visible per-candidate errors, validation/test distinction, provenance,
-  stale-state invalidation, navigation preservation, read-only results.
+  Outcome: a separate legacy comparison-path mismatch was confirmed: its
+  renderer looked only in `resultado_modelos_clasificacion`, while T4's actual
+  trainer stores each individual result as `resultado_lab2_modelo_<code>`. This
+  mismatch is distinct from the original user-reported crashes, which remain
+  unconfirmed.
+  Removed the obsolete duplicate comparison route/renderer and made one
+  read-only Results route render individual-model results and validation-based
+  experiment outcomes in named sections. Compatible legacy RF/NR results are
+  projected into that destination without training. Results include a compact
+  side-by-side table of each trained algorithm's test metrics and effective
+  parameters, explicitly labeled exploratory and not for selection by test;
+  expanded details remain available per model. They show dataset, target, and
+  features for individual runs, and configuration/metric plus validation-vs-test
+  provenance for experiments. The route compares current data/configuration
+  signatures before rendering, so stale results disappear even when the user
+  navigates directly to results; it renders no training widgets or computation.
+  If fewer than two data columns remain, it clears stale results and shows an
+  actionable unavailable state. Comparison setup now has preset, standard-only, and
+  advanced JSON variant modes with an explicit candidate review and run step.
+  Candidate failures, no-winner states, and test-evaluation errors remain
+  visible/actionable. T4's omitted RF/NB comparison assertions were restored.
+  Checks: focused command (five required suites) — 54 passed, 22 subtests passed
+  in 20.92s; full suite — 86 passed, 52 subtests passed in 35.83s. `ruff format`
+  applied to changed modules/tests except `streamlit_app.py`, whose original
+  formatting was retained to avoid reformatting unrelated code; import-only Ruff
+  normalization was applied there. `git diff --check` passed. Full Ruff check remains non-clean with 16
+  pre-existing app findings after removing unreachable legacy code; no unrelated
+  lint cleanup was attempted. Runtime harness: N/A;
+  no Streamlit server launched. Rollback: revert the T5 results/configuration
+  state helper, shared results renderer, route removal/migration, and associated
+  tests; no classifier training/domain API changed. Commit pending parent-owned
+  spot check. Side-by-side metrics/parameters and validation-vs-test semantics
+  are covered; candidate navigation is asserted to call neither training nor
+  experimentation. T5 authored count: 667 including this document update; last
+  reviewed boundary: `780a868`.
 - [ ] T6 — Run full regression and bounded visual/accessibility verification;
   reconcile README and canonical UI maps with observed behavior.
   Route: delegated verification; parent structural readback and spot check.
@@ -176,10 +210,12 @@ but does not yet provide consistent typed class configuration.
 
 ## Progress and next step
 
-T1 remains open pending the concrete user error scenario/traceback. T2 and T3
-are committed on `lab_2`; T3's native review assessment is medium/under-budget,
-not approved. T4 implementation and checks are complete but remain uncommitted
-for the parent-owned spot check, normalization, candidate assessment, and work-
-unit commit. Next: parent to run the required structural spot check and review
-handoff; T5 remains unstarted. Preserve each observed check and commit identity
-here; update the pending Engram mirror only after host session registration.
+T1 remains open pending the concrete user error scenario/traceback. T2, T3, and
+T4 are committed on `lab_2`; T3's native review assessment is medium/
+under-budget, and T4 was approved/acknowledged. T5's parent-requested corrections
+are implemented and verified; it remains uncommitted for the parent-owned spot
+check, normalization, candidate assessment, and work-unit
+commit. Next: parent to run the T5 structural spot check and review handoff; then
+T6 verification remains. Preserve
+each observed check and commit identity here; update the pending Engram mirror
+only after host session registration.
