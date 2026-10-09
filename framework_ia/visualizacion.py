@@ -22,6 +22,38 @@ COLOR_TERCIARIO = "#3C7D65"
 PALETA_CUALITATIVA = px.colors.qualitative.T10
 
 
+def _posiciones_etiquetas_acp(
+    cargas: pd.DataFrame,
+) -> dict[object, tuple[float, float, int]]:
+    """Distributes labels in paper coordinates with pixel-based vertical spacing."""
+    grupos: dict[int, list[tuple[object, float]]] = {-1: [], 1: []}
+    for variable, fila in cargas.iterrows():
+        x, y = float(fila.iloc[0]), float(fila.iloc[1])
+        lado = 1 if x >= 0 else -1
+        grupos[lado].append((variable, y))
+
+    posiciones: dict[object, tuple[float, float, int]] = {}
+    bandas = {-1: (0.54, 0.91), 1: (0.09, 0.46)}
+    for lado, elementos in grupos.items():
+        ordenados = sorted(
+            elementos, key=lambda elemento: (elemento[1], str(elemento[0]))
+        )
+        if not ordenados:
+            continue
+        minimo_y, limite_y = bandas[lado]
+        separacion = (
+            (limite_y - minimo_y) / (len(ordenados) - 1) if len(ordenados) > 1 else 0
+        )
+        ys = [minimo_y + indice * separacion for indice in range(len(ordenados))]
+        posiciones.update(
+            {
+                variable: (0.42 if lado < 0 else 0.58, y, lado)
+                for (variable, _), y in zip(ordenados, ys, strict=True)
+            }
+        )
+    return posiciones
+
+
 class VisualizadorNoSupervisado:
     """Fábrica de figuras Plotly para los resultados no supervisados."""
 
@@ -97,7 +129,9 @@ class VisualizadorNoSupervisado:
         return figura
 
     @staticmethod
-    def sobreposicion_acp(resultado: ResultadoACP, max_variables: int = 20) -> go.Figure:
+    def sobreposicion_acp(
+        resultado: ResultadoACP, max_variables: int = 20
+    ) -> go.Figure:
         """Superpone observaciones y cargas en un biplot comparable."""
         VisualizadorNoSupervisado._validar_acp_2d(resultado)
         coordenadas = resultado.coordenadas.iloc[:, :2].copy()
@@ -108,6 +142,7 @@ class VisualizadorNoSupervisado:
 
         escala = coordenadas.abs().max(axis=0).replace(0, 1)
         puntos = coordenadas.divide(escala, axis="columns")
+        posiciones = _posiciones_etiquetas_acp(cargas)
         figura = go.Figure(
             go.Scatter(
                 x=puntos.iloc[:, 0],
@@ -119,6 +154,7 @@ class VisualizadorNoSupervisado:
         )
         for variable, fila in cargas.iterrows():
             x, y = float(fila.iloc[0]), float(fila.iloc[1])
+            etiqueta_x, etiqueta_y, lado = posiciones[variable]
             figura.add_annotation(
                 x=x,
                 y=y,
@@ -133,18 +169,53 @@ class VisualizadorNoSupervisado:
                 arrowcolor=COLOR_PRIMARIO,
                 arrowwidth=1.4,
             )
+            figura.add_shape(
+                type="line",
+                x0=0.2 + (x + 1.9) / 3.8 * 0.6,
+                y0=0.08 + (y + 1.9) / 3.8 * 0.84,
+                x1=0.4 if lado < 0 else 0.6,
+                y1=etiqueta_y,
+                xref="paper",
+                yref="paper",
+                line=dict(color="gray", width=0.8),
+                layer="below",
+            )
             figura.add_annotation(
-                x=x * 1.08,
-                y=y * 1.08,
+                x=etiqueta_x,
+                y=etiqueta_y,
+                xref="paper",
+                yref="paper",
                 text=str(variable),
                 showarrow=False,
+                xanchor="left" if lado > 0 else "right",
+                yanchor="middle",
                 font=dict(size=10),
             )
         figura.add_hline(y=0, line_dash="dash", line_color="gray")
         figura.add_vline(x=0, line_dash="dash", line_color="gray")
-        figura.update_xaxes(range=[-1.15, 1.15], title=coordenadas.columns[0])
-        figura.update_yaxes(range=[-1.15, 1.15], title=coordenadas.columns[1])
-        figura.update_layout(title="Sobreposición de observaciones y variables")
+        figura.update_xaxes(
+            range=[-1.9, 1.9],
+            title=coordenadas.columns[0],
+            domain=[0.2, 0.8],
+            constrain="domain",
+        )
+        figura.update_yaxes(
+            range=[-1.9, 1.9],
+            title=coordenadas.columns[1],
+            scaleanchor="x",
+            scaleratio=1,
+            domain=[0.08, 0.92],
+            constrain="domain",
+        )
+        max_etiquetas_lado = max(
+            sum(lado == lado_etiqueta for _, _, lado_etiqueta in posiciones.values())
+            for lado in (-1, 1)
+        )
+        figura.update_layout(
+            title="Sobreposición de observaciones y variables",
+            height=max(440, 260 + 26 * max_etiquetas_lado),
+            margin=dict(l=70, r=70, t=60, b=60),
+        )
         return figura
 
     @staticmethod

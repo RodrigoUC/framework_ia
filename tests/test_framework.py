@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -88,6 +89,103 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertIsInstance(figura, go.Figure)
         biplot = VisualizadorNoSupervisado.sobreposicion_acp(resultado)
         self.assertIsInstance(biplot, go.Figure)
+
+    def test_acp_overlay_preserves_scores_and_spreads_left_right_labels(self) -> None:
+        resultado = Cluster(
+            dataframe=self.datos,
+            features=["x", "y", "z"],
+        ).ACP(n_componentes=2)
+        coordenadas = resultado.coordenadas.copy()
+        cargas_originales = resultado.cargas.copy()
+
+        for cantidad in (4, 12, 20):
+            variables = [f"variable_{indice:02}" for indice in range(cantidad)]
+            lados = [1 if indice % 2 == 0 else -1 for indice in range(cantidad)]
+            cargas = pd.DataFrame(
+                {
+                    resultado.cargas.columns[0]: [
+                        lado * (0.88 + indice / (cantidad * 20))
+                        for indice, lado in enumerate(lados)
+                    ],
+                    resultado.cargas.columns[1]: np.linspace(-0.015, 0.015, cantidad),
+                },
+                index=variables,
+            )
+            figura = VisualizadorNoSupervisado.sobreposicion_acp(
+                replace(resultado, cargas=cargas)
+            )
+
+            escala = coordenadas.abs().max(axis=0).replace(0, 1)
+            puntos = coordenadas.iloc[:, :2].divide(escala.iloc[:2], axis="columns")
+            np.testing.assert_allclose(figura.data[0].x, puntos.iloc[:, 0])
+            np.testing.assert_allclose(figura.data[0].y, puntos.iloc[:, 1])
+
+            flechas = [
+                anotacion
+                for anotacion in figura.layout.annotations
+                if anotacion.showarrow
+            ]
+            self.assertEqual(
+                [(anotacion.x, anotacion.y) for anotacion in flechas],
+                list(zip(cargas.iloc[:, 0], cargas.iloc[:, 1], strict=True)),
+            )
+            etiquetas = {
+                anotacion.text: anotacion
+                for anotacion in figura.layout.annotations
+                if not anotacion.showarrow
+            }
+            self.assertEqual(set(etiquetas), set(variables))
+            self.assertEqual(len(figura.layout.shapes), cantidad + 2)
+            self.assertEqual(tuple(figura.layout.xaxis.range), (-1.9, 1.9))
+            self.assertEqual(tuple(figura.layout.yaxis.range), (-1.9, 1.9))
+            self.assertEqual(figura.layout.xaxis.constrain, "domain")
+            self.assertEqual(figura.layout.yaxis.constrain, "domain")
+            self.assertEqual(figura.layout.yaxis.scaleanchor, "x")
+            self.assertEqual(figura.layout.yaxis.scaleratio, 1)
+            self.assertTrue(
+                all(anotacion.xref == "paper" for anotacion in etiquetas.values())
+            )
+            self.assertGreaterEqual(
+                figura.layout.height, 260 + 26 * ((cantidad + 1) // 2)
+            )
+
+            for lado in (-1, 1):
+                grupo = [
+                    etiquetas[variable]
+                    for indice, variable in enumerate(variables)
+                    if lados[indice] == lado
+                ]
+                posiciones_y = sorted(anotacion.y for anotacion in grupo)
+                banda = (0.54, 0.91) if lado < 0 else (0.09, 0.46)
+                self.assertTrue(all(banda[0] <= y <= banda[1] for y in posiciones_y))
+                self.assertTrue(
+                    all(
+                        b - a >= (banda[1] - banda[0]) / (len(grupo) - 1) - 1e-9
+                        for a, b in zip(posiciones_y, posiciones_y[1:])
+                    )
+                )
+                self.assertTrue(
+                    all(
+                        abs(anotacion.x - (0.58 if lado > 0 else 0.42)) < 1e-9
+                        for anotacion in grupo
+                    )
+                )
+                self.assertTrue(
+                    all(
+                        anotacion.xanchor == ("left" if lado > 0 else "right")
+                        for anotacion in grupo
+                    )
+                )
+
+            circulo = VisualizadorNoSupervisado.circulo_correlacion(resultado)
+            geometria = next(
+                shape for shape in circulo.layout.shapes if shape.type == "circle"
+            )
+            self.assertEqual(
+                (geometria.x0, geometria.y0, geometria.x1, geometria.y1), (-1, -1, 1, 1)
+            )
+            pd.testing.assert_frame_equal(coordenadas, resultado.coordenadas)
+            pd.testing.assert_frame_equal(cargas_originales, resultado.cargas)
 
     def test_kmeans_kmedoids_y_hac_generan_clusters(self) -> None:
         modelo = Cluster(
