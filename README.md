@@ -22,12 +22,11 @@ En la barra lateral:
 
 1. Seleccione un CSV ubicado en `framework_start` o suba uno desde el navegador.
 2. Ajuste separador, decimal, codificación e índice según el archivo.
-3. Navegue por Datos, Exploración o los tres pilares: Agrupamiento,
-   Clasificación y Regresión.
-4. Seleccione una técnica; la configuración relevante aparece de forma
-   contextual en la barra lateral.
-5. Ejecute el análisis y consulte sus métricas, gráficos, trazabilidad y
-   exportaciones desde la vista activa.
+3. Navegue por Datos, Clustering, Clasificación, Resultados o Regresión.
+4. Seleccione una técnica; su configuración aparece en la vista correspondiente.
+5. Ejecute el análisis desde su vista. En Clasificación, abra **Resultados de
+   clasificación** para revisar ejecuciones individuales y comparaciones sin
+   entrenar de nuevo.
 
 En la vista **Datos y preparación** también puede:
 
@@ -39,9 +38,11 @@ En la vista **Datos y preparación** también puede:
   partición queda disponible para Clasificación (y, a futuro, Regresión),
   que pueden reutilizarla en vez de dividir los datos de nuevo.
 
-ACP, t-SNE y UMAP se mantienen bajo Exploración y reducción dimensional. La
-regresión aparece como pilar independiente, marcada como próxima mientras sus
-métodos sigan siendo una plantilla.
+EDA conserva sus gráficos e incorpora ACP como análisis explícito. K-Means y
+K-Medoids tienen acciones independientes; t-SNE y UMAP son proyecciones
+opcionales dentro de K-Means, no algoritmos de agrupamiento. La regresión
+aparece como pilar independiente, marcada como próxima mientras sus métodos
+sigan siendo una plantilla.
 
 El archivo `data/ejemplo_analisis.csv` permite comprobar la aplicación de inmediato;
 puede reemplazarse por cualquier otro CSV.
@@ -65,6 +66,7 @@ scripts/                       Automatización de Lab01 y empaquetado.
 tests/                         Pruebas automatizadas.
 data/                          Datasets locales de ejemplo.
 docs/lab01/                    Guías, plantilla y referencias del laboratorio.
+docs/lab02/                    Protocolo y reproducción de clasificación.
 ```
 
 La separación aplica responsabilidad única y composición: Streamlit no calcula
@@ -96,9 +98,9 @@ las versiones de scikit-learn que nombran el parámetro de iteraciones como
 | `framework_ia/modelos/supervisado/clasificacion.py` | KNN, DT, RF, XGBoost, AdaBoost y NR | Implementada |
 | `framework_ia/modelos/supervisado/regresion.py` | `Regresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
 
-Las clases supervisadas y sus métodos existen para completar el framework por
-etapas; `Clasificacion` incluye los cinco algoritmos del LAB 02, comparación por
-validación y evaluación en test reservado. Regresión permanece pendiente.
+`Clasificacion` incluye los cinco algoritmos del LAB 02, comparación por
+validación y evaluación en test reservado; también conserva Naive Bayes para
+entrenamiento individual. Regresión permanece pendiente.
 
 ## Uso desde Python
 
@@ -167,5 +169,7 @@ Murillo-Morera, J. D. (2026). *Paquete 1: Análisis de datos exploratorios (EDA)
 Consulte [la guía de implementación y reproducción](docs/lab02/README.md).
 Incluye KNN, árboles, Random Forest, XGBoost y AdaBoost, configuración estándar
 y variantes, selección por validación y test reservado, interfaz separada y CLI.
+La interfaz también ofrece Naive Bayes como modelo individual compatible;
+no forma parte de las cinco familias del experimento del laboratorio.
 Los CSV de Kaggle permanecen locales; no son automáticamente los archivos
 exactos del profesor. No se incluyen resultados académicos inventados.

@@ -50,16 +50,14 @@ but does not yet provide consistent typed class configuration.
   PR or integration is authorized; no additional delivery choice is needed.
 - Work-unit commits stay local on lab_2. No PR is created implicitly.
 - RDD: on (global), observed with gentle-ai review mode status. Candidate consent
-  remains separate. Last reviewed boundary: `780a868` (T4 approved/acknowledged;
-  authority burned).
-- Authored running count: 1,906 through T5 (538 through T2, plus T3 256, T4
-  445, and T5 667 authored additions/deletions including the task-document
-  update). T2 `d3fe83a`; T3 `d0e1fba`;
-  T4 `780a868`. Native assessment for `d3fe83a..d0e1fba` was medium /
-  under_budget; T4 review was approved and acknowledged, authority burned, and
-  the last reviewed boundary is now `780a868`. T5 remains uncommitted for the
-  parent-owned candidate check and work-unit commit. No review approval for T5
-  is inferred.
+  remains separate. Last reviewed boundary: `44b4989` (T5 approved/acknowledged;
+  authority burned). T3 and T4 were reviewed together; their nonblocking
+  coverage warning was resolved in T5.
+- Authored running count: 1,908 through T5 (T2 538, T3 256, T4 445, T5 669
+  additions/deletions including task-document changes). Work-unit commits:
+  T2 `d3fe83a`, T3 `d0e1fba`, T4 `780a868`, T5 `44b4989`.
+  T6 documentation changes remain uncommitted for the parent-owned work-unit
+  commit and any applicable candidate assessment.
 
 ## Checklist
 
@@ -157,7 +155,7 @@ but does not yet provide consistent typed class configuration.
   lines. Runtime harness: N/A; no server launched.
   Rollback: revert the T4 navigation/configuration/rendering, EDA balance factory,
   state scoping, and corresponding tests; no domain training API was changed.
-  Commit: pending parent-owned candidate freeze/commit.
+  Commit: `780a868`; reviewed with T3 and acknowledged, authority burned.
 - [x] T5 — Unify comparison and results UX and repair confirmed execution/state
   defects. Remove LAB02 and Modelo individual from user-facing copy.
   Route: delegated; experiment rendering, state, and navigation.
@@ -191,16 +189,39 @@ but does not yet provide consistent typed class configuration.
   lint cleanup was attempted. Runtime harness: N/A;
   no Streamlit server launched. Rollback: revert the T5 results/configuration
   state helper, shared results renderer, route removal/migration, and associated
-  tests; no classifier training/domain API changed. Commit pending parent-owned
-  spot check. Side-by-side metrics/parameters and validation-vs-test semantics
-  are covered; candidate navigation is asserted to call neither training nor
-  experimentation. T5 authored count: 667 including this document update; last
-  reviewed boundary: `780a868`.
+  tests; no classifier training/domain API changed. Side-by-side
+  metrics/parameters and validation-vs-test semantics are covered; candidate
+  navigation is asserted to call neither training nor experimentation. T5
+  authored count: 669 including this document update; commit `44b4989`.
+  Native review approved and acknowledged with no findings; authority burned.
+  Last reviewed boundary: `44b4989`.
 - [ ] T6 — Run full regression and bounded visual/accessibility verification;
   reconcile README and canonical UI maps with observed behavior.
   Route: delegated verification; parent structural readback and spot check.
-  Checks: python -m pytest -q, changed-UI detector, light/dark and viewport checks
-  when a browser/server is authorized and available. Record unavailable checks.
+  Observed: independent full regression with thread limits and cache disabled
+  after the bounded source correction — 86 passed, 52 subtests passed in 34.31s.
+  A bounded AppTest smoke
+  using 60 synthetic rows with noncontiguous indices executed real K-Means,
+  t-SNE and UMAP; both projections returned finite 60×2 coordinates aligned to
+  the cluster labels, color traces matched cluster counts, navigation reused
+  results, and parameter changes hid stale projections. The changed-UI
+  Impeccable detector returned `[]` for the five requested source modules.
+  Read-only Ruff exposed a new `F821` at `streamlit_app.py:1384`: an obsolete
+  `comparacion` branch called undefined `_render_comparacion`. Normal route
+  selection migrated that view to Results, so navigation tests did not exercise
+  the branch. The parent confirmed RED with `ruff --select F821` and removed
+  exactly that dead branch. Independent GREEN recheck of
+  `ruff check framework_ia/ui/streamlit_app.py --select F821` passed. Full Ruff
+  on the five changed modules remains non-clean with 21 other findings already
+  present before this bounded correction; no unrelated lint cleanup was done.
+  The parent owns the source fix; this verification worker made no source edits.
+  `DESIGN.md`, `.superdesign/design-system.md`, `README.md` and
+  `docs/lab02/README.md` now describe the observed navigation, six classifier
+  views, configuration variants and unified read-only results. Headless checks
+  do not verify rendered contrast, light/dark appearance, mobile viewport or
+  keyboard behavior; no server/browser launch was authorized. T6 remains
+  partial only for those browser-dependent checks. Parent focused tests and
+  structural readback are separate completion checks, pending at this record.
 - [ ] T7 — Produce real laboratory evidence and report material after verifying
   the required professor datasets, target columns, provenance, and report template.
   Route: delegated when prerequisites are provided.
@@ -210,12 +231,14 @@ but does not yet provide consistent typed class configuration.
 
 ## Progress and next step
 
-T1 remains open pending the concrete user error scenario/traceback. T2, T3, and
-T4 are committed on `lab_2`; T3's native review assessment is medium/
-under-budget, and T4 was approved/acknowledged. T5's parent-requested corrections
-are implemented and verified; it remains uncommitted for the parent-owned spot
-check, normalization, candidate assessment, and work-unit
-commit. Next: parent to run the T5 structural spot check and review handoff; then
-T6 verification remains. Preserve
-each observed check and commit identity here; update the pending Engram mirror
-only after host session registration.
+T1 remains open pending the concrete user error scenario/traceback. T2–T5 are
+committed on `lab_2`; all due native reviews were approved and acknowledged,
+with T5 the latest reviewed boundary. T6's headless regression and projection
+smoke passed, and documentation was reconciled. The parent removed the dead
+`comparacion` branch, the independent `F821` recheck passed, and the full suite
+passed again on the corrected bytes. Visual/accessibility browser checks remain
+pending authorization. Next: parent reads back the T6 docs, finishes its
+focused check, and owns the commit/review decision; obtain permission
+before any server/browser visual pass. T7 requires the professor's datasets,
+provenance and report template. Do not invent academic results. Update the
+pending Engram mirror only after host session registration.

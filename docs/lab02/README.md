@@ -12,6 +12,15 @@ AdaBoost en `Supervisado → Clasificacion`. Conserva RF/NR y la organización
 ACP, t-SNE y UMAP siguen siendo métodos de `Cluster`, como pide el refactor
 del profesor. Regresión no forma parte de este cambio.
 
+En Streamlit, las seis vistas individuales (incluida Naive Bayes como
+compatibilidad, fuera de las cinco familias experimentales) permiten entrenar
+explícitamente. Antes del entrenamiento se presenta el balance del objetivo.
+**Comparar configuraciones** permite usar variantes predefinidas, solo el
+estándar o variantes JSON; presenta los candidatos antes de ejecutar.
+**Resultados de clasificación** reúne, sin volver a entrenar, los modelos
+individuales y los experimentos. La tabla de métricas de prueba individuales
+es exploratoria: la selección de variantes se hace con validación, no con test.
+
 - `Clasificacion.entrenar(...)`: una configuración, con train/test separado.
 - `Clasificacion.experimentar(...)`: configuración estándar y variantes por
   algoritmo, selección por F1 macro en validación y evaluación final en test.
@@ -128,6 +137,8 @@ python -m pytest -q
 
 Las pruebas de software usan fixtures sintéticos; no son experimentos académicos
 sobre los CSV del profesor. Un resultado de prueba nunca sustituye la tabla real.
+La verificación headless no certifica contraste visual, navegación por teclado
+ni comportamiento en distintos tamaños de pantalla.
 La entrega final exige informe con definiciones, experimentación y análisis,
 plantilla oficial en LaTeX/Overleaf y ZIP con IDs de integrantes. Esta
 implementación no presenta un informe final ni entrega archivos en Moodle.

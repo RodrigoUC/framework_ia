@@ -46,24 +46,27 @@ colapsados hasta que el usuario los necesite.
 
 - Encabezado compacto con marca geométrica, nombre del dataset, filas,
   columnas, nulos y estado de preparación.
-- Navegación multinivel y expandible: Datos; Exploración; y los tres pilares
-  del framework: **Agrupamiento**, **Clasificación** y **Regresión**. El segundo
-  nivel presenta familias y técnicas disponibles:
-  - Clustering → EDA + ACP; K-Means; K-Medoids; HAC. K-Means and K-Medoids
-    are separate destinations, not a selector inside one screen.
-  - EDA keeps its existing charts. ACP is an explicit optional analysis within
-    that contextual destination; it is not a standalone navigation section.
-  - K-Means → optional t-SNE and UMAP visual projections, explicitly executed
-    and colored by cluster assignments when available. They are not algorithms.
-  - Clasificación → Random Forest, Naive Bayes.
+- Navegación lateral: Datos; **Clustering**, **Clasificación** y **Regresión**
+  como grupos expandibles; y Resultados de clasificación como destino propio.
+  Las vistas disponibles son:
+  - Clustering → EDA y ACP; K-Means; K-Medoids; HAC. K-Means y K-Medoids
+    tienen destinos separados, no un selector compartido.
+  - EDA conserva sus gráficos; ACP se ejecuta mediante una acción opcional
+    dentro de esa vista, sin destino independiente.
+  - K-Means → proyecciones opcionales t-SNE y UMAP, ejecutadas explícitamente
+    y coloreadas por asignación de cluster cuando existe. No agrupan datos.
+  - Clasificación → KNN; Árbol de decisión; Random Forest; XGBoost;
+    AdaBoost; Naive Bayes; Comparar configuraciones.
+  - Resultados de clasificación → una vista de solo lectura que distingue
+    ejecuciones individuales de selección experimental por validación.
   - Regresión → lineal simple y múltiple (marcadas como próximas mientras sean
     plantillas).
   El ítem activo debe mostrar toda la ruta (breadcrumb), y el menú conserva
   sus grupos abiertos al navegar entre técnicas hermanas. Etiquetas técnicas
   en mayúscula con índice.
 - Acción principal única por vista: “Ejecutar análisis”, en verde bosque.
-- Cada resultado muestra configuración/semilla junto a las métricas para hacer
-  la comparación trazable, con una insignia de estado monoespaciada.
+- Los resultados identifican dataset, objetivo, predictoras, parámetros y
+  semilla junto a métricas de prueba o validación según corresponda.
 - Gráficos grandes en paneles bento, con una lectura o conclusión breve debajo;
   tablas en expandibles y CSV como acción secundaria.
 - En pantallas estrechas, apilar controles antes de resultados y preservar la

@@ -1379,9 +1379,6 @@ def main() -> None:
             datos, configuracion_clasif, _mostrar_figura,
             algoritmo=VISTAS_CLASIFICADORES[vista],
         )
-    elif vista == "comparacion":
-        assert configuracion_clasif is not None
-        _render_comparacion(datos, configuracion_clasif)
     elif vista == "lab2_experimentos":
         render_experimentos(datos, configuracion_clasif)
     elif vista == "lab2_resultados":

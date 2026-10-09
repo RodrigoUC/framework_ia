@@ -2,7 +2,7 @@
 
 La identidad visual vigente está en [.superdesign/design-system.md](.superdesign/design-system.md)
 y los colores de Streamlit en [.streamlit/config.toml](.streamlit/config.toml).
-LAB02 conserva esa identidad y controles nativos; no introduce un segundo tema.
+La clasificación conserva esa identidad y controles nativos; no introduce un segundo tema.
 
 ## Usuarios y flujo principal
 
@@ -14,18 +14,20 @@ luego se ejecuta explícitamente; visitar resultados nunca entrena modelos.
 
 - Datos y preparación: CSV activo, lectura explícita, exclusión de columnas,
   preparación y partición compartida.
-- Clustering: contextual EDA + ACP, separate K-Means and K-Medoids destinations,
-  and HAC. ACP runs only through its explicit action within EDA.
-- K-Means visualizations: optional t-SNE and UMAP projections, each explicitly
-  run and colored by the active K-Means assignments when available.
-- Clasificación / RF y Naive Bayes: flujo previo conservado.
-- Clasificación / Modelo individual LAB02: algoritmo, hiperparámetros visibles,
-  entrenamiento explícito y diagnóstico de test.
-- Clasificación / Comparar variantes LAB02: familias, estándar/variantes,
-  selección por validación y ejecución explícita.
-- Resultados LAB02: tabla de validación, ganadores, métricas de test, matriz de
-  confusión, procedencia y descargas. Ningún entrenamiento implícito.
-- Regresión: próxima etapa, fuera del alcance LAB02.
+- Clustering: EDA y ACP en una misma vista; K-Means, K-Medoids y HAC en
+  destinos separados. ACP requiere su propia acción dentro de EDA.
+- K-Means: proyecciones opcionales t-SNE y UMAP dentro de la vista, ejecutadas
+  explícitamente y coloreadas por las asignaciones activas cuando existen.
+- Clasificación: una vista por KNN, Árbol de decisión, Random Forest, XGBoost,
+  AdaBoost y Naive Bayes. Cada una muestra parámetros, balance del objetivo
+  antes del entrenamiento, acción explícita y diagnóstico de prueba.
+- Comparar configuraciones: variantes predefinidas, solo estándar o edición
+  avanzada mediante JSON; revisión de candidatos antes de ejecutar y selección
+  mediante validación.
+- Resultados de clasificación: destino único de solo lectura para modelos
+  individuales y experimentos. Separa métricas exploratorias de prueba de la
+  selección por validación; muestra parámetros, procedencia, errores y descargas.
+- Regresión: próxima etapa, fuera del alcance de esta implementación.
 
 ## Contratos de interacción
 
