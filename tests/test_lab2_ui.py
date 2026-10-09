@@ -11,9 +11,11 @@ import pandas as pd
 import pytest
 from sklearn.datasets import make_classification
 from streamlit.testing.v1 import AppTest
+from types import SimpleNamespace
 
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.ui.estado_clasificacion import huella_datos, sincronizar_contexto
+from framework_ia.ui.lab2 import _metricas_porcentuales
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -39,72 +41,127 @@ def nueva_app():
     return app
 
 
-def ejecutar_comparacion(app):
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    app.multiselect(key="lab2_algoritmos").set_value(["KNN", "DT"]).run()
-    app.button(key="lab2_ejecutar").click().run()
-    assert not app.exception
-    assert not app.error
-    assert app.session_state["resultado_lab2_experimento"]["resultado"].mejores
-
-
-def test_navigation_separates_configuration_and_read_only_results():
-    app = nueva_app()
-    labels = [button.label for button in app.sidebar.button]
-    assert labels.count("Configuración de clasificación") == 1
-    assert any("Configuración</p>" in item.value for item in app.sidebar.markdown)
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    assert any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert any(widget.key == "clasif_features" for widget in app.multiselect)
-    assert any(widget.key == "clasif_test_size" for widget in app.slider)
-    app.sidebar.button(key="nav_clasificacion_knn").click().run()
-    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert not any(widget.key == "clasif_features" for widget in app.multiselect)
-    assert not any(widget.key == "clasif_test_size" for widget in app.slider)
-    assert not {"Filas", "Columnas", "Nulos", "Duplicados"} & {
-        metric.label for metric in app.metric
-    }
-    app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("Todavía no hay resultados" in alerta.value for alerta in app.info)
-    assert not any("accuracy_validacion" in frame.value for frame in app.dataframe)
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    assert any(
-        "Configuraciones y parámetros que se ejecutarán" in caption.value
-        for caption in app.caption
+def test_saved_metrics_use_accuracy_and_recall_by_actual_class_percent():
+    result = SimpleNamespace(
+        y_true=pd.Series(["Y", "Y", "Y", "n", "n", "n"]),
+        y_pred=pd.Series(["Y", "n", "n", "n", "n", "Y"]),
+        labels=("Y", "n"),
+        metricas={"accuracy": 0.5},
     )
-    ejecutar_comparacion(app)
+    metrics = _metricas_porcentuales(result)
+    assert metrics["Accuracy general (%)"] == 50.0
+    assert metrics["Recall Y (%)"] == pytest.approx(100 / 3)
+    assert metrics["Recall N (%)"] == pytest.approx(200 / 3)
+    assert metrics["Recall Y (%)"] != 50.0  # This is recall, not precision.
+
+
+def test_numeric_and_multiclass_labels_are_literal_and_zero_support_is_unavailable():
+    numeric = SimpleNamespace(
+        y_true=pd.Series([1, 1, 0]),
+        y_pred=pd.Series([1, 0, 0]),
+        labels=(0, 1, 2),
+        metricas={"accuracy": 2 / 3},
+    )
+    numeric_metrics = _metricas_porcentuales(numeric)
+    assert numeric_metrics["Recall actual 1 (%)"] == 50.0
+    assert numeric_metrics["Recall actual 0 (%)"] == 100.0
+    assert numeric_metrics["Recall actual 2 (%)"] == "Sin casos evaluados"
+    assert not any("Recall Y" in name or "Recall N" in name for name in numeric_metrics)
+
+    multiclass = SimpleNamespace(
+        y_true=pd.Series(["cat", "dog", "cat"]),
+        y_pred=pd.Series(["dog", "dog", "cat"]),
+        labels=("cat", "dog", "bird"),
+        metricas={"accuracy": 2 / 3},
+    )
+    class_metrics = _metricas_porcentuales(multiclass)
+    assert class_metrics["Recall actual cat (%)"] == 50.0
+    assert class_metrics["Recall actual dog (%)"] == 100.0
+    assert class_metrics["Recall actual bird (%)"] == "Sin casos evaluados"
+
+
+def ejecutar_comparacion(app):
+    """Train one model; the comparison route must only read its saved result."""
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    app.button(key="lab2_entrenar_KNN").click().run()
+    assert not app.exception
+    assert "resultado_lab2_modelo_KNN" in app.session_state
+
+
+def test_navigation_comparison_is_read_only_and_never_experiments():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    app.button(key="lab2_entrenar_KNN").click().run()
+    with (
+        patch.object(
+            Clasificacion, "entrenar", side_effect=AssertionError("comparison trained")
+        ),
+        patch.object(
+            Clasificacion,
+            "experimentar",
+            side_effect=AssertionError("comparison experimented"),
+        ),
+    ):
+        app.sidebar.button(key="nav_lab2_experimentos").click().run()
+        assert not app.exception
+        assert any("KNN" in str(frame.value) for frame in app.dataframe)
+        assert not any(widget.key == "lab2_ejecutar" for widget in app.button)
+        app.sidebar.button(key="nav_lab2_resultados").click().run()
+        assert not app.exception
+        assert any("KNN" in str(frame.value) for frame in app.dataframe)
+
+
+def test_random_forest_criteria_are_retained_independently_and_comparison_is_read_only():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion").click().run()
     with patch.object(
         Clasificacion,
         "experimentar",
-        side_effect=AssertionError("Results must not train"),
+        side_effect=AssertionError("comparison experimented"),
     ):
-        app.button(key="lab2_ver_resultados").click().run()
+        app.button(key="lab2_entrenar_RF").click().run()
+        gini = app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"][
+            "resultado"
+        ]
+        app.selectbox(key="lab2_param_RF_criterion").set_value("entropy").run()
+        app.button(key="lab2_entrenar_RF").click().run()
+        guardados = app.session_state["resultado_lab2_modelo_RF_criterios"]
+        entropy = guardados["entropy"]["resultado"]
+        assert guardados["gini"]["resultado"] is gini
+        assert entropy.parametros["criterion"] == "entropy"
+        app.sidebar.button(key="nav_lab2_experimentos").click().run()
         assert not app.exception
-        assert not any(s.key == "clasif_target" for s in app.selectbox)
-        assert any(
-            "Todas las variantes comparadas" in caption.value for caption in app.caption
-        )
-        assert any(
-            "Puntuación de validación" in caption.value for caption in app.caption
-        )
-        tabla = app.dataframe[0].value
-        assert len(tabla) == 6
-        assert {"accuracy_validacion", "f1_macro_validacion", "parametros"} <= set(
-            tabla
-        )
-        assert tabla["seleccionado"].sum() == 2
-        resumen = app.dataframe[1].value
-        modelos = app.session_state["resultado_lab2_experimento"]["resultado"].mejores
-        for _, fila in resumen.iterrows():
-            assert (
-                fila["F1 macro prueba"]
-                == modelos[fila["Algoritmo"]].metricas["f1"]["macro"]
-            )
-        modelo = modelos[app.selectbox(key="lab2_resultado_algoritmo").value]
-        f1 = next(m for m in app.metric if m.label == "F1 macro")
-        assert float(f1.value) == pytest.approx(
-            modelo.metricas["f1"]["macro"], abs=0.0001
-        )
+        visible = " ".join(str(expander.label) for expander in app.expander)
+        assert "gini" in visible and "entropy" in visible
+        assert not any(button.key == "lab2_ejecutar" for button in app.button)
+
+
+def test_rf_parameter_edits_preserve_saved_execution_until_explicit_training():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion").click().run()
+    app.button(key="lab2_entrenar_RF").click().run()
+    saved = app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"]["resultado"]
+    app.radio(key="lab2_modo_RF").set_value("Personalizada").run()
+    assert (
+        app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"]["resultado"]
+        is saved
+    )
+
+
+def test_failed_rf_attempt_keeps_last_successful_criterion():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion").click().run()
+    app.button(key="lab2_entrenar_RF").click().run()
+    saved = app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"]["resultado"]
+    with patch.object(
+        Clasificacion, "entrenar", side_effect=ValueError("synthetic failure")
+    ):
+        app.button(key="lab2_entrenar_RF").click().run()
+    assert (
+        app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"]["resultado"]
+        is saved
+    )
+    assert any("synthetic failure" in error.value for error in app.error)
 
 
 def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections():
@@ -216,61 +273,15 @@ def test_eda_and_acp_remain_independent_destinations():
     assert any(tab.label == "Sobreposición" for tab in app.tabs)
 
 
-def test_benchmark_controls_persist_and_changes_invalidate_results():
-    app = nueva_app()
-    ejecutar_comparacion(app)
-    app.button(key="lab2_ver_resultados").click().run()
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    assert not app.exception
-    assert app.multiselect(key="lab2_algoritmos").value == ["KNN", "DT"]
-    assert "resultado_lab2_experimento" in app.session_state
-    assert any(
-        "Entrenamiento: 60% · Validación: 15% · Prueba: 25%" in c.value
-        for c in app.caption
-    )
-    app.slider(key="lab2_validacion").set_value(25).run()
-    assert "resultado_lab2_experimento" not in app.session_state
-    app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("ejecute de nuevo" in i.value for i in app.info)
-
-
-@pytest.mark.parametrize(
-    "clave,valor", [("clasif_test_size", 30), ("clasif_random_state", 9)]
-)
-def test_split_and_seed_changes_invalidate_benchmark(clave, valor):
-    app = nueva_app()
-    ejecutar_comparacion(app)
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.get_by_key(clave).set_value(valor).run()
-    assert not app.exception
-    assert "resultado_lab2_experimento" not in app.session_state
-
-
-def test_features_and_source_changes_invalidate_benchmark():
-    app = nueva_app()
-    ejecutar_comparacion(app)
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.multiselect(key="clasif_features").set_value(["a", "b"]).run()
-    assert "resultado_lab2_experimento" not in app.session_state
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    app.button(key="lab2_ejecutar").click().run()
-    assert "resultado_lab2_experimento" in app.session_state
-    datos, nombre, identidad = app.session_state["fuente_aplicada"]
-    app.session_state["fuente_aplicada"] = (datos.copy(), nombre, identidad + "-new")
-    app.run()
-    assert not app.exception
-    assert "resultado_lab2_experimento" not in app.session_state
-
-
 def test_results_route_invalidates_stale_classification_without_rendering_controls():
     app = nueva_app()
     ejecutar_comparacion(app)
     app.session_state["clasif_random_state"] = 99
     app.sidebar.button(key="nav_lab2_resultados").click().run()
     assert not app.exception
-    assert "resultado_lab2_experimento" not in app.session_state
+    assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert any("ejecute de nuevo" in alerta.value for alerta in app.info)
+    assert any("Todavía no hay resultados" in alerta.value for alerta in app.info)
 
 
 def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair():
@@ -282,7 +293,7 @@ def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair()
     app.session_state["vista_activa"] = "lab2_resultados"
     app.run()
     assert not app.exception
-    assert "resultado_lab2_experimento" not in app.session_state
+    assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert any("al menos una columna objetivo" in info.value for info in app.info)
     assert not any(
         "accuracy_validacion" in frame.value.columns for frame in app.dataframe
@@ -292,28 +303,15 @@ def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair()
 def test_global_imputation_blocks_lab2_until_source_is_restored():
     app = nueva_app()
     app.session_state["dataset_preparacion"] = {"imputar": True, "escalado": "Ninguno"}
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    assert app.button(key="lab2_ejecutar").disabled
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert app.button(key="lab2_entrenar_KNN").disabled
     assert any("fuga de información" in e.value for e in app.error)
     app.sidebar.button(key="nav_clasificacion_knn").click().run()
     assert app.button(key="lab2_entrenar_KNN").disabled
     app.sidebar.button(key="nav_datos").click().run()
     next(b for b in app.button if b.label == "Restaurar dataset original").click().run()
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    assert not app.button(key="lab2_ejecutar").disabled
-
-
-def test_invalid_json_and_empty_selection_cannot_train():
-    app = nueva_app()
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    app.selectbox(key="lab2_modo_variantes").set_value("Editar variantes").run()
-    app.text_area(key="lab2_config_json").set_value('{"KNN": []}').run()
-    assert app.button(key="lab2_ejecutar").disabled
-    assert any("al menos una configuración" in e.value for e in app.error)
-    app.text_area(key="lab2_config_json").set_value("").run()
-    app.multiselect(key="lab2_algoritmos").set_value([]).run()
-    assert app.button(key="lab2_ejecutar").disabled
-    assert not app.exception
+    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert not app.button(key="lab2_entrenar_KNN").disabled
 
 
 @pytest.mark.parametrize("algoritmo", ["KNN", "DT", "RF", "XGBoost", "AdaBoost", "NR"])
@@ -339,7 +337,7 @@ def test_individual_models_train_and_show_numeric_confusion_alternative(algoritm
     )
     if algoritmo != "NR":
         app.radio(key=f"lab2_modo_{algoritmo}").set_value("Personalizada").run()
-        assert f"resultado_lab2_modelo_{algoritmo}" not in app.session_state
+        assert f"resultado_lab2_modelo_{algoritmo}" in app.session_state
 
 
 def test_model_settings_and_results_are_scoped_to_each_classifier():
@@ -392,24 +390,11 @@ def test_shared_classification_setup_applies_to_models_and_invalidates_them():
     assert first.features == second.features == ("a", "b")
     assert first.y_true.index.equals(second.y_true.index)
 
-    app.sidebar.button(key="nav_lab2_experimentos").click().run()
-    app.multiselect(key="lab2_algoritmos").set_value(["KNN"]).run()
-    app.selectbox(key="lab2_modo_variantes").set_value("Solo estándar").run()
-    app.button(key="lab2_ejecutar").click().run()
-    assert not app.exception
-    assert (
-        app.session_state["resultado_lab2_experimento"]["contexto"]["target"] == "clase"
-    )
-    assert app.session_state["resultado_lab2_experimento"]["contexto"]["features"] == [
-        "a",
-        "b",
-    ]
-
     app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
     app.number_input(key="clasif_random_state").set_value(20).run()
     assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert "resultado_lab2_modelo_RF" not in app.session_state
-    assert "resultado_lab2_experimento" not in app.session_state
+    assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert not app.exception
 
 
@@ -460,6 +445,46 @@ def test_classifier_route_offers_setup_path_when_dataset_is_not_configurable():
     assert not app.exception
 
 
+def test_data_health_summary_is_single_and_tracks_applied_preparation():
+    app = nueva_app()
+    dataset = app.session_state["dataset_preparado"]
+    dataset_with_duplicate = pd.concat([dataset, dataset.iloc[[0]]], ignore_index=True)
+    app.session_state["dataset_original"] = dataset_with_duplicate.copy()
+    app.session_state["dataset_preparado"] = dataset_with_duplicate.copy()
+    app.run()
+
+    def assert_single_summary(expected_rows):
+        active = app.session_state["dataset_preparado"]
+        expected = {
+            "Filas": expected_rows,
+            "Columnas": len(active.columns),
+            "Nulos": int(active.isna().sum().sum()),
+            "Duplicados": int(active.duplicated().sum()),
+        }
+        for label, value in expected.items():
+            matches = [metric for metric in app.metric if metric.label == label]
+            assert len(matches) == 1
+            assert matches[0].value == str(value)
+        assert not any(
+            expander.label == "Resumen del dataset activo" for expander in app.expander
+        )
+
+    assert_single_summary(len(dataset_with_duplicate))
+    assert any(metric.label == "Outliers Criticos" for metric in app.metric)
+    next(
+        button for button in app.button if button.label == "Aplicar preparación"
+    ).click().run()
+    assert_single_summary(len(dataset))
+    assert app.session_state["dataset_preparado"].duplicated().sum() == 0
+
+    app.sidebar.button(key="nav_eda").click().run()
+    assert any(
+        expander.label == "Resumen del dataset activo" for expander in app.expander
+    )
+    assert any("Outliers críticos" in item.value for item in app.markdown)
+    assert not app.exception
+
+
 def test_result_signature_detects_content_and_target_changes():
     datos = pd.DataFrame({"a": [1, 2], "clase": [0, 1]})
     configuracion = {
@@ -487,60 +512,12 @@ def test_result_signature_detects_content_and_target_changes():
     assert "resultado_lab2_experimento" not in estado
 
 
-def test_test_evaluation_failures_are_visible_without_expanding_metadata():
-    from dataclasses import replace
-
-    app = nueva_app()
-    ejecutar_comparacion(app)
-    guardado = dict(app.session_state["resultado_lab2_experimento"])
-    resultado = guardado["resultado"]
-    guardado["resultado"] = replace(
-        resultado,
-        mejores={},
-        metadatos={
-            **resultado.metadatos,
-            "errores_prueba": {"KNN": "Valor faltante en prueba"},
-        },
-    )
-    app.session_state["resultado_lab2_experimento"] = guardado
-    app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert not app.exception
-    assert any("No se pudo evaluar en prueba" in e.value for e in app.error)
-    assert any("Valor faltante en prueba" in e.value for e in app.warning)
-
-
-def test_all_candidate_failures_remain_visible_without_claiming_a_winner():
-    from dataclasses import replace
-
-    app = nueva_app()
-    ejecutar_comparacion(app)
-    guardado = dict(app.session_state["resultado_lab2_experimento"])
-    resultado = guardado["resultado"]
-    tabla = resultado.tabla.copy()
-    tabla["estado"] = "error"
-    tabla["error"] = "Parámetro incompatible"
-    guardado["resultado"] = replace(
-        resultado,
-        tabla=tabla,
-        mejores={},
-        mejor_algoritmo=None,
-    )
-    app.session_state["resultado_lab2_experimento"] = guardado
-    app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert not app.exception
-    assert any(
-        "configuraciones no terminaron" in warning.value for warning in app.warning
-    )
-    assert not any("Mejor algoritmo" in item.value for item in app.success)
-    assert any("error" in frame.value.columns for frame in app.dataframe)
-
-
 def test_applying_a_new_global_split_invalidates_read_only_results():
     app = nueva_app()
     ejecutar_comparacion(app)
     app.sidebar.button(key="nav_datos").click().run()
     app.button(key="particion_calcular").click().run()
     assert not app.exception
-    assert "resultado_lab2_experimento" not in app.session_state
+    assert "resultado_lab2_modelo_KNN" not in app.session_state
     app.sidebar.button(key="nav_lab2_resultados").click().run()
     assert any("Todavía no hay resultados" in e.value for e in app.info)

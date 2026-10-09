@@ -70,10 +70,10 @@ class VisualContrastFlowTests(unittest.TestCase):
         )
         self.assertLess(labels.index("Random Forest"), labels.index("Naive Bayes"))
         self.assertLess(
-            labels.index("Naive Bayes"), labels.index("Comparar configuraciones")
+            labels.index("Naive Bayes"), labels.index("Comparar modelos entrenados")
         )
         self.assertLess(
-            labels.index("Comparar configuraciones"),
+            labels.index("Comparar modelos entrenados"),
             labels.index("Resultados de clasificación"),
         )
         self.assertEqual(labels.count("Resultados de clasificación"), 1)

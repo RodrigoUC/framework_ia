@@ -10,14 +10,12 @@ import json
 from collections.abc import Callable
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from ..modelos.supervisado import Clasificacion
 from ..visualizacion import VisualizadorSupervisado
-from .estado_clasificacion import firma_parametros, sincronizar_ejecucion
+from .estado_clasificacion import firma_parametros
 from .parametros_clasificacion import (
-    METRICAS_SELECCION,
     NOMBRES_MODELOS,
     parametros_individuales,
 )
@@ -88,6 +86,40 @@ def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
     st.dataframe(data, **opciones)
 
 
+def _metricas_por_clase(resultado) -> dict[str, float | str]:
+    """Return actual-class recall percentages using saved truth/predictions."""
+    y_true = resultado.y_true
+    y_pred = resultado.y_pred
+    etiquetas = list(resultado.labels)
+    binarias_yn = (
+        len(etiquetas) == 2
+        and {str(etiqueta).casefold() for etiqueta in etiquetas} == {"y", "n"}
+        and all(isinstance(etiqueta, str) for etiqueta in etiquetas)
+    )
+    recalls = {}
+    for etiqueta in etiquetas:
+        nombre = (
+            f"Recall {str(etiqueta).upper()} (%)"
+            if binarias_yn
+            else f"Recall actual {etiqueta!s} (%)"
+        )
+        reales = y_true == etiqueta
+        soporte = int(reales.sum())
+        recalls[nombre] = (
+            100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte
+            if soporte
+            else "Sin casos evaluados"
+        )
+    return recalls
+
+
+def _metricas_porcentuales(resultado) -> dict[str, float | str]:
+    return {
+        "Accuracy general (%)": 100.0 * float(resultado.metricas["accuracy"]),
+        **_metricas_por_clase(resultado),
+    }
+
+
 def render_modelo_individual(
     datos: pd.DataFrame,
     configuracion: dict,
@@ -99,8 +131,7 @@ def render_modelo_individual(
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
     st.markdown(f"### {nombre_modelo}")
     st.caption(
-        "Explore una configuración individual. Para seleccionar variantes sin usar "
-        "prueba, abra Comparar configuraciones."
+        "Entrene una configuración; la comparación conserva esta ejecución hasta que cambie el dataset o la partición compartida."
     )
     segura = preparacion_segura()
     parametros = parametros_individuales(algoritmo)
@@ -109,14 +140,15 @@ def render_modelo_individual(
     firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
     estado_modelo = f"modelo_{algoritmo}"
     resultado_modelo = f"resultado_lab2_{estado_modelo}"
-    sincronizar_ejecucion(st.session_state, estado_modelo, firma)
+    criterio_rf = parametros.get("criterion", "gini") if algoritmo == "RF" else None
+    clave_criterios_rf = "resultado_lab2_modelo_RF_criterios"
+    intentos_rf = "errores_lab2_modelo_RF"
     if st.button(
         "Entrenar modelo",
         key=f"lab2_entrenar_{algoritmo}",
         type="primary",
         disabled=not configuracion["features"] or not segura,
     ):
-        st.session_state.pop(resultado_modelo, None)
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
                 resultado = _modelo(datos, configuracion).entrenar(
@@ -124,234 +156,107 @@ def render_modelo_individual(
                     **_argumentos_comunes(configuracion),
                     **parametros,
                 )
-            st.session_state[resultado_modelo] = resultado
-            st.session_state[f"contexto_lab2_{estado_modelo}"] = _contexto_ejecucion(
-                configuracion
-            )
+            contexto = _contexto_ejecucion(configuracion)
+            if algoritmo == "RF":
+                guardados = dict(st.session_state.get(clave_criterios_rf, {}))
+                guardados[criterio_rf] = {
+                    "resultado": resultado,
+                    "contexto": contexto,
+                    "firma": firma,
+                    "parametros": parametros,
+                }
+                st.session_state[clave_criterios_rf] = guardados
+                st.session_state[resultado_modelo] = resultado
+                st.session_state[f"contexto_lab2_{estado_modelo}"] = contexto
+                errores = dict(st.session_state.get(intentos_rf, {}))
+                errores.pop(criterio_rf, None)
+                st.session_state[intentos_rf] = errores
+            else:
+                st.session_state[resultado_modelo] = resultado
+                st.session_state[f"contexto_lab2_{estado_modelo}"] = contexto
             st.success(
                 "Modelo entrenado. Las métricas siguientes corresponden a prueba."
             )
         except Exception as exc:  # noqa: BLE001 - isolate model failures at the UI boundary.
+            if algoritmo == "RF":
+                errores = dict(st.session_state.get(intentos_rf, {}))
+                errores[criterio_rf] = str(exc)
+                st.session_state[intentos_rf] = errores
             st.error(f"No fue posible entrenar {nombre_modelo}: {exc}")
-    resultado = st.session_state.get(resultado_modelo)
+    if algoritmo == "RF":
+        error = st.session_state.get(intentos_rf, {}).get(criterio_rf)
+        if error:
+            st.error(
+                f"Falló el intento actual de Random Forest ({criterio_rf}); se conserva la última ejecución exitosa: {error}"
+            )
+        resultado = (
+            st.session_state.get(clave_criterios_rf, {})
+            .get(criterio_rf, {})
+            .get("resultado")
+        )
+    else:
+        resultado = st.session_state.get(resultado_modelo)
     if resultado is None:
         st.info("Configure el modelo y pulse Entrenar modelo para ver sus resultados.")
         return
-    _diagnostico(resultado, mostrar_figura, f"clasificacion_{algoritmo}")
-
-
-def _configuraciones(algoritmos: list[str]) -> tuple[dict, bool]:
-    from ..modelos.supervisado.clasificacion import configuraciones_lab2
-
-    predefinidas = configuraciones_lab2()
-    configuraciones = {codigo: predefinidas[codigo] for codigo in algoritmos}
-    valido = True
-    modo = st.selectbox(
-        "Configuraciones por familia",
-        ["Variantes predefinidas", "Solo estándar", "Editar variantes"],
-        key="lab2_modo_variantes",
-        persist_state="session",
-        help="La comparación selecciona candidatos con validación y reserva prueba para la evaluación final.",
+    _diagnostico(
+        resultado,
+        mostrar_figura,
+        f"clasificacion_{algoritmo}_{criterio_rf or 'default'}",
     )
-    if modo == "Solo estándar":
-        configuraciones = {
-            codigo: [
-                variante
-                for variante in predefinidas[codigo]
-                if variante["nombre"] == "estandar"
-            ]
-            for codigo in algoritmos
-        }
-    elif modo == "Editar variantes":
-        with st.expander("Editar parámetros avanzados", expanded=False):
-            st.caption(
-                'Use un objeto JSON por familia: {"KNN": [{"nombre": "...", "parametros": {...}}]}. '
-                "Las variantes predefinidas se conservan en las familias que deje sin editar."
-            )
-            texto = st.text_area(
-                "Variantes JSON",
-                value="",
-                key="lab2_config_json",
-                persist_state="session",
-                height=130,
-            )
-        if texto.strip():
-            try:
-                personalizadas = json.loads(texto)
-                if not isinstance(personalizadas, dict):
-                    raise TypeError("El contenido debe ser un objeto JSON.")
-                desconocidos = set(personalizadas) - set(NOMBRES_MODELOS)
-                if desconocidos:
-                    raise ValueError(
-                        f"Algoritmos desconocidos: {', '.join(sorted(desconocidos))}."
-                    )
-                for algoritmo in algoritmos:
-                    if algoritmo in personalizadas:
-                        variantes = personalizadas[algoritmo]
-                        if not isinstance(variantes, list) or not variantes:
-                            raise ValueError(
-                                f"{algoritmo} necesita al menos una configuración."
-                            )
-                        for variante in variantes:
-                            if (
-                                not isinstance(variante, dict)
-                                or not isinstance(variante.get("nombre"), str)
-                                or not variante["nombre"].strip()
-                                or not isinstance(variante.get("parametros"), dict)
-                            ):
-                                raise ValueError(
-                                    "Cada variante necesita nombre y parámetros válidos."
-                                )
-                        configuraciones[algoritmo] = variantes
-            except (ValueError, TypeError) as exc:
-                st.error(f"Revise las configuraciones personalizadas: {exc}")
-                valido = False
-    filas = [
-        {
-            "Algoritmo": codigo,
-            "Configuración": variante["nombre"],
-            "Parámetros solicitados": _json(variante["parametros"])
-            if variante["parametros"]
-            else "Estándar del algoritmo",
-        }
-        for codigo, variantes in configuraciones.items()
-        for variante in variantes
-    ]
-    st.markdown("#### Revisión de candidatos")
-    st.caption(
-        "Revise las familias, variantes y parámetros antes de ejecutar; no se entrena hasta pulsar el botón."
-    )
-    _mostrar_dataframe(
-        pd.DataFrame(filas),
-        alt="Configuraciones y parámetros que se ejecutarán para cada algoritmo",
-        hide_index=True,
-        width="stretch",
-    )
-    return configuraciones, valido
-
-
-def render_experimentos(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Compara variantes en validación y evalúa solo los ganadores en prueba."""
-    st.markdown("### Comparar configuraciones")
-    st.markdown("#### 1. Elija familias y selección")
-    st.info(
-        "Entrenamiento ajusta los modelos; validación elige la mejor variante de cada "
-        "algoritmo y el ganador global. Prueba se reserva para la evaluación final."
-    )
-    segura = preparacion_segura()
-    algoritmos = st.multiselect(
-        "Algoritmos a comparar",
-        list(NOMBRES_MODELOS),
-        default=list(NOMBRES_MODELOS),
-        format_func=NOMBRES_MODELOS.get,
-        key="lab2_algoritmos",
-        persist_state="session",
-    )
-    c1, c2 = st.columns(2)
-    metrica = c1.selectbox(
-        "Métrica para seleccionar",
-        list(METRICAS_SELECCION),
-        format_func=METRICAS_SELECCION.get,
-        key="lab2_metrica",
-        persist_state="session",
-    )
-    particion = configuracion.get("particion_global")
-    validacion_externa = (
-        particion is not None
-        and particion.validacion is not None
-        and not particion.validacion.empty
-    )
-    if validacion_externa:
-        validation_size = particion.porcentaje_validacion
-        c2.caption(
-            f"Validación reutilizada: {len(particion.validacion)} filas de la partición de Datos."
-        )
-    else:
-        validation_size = (
-            c2.slider(
-                "Validación sobre entrenamiento (%)",
-                10,
-                30,
-                20,
-                5,
-                key="lab2_validacion",
-                persist_state="session",
-                help="Porcentaje del entrenamiento disponible que se reserva para validar, después de separar prueba.",
-            )
-            / 100
-        )
-        if particion is not None:
-            st.caption(
-                "Se separará validación del train global. El test global se conserva intacto."
-            )
-        else:
-            st.caption(
-                f"Entrenamiento: {(1 - configuracion['test_size']) * (1 - validation_size):.0%} · "
-                f"Validación: {(1 - configuracion['test_size']) * validation_size:.0%} · Prueba: {configuracion['test_size']:.0%}"
-            )
-    if not algoritmos:
-        st.warning("Seleccione al menos un algoritmo para comparar.")
-    configuraciones, valido = _configuraciones(algoritmos)
-    firma = firma_parametros(
-        {
-            "algoritmos": algoritmos,
-            "configuraciones": configuraciones,
-            "metrica": metrica,
-            "validation_size": validation_size,
-            "json": st.session_state.get("lab2_config_json", ""),
-        }
-    )
-    sincronizar_ejecucion(st.session_state, "experimento", firma)
-    cantidad = sum(len(variantes) for variantes in configuraciones.values())
-    st.markdown("#### 2. Revise y ejecute explícitamente")
-    if st.button(
-        f"Ejecutar comparación ({cantidad} configuraciones)",
-        key="lab2_ejecutar",
-        type="primary",
-        disabled=not (segura and valido and algoritmos and configuracion["features"]),
-    ):
-        st.session_state.pop("resultado_lab2_experimento", None)
-        try:
-            with st.spinner("Entrenando variantes y comparando en validación…"):
-                resultado = _modelo(datos, configuracion).experimentar(
-                    algoritmos=algoritmos,
-                    configuraciones=configuraciones,
-                    validation_size=validation_size,
-                    metrica=metrica,
-                    **_argumentos_comunes(configuracion),
-                )
-            st.session_state["resultado_lab2_experimento"] = {
-                "resultado": resultado,
-                "contexto": _contexto_ejecucion(configuracion),
-                "metrica": metrica,
-            }
-            if resultado.mejores:
-                st.success(
-                    "Comparación terminada. Abra Resultados de clasificación para analizar los ganadores."
-                )
-            else:
-                st.warning(
-                    "Ninguna configuración terminó correctamente. Consulte los errores en Resultados de clasificación."
-                )
-        except Exception as exc:  # noqa: BLE001 - keep configuration available for recovery.
-            st.error(f"No fue posible comparar los modelos: {exc}")
-    if st.session_state.get("resultado_lab2_experimento") and st.button(
-        "Ver resultados", key="lab2_ver_resultados"
-    ):
-        st.session_state["vista_activa"] = "lab2_resultados"
-        st.rerun()
 
 
 def render_resultados(mostrar_figura: MostrarFigura) -> None:
     """Vista de lectura; nunca ajusta ni selecciona modelos al abrirse."""
     st.markdown("### Resultados de clasificación")
+    individuales = []
+    for codigo in (*NOMBRES_MODELOS, "NR"):
+        if codigo == "RF":
+            criterios_guardados = st.session_state.get(
+                "resultado_lab2_modelo_RF_criterios", {}
+            )
+            if not criterios_guardados:
+                legacy = st.session_state.get("resultado_lab2_modelo_RF")
+                if legacy is not None:
+                    parametros = getattr(legacy, "parametros", {})
+                    criterio = parametros.get(
+                        "criterion", legacy.modelo.get_params().get("criterion", "gini")
+                    )
+                    individuales.append(
+                        (
+                            codigo,
+                            criterio,
+                            legacy,
+                            st.session_state.get("contexto_lab2_modelo_RF", {}),
+                            parametros,
+                        )
+                    )
+            for criterio, snapshot in criterios_guardados.items():
+                individuales.append(
+                    (
+                        codigo,
+                        criterio,
+                        snapshot["resultado"],
+                        snapshot["contexto"],
+                        snapshot.get("parametros", {}),
+                    )
+                )
+        else:
+            resultado = st.session_state.get(f"resultado_lab2_modelo_{codigo}")
+            if resultado is not None:
+                contexto = st.session_state.get(f"contexto_lab2_modelo_{codigo}", {})
+                individuales.append(
+                    (
+                        codigo,
+                        None,
+                        resultado,
+                        contexto,
+                        getattr(resultado, "parametros", {}),
+                    )
+                )
     individuales = [
-        (codigo, st.session_state.get(f"resultado_lab2_modelo_{codigo}"))
-        for codigo in (*NOMBRES_MODELOS, "NR")
-    ]
-    individuales = [
-        (codigo, resultado)
-        for codigo, resultado in individuales
+        (codigo, criterio, resultado, contexto, parametros)
+        for codigo, criterio, resultado, contexto, parametros in individuales
         if resultado is not None
     ]
     if individuales:
@@ -364,10 +269,13 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
             pd.DataFrame(
                 [
                     {
-                        "Algoritmo": NOMBRES_MODELOS.get(
-                            codigo, "Naive Bayes" if codigo == "NR" else codigo
+                        "Algoritmo": (
+                            NOMBRES_MODELOS.get(
+                                codigo, "Naive Bayes" if codigo == "NR" else codigo
+                            )
+                            + (f" · {criterio}" if criterio else "")
                         ),
-                        "Accuracy prueba": resultado.metricas["accuracy"],
+                        **_metricas_porcentuales(resultado),
                         "Precisión macro prueba": resultado.metricas["precision"][
                             "macro"
                         ],
@@ -379,149 +287,60 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
                             )
                         ),
                     }
-                    for codigo, resultado in individuales
+                    for codigo, criterio, resultado, contexto, parametros in individuales
                 ]
             ),
             alt="Métricas de prueba y parámetros de los modelos entrenados individualmente",
             hide_index=True,
             width="stretch",
         )
-        for codigo, resultado in individuales:
-            contexto = st.session_state.get(f"contexto_lab2_modelo_{codigo}", {})
+        for codigo, criterio, resultado, contexto, parametros in individuales:
             nombre = NOMBRES_MODELOS.get(
                 codigo, "Naive Bayes" if codigo == "NR" else codigo
             )
-            with st.expander(f"{nombre} · prueba", expanded=False):
+            with st.expander(
+                f"{nombre}{f' · {criterio}' if criterio else ''} · prueba",
+                expanded=False,
+            ):
                 st.caption(
                     f"Dataset: {contexto.get('dataset', 'desconocido')} · "
                     f"Target: {contexto.get('target', 'desconocido')} · "
                     f"Features: {', '.join(contexto.get('features', []))}"
                 )
-                _diagnostico(resultado, mostrar_figura, f"clasificacion_{codigo}")
-    guardado = st.session_state.get("resultado_lab2_experimento")
-    if guardado is None:
-        if not individuales:
-            st.info(
-                "Todavía no hay resultados. Entrene un modelo individual o ejecute "
-                "una comparación de configuraciones. Si cambió los datos o la "
-                "configuración, ejecute de nuevo."
-            )
+                st.caption(
+                    f"Criterio y parámetros guardados: {criterio or 'predeterminados'} · {_json(parametros or getattr(resultado, 'parametros', {}))}"
+                )
+                _diagnostico(
+                    resultado,
+                    mostrar_figura,
+                    f"clasificacion_{codigo}_{criterio or 'default'}",
+                )
+    if not individuales:
+        st.info(
+            "Todavía no hay resultados guardados. Entrene un modelo para que aparezca en esta comparación."
+        )
         return
-    resultado = guardado["resultado"]
-    contexto = guardado["contexto"]
-    metrica = guardado["metrica"]
-    st.markdown("#### Comparación de configuraciones · selección por validación")
-    st.caption(
-        f"Dataset: {contexto['dataset']} · Target: {contexto['target']} · "
-        f"Semilla: {contexto['random_state']} · Métrica: {METRICAS_SELECCION[metrica]}"
-    )
-    errores_prueba = resultado.metadatos.get("errores_prueba", {})
-    if errores_prueba:
-        st.error(
-            "No se pudo evaluar en prueba a uno o más ganadores. "
-            "La selección de validación se conserva; revise los datos y el preprocesamiento."
-        )
-        for algoritmo_error, detalle in errores_prueba.items():
-            st.warning(f"{algoritmo_error}: {detalle}")
-    if resultado.mejor_algoritmo:
-        st.success(
-            f"Mejor algoritmo por {METRICAS_SELECCION[metrica]} de validación: "
-            f"{NOMBRES_MODELOS.get(resultado.mejor_algoritmo, resultado.mejor_algoritmo)}. "
-            "La selección no utiliza las métricas de prueba."
-        )
-    tabla = resultado.tabla.copy()
-    tabla["parametros"] = tabla["parametros"].map(
-        lambda valor: _json(valor) if isinstance(valor, dict) else str(valor)
-    )
-    _mostrar_dataframe(
-        tabla,
-        alt="Todas las variantes comparadas: métricas de validación, parámetros, selección y errores",
-        hide_index=True,
-        width="stretch",
-    )
-    fallidos = tabla[tabla["estado"] != "ok"]
-    if not fallidos.empty:
-        st.warning(
-            f"{len(fallidos)} configuraciones no terminaron. Los errores se conservan en la tabla y el CSV."
-        )
-    validos = tabla[tabla["estado"] == "ok"]
-    if not validos.empty:
-        figura = go.Figure(
-            go.Bar(
-                x=validos["algoritmo"] + " · " + validos["configuracion"],
-                y=validos["puntuacion_validacion"],
-                text=validos["puntuacion_validacion"].round(3),
-                textposition="outside",
-            )
-        )
-        figura.update_layout(
-            title=f"{METRICAS_SELECCION[metrica]} de validación por configuración",
-            yaxis_title=METRICAS_SELECCION[metrica],
-            yaxis_range=[0, 1.1],
-            xaxis_title="Algoritmo y configuración",
-            margin={"b": 100},
-        )
-        mostrar_figura(
-            figura,
-            key="lab2_ranking",
-            alt="Puntuación de validación de cada variante; los valores también están en la tabla",
-        )
-    st.download_button(
-        "Descargar comparación CSV",
-        tabla.to_csv(index=False).encode("utf-8"),
-        "comparacion_validacion.csv",
-        "text/csv",
-        key="lab2_descargar_tabla",
-    )
-    with st.expander("Configuración y reproducibilidad"):
-        evidencia = {
-            "configuracion": contexto,
-            "metrica_seleccion": metrica,
-            "metadatos": resultado.metadatos,
-        }
-        st.json(evidencia, expanded=False)
-        st.download_button(
-            "Descargar metadatos JSON",
-            _json(evidencia),
-            "metadatos_comparacion.json",
-            "application/json",
-            key="lab2_descargar_meta",
-        )
-    if not resultado.mejores:
-        return
-    st.markdown("### Evaluación final de los ganadores en prueba")
-    resumen = []
-    for algoritmo, modelo in resultado.mejores.items():
-        resumen.append(
-            {
-                "Algoritmo": algoritmo,
-                "Accuracy prueba": modelo.metricas["accuracy"],
-                "F1 macro prueba": modelo.metricas["f1"]["macro"],
-                "Parámetros efectivos": _json(modelo.parametros),
-            }
-        )
-    _mostrar_dataframe(
-        pd.DataFrame(resumen),
-        alt="Accuracy y F1 macro de prueba para cada ganador seleccionado en validación",
-        hide_index=True,
-        width="stretch",
-    )
-    algoritmo = st.selectbox(
-        "Ganador a analizar",
-        list(resultado.mejores),
-        format_func=NOMBRES_MODELOS.get,
-        key="lab2_resultado_algoritmo",
-    )
-    _diagnostico(resultado.mejores[algoritmo], mostrar_figura, "lab2_ganador")
 
 
 def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None:
     st.markdown(f"#### {resultado.algoritmo} · resultados de prueba")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Accuracy", f"{resultado.metricas['accuracy']:.4f}")
+    c1.metric("Accuracy general", f"{resultado.metricas['accuracy']:.1%}")
     c2.metric("Precisión macro", f"{resultado.metricas['precision']['macro']:.4f}")
     c3.metric("Recall macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
+    metricas_clase = _metricas_por_clase(resultado)
+    _mostrar_dataframe(
+        pd.DataFrame(
+            [
+                {"Clase real": etiqueta, "Recall (%)": recall}
+                for etiqueta, recall in metricas_clase.items()
+            ]
+        ),
+        alt="Recall porcentual por clase real; los valores se calculan entre los casos reales de cada clase",
+        hide_index=True,
+        width="stretch",
+    )
     st.caption(
         f"Entrenamiento: {resultado.muestra_train} filas · Prueba: {resultado.muestra_test} filas"
     )

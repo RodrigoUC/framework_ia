@@ -315,6 +315,63 @@ but does not yet provide consistent typed class configuration.
   scoping, shared-flow tests, and README clarification; T8/T9 edits remain
   independently identifiable in the worktree. Commit and review remain pending
   parent ownership; no remote or main-branch changes.
+- [ ] T11 — Correct ACP biplot variable-label collisions and clipping.
+  Route: bounded delegated direct correction, explicitly authorized after T10
+  browser evidence. TDD is off per this task document; use the isolated pytest
+  environment. Keep `VisualizadorNoSupervisado.sobreposicion_acp` as the sole
+  biplot renderer and preserve exact observation coordinates, loading scores,
+  arrow endpoints, and correlation-circle geometry. Improve only label layout
+  and chart margins/responsive space; do not distort axes to force labels into
+  view or add a duplicated renderer. Regression fixtures must prove source
+  coordinates/loadings remain unchanged and labels avoid overlaps/clipping for
+  multiple feature counts and left/right crowded cases. Verify both approved
+  captures (1024 dark, 1440 light) after implementation; do not expand into
+  mobile/configuration scope. Checks: focused graph tests, full pytest, F821 and
+  formatter checks on affected files, plus `git diff --check`.
+  First-pass browser evidence was partial: four labels no longer clipped, but
+  `scaleanchor` expanded the visible ranges to approximately ±5.22/±3.63 and
+  diluted the data; at 564px, twenty long labels had only 10px spacing and
+  overlapped. Evidence: `/tmp/lab2_t11_acp_overlay_1440_light.png`,
+  `/tmp/lab2_t11_acp_overlay_1024_dark.png`, and
+  `/tmp/lab2_t11_crowded_overlay_564_dark.png`. One bounded correction is
+  authorized. The correction keeps the observation/loading values and arrows
+  unchanged, fixes the axis ranges while constraining the plot domain, places
+  annotations in separated left/right paper-coordinate bands, and increases
+  figure height proportionally to the busiest label column. Focused graph tests
+  pass on 4/12/20 crowded features; exact ranges, endpoints, coordinates, paper
+  placement, spacing, and correlation-circle geometry are asserted. The focused
+  result is 2 passed. Full isolated thread-limited suite — 91 passed, 52
+  subtests passed in 35.44s. `ruff check --select F821` passed for the two
+  affected Python files; affected-range `ruff format --check` and `git diff
+  --check` passed. Parent recapture of light/dark/crowded cases remains pending;
+  source is frozen after this single correction batch pending visual
+  confirmation. Browser was not launched by this worker.
+- [x] T12 — Remove duplicate Data/preparation dataset-health summaries without
+  removing distinct quality indicators or changing EDA's summary. TDD is off;
+  use the isolated Python test environment above. Establish one canonical
+  Data/preparation summary covering rows, columns, nulls, duplicates, missing
+  percentage, numeric/categorical counts, and outliers; remove repeated header
+  and expander presentations there. Keep EDA's distinct summary intact. Add
+  AppTest assertions for one visible value per health metric and verify
+  preparation changes update the canonical summary. Checks: focused AppTest,
+  full pytest, F821, affected formatter check, and `git diff --check`.
+  Outcome: removed the duplicate header and expander summaries from
+  Data/preparation. Its single metric summary retains row/column/null/duplicate
+  counts, missing percentage, numeric/categorical counts, and outliers; the EDA
+  expander summary remains intact. AppTest confirms each health metric appears
+  once, duplicate removal updates row/duplicate values, and EDA still shows its
+  distinct summary. Focused UI/layout tests — 28 passed in 12.83s. Full command
+  with thread limits and pytest cache disabled — `OPENBLAS_NUM_THREADS=1
+  OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_NUM_THREADS=1
+  /tmp/framework-start-lab2-venv/bin/python -m pytest -p no:cacheprovider -q` —
+  91 passed, 52 subtests passed in 35.12s. `ruff check --select F821`,
+  `ruff format --check tests/test_lab2_ui.py`, and `git diff --check` passed.
+  Whole-file formatter check for `streamlit_app.py` still requests broad
+  pre-existing formatting changes; HEAD has the same baseline failure, so no
+  unrelated reformat was applied. No server or browser change.
+  Rollback: restore the header's Data/EDA metric block and the Data page's
+  duplicate expander call, remove the outlier metric addition and its regression
+  test. No dataset or EDA domain behavior changed.
 
 ## Progress and next step
 
@@ -349,7 +406,104 @@ render, but variable labels overlap and clip at 1024px dark mode. Evidence:
 The user's overlay request was verification-only; a bounded label-space and
 collision-layout correction awaits authorization. T8-T10 form one coherent
 navigation/shared-configuration compatibility work unit; local commit and
-native candidate assessment follow parent readback. No main or remote action.
+native candidate assessment completed after parent readback. Work-unit commit:
+`a154181` (507 authored lines), cumulative 2,589. Parent spot check: 29 tests
+passed in 13.40s. Native assessed pending range against `44b4989` as medium,
+649 lines; user granted this candidate. Reliability review reported no
+findings, and exact acknowledgement burned authority for
+`review-3f64b13d32748440`. Latest reviewed boundary: `a154181`.
+T12 summary consolidation and regression checks are complete but uncommitted;
+browser verification confirmed one Data summary and retained EDA summary.
+T11 final permitted confirmation passed the real four-variable example at
+1440px light and 1024px dark: 16 observations, four unchanged arrow endpoints,
+separated labels, no clipping, actual axis ranges [-1.9, 1.9]. The 20-variable
+long-label stress case remains visually partial: variable labels do not overlap
+each other, but one left label intersects the CP2 axis title. Evidence:
+`/tmp/lab2_t11_crowded_overlay_564_dark.png`; parent inspected this capture.
+No further polishing loop was run. Full implementation tests passed 91 tests
+and 52 subtests; independent final graph/UI checks passed 4 tests and diff-check.
+The unavailable prior server was confirmed absent, then restarted only on
+localhost:8502 (owned session `85269`). Commit/review remain pending while
+T11's crowded-axis-title defect is disclosed and unresolved.
+Untracked `.aws` was explicitly excluded and left untouched. No main or remote
+action. Engram mirror remains pending authoritative runtime registration.
 T7 requires the professor's datasets,
 provenance and report template. Do not invent academic results. Update the
 pending Engram mirror only after host session registration.
+
+## T13 — Compare saved executions and retain Random Forest criteria
+
+User-authorized follow-up: replace the configuration benchmark destination with
+a read-only comparison of successful executions already stored in Results.
+Add an explicit Random Forest criterion choice (`gini` or `entropy`) and retain
+the latest successful result independently for each criterion. Retraining one
+criterion replaces only its own saved result; failed training preserves the
+last successful result and exposes the attempt failure. Other models retain
+their latest successful result. Parameter-widget edits alone do not invalidate
+or retrain saved executions; shared dataset/target/partition context changes
+still invalidate incomparable snapshots. Only trained models appear, with
+saved parameters and partition provenance. Comparison/navigation must never
+call training or experimentation. Do not implement proposed `general %`, `y %`,
+or `n %` metrics until metric semantics are clarified.
+Route: delegated direct; existing shared renderer/state/UI/tests span multiple
+non-trivial files. TDD off; ordinary functional checks. Checks: focused AppTest
+regressions, full pytest suite with configured thread limits, F821, affected
+format check, and `git diff --check`. Commit and review are parent-owned.
+Outcome: the comparison route now reads the same individual-result store as the
+Results route and has no training or experiment action. Untrained algorithms
+remain absent. Random Forest exposes `gini`/`entropy` independently, retains one
+successful snapshot per criterion, and failed attempts retain the previous
+success with an error. Editing per-model controls no longer clears saved
+execution; the active shared classification context still removes all model
+snapshots. Applying a fresh global partition now clears all individual result
+keys (the previous cleanup only removed the exact base key, not suffixed keys).
+Checks: focused command — 54 passed, 22 subtests passed in 17.64s; full
+thread-limited suite — 87 passed, 52 subtests passed in 31.91s. F821 and
+affected Ruff format checks passed; `git diff --check` passed. No runtime server
+or browser was started. Do not implement `general %`, `y %`, or `n %` metrics
+without the user's semantic clarification. Rollback: restore the comparison
+benchmark route/renderer, per-model invalidation behavior, and RF result store;
+restore the prior tests and task-document entry. All changes remain uncommitted
+for parent review; no commit identity is claimed.
+Test count context: T13 replaced tests that exercised the retired configuration-
+benchmark UI with read-only result-route, saved-execution, RF-criterion, and
+invalidation coverage. The suite changed from the prior 91 tests to 87; no
+applicable behavior coverage was intentionally dropped. T14 adds two metric
+regressions, bringing the current suite to 89 tests.
+
+## T14 — Show accuracy and actual-class recall percentages
+
+User clarification: `general %` means overall accuracy; `y %` and `n %` mean
+recall for actual `y` and actual `n` respectively (correct predictions within
+each actual class). Expose general accuracy and per-actual-class recall as
+percentages in saved individual and comparison results. When actual class labels
+are y/n, identify the matching recalls; otherwise use each actual class's
+literal label, including numeric `1`/`0` without inferring y/n semantics. A class
+with no evaluated actual cases must be shown as unavailable, not zero. Derive
+metrics from the saved execution without retraining. Preserve the read-only
+comparison and RF criterion snapshots. Route: delegated direct, multiple
+render/test files; TDD off. Checks: asymmetric confusion-matrix semantics,
+binary and multiclass labels, absent evaluated class, percentage rendering,
+no training/experiment during comparison, focused/full tests, F821,
+changed-range format check, and `git diff --check`. Parent owns commit/review.
+Outcome: the saved-result summary now shows overall accuracy as a percentage and
+recall for each actual class as a percentage, derived from the saved actual and
+predicted labels. Case-insensitive binary string labels `y`/`n` receive Y/N
+names; all other labels (including numeric `1`/`0`) retain their literal class
+identity. A class absent from evaluated truth is labeled “Sin casos evaluados”.
+The individual detail view and read-only comparison expose the same metrics;
+no training or experimentation is performed to derive them. T13's unrelated
+formatting expansion in `streamlit_app.py` was removed while preserving T12's
+single Data summary, T13's comparison routing and partition invalidation, and
+T14's percentage metrics. Checks: focused command — 56 passed, 22 subtests
+passed; full thread-limited suite — 89 passed, 52 subtests passed. F821,
+changed Python-file formatting checks, and `git diff --check` passed.
+`streamlit_app.py` remains at its pre-existing nonformatted baseline; it was not
+whole-file formatted. No server/browser or commit/review was run.
+
+Independent verification evidence: the parent verifier passed the final 89 tests
+and 52 subtests and confirmed the RF snapshots in browser captures
+`/tmp/lab2_t14_rf_compare.png` and `/tmp/lab2_t14_rf_results.png`. Documentation
+reconciliation updates README, the LAB02 guide, DESIGN, and the Superdesign UI
+map to distinguish read-only saved-result comparison from the offline
+`Clasificacion.experimentar(...)` API.

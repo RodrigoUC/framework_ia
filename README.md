@@ -25,8 +25,10 @@ En la barra lateral:
 3. Navegue por Datos, Clustering, Clasificación, Resultados o Regresión.
 4. Seleccione una técnica; su configuración aparece en la vista correspondiente.
 5. Ejecute el análisis desde su vista. En Clasificación, abra **Resultados de
-   clasificación** para revisar ejecuciones individuales y comparaciones sin
-   entrenar de nuevo.
+   clasificación** o **Comparar modelos entrenados** para revisar sólo
+   ejecuciones individuales guardadas, sin volver a entrenar. Random Forest
+   conserva resultados independientes para `gini` y `entropy`; la comparación
+   muestra accuracy general y recall porcentual por clase real.
 
 En la vista **Datos y preparación** también puede:
 

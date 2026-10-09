@@ -22,11 +22,19 @@ partición, semilla y preprocesamiento; el balance del objetivo aparece una sola
 vez en esa vista. Si no se visita antes, las vistas usan una configuración
 predeterminada viable. Las métricas de salud del dataset permanecen en Datos y
 EDA, no se repiten en cada pantalla de modelo.
-**Comparar configuraciones** permite usar variantes predefinidas, solo el
-estándar o variantes JSON; presenta los candidatos antes de ejecutar.
-**Resultados de clasificación** reúne, sin volver a entrenar, los modelos
-individuales y los experimentos. La tabla de métricas de prueba individuales
-es exploratoria: la selección de variantes se hace con validación, no con test.
+**Comparar modelos entrenados** y **Resultados de clasificación** son destinos
+de solo lectura: muestran únicamente ejecuciones individuales ya guardadas y
+nunca entrenan al navegar. Random Forest conserva la última ejecución exitosa
+por criterio (`gini` y `entropy`), de modo que ambos pueden compararse sin
+volver a ejecutar el otro. La comparación presenta accuracy general y recall
+por clase real como porcentajes; sólo etiquetas de texto `y`/`n` se muestran
+como Y/N, mientras que otras etiquetas conservan su nombre literal. Una clase
+sin casos reales en test se indica como no evaluada.
+
+El método de dominio `Clasificacion.experimentar(...)` y la CLI mantienen el
+flujo experimental de selección en validación descrito abajo. Ese flujo es una
+API/ejecución offline, no el comportamiento de la pantalla Comparar modelos
+entrenados. No seleccione hiperparámetros por métricas de test.
 
 - `Clasificacion.entrenar(...)`: una configuración, con train/test separado.
 - `Clasificacion.experimentar(...)`: configuración estándar y variantes por

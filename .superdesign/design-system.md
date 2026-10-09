@@ -57,9 +57,14 @@ colapsados hasta que el usuario los necesite.
   - K-Means → proyecciones opcionales t-SNE y UMAP, ejecutadas explícitamente
     y coloreadas por asignación de cluster cuando existe. No agrupan datos.
   - Clasificación → KNN; Árbol de decisión; Random Forest; XGBoost;
-    AdaBoost; Naive Bayes; Comparar configuraciones.
-  - Resultados de clasificación → una vista de solo lectura que distingue
-    ejecuciones individuales de selección experimental por validación.
+    AdaBoost; Naive Bayes; Comparar modelos entrenados.
+  - Comparar modelos entrenados / Resultados de clasificación → vistas de solo
+    lectura que muestran únicamente ejecuciones guardadas; comparar nunca
+    entrena. Random Forest conserva snapshots separados para `gini` y
+    `entropy`. Las métricas muestran accuracy general y recall porcentual por
+    clase real, con las etiquetas reales y la partición aplicada.
+  - `Clasificacion.experimentar(...)` sigue disponible como API/flujo offline de
+    selección en validación, pero no se dispara desde la navegación.
   - Regresión → lineal simple y múltiple (marcadas como próximas mientras sean
     plantillas).
   El ítem activo debe mostrar toda la ruta (breadcrumb), y el menú conserva

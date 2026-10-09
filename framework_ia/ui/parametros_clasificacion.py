@@ -17,6 +17,15 @@ def parametros_individuales(algoritmo: str) -> dict:
     """Expone ajustes frecuentes; la configuración estándar la define el dominio."""
     if algoritmo == "NR":
         return {}
+    criterio_rf = None
+    if algoritmo == "RF":
+        criterio_rf = st.selectbox(
+            "Criterio de división",
+            ["gini", "entropy"],
+            key="lab2_param_RF_criterion",
+            persist_state="session",
+            help="Cada criterio conserva su última ejecución exitosa por separado.",
+        )
     modo = st.radio(
         "Configuración del modelo",
         ["Estándar", "Personalizada"],
@@ -25,10 +34,10 @@ def parametros_individuales(algoritmo: str) -> dict:
         help="Estándar utiliza los valores predeterminados del algoritmo y la semilla indicada.",
     )
     if modo == "Estándar":
-        return {}
+        return {"criterion": criterio_rf} if criterio_rf is not None else {}
     prefijo = f"lab2_param_{algoritmo}"
     columnas = st.columns(2)
-    resultado = {}
+    resultado = {"criterion": criterio_rf} if criterio_rf is not None else {}
     for indice, parametro in enumerate(CONFIGURACIONES_MODELO[algoritmo].parametros):
         columna = columnas[indice % 2]
         clave = f"{prefijo}_{parametro.nombre}"

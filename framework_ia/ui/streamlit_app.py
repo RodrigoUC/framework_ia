@@ -41,7 +41,6 @@ from .estado_clasificacion import (
 )
 from .lab2 import (
     preparacion_segura,
-    render_experimentos,
     render_modelo_individual,
     render_resultados,
 )
@@ -89,7 +88,7 @@ TITULOS_VISTA = {
     "clasificacion_adaboost": "AdaBoost",
     "clasificacion_nb": "Naive Bayes",
     "clasificacion_configuracion": "Configuración de clasificación",
-    "lab2_experimentos": "Comparar configuraciones",
+    "lab2_experimentos": "Comparar modelos entrenados",
     "lab2_resultados": "Resultados de clasificación",
     "regresion": "Regresión",
 }
@@ -107,7 +106,7 @@ RUTAS_VISTA = {
     "clasificacion_adaboost": "Clasificación / AdaBoost",
     "clasificacion_nb": "Clasificación / Naive Bayes",
     "clasificacion_configuracion": "Configuración / Clasificación",
-    "lab2_experimentos": "Clasificación / Comparar configuraciones",
+    "lab2_experimentos": "Clasificación / Comparar modelos entrenados",
     "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
     "regresion": "Regresión / Próximamente",
 }
@@ -286,7 +285,7 @@ def _seleccionar_vista() -> str:
             boton("XGBoost", "clasificacion_xgboost")
             boton("AdaBoost", "clasificacion_adaboost")
             boton("Naive Bayes", "clasificacion_nb")
-            boton("Comparar configuraciones", "lab2_experimentos")
+            boton("Comparar modelos entrenados", "lab2_experimentos")
 
         with st.expander("Regresión", expanded=vista == "regresion"):
             st.markdown(
@@ -318,12 +317,7 @@ def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> 
         unsafe_allow_html=True,
     )
     if vista in {"datos", "eda"}:
-        resumen = EDA(dataframe=datos).resumen_calidad()
-        columnas = st.columns(4)
-        columnas[0].metric("Filas", resumen["filas"])
-        columnas[1].metric("Columnas", resumen["columnas"])
-        columnas[2].metric("Nulos", resumen["nulos"])
-        columnas[3].metric("Duplicados", resumen["duplicados"])
+        _resumen_calidad(datos)
 
 
 def _render_regresion() -> None:
@@ -384,6 +378,12 @@ def _limpiar_resultados() -> None:
 def _resumen_calidad(datos: pd.DataFrame) -> None:
     """Muestra indicadores básicos del dataset activo."""
     resumen = EDA(dataframe=datos).resumen_calidad()
+    numericas = _columnas_numericas(datos)
+    resumen["outliers_criticos"] = (
+        len(EDA(dataframe=datos).detectar_outliers(numericas)["filas_con_algun_outlier"])
+        if numericas
+        else 0
+    )
     indicadores = list(resumen.items())
     metricas_por_fila = 3
     for inicio in range(0, len(indicadores), metricas_por_fila):
@@ -399,8 +399,6 @@ def _render_dataset() -> None:
     original = st.session_state["dataset_original"]
     actual = st.session_state["dataset_preparado"]
     st.markdown("### Preparación del dataset")
-    _resumen_calidad(actual)
-    _resumen_dataset_modulo(actual)
 
     st.markdown("#### Tipos de columna")
     tabla_tipos = EDA(dataframe=actual).resumen_columnas()
@@ -523,6 +521,9 @@ def _render_particion(datos: pd.DataFrame) -> None:
             for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
                           "resultado_lab2_modelo", "preview_clasificacion", "clasificacion_contexto"):
                 st.session_state.pop(clave, None)
+            for clave in tuple(st.session_state):
+                if clave.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
+                    st.session_state.pop(clave, None)
             st.success("Partición calculada y disponible para el resto del framework.")
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible calcular la partición: {exc}")
@@ -1422,7 +1423,7 @@ def main() -> None:
         elif not configuracion_clasif["features"]:
             _render_configuracion_requerida(sin_features=True)
         else:
-            render_experimentos(datos, configuracion_clasif)
+            render_resultados(_mostrar_figura)
     elif vista == "lab2_resultados":
         if configuracion_clasif is None:
             st.info(

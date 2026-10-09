@@ -7,8 +7,8 @@ La clasificación conserva esa identidad y controles nativos; no introduce un se
 ## Usuarios y flujo principal
 
 Estudiantes y docentes que cargan un CSV, eligen objetivo y predictoras,
-comparan configuraciones y revisan evidencia reproducible. Primero se configura,
-luego se ejecuta explícitamente; visitar resultados nunca entrena modelos.
+entrenan explícitamente y revisan evidencia reproducible. Los destinos de
+comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 
 ## Canonical UI Map
 
@@ -23,25 +23,31 @@ luego se ejecuta explícitamente; visitar resultados nunca entrena modelos.
 - Clasificación: una vista por KNN, Árbol de decisión, Random Forest, XGBoost,
   AdaBoost y Naive Bayes. Cada una muestra parámetros, balance del objetivo
   antes del entrenamiento, acción explícita y diagnóstico de prueba.
-- Comparar configuraciones: variantes predefinidas, solo estándar o edición
-  avanzada mediante JSON; revisión de candidatos antes de ejecutar y selección
-  mediante validación.
-- Resultados de clasificación: destino único de solo lectura para modelos
-  individuales y experimentos. Separa métricas exploratorias de prueba de la
-  selección por validación; muestra parámetros, procedencia, errores y descargas.
+- Comparar modelos entrenados: destino de solo lectura que muestra sólo modelos
+  ya entrenados. Random Forest conserva snapshots independientes de `gini` y
+  `entropy`; no ejecuta nuevos ajustes.
+- Resultados de clasificación: destino de solo lectura para ejecuciones
+  individuales guardadas, con accuracy general y recall porcentual por clase
+  real. Muestra modelo, parámetros, partición y procedencia. La API offline
+  `Clasificacion.experimentar(...)` conserva la selección por validación y no
+  se invoca desde estas rutas.
 - Regresión: próxima etapa, fuera del alcance de esta implementación.
 
 ## Contratos de interacción
 
 - La fuente cambia sólo al aplicar; cambiar datos invalida resultados derivados.
-- Objetivo, features, semilla, preparación, partición o parámetros modificados
-  invalidan evidencia anterior. Navegar sin cambiar configuración la conserva.
+- Objetivo, features, semilla, preparación, partición o fuente modificados
+  invalidan evidencia incomparable. Los cambios de parámetros de widgets solos
+  no sustituyen la última ejecución guardada; sólo un entrenamiento explícito
+  la reemplaza. Navegar sin cambiar contexto la conserva.
 - Preparación global con imputación/escalado bloquea clasificación y muestra
   cómo restaurar el original para evitar fuga de información.
 - Acciones principales identificables y errores cerca del control; estados
   vacíos explican qué falta. Errores de candidatos y de test son visibles.
 - No depender únicamente del color. Las métricas macro se rotulan como macro;
-  los porcentajes reflejan la partición realmente aplicada.
+  accuracy y recall por clase reflejan la partición realmente aplicada. Las
+  etiquetas `y`/`n` sólo se asignan a clases de texto `y`/`n`; otras clases
+  conservan sus etiquetas literales y clases sin soporte se marcan no evaluadas.
 - Streamlit 1.65+ conserva widgets por sesión y permite descripciones accesibles
   de tablas/gráficos. Preservar estas capacidades al cambiar dependencias.
 
