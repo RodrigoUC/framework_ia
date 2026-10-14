@@ -44,6 +44,7 @@ from .lab2 import (
     render_modelo_individual,
     render_resultados,
 )
+from .experimentos_lab2 import render_experimentos
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PALETA = {
@@ -89,6 +90,7 @@ TITULOS_VISTA = {
     "clasificacion_nb": "Naive Bayes",
     "clasificacion_configuracion": "Configuración de clasificación",
     "lab2_experimentos": "Comparar modelos entrenados",
+    "lab2_benchmark": "Experimentos Lab02",
     "lab2_resultados": "Resultados de clasificación",
     "regresion": "Regresión",
 }
@@ -107,6 +109,7 @@ RUTAS_VISTA = {
     "clasificacion_nb": "Clasificación / Naive Bayes",
     "clasificacion_configuracion": "Configuración / Clasificación",
     "lab2_experimentos": "Clasificación / Comparar modelos entrenados",
+    "lab2_benchmark": "Clasificación / Experimentos Lab02",
     "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
     "regresion": "Regresión / Próximamente",
 }
@@ -160,7 +163,11 @@ def _aplicar_estilos_atlas() -> None:
 
 def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
     """Permite preparar una fuente y aplicarla solo al confirmar el formulario."""
-    archivos = sorted((BASE_DIR / "data").glob("*.csv"))
+    directorio_datos = BASE_DIR / "data"
+    archivos = sorted(
+        directorio_datos.rglob("*.csv"),
+        key=lambda ruta: (len(ruta.relative_to(directorio_datos).parts), str(ruta.relative_to(directorio_datos)).casefold()),
+    )
     error_inicio = None
     if "fuente_aplicada" not in st.session_state and archivos:
         try:
@@ -182,11 +189,12 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                 decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
                 encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
                 usar_indice = st.checkbox("Usar primera columna como índice", key="fuente_usar_indice")
+                referencia = st.text_input("Procedencia (URL o referencia, opcional)", key="fuente_referencia")
                 seleccion = None
                 archivo = None
                 if origen == "CSV local":
                     if archivos:
-                        seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: ruta.name, key="fuente_archivo")
+                        seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: str(ruta.relative_to(directorio_datos)), key="fuente_archivo")
                     else:
                         st.warning("No hay archivos CSV en data/. Use la opción de carga.")
                 else:
@@ -202,7 +210,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     if not separador:
                         raise ValueError("El separador del CSV no puede estar vacío.")
                     if origen == "CSV local" and seleccion is not None:
-                        _cargar_fuente_csv(seleccion, configuracion)
+                        _cargar_fuente_csv(seleccion, configuracion, fuente=referencia)
                     elif origen == "Subir CSV" and archivo is not None:
                         contenido = archivo.getvalue()
                         datos = CargadorCSV.cargar_bytes(contenido, configuracion)
@@ -210,6 +218,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                         st.session_state["fuente_aplicada"] = (
                             datos, archivo.name, f"upload:{digest}:{configuracion}"
                         )
+                        _guardar_metadatos_fuente(contenido, configuracion, referencia)
                     else:
                         st.warning("Seleccione un archivo CSV antes de aplicarlo.")
                 except Exception as exc:  # pylint: disable=broad-except
@@ -217,11 +226,37 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
     return st.session_state.get("fuente_aplicada", (None, "", ""))
 
 
-def _cargar_fuente_csv(seleccion: Path, configuracion: ConfiguracionCSV) -> None:
+def _guardar_metadatos_fuente(
+    contenido: bytes, configuracion: ConfiguracionCSV, fuente: str | None = None
+) -> None:
+    """Capture raw-file provenance only when a source is applied successfully."""
+    datos, nombre, identidad = st.session_state["fuente_aplicada"]
+    st.session_state["fuente_metadata"] = {
+        "archivo": nombre,
+        "identidad": identidad,
+        "sha256": hashlib.sha256(contenido).hexdigest(),
+        "fuente": fuente.strip() if fuente and fuente.strip() else None,
+        "filas": len(datos),
+        "columnas": list(datos.columns),
+        "lectura": {
+            "separador": configuracion.separador,
+            "decimal": configuracion.decimal,
+            "encoding": configuracion.encoding,
+            "usar_primera_columna_como_indice": configuracion.usar_primera_columna_como_indice,
+        },
+    }
+
+
+def _cargar_fuente_csv(
+    seleccion: Path, configuracion: ConfiguracionCSV, *, fuente: str | None = None
+) -> None:
     """Carga un CSV local y conserva la identidad de archivo y lectura."""
-    datos = CargadorCSV.cargar_ruta(seleccion, configuracion)
-    identidad = f"local:{seleccion.resolve()}:{seleccion.stat().st_mtime_ns}:{configuracion}"
+    contenido = seleccion.read_bytes()
+    datos = CargadorCSV.cargar_bytes(contenido, configuracion)
+    digest = hashlib.sha256(contenido).hexdigest()
+    identidad = f"local:{seleccion.resolve()}:{digest}:{configuracion}"
     st.session_state["fuente_aplicada"] = (datos, seleccion.name, identidad)
+    _guardar_metadatos_fuente(contenido, configuracion, fuente)
 
 
 def _seleccionar_vista() -> str:
@@ -274,7 +309,7 @@ def _seleccionar_vista() -> str:
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
 
-        with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos"}):
+        with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"}):
             st.markdown(
                 '<p class="atlas-family">Modelos disponibles</p>',
                 unsafe_allow_html=True,
@@ -285,6 +320,7 @@ def _seleccionar_vista() -> str:
             boton("XGBoost", "clasificacion_xgboost")
             boton("AdaBoost", "clasificacion_adaboost")
             boton("Naive Bayes", "clasificacion_nb")
+            boton("Experimentos Lab02", "lab2_benchmark")
             boton("Comparar modelos entrenados", "lab2_experimentos")
 
         with st.expander("Regresión", expanded=vista == "regresion"):
@@ -373,6 +409,7 @@ def _limpiar_resultados() -> None:
     st.session_state.pop("clasificacion_contexto", None)
     st.session_state.pop("lab2_firma_experimento", None)
     st.session_state.pop("lab2_firma_modelo", None)
+    st.session_state.pop("error_lab2_experimento", None)
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:
@@ -439,6 +476,7 @@ def _render_dataset() -> None:
             st.session_state["dataset_preparacion"] = {
                 "imputar": imputar_nulos, "escalado": escalado,
                 "eliminar_duplicados": eliminar_duplicados,
+                "columnas_eliminar": list(columnas_eliminar),
             }
             _limpiar_resultados()
             st.success("La preparación se aplicó correctamente.")
@@ -519,6 +557,7 @@ def _render_particion(datos: pd.DataFrame) -> None:
             st.session_state["particion_global"] = Particionador(configuracion).dividir(datos)
             # A new applied split invalidates even the read-only results route.
             for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
+                          "resultado_lab2_intento_experimento", "error_lab2_experimento",
                           "resultado_lab2_modelo", "preview_clasificacion", "clasificacion_contexto"):
                 st.session_state.pop(clave, None)
             for clave in tuple(st.session_state):
@@ -1367,12 +1406,14 @@ def main() -> None:
         if configuracion_clasif is not None:
             sincronizar_contexto(st.session_state, datos, configuracion_clasif)
             preparacion_segura(mostrar_guia=True)
-    elif vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos"}:
+    elif vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"}:
         configuracion_clasif = configuracion_clasificacion_actual(
             datos, st.session_state
         )
         if configuracion_clasif is not None:
             sincronizar_contexto(st.session_state, datos, configuracion_clasif)
+        else:
+            limpiar_resultados_clasificacion(st.session_state)
 
     elif vista == "lab2_resultados":
         configuracion_clasif = configuracion_clasificacion_actual(datos, st.session_state)
@@ -1417,6 +1458,13 @@ def main() -> None:
                 datos, configuracion_clasif, _mostrar_figura,
                 algoritmo=VISTAS_CLASIFICADORES[vista],
             )
+    elif vista == "lab2_benchmark":
+        if configuracion_clasif is None:
+            _render_configuracion_requerida()
+        elif not configuracion_clasif["features"]:
+            _render_configuracion_requerida(sin_features=True)
+        else:
+            render_experimentos(datos, configuracion_clasif, _mostrar_figura)
     elif vista == "lab2_experimentos":
         if configuracion_clasif is None:
             _render_configuracion_requerida()
@@ -1431,7 +1479,7 @@ def main() -> None:
                 "al menos una columna objetivo y una columna predictora."
             )
         else:
-            render_resultados(_mostrar_figura)
+            render_resultados(_mostrar_figura, incluir_experimentos=True)
     elif vista == "kmeans":
         assert configuracion is not None
         _render_particional(datos, configuracion, "K-Means")

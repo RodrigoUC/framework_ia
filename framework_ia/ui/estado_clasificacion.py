@@ -44,6 +44,8 @@ def sincronizar_contexto(
             "resultado_modelos_clasificacion",
             "preview_clasificacion",
             "resultado_lab2_experimento",
+            "resultado_lab2_intento_experimento",
+            "error_lab2_experimento",
             "resultado_lab2_modelo",
             "lab2_firma_experimento",
             "lab2_firma_modelo",
@@ -66,6 +68,8 @@ def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
                 "contexto_lab2_modelo_",
                 "lab2_firma_modelo",
                 "resultado_lab2_experimento",
+                "resultado_lab2_intento_experimento",
+                "error_lab2_experimento",
                 "lab2_firma_experimento",
             )
         ):

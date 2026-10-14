@@ -7,6 +7,7 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import numpy as np
@@ -210,13 +211,17 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
 
     def test_umap_produce_dos_dimensiones(self) -> None:
-        """UMAP sustituye una caché de Numba configurada pero no escribible."""
-        with patch.dict("os.environ", {"NUMBA_CACHE_DIR": "/proc/numba_cache"}):
-            resultado = Cluster(
-                dataframe=self.datos,
-                features=["x", "y", "z"],
-            ).UMAP(n_neighbors=5, min_dist=0.1)
-            self.assertNotEqual(os.environ["NUMBA_CACHE_DIR"], "/proc/numba_cache")
+        """UMAP sustituye una ruta de caché inutilizable en cualquier sistema."""
+        with TemporaryDirectory(prefix="framework_numba_test_") as temporal:
+            # Un archivo no puede usarse como carpeta; /proc sólo funciona en Unix.
+            ruta_invalida = Path(temporal) / "cache_como_archivo"
+            ruta_invalida.write_text("fixture", encoding="utf-8")
+            with patch.dict("os.environ", {"NUMBA_CACHE_DIR": str(ruta_invalida)}):
+                resultado = Cluster(
+                    dataframe=self.datos,
+                    features=["x", "y", "z"],
+                ).UMAP(n_neighbors=5, min_dist=0.1)
+                self.assertNotEqual(os.environ["NUMBA_CACHE_DIR"], str(ruta_invalida))
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
         self.assertFalse(resultado.coordenadas.isna().any().any())
 

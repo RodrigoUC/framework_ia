@@ -13,3 +13,12 @@ salida_lab01/
 .venv/*
 
 salida_lab02/
+
+# Datos y entregables locales de Lab02; no se publican automáticamente.
+data/lab02/*.csv
+data/lab02/procedencia.json
+entrega_lab02/
+output/lab02/
+output/pdf/
+tmp/lab02/
+tmp/pdfs/

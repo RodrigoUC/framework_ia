@@ -8,44 +8,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.metadata
 import json
 from pathlib import Path
-from typing import Any
-
-import numpy as np
-import pandas as pd
 
 from framework_ia.datos.fuentes import CargadorCSV
+from framework_ia.exportacion_lab02 import _json_seguro, construir_archivos_experimento
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.utils import ConfiguracionCSV
 
-
-def _json_seguro(valor: Any) -> Any:
-    """Convierte tipos científicos sin introducir NaN/Infinity en el JSON."""
-    if isinstance(valor, dict):
-        return {str(k): _json_seguro(v) for k, v in valor.items()}
-    if isinstance(valor, (list, tuple, np.ndarray, pd.Index)):
-        return [_json_seguro(v) for v in valor]
-    if isinstance(valor, (np.integer, np.floating, np.bool_)):
-        return _json_seguro(valor.item())
-    if isinstance(valor, float) and not np.isfinite(valor):
-        return None
-    if isinstance(valor, Path):
-        return str(valor)
-    if isinstance(valor, (pd.Timestamp, pd.Timedelta)):
-        return str(valor)
-    return valor
-
-
-def _guardar_json(ruta: Path, contenido: Any) -> None:
-    ruta.write_text(
-        json.dumps(
-            _json_seguro(contenido), ensure_ascii=False, indent=2, allow_nan=False
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+__all__ = ["_json_seguro", "crear_parser", "ejecutar", "main"]
 
 
 def crear_parser() -> argparse.ArgumentParser:
@@ -116,58 +87,22 @@ def ejecutar(argumentos: argparse.Namespace) -> Path:
         raise ValueError(
             f"Ningún modelo pudo evaluarse. Revise las configuraciones: {errores}"
         )
-    argumentos.salida.mkdir(parents=True, exist_ok=True)
-    paquetes = ["numpy", "pandas", "scikit-learn", "xgboost"]
-    versiones = {}
-    for paquete in paquetes:
-        try:
-            versiones[paquete] = importlib.metadata.version(paquete)
-        except importlib.metadata.PackageNotFoundError:
-            versiones[paquete] = None
-    _guardar_json(
-        argumentos.salida / "configuracion.json",
-        {
-            "argumentos": vars(argumentos),
-            "dataset": {
-                "archivo": argumentos.csv.name,
-                "sha256": hashlib.sha256(contenido).hexdigest(),
-                "filas": len(datos),
-                "columnas": list(datos.columns),
-                "fuente": argumentos.fuente,
-            },
-            "versiones": versiones,
-            "experimento": experimento.metadatos,
-            "advertencia": "Resultados educativos; requieren interpretación y no validan uso clínico ni potabilidad real.",
+    archivos = construir_archivos_experimento(
+        experimento,
+        argumentos=vars(argumentos),
+        dataset={
+            "archivo": argumentos.csv.name,
+            "sha256": hashlib.sha256(contenido).hexdigest(),
+            "filas": len(datos),
+            "columnas": list(datos.columns),
+            "fuente": argumentos.fuente,
         },
     )
-    tabla = experimento.tabla.copy()
-    for columna in tabla.columns:
-        if tabla[columna].map(lambda v: isinstance(v, (dict, list, tuple))).any():
-            tabla[columna] = tabla[columna].map(
-                lambda v: (
-                    json.dumps(_json_seguro(v), ensure_ascii=False, allow_nan=False)
-                    if isinstance(v, (dict, list, tuple))
-                    else v
-                )
-            )
-    tabla.to_csv(argumentos.salida / "comparacion_validacion.csv", index=False)
-    resumen = {}
-    for algoritmo, resultado in experimento.mejores.items():
-        directorio = argumentos.salida / algoritmo
-        directorio.mkdir()
-        resultado.matriz_confusion.to_csv(directorio / "matriz_confusion_test.csv")
-        pd.concat(
-            [resultado.y_true.rename("real"), resultado.y_pred.rename("prediccion")],
-            axis=1,
-        ).to_csv(directorio / "predicciones_test.csv", index_label="fila")
-        resumen[algoritmo] = {
-            "parametros": resultado.parametros,
-            "metricas_test": resultado.metricas,
-            "metadatos": resultado.metadatos,
-            "muestra_train": resultado.muestra_train,
-            "muestra_test": resultado.muestra_test,
-        }
-    _guardar_json(argumentos.salida / "mejores_modelos.json", resumen)
+    argumentos.salida.mkdir(parents=True, exist_ok=True)
+    for nombre, contenido_archivo in archivos.items():
+        destino = argumentos.salida / nombre
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_bytes(contenido_archivo)
     return argumentos.salida
 
 

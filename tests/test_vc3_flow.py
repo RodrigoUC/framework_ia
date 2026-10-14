@@ -104,7 +104,7 @@ class VisualContrastFlowTests(unittest.TestCase):
 
             with patch.object(
                 streamlit_app.CargadorCSV,
-                "cargar_ruta",
+                "cargar_bytes",
                 side_effect=ValueError("invalid CSV fixture"),
             ):
                 streamlit_app.main()

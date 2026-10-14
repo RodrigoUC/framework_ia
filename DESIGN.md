@@ -21,16 +21,20 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 - K-Means: proyecciones opcionales t-SNE y UMAP dentro de la vista, ejecutadas
   explícitamente y coloreadas por las asignaciones activas cuando existen.
 - Clasificación: una vista por KNN, Árbol de decisión, Random Forest, XGBoost,
-  AdaBoost y Naive Bayes. Cada una muestra parámetros, balance del objetivo
-  antes del entrenamiento, acción explícita y diagnóstico de prueba.
+  AdaBoost y Naive Bayes. Cada una muestra parámetros, acción explícita y
+  diagnóstico de prueba; objetivo, balance y preparación pertenecen a la
+  configuración compartida.
+- Experimentos Lab02: reutiliza esa configuración para comparar 15 candidatos
+  (estándar y dos variantes de cinco familias) con una acción explícita. Reutiliza
+  validación externa o la extrae sólo de train. Tabla y gráfica de validación
+  preceden a métricas de prueba, matrices y predicciones de los ganadores;
+  descargas ZIP/CSV/JSON usan el mismo formato que la CLI.
 - Comparar modelos entrenados: destino de solo lectura que muestra sólo modelos
   ya entrenados. Random Forest conserva snapshots independientes de `gini` y
   `entropy`; no ejecuta nuevos ajustes.
 - Resultados de clasificación: destino de solo lectura para ejecuciones
-  individuales guardadas, con accuracy general y recall porcentual por clase
-  real. Muestra modelo, parámetros, partición y procedencia. La API offline
-  `Clasificacion.experimentar(...)` conserva la selección por validación y no
-  se invoca desde estas rutas.
+  individuales y experimentos guardados, en apartados separados. Muestra modelo,
+  parámetros, métricas, partición y procedencia; nunca invoca entrenamiento.
 - Regresión: próxima etapa, fuera del alcance de esta implementación.
 
 ## Contratos de interacción
@@ -40,6 +44,9 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
   invalidan evidencia incomparable. Los cambios de parámetros de widgets solos
   no sustituyen la última ejecución guardada; sólo un entrenamiento explícito
   la reemplaza. Navegar sin cambiar contexto la conserva.
+- Las opciones experimentales modificadas se señalan sin alterar la evidencia
+  ejecutada. Un intento fallido conserva el último experimento exitoso del mismo
+  contexto; los fallos de candidatos se muestran como ejecución parcial.
 - Preparación global con imputación/escalado bloquea clasificación y muestra
   cómo restaurar el original para evitar fuga de información.
 - Acciones principales identificables y errores cerca del control; estados

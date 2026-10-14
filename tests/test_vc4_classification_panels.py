@@ -100,7 +100,7 @@ class ClassificationPanelTests(unittest.TestCase):
         app.sidebar.button(key="nav_lab2_resultados").click().run()
         self.assertFalse(app.exception)
         self.assertTrue(
-            any("Todavía no hay resultados" in item.value for item in app.info)
+            any("Todavía no hay ejecuciones individuales" in item.value for item in app.info)
         )
 
     def test_legacy_comparison_route_migrates_to_read_only_results(self):

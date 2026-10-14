@@ -4,14 +4,19 @@ All datasets in these tests are synthetic; they are not academic results for
 Potabilidad or Diabetes.
 """
 
+import hashlib
+import json
+from dataclasses import replace
+from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
+from zipfile import ZipFile
 
 import pandas as pd
 import pytest
 from sklearn.datasets import make_classification
 from streamlit.testing.v1 import AppTest
-from types import SimpleNamespace
 
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.ui.estado_clasificacion import huella_datos, sincronizar_contexto
@@ -36,6 +41,13 @@ def nueva_app():
         "fixture_sintetico.csv",
         "synthetic-ui-fixture",
     )
+    contenido = datos.to_csv(index=False).encode("utf-8")
+    app.session_state["fuente_metadata"] = {
+        "identidad": "synthetic-ui-fixture",
+        "sha256": hashlib.sha256(contenido).hexdigest(),
+        "fuente": "fixture sintético para verificación de software",
+        "lectura": {"separador": ",", "decimal": ".", "encoding": "utf-8"},
+    }
     app.run()
     assert not app.exception
     return app
@@ -281,7 +293,7 @@ def test_results_route_invalidates_stale_classification_without_rendering_contro
     assert not app.exception
     assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert any("Todavía no hay resultados" in alerta.value for alerta in app.info)
+    assert any("Todavía no hay ejecuciones individuales" in alerta.value for alerta in app.info)
 
 
 def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair():
@@ -520,4 +532,398 @@ def test_applying_a_new_global_split_invalidates_read_only_results():
     assert not app.exception
     assert "resultado_lab2_modelo_KNN" not in app.session_state
     app.sidebar.button(key="nav_lab2_resultados").click().run()
-    assert any("Todavía no hay resultados" in e.value for e in app.info)
+    assert any("Todavía no hay ejecuciones individuales" in e.value for e in app.info)
+
+
+@pytest.fixture(scope="module")
+def resultado_benchmark():
+    X, y = make_classification(
+        n_samples=120,
+        n_features=4,
+        n_redundant=0,
+        weights=[0.8, 0.2],
+        random_state=7,
+    )
+    datos = pd.DataFrame(X, columns=["a", "b", "c", "d"])
+    datos["clase"] = y
+    return Clasificacion(dataframe=datos, target="clase").experimentar()
+
+
+def _abrir_experimentos(app):
+    app.sidebar.button(key="nav_lab2_benchmark").click().run()
+    assert not app.exception
+
+
+def _guardar_benchmark(app, resultado):
+    _abrir_experimentos(app)
+    with patch.object(Clasificacion, "experimentar", return_value=resultado) as llamada:
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    assert llamada.call_count == 1
+    return app.session_state["resultado_lab2_experimento"]
+
+
+def test_benchmark_navigation_catalog_and_shared_setup_do_not_train():
+    app = nueva_app()
+    with (
+        patch.object(
+            Clasificacion, "entrenar", side_effect=AssertionError("navigation trained")
+        ) as entrenamiento,
+        patch.object(
+            Clasificacion,
+            "experimentar",
+            side_effect=AssertionError("navigation experimented"),
+        ) as experimento,
+    ):
+        _abrir_experimentos(app)
+        catalogo = next(
+            frame.value
+            for frame in app.dataframe
+            if "Configuración" in frame.value.columns
+        )
+        assert len(catalogo) == 15
+        assert set(catalogo["Algoritmo"]) == {"KNN", "DT", "RF", "XGBoost", "AdaBoost"}
+        assert app.selectbox(key="lab2_benchmark_metrica").value == "f1_macro"
+        assert app.slider(key="lab2_benchmark_validacion").value == 20
+        assert not any(widget.key == "clasif_target" for widget in app.selectbox)
+        assert not any(widget.key == "clasif_features" for widget in app.multiselect)
+        assert "resultado_lab2_experimento" not in app.session_state
+        entrenamiento.assert_not_called()
+        experimento.assert_not_called()
+
+
+def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.multiselect(key="clasif_features").set_value(["a", "b", "c"]).run()
+    app.number_input(key="clasif_random_state").set_value(19).run()
+    _abrir_experimentos(app)
+    original = Clasificacion.experimentar
+    with patch.object(
+        Clasificacion, "experimentar", autospec=True, side_effect=original
+    ) as llamada:
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    assert llamada.call_count == 1
+    assert llamada.call_args.kwargs["validation_size"] == 0.2
+    assert llamada.call_args.kwargs["random_state"] == 19
+    guardado = app.session_state["resultado_lab2_experimento"]
+    resultado = guardado["resultado"]
+    assert len(resultado.tabla) == 15
+    assert len(resultado.mejores) == 5
+    assert resultado.metadatos["muestra_train"] == 72
+    assert resultado.metadatos["muestra_validacion"] == 18
+    assert resultado.metadatos["muestra_test"] == 30
+    assert all(
+        ganador.features == ("a", "b", "c") for ganador in resultado.mejores.values()
+    )
+    validacion = next(
+        frame.value
+        for frame in app.dataframe
+        if "puntuacion_validacion" in frame.value.columns
+    )
+    assert not any("test" in columna for columna in validacion.columns)
+    prueba = next(
+        frame.value
+        for frame in app.dataframe
+        if "Accuracy prueba" in frame.value.columns
+    )
+    assert len(prueba) == 5
+    grafica = json.loads(app.get("plotly_chart")[0].proto.spec)
+    assert grafica["layout"]["xaxis"]["range"] == [0, 1]
+    assert grafica["data"][0]["orientation"] == "h"
+    with ZipFile(BytesIO(guardado["zip"])) as archivo:
+        for nombre, contenido in guardado["archivos"].items():
+            assert archivo.read(nombre) == contenido
+        config = json.loads(archivo.read("configuracion.json"))
+        assert (
+            config["dataset"]["sha256"]
+            == app.session_state["fuente_metadata"]["sha256"]
+        )
+        assert config["argumentos"]["semilla"] == 19
+        assert not config["experimento"]["test_usado_para_seleccion"]
+        assert "KNN/predicciones_test.csv" in archivo.namelist()
+    with (
+        patch.object(
+            Clasificacion, "entrenar", side_effect=AssertionError("results trained")
+        ),
+        patch.object(
+            Clasificacion,
+            "experimentar",
+            side_effect=AssertionError("results experimented"),
+        ),
+    ):
+        app.sidebar.button(key="nav_lab2_resultados").click().run()
+        assert not app.exception
+        assert any("Accuracy prueba" in frame.value.columns for frame in app.dataframe)
+        app.sidebar.button(key="nav_lab2_experimentos").click().run()
+        assert not app.exception
+        assert not any(
+            "puntuacion_validacion" in frame.value.columns for frame in app.dataframe
+        )
+
+
+@pytest.mark.parametrize("validacion", [0.0, 0.2])
+def test_benchmark_reuses_global_validation_or_splits_only_global_train(validacion):
+    from framework_ia.datos.particion import Particionador
+    from framework_ia.utils import ConfiguracionParticion
+
+    app = nueva_app()
+    particion = Particionador(
+        ConfiguracionParticion(
+            porcentaje_test=0.25,
+            porcentaje_validacion=validacion,
+            columna_estratificacion="clase",
+            semilla=31,
+        )
+    ).dividir(app.session_state["dataset_preparado"])
+    app.session_state["particion_global"] = particion
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.checkbox(key="clasif_usar_particion_global").check().run()
+    _abrir_experimentos(app)
+    assert any(widget.key == "lab2_benchmark_validacion" for widget in app.slider) == (
+        validacion == 0.0
+    )
+    original = Clasificacion.experimentar
+    with patch.object(
+        Clasificacion, "experimentar", autospec=True, side_effect=original
+    ) as llamada:
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    resultado = app.session_state["resultado_lab2_experimento"]["resultado"]
+    assert set(resultado.metadatos["test_indices"]) == set(particion.test.index)
+    assert set(resultado.metadatos["train_indices"]).issubset(
+        set(particion.train.index)
+    )
+    if validacion:
+        assert "validation_size" not in llamada.call_args.kwargs
+        assert set(resultado.metadatos["validacion_indices"]) == set(
+            particion.validacion.index
+        )
+        assert resultado.metadatos["validacion_externa"]
+    else:
+        assert llamada.call_args.kwargs["validation_size"] == 0.2
+        assert set(resultado.metadatos["validacion_indices"]).issubset(
+            set(particion.train.index)
+        )
+        assert not resultado.metadatos["validacion_externa"]
+
+
+def test_benchmark_dirty_controls_and_failed_retry_preserve_executed_evidence(
+    resultado_benchmark,
+):
+    app = nueva_app()
+    guardado = _guardar_benchmark(app, resultado_benchmark)
+    evidencia = guardado["zip"]
+    with patch.object(
+        Clasificacion, "experimentar", side_effect=AssertionError("widget trained")
+    ):
+        app.selectbox(key="lab2_benchmark_metrica").set_value("accuracy").run()
+    assert app.session_state["resultado_lab2_experimento"] is guardado
+    assert any("Las opciones cambiaron" in aviso.value for aviso in app.info)
+    with patch.object(
+        Clasificacion, "experimentar", side_effect=ValueError("fallo sintético")
+    ):
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    assert app.session_state["resultado_lab2_experimento"] is guardado
+    assert app.session_state["resultado_lab2_experimento"]["zip"] == evidencia
+    assert any("fallo sintético" in aviso.value for aviso in app.error)
+    assert guardado["opciones"]["metrica"] == "f1_macro"
+    assert (
+        json.loads(guardado["archivos"]["configuracion.json"])["argumentos"]["metrica"]
+        == "f1_macro"
+    )
+
+
+def test_benchmark_partial_candidate_failures_are_visible_and_exported(
+    resultado_benchmark,
+):
+    tabla = resultado_benchmark.tabla.copy()
+    afectados = tabla.algoritmo == "XGBoost"
+    tabla.loc[afectados, ["estado", "error", "seleccionado"]] = [
+        "error",
+        "XGBoost no instalado",
+        False,
+    ]
+    parcial = replace(
+        resultado_benchmark,
+        tabla=tabla,
+        mejores={
+            codigo: ganador
+            for codigo, ganador in resultado_benchmark.mejores.items()
+            if codigo != "XGBoost"
+        },
+        metadatos={
+            **resultado_benchmark.metadatos,
+            "candidatos_fallidos": 3,
+            "errores_prueba": {"XGBoost": "sin modelo"},
+        },
+    )
+    app = nueva_app()
+    guardado = _guardar_benchmark(app, parcial)
+    assert any("Ejecución parcial" in aviso.value for aviso in app.warning)
+    assert any("XGBoost" in aviso.value for aviso in app.error)
+    exportado = pd.read_csv(BytesIO(guardado["archivos"]["comparacion_validacion.csv"]))
+    assert (exportado.loc[exportado.algoritmo == "XGBoost", "estado"] == "error").all()
+    assert "XGBoost/predicciones_test.csv" not in guardado["archivos"]
+
+
+def test_benchmark_no_winners_keeps_previous_success_and_shows_attempt_errors(
+    resultado_benchmark,
+):
+    app = nueva_app()
+    guardado = _guardar_benchmark(app, resultado_benchmark)
+    tabla = resultado_benchmark.tabla.copy()
+    tabla["estado"] = "error"
+    tabla["error"] = "todos fallaron"
+    tabla["seleccionado"] = False
+    fallido = replace(
+        resultado_benchmark, tabla=tabla, mejores={}, mejor_algoritmo=None
+    )
+    with patch.object(Clasificacion, "experimentar", return_value=fallido):
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    assert app.session_state["resultado_lab2_experimento"] is guardado
+    assert (
+        app.session_state["resultado_lab2_intento_experimento"]["resultado"] is fallido
+    )
+    assert any("no produjo ganadores" in aviso.value for aviso in app.warning)
+    assert any("todos fallaron" in str(frame.value) for frame in app.dataframe)
+
+
+@pytest.mark.parametrize("cambio", ["semilla", "particion", "dataset"])
+def test_benchmark_context_change_removes_saved_download_and_error(
+    cambio, resultado_benchmark
+):
+    app = nueva_app()
+    _guardar_benchmark(app, resultado_benchmark)
+    app.session_state["error_lab2_experimento"] = "error viejo"
+    if cambio == "dataset":
+        datos = app.session_state["dataset_original"].copy()
+        datos["a"] += 100
+        app.session_state["fuente_aplicada"] = (datos, "otro.csv", "otro-csv")
+        app.run()
+    else:
+        app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+        if cambio == "semilla":
+            app.number_input(key="clasif_random_state").set_value(99).run()
+        else:
+            app.slider(key="clasif_test_size").set_value(30).run()
+    assert not app.exception
+    assert "resultado_lab2_experimento" not in app.session_state
+    assert "error_lab2_experimento" not in app.session_state
+    _abrir_experimentos(app)
+    assert not app.get("download_button")
+
+
+def test_benchmark_global_imputation_blocks_execution():
+    app = nueva_app()
+    app.session_state["dataset_preparacion"] = {"imputar": True, "escalado": "Ninguno"}
+    with patch.object(
+        Clasificacion, "experimentar", side_effect=AssertionError("unsafe experiment")
+    ):
+        _abrir_experimentos(app)
+    assert app.button(key="lab2_benchmark_ejecutar").disabled
+    assert any("restaure el dataset original" in aviso.value for aviso in app.error)
+
+
+def test_applied_csv_provenance_tracks_exact_bytes_and_read_options(tmp_path):
+    from framework_ia.ui import streamlit_app
+    from framework_ia.utils import ConfiguracionCSV
+
+    primero = tmp_path / "primero.csv"
+    segundo = tmp_path / "segundo.csv"
+    primero.write_bytes(b"x;clase\n1,5;0\n2,5;1\n")
+    segundo.write_bytes(b"x;clase\n9,5;0\n8,5;1\n")
+    estado = {}
+    lectura = ConfiguracionCSV(separador=";", decimal=",", encoding="utf-8")
+    with patch.object(streamlit_app.st, "session_state", estado):
+        streamlit_app._cargar_fuente_csv(
+            primero, lectura, fuente="referencia del profesor"
+        )
+        metadata = estado["fuente_metadata"].copy()
+        assert estado["fuente_aplicada"][0].x.iloc[0] == 1.5
+        assert metadata["sha256"] == hashlib.sha256(primero.read_bytes()).hexdigest()
+        assert metadata["fuente"] == "referencia del profesor"
+        assert metadata["lectura"]["separador"] == ";"
+        streamlit_app._cargar_fuente_csv(segundo, lectura)
+    assert (
+        estado["fuente_metadata"]["sha256"]
+        == hashlib.sha256(segundo.read_bytes()).hexdigest()
+    )
+    assert estado["fuente_metadata"]["sha256"] != metadata["sha256"]
+    assert estado["fuente_metadata"]["fuente"] is None
+
+
+def test_local_source_lists_nested_csvs_after_root_example_and_applies_read_options(
+    tmp_path,
+):
+    from framework_ia.ui import streamlit_app
+
+    data = tmp_path / "data"
+    nested = data / "lab02"
+    nested.mkdir(parents=True)
+    ejemplo = data / "ejemplo.csv"
+    ejemplo.write_bytes(b"x,clase\n1,0\n2,1\n3,0\n4,1\n5,0\n6,1\n")
+    diabetes = nested / "Diabetes.csv"
+    diabetes.write_bytes(b"x;clase\n1,5;0\n2,5;1\n3,5;0\n4,5;1\n5,5;0\n6,5;1\n")
+    potabilidad = nested / "Potabilidad.csv"
+    potabilidad.write_bytes(b"x,clase\n2,0\n4,1\n6,0\n8,1\n10,0\n12,1\n")
+    with patch.object(streamlit_app, "BASE_DIR", tmp_path):
+        app = AppTest.from_file(ENTRYPOINT, default_timeout=60).run()
+        assert not app.exception
+        opciones = app.selectbox(key="fuente_archivo").options
+        assert opciones == [
+            "ejemplo.csv",
+            str(Path("lab02") / "Diabetes.csv"),
+            str(Path("lab02") / "Potabilidad.csv"),
+        ]
+        assert app.session_state["fuente_aplicada"][1] == "ejemplo.csv"
+        app.selectbox(key="fuente_archivo").select_index(1)
+        app.text_input(key="fuente_separador").set_value(";")
+        app.text_input(key="fuente_decimal").set_value(",")
+        app.text_input(key="fuente_referencia").set_value(
+            "CSV entregado por el profesor"
+        )
+        next(
+            button for button in app.button if button.label == "Aplicar fuente"
+        ).click().run()
+        assert not app.exception
+        assert app.session_state["dataset_original"].x.iloc[0] == 1.5
+        assert (
+            app.session_state["fuente_metadata"]["sha256"]
+            == hashlib.sha256(diabetes.read_bytes()).hexdigest()
+        )
+        assert (
+            app.session_state["fuente_metadata"]["fuente"]
+            == "CSV entregado por el profesor"
+        )
+        assert app.session_state["fuente_metadata"]["lectura"]["decimal"] == ","
+
+
+def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(tmp_path):
+    import os
+
+    from framework_ia.ui import streamlit_app
+    from framework_ia.utils import ConfiguracionCSV
+
+    csv = tmp_path / "mismo.csv"
+    csv.write_bytes(b"x,clase\n1,0\n2,1\n")
+    fecha = csv.stat()
+    estado = {}
+    with patch.object(streamlit_app.st, "session_state", estado):
+        streamlit_app._cargar_fuente_csv(csv, ConfiguracionCSV())
+        datos, _, identidad = estado["fuente_aplicada"]
+        streamlit_app._sincronizar_dataset(datos, identidad)
+        estado["resultado_lab2_experimento"] = {"evidencia": "anterior"}
+        csv.write_bytes(b"x,clase\n9,0\n8,1\n")
+        os.utime(csv, ns=(fecha.st_atime_ns, fecha.st_mtime_ns))
+        assert csv.stat().st_mtime_ns == fecha.st_mtime_ns
+        streamlit_app._cargar_fuente_csv(csv, ConfiguracionCSV())
+        datos_nuevos, _, identidad_nueva = estado["fuente_aplicada"]
+        streamlit_app._sincronizar_dataset(datos_nuevos, identidad_nueva)
+    assert identidad_nueva != identidad
+    assert estado["dataset_preparado"].x.tolist() == [9, 8]
+    assert estado["fuente_metadata"]["sha256"] == hashlib.sha256(csv.read_bytes()).hexdigest()
+    assert "resultado_lab2_experimento" not in estado

@@ -206,7 +206,9 @@ def render_modelo_individual(
     )
 
 
-def render_resultados(mostrar_figura: MostrarFigura) -> None:
+def render_resultados(
+    mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
+) -> None:
     """Vista de lectura; nunca ajusta ni selecciona modelos al abrirse."""
     st.markdown("### Resultados de clasificación")
     individuales = []
@@ -317,9 +319,13 @@ def render_resultados(mostrar_figura: MostrarFigura) -> None:
                 )
     if not individuales:
         st.info(
-            "Todavía no hay resultados guardados. Entrene un modelo para que aparezca en esta comparación."
+            "Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación."
         )
-        return
+    if incluir_experimentos:
+        # Imported lazily: the experiment view reuses the diagnostic renderer above.
+        from .experimentos_lab2 import render_resultado_experimento
+
+        render_resultado_experimento(mostrar_figura)
 
 
 def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None:

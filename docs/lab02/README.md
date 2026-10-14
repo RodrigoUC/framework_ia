@@ -22,19 +22,34 @@ partición, semilla y preprocesamiento; el balance del objetivo aparece una sola
 vez en esa vista. Si no se visita antes, las vistas usan una configuración
 predeterminada viable. Las métricas de salud del dataset permanecen en Datos y
 EDA, no se repiten en cada pantalla de modelo.
-**Comparar modelos entrenados** y **Resultados de clasificación** son destinos
-de solo lectura: muestran únicamente ejecuciones individuales ya guardadas y
-nunca entrenan al navegar. Random Forest conserva la última ejecución exitosa
+**Comparar modelos entrenados** es un destino de solo lectura para ejecuciones
+individuales guardadas. **Resultados de clasificación** también es de lectura y
+presenta por separado esas ejecuciones y los experimentos académicos guardados;
+ninguna de estas vistas entrena al navegar. Random Forest conserva la última ejecución exitosa
 por criterio (`gini` y `entropy`), de modo que ambos pueden compararse sin
 volver a ejecutar el otro. La comparación presenta accuracy general y recall
 por clase real como porcentajes; sólo etiquetas de texto `y`/`n` se muestran
 como Y/N, mientras que otras etiquetas conservan su nombre literal. Una clase
 sin casos reales en test se indica como no evaluada.
 
-El método de dominio `Clasificacion.experimentar(...)` y la CLI mantienen el
-flujo experimental de selección en validación descrito abajo. Ese flujo es una
-API/ejecución offline, no el comportamiento de la pantalla Comparar modelos
-entrenados. No seleccione hiperparámetros por métricas de test.
+**Experimentos Lab02** ejecuta el flujo académico con el CSV activo y la misma
+configuración compartida. Su catálogo contiene las cinco familias con estándar
+y dos variantes, 15 candidatos en total. El botón **Ejecutar experimentos Lab02**
+invoca `Clasificacion.experimentar(...)` una sola vez: cambiar opciones o navegar
+no entrena. La métrica predeterminada es F1 macro. Si la partición compartida ya
+contiene validación, se reutilizan sus índices; de otro modo, se reserva el 20%
+del train restante para validación sin alterar test. La vista muestra cantidades
+efectivas, tabla/gráfica de validación, ganadores y diagnóstico final de prueba.
+La CLI utiliza el mismo protocolo. No seleccione hiperparámetros por métricas de test.
+
+Las opciones modificadas se distinguen de la última ejecución: las descargas
+conservan la configuración que produjo los resultados. Un intento fallido
+mantiene la evidencia exitosa del mismo contexto y muestra el error; las
+ejecuciones parciales se identifican con sus candidatos/ganadores fallidos.
+Cambiar datos, objetivo, predictoras, semilla, preprocesamiento o partición
+invalida la evidencia anterior. Aplique los CSV reales desde **Fuente de datos**,
+con su configuración de lectura y procedencia opcional: se conserva el SHA-256
+de los bytes originales. No se presupone cuál columna es el objetivo del profesor.
 
 - `Clasificacion.entrenar(...)`: una configuración, con train/test separado.
 - `Clasificacion.experimentar(...)`: configuración estándar y variantes por
@@ -113,6 +128,10 @@ versiones o plataformas.
   de cada algoritmo.
 - Carpetas por algoritmo con matriz de confusión y predicciones de test.
 
+Streamlit permite descargar los mismos archivos como ZIP en memoria, además del
+CSV de comparación y el JSON de configuración. La CLI y la interfaz comparten
+el serializador de evidencia; descargar o volver a abrir resultados no entrena.
+
 Las predicciones pueden contener información derivada del dataset. Son salidas
 locales: no publicarlas automáticamente, especialmente con datos médicos o
 material cuya licencia limite redistribución.
@@ -156,4 +175,8 @@ La verificación headless no certifica contraste visual, navegación por teclado
 ni comportamiento en distintos tamaños de pantalla.
 La entrega final exige informe con definiciones, experimentación y análisis,
 plantilla oficial en LaTeX/Overleaf y ZIP con IDs de integrantes. Esta
-implementación no presenta un informe final ni entrega archivos en Moodle.
+implementación incluye un generador del informe a partir de resultados verificados;
+consulte [INFORME.md](INFORME.md) y [LEEME_ENTREGA.md](LEEME_ENTREGA.md).
+El paquete final contiene PDF, fuentes para Overleaf, ambos CSV y evidencia.
+La plantilla oficial y la autorización del grupo de cuatro requieren confirmación
+docente. La entrega en Moodle corresponde a los integrantes.
