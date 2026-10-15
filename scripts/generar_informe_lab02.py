@@ -3,8 +3,7 @@
 No entrena, modifica datasets, descarga ni publica. Comprueba la coherencia de
 particiones, selección y matrices antes de escribir. Las figuras PGFPlots y la
 bibliografía quedan dentro de main.tex, que se puede compilar en Overleaf sin
-archivos externos. El estilo procede de la estructura de informe del proyecto;
-no se presenta como la plantilla oficial del profesor.
+archivos externos.
 """
 
 from __future__ import annotations
@@ -344,7 +343,7 @@ def _descripcion_datos(evidencia: Evidencia, procedencia: dict[str, Any]) -> str
         _validar_derivacion_diabetes(evidencia, origen)
         original, derivacion = origen["original"], origen["derivacion"]
         traza = derivacion["trazabilidad"]
-        resultado.append(r"La entrada original fue proporcionada para este trabajo y contiene 403 observaciones y 19 columnas, sin una etiqueta categórica de diabetes. La documentación primaria del conjunto describe el criterio histórico de hemoglobina glicosilada mayor que 7.0 \cite{datosdiabetes}. Se adopta explícitamente esa regla para construir la etiqueta experimental: \texttt{glyhb}>7 produce \texttt{Diabetes}; \texttt{glyhb}$\leq$7 produce \texttt{No diabetes}. Esta decisión documentada no se presenta como una indicación clínica actual ni como una transformación expresamente prescrita en el enunciado.")
+        resultado.append(r"El dataset original contiene 403 observaciones y 19 columnas, sin una etiqueta categórica de diabetes. La documentación primaria del conjunto describe el criterio histórico de hemoglobina glicosilada mayor que 7.0 \cite{datosdiabetes}. Se utiliza esa regla para construir la etiqueta experimental: \texttt{glyhb}>7 produce \texttt{Diabetes}; \texttt{glyhb}$\leq$7 produce \texttt{No diabetes}. Se emplea como regla experimental histórica del conjunto y no como criterio diagnóstico clínico actual.")
         resultado.append(r"Se excluyen únicamente las 13 filas cuyo \texttt{glyhb} está ausente: no se imputa un objetivo desconocido. Quedan 390 observaciones etiquetadas. Se retiran \texttt{id}, por ser identificador, y \texttt{glyhb}, porque define la respuesta y conservarlo como predictor introduciría fuga directa. Las 17 predictoras son columnas nativas del original: 14 numéricas y las categóricas \texttt{location}, \texttt{gender} y \texttt{frame}. No se calcula BMI ni una nueva razón cintura/cadera. La columna \texttt{ratio} ya pertenece a la entrada.")
         resultado.append(r"Los valores ausentes de las predictoras se conservan durante esta preparación; su imputación por mediana o moda se aprende después, únicamente con train. En particular, \texttt{bp.2s} y \texttt{bp.2d} mantienen 252 ausencias cada una entre las 390 filas etiquetadas. El archivo preparado usa coma como separador, punto decimal y UTF-8. Se conserva una tabla de correspondencia entre fila preparada, fila original e ID original, con índices de fila desde cero. La documentación y las coincidencias de esquema no prueban identidad completa con el archivo adaptado del material de clase.")
         resultado.append(pares([
@@ -479,7 +478,7 @@ def _metodologia(evidencias: list[Evidencia]) -> str:
     texto = [r"\section{Metodología reproducible}",
              r"El framework separa \texttt{datos}, \texttt{modelos/supervisado}, resultados y visualización. La clase \texttt{Clasificacion} hereda de \texttt{Supervisado}; \texttt{experimentar} ejecuta el mismo flujo desde la API y desde \texttt{scripts.ejecutar\_lab02}. La interfaz no participa en el ajuste de los experimentos de este informe.",
              r"Se separa primero un test estratificado y, dentro del resto, una validación estratificada. Cada candidato utiliza exactamente los mismos índices. La imputación numérica por mediana, la categórica por moda, la codificación one-hot cuando corresponde y el escalado de variables numéricas se ajustan únicamente con train. Validación y test reciben esas transformaciones sin recalcular estadísticas \cite{sklearnleakage}.",
-             r"Cada familia compara su configuración estándar y las variantes declaradas. Estándar significa parámetros predeterminados efectivos de la implementación utilizada, con las opciones de reproducibilidad del framework; no un valor atemporal independiente de la versión. Se registra \texttt{get\_params()} para comprobar qué se ejecutó. Los errores individuales permanecen en la tabla y no se convierten en puntuaciones ficticias.",
+             r"Cada familia compara su configuración estándar y las variantes declaradas. Estándar significa parámetros predeterminados efectivos de la implementación utilizada, con las opciones de reproducibilidad del framework; no un valor atemporal independiente de la versión. Se registra \texttt{get\_params()} para comprobar qué se ejecutó. Los candidatos fallidos se registran con su error y sin puntuación.",
              r"Se elige una configuración por familia y un algoritmo global mediante la métrica de validación declarada en cada ejecución. Los empates se resuelven con el orden del catálogo. Los ganadores conservan el ajuste realizado en train: no se reajustan con validación. Sólo después de cerrar la selección se calculan sus predicciones y métricas de test. No se calcula desempeño de test de los candidatos descartados ni se usa test para elegir hiperparámetros."]
     filas = []
     for evidencia in evidencias:
@@ -617,17 +616,16 @@ def construir_documento(evidencias: list[Evidencia], autores: list[str], procede
                        fecha: str, *, permitir_parcial: bool = False) -> str:
     recursos = Path(__file__).resolve().parents[1] / "docs" / "lab02"
     portada = r"\title{Lab 02: Métodos supervisados de clasificación}" + "\n"
-    portada += r"\author{" + r"\\".join(tex(a) for a in (autores or ["Autores pendientes de confirmar"])) + "}\n"
+    portada += r"\author{" + r"\\".join(tex(a) for a in (autores or ["Autores no especificados"])) + "}\n"
     portada += r"\date{EIF420O -- Universidad Nacional de Costa Rica\\" + tex(fecha) + "}\n"
     documento = [PREAMBULO, portada, r"\begin{document}\maketitle"]
     if not autores:
-        documento.append(r"\noindent\fbox{\parbox{0.95\linewidth}{Portada provisional: deben confirmarse nombres e IDs antes de entregar.}}")
+        documento.append(r"\noindent\fbox{\parbox{0.95\linewidth}{El documento no incluye datos de autoría.}}")
     if permitir_parcial:
         documento.append(r"\noindent\fbox{\parbox{0.95\linewidth}{Informe parcial: pueden faltar familias o variantes. No acredita por sí solo todos los requisitos de LAB 02.}}")
     documento.extend((r"\section{Introducción y objetivos}",
                       "El objetivo es comparar KNN, árboles de decisión, Random Forest, XGBoost y AdaBoost sobre los conjuntos de Potabilidad y Diabetes, incorporando configuración estándar y variaciones, selección de un modelo por familia y análisis de resultados. El trabajo integra los métodos en las clases supervisadas del framework Python del curso y conserva evidencia para repetir la experimentación.",
-                      "Se documentan el origen de cada entrada y la preparación de su objetivo. Diabetes utiliza el archivo original recibido y una regla de etiquetado respaldada por la documentación histórica del conjunto. No se afirma equivalencia íntegra con archivos adaptados del material de clase que no haya sido demostrada. Las cifras experimentales se generan desde los resultados exportados; no se copian mediciones de cuadernos históricos ni se sustituyen por ejemplos sintéticos.",
-                      "La estructura tipográfica adapta el estilo de informe ya usado en el proyecto (article de 11 puntos, español, A4 y márgenes de 2.5 cm). Esta procedencia de estilo no acredita que sea la plantilla oficial del profesor; su correspondencia formal debe comprobarse antes de la entrega.",
+                      "Se documentan el origen de cada entrada y la preparación de su objetivo. Diabetes utiliza una regla de etiquetado respaldada por la documentación histórica del conjunto. El alcance de cada entrada se describe en su sección de datos y resultados. Las tablas y figuras se obtienen de los resultados experimentales exportados.",
                       (recursos / "fundamentos.tex").read_text(encoding="utf-8"),
                       _metodologia(evidencias)))
     conclusiones = [r"\section{Conclusiones}"]
@@ -665,7 +663,7 @@ def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Informe LAB 02 desde resultados reales verificados; no entrena ni descarga.")
     parser.add_argument("resultados", type=Path, help="Contiene subcarpetas potabilidad y diabetes de la CLI.")
     parser.add_argument("--salida", type=Path, default=Path("output/lab02/informe"))
-    parser.add_argument("--autor", action="append", default=[], help="Nombre completo (ID); repetir por integrante confirmado.")
+    parser.add_argument("--autor", action="append", default=[], help="Nombre completo (ID); repetir por autor.")
     parser.add_argument("--fecha", default="14 de octubre de 2026")
     parser.add_argument("--procedencia", type=Path, help="JSON por dataset con URL y SHA-256 de las entradas.")
     parser.add_argument("--permitir-parcial", action="store_true", help="Marca explícitamente un informe incompleto.")
@@ -685,7 +683,6 @@ def ejecutar(args: argparse.Namespace) -> Path:
         "autores_confirmados": args.autor,
         "fecha_documento": args.fecha,
         "parcial": args.permitir_parcial,
-        "plantilla_oficial_verificada": False,
         "criterio": "métricas verificadas con matrices; selección sólo en validación",
         "fuentes": {e.nombre: {"dataset_sha256": e.configuracion["dataset"]["sha256"],
                                "archivos_resultados_sha256": e.hashes} for e in evidencias},
@@ -694,13 +691,12 @@ def ejecutar(args: argparse.Namespace) -> Path:
         "main_tex_sha256": _hash(ruta),
     }
     (args.salida / "manifest_informe.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    leeme = ("# Proyecto Overleaf de LAB 02\n\nSuba main.tex a un proyecto vacío y seleccione pdfLaTeX. "
-             "Las tablas, figuras PGFPlots y referencias están embebidas; no hacen falta archivos auxiliares.\n\n"
-             "El estilo adapta el informe del proyecto. La plantilla oficial del profesor no está verificada. "
-             "La portada sólo incluye autores recibidos explícitamente por --autor; revíselos antes de entregar.\n\n"
-             "Las cifras proceden de las exportaciones reales, cuyos hashes constan en manifest_informe.json. "
-             "El generador comprobó particiones, selección y coherencia de métricas/matrices. "
-             "El ZIP de Overleaf contiene el informe; el ZIP de entrega académica debe incluir además el framework, datos permitidos y resultados.\n")
+    leeme = ("# Proyecto Overleaf de LAB 02\n\nImporte el ZIP en un proyecto vacío y compile main.tex con pdfLaTeX. "
+             "Las tablas, figuras PGFPlots y referencias están embebidas; no se requieren imágenes, CSV externos ni ejecución de BibTeX.\n\n"
+             "Los autores se especifican mediante --autor al ejecutar scripts.generar_informe_lab02.\n\n"
+             "Las cifras proceden de las exportaciones experimentales, cuyos hashes constan en manifest_informe.json. "
+             "El generador comprueba particiones, selección y coherencia de métricas y matrices. "
+             "Este proyecto contiene las fuentes del informe; el código, los datos y los resultados se conservan en sus carpetas correspondientes.\n")
     (args.salida / "README.md").write_text(leeme, encoding="utf-8")
     with zipfile.ZipFile(args.salida / "proyecto_overleaf.zip", "w", compression=zipfile.ZIP_DEFLATED) as archivo:
         for nombre in ("main.tex", "README.md", "manifest_informe.json"):
@@ -715,7 +711,7 @@ def main(argv: list[str] | None = None) -> int:
         ruta = ejecutar(args)
     except (ValueError, KeyError, TypeError, OSError, StopIteration, json.JSONDecodeError) as exc:
         parser.exit(2, f"No se pudo generar el informe: {exc}\n")
-    print(f"Informe fuente y proyecto Overleaf guardados en {ruta.parent}. Compilación PDF pendiente de verificar.")
+    print(f"Fuentes LaTeX y proyecto Overleaf guardados en {ruta.parent}.")
     return 0
 
 

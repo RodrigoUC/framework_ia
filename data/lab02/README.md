@@ -6,8 +6,8 @@ se publican automáticamente desde Git. `procedencia.json` registra sus huellas.
 | Archivo | Fuente | Objetivo | Lectura |
 | --- | --- | --- | --- |
 | `water_potability.csv` | [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability) | `Potability` | Coma como separador; punto decimal |
-| `diabetes_original.csv` | Archivo original recibido, documentado en [HBiostat: Diabetes Dataset](https://hbiostat.org/data/repo/diabetes) | `glyhb`, antes de derivar la clase | Coma como separador; punto decimal; UTF-8 |
-| `diabetes.csv` | Preparación reproducible del original anterior | `diabetes`, derivado con la regla documentada | Coma como separador; punto decimal; UTF-8 |
+| `diabetes_original.csv` | Archivo original, documentado en [HBiostat: Diabetes Dataset](https://hbiostat.org/data/repo/diabetes) | `glyhb`, antes de derivar la clase | Coma como separador; punto decimal; UTF-8 |
+| `diabetes.csv` | Preparación reproducible de `diabetes_original.csv` | `diabetes`, derivado con la regla documentada | Coma como separador; punto decimal; UTF-8 |
 
 Potabilidad contiene 3276 observaciones y nueve predictoras. Se conserva el
 archivo completo: la imputación de `ph`, `Sulfate` y `Trihalomethanes` se aprende
@@ -18,22 +18,21 @@ esa versión preparada no es la entrada empleada en estos experimentos.
 
 El original tiene 403 filas y 19 columnas. No contiene una clase categórica
 de diabetes. La documentación primaria describe el criterio histórico
-`glyhb > 7.0`; con ese respaldo y la decisión expresa del trabajo se deriva:
+`glyhb > 7.0`, utilizado para construir la etiqueta experimental:
 
 - `glyhb > 7`: `Diabetes`.
 - `glyhb <= 7`: `No diabetes`.
 - `glyhb` ausente: excluir la fila; no imputar una etiqueta desconocida.
 
 Son 13 exclusiones y 390 filas etiquetadas: 60 `Diabetes` y 330 `No diabetes`.
-El criterio se documenta como regla experimental histórica del conjunto;
-no se presenta como diagnóstico clínico actual ni como una regla explícita
-del enunciado. No se certifica igualdad íntegra con un archivo docente adaptado.
+El criterio se documenta como regla experimental histórica del conjunto,
+sin interpretación diagnóstica clínica actual. La identificación de fuente y
+esquema no acredita identidad completa con otras adaptaciones del dataset.
 
 Se retiran `id` y `glyhb` del archivo preparado: el primero es identificador;
 el segundo define la respuesta y sería fuga directa si fuera predictor.
-Se conservan las 17 predictoras nativas, sin construir BMI ni una nueva
-razón cintura/cadera. `ratio` ya existe en la entrada. El preparado contiene
-esas 17 predictoras y la nueva columna `diabetes` (390 × 18).
+Se conservan las 17 predictoras nativas, incluida la columna `ratio`.
+El preparado contiene esas 17 predictoras y la nueva columna `diabetes` (390 × 18).
 
 | Tipo | Columnas |
 | --- | --- |

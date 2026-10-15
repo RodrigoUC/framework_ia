@@ -2,8 +2,7 @@
 EDA — Análisis Exploratorio de Datos (clase base del framework).
 
 Este módulo contiene ÚNICAMENTE la lógica de análisis y preparación de datos.
-La parte gráfica (Visualización con Streamlit) vive en un módulo separado
-(``ui/streamlit_app.py``), tal como pide el proyecto: **streamlit es la parte gráfica**.
+La interfaz Streamlit se implementa en ``ui/streamlit_app.py``.
 
 Responsabilidades:
     datos/dataframe.py  -> operaciones tabulares y estadísticas

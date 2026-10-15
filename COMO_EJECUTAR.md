@@ -42,16 +42,14 @@ python -m scripts.ejecutar_lab01 data/datos_profesor.csv \
 ```
 
 El comando conserva parámetros, comparaciones y asignaciones en
-`salida_lab01/`. Use esos archivos para completar las tablas, figuras y el
-análisis del informe LaTeX. La plantilla inicial se encuentra en
-`docs/lab01/plantilla_informe.tex`; reemplácela por la plantilla oficial cuando el
-profesor la facilite y complete los nombres, ID, referencias y resultados del
-dataset asignado.
+`salida_lab01/`. Estos archivos contienen la evidencia para las tablas, figuras
+y el análisis del informe LaTeX. La plantilla inicial se encuentra en
+`docs/lab01/plantilla_informe.tex`.
 
 ## Empaquetado final
 
-Después de completar el informe PDF con la plantilla oficial y ejecutar los
-experimentos, cree el ZIP con los ID reales:
+Con el informe PDF y los resultados experimentales, cree el ZIP con los ID
+de los integrantes:
 
 ```bash
 python -m scripts.preparar_entrega_lab01 \

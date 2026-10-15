@@ -24,7 +24,7 @@ def _argumentos() -> argparse.Namespace:
         "--informe",
         type=Path,
         required=True,
-        help="PDF final generado con la plantilla oficial de Overleaf.",
+        help="Informe PDF final.",
     )
     return parser.parse_args()
 

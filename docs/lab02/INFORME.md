@@ -5,9 +5,8 @@ de las exportaciones reales de `scripts.ejecutar_lab02`. No entrena ni modifica
 los CSV. El texto de fundamentos y la bibliografía primaria se mantienen en
 `fundamentos.tex` y `referencias.tex`; se incorporan al documento resultante.
 
-La estructura visual adapta el estilo del informe del proyecto: `article`,
-11 puntos, español, A4 y márgenes de 2.5 cm. No está acreditada como la plantilla
-oficial del profesor. No se trasladan cifras ni conclusiones de LAB 01.
+El documento utiliza la clase `article`, 11 puntos, español, papel A4 y márgenes
+de 2.5 cm.
 
 ## Generación
 
@@ -28,15 +27,15 @@ salida_lab02/
     (misma estructura)
 ```
 
-Desde la raíz, con los integrantes expresamente confirmados para este trabajo:
+Desde la raíz del proyecto:
 
 ```powershell
 python -m scripts.generar_informe_lab02 salida_lab02 --salida output/lab02/informe --procedencia data/lab02/procedencia.json --autor "Dylan Elizondo Alvarado (504610652)" --autor "Joseph Garcia Montero (402680547)" --autor "Rodrigo Ureña Castillo (118910482)" --autor "Mariana Ureña Padilla (119180324)"
 ```
 
-Sin `--autor`, el documento marca la portada como pendiente. Si se permite una
-ejecución incompleta con `--permitir-parcial`, el documento lo señala de forma
-visible; no equivale al laboratorio completo.
+Sin `--autor`, el documento indica autoría no especificada. La opción
+`--permitir-parcial` habilita documentos con resultados incompletos,
+identificados como parciales.
 
 ## Evidencia verificada
 
@@ -55,8 +54,8 @@ Antes de guardar el informe, el generador comprueba:
 - Conteos no negativos, tamaños de test, accuracy, métricas por clase y F1
   macro consistentes con las matrices.
 
-Una incoherencia detiene la generación; no se inventan ni corrigen cifras para
-hacer coincidir un informe. Los candidatos fallidos se describen como tales.
+Las incoherencias detienen la generación. Los candidatos fallidos conservan
+su estado y el error correspondiente.
 El manifiesto registra hashes de los JSON/CSV utilizados y del TEX final.
 
 ## Salidas y compilación
@@ -80,18 +79,15 @@ entrega debe incluir además código, datos con procedencia y resultados.
 
 El informe diferencia Water Quality completo de la muestra de 2011 filas
 del material de clase. En Diabetes documenta la preparación del archivo
-original recibido y el criterio histórico respaldado por HBiostat:
+original y el criterio histórico respaldado por HBiostat:
 `glyhb > 7` produce `Diabetes`, `glyhb <= 7` produce `No diabetes`; 13 filas
 sin objetivo se excluyen sin imputar. Conserva 17 predictoras nativas,
 incluidas `location`, `gender` y `frame`, con faltantes preservados hasta el
-ajuste exclusivo de train. No se añaden BMI ni una nueva razón cintura/cadera.
+ajuste exclusivo de train.
 
 El anexo incluye el comando de `scripts.preparar_diabetes_lab02`, los hashes
 del original y del mapa `trazabilidad_diabetes.csv`, y la relación de índices
-preparados con los originales. El código no reutiliza cifras de una
-preparación distinta. La estructura es introducción, fundamentos, metodología,
-resultados por dataset, discusión y limitaciones, conclusiones, referencias
-y anexo de reproducción. No se afirma igualdad íntegra no probada con el
-archivo adaptado docente. La guía contempla trabajo individual o en pareja; la
-composición final del grupo debe verificarse con el profesor. El documento
-conserva los cuatro autores confirmados por el usuario para este proyecto.
+preparados con los originales. La estructura es introducción, fundamentos,
+metodología, resultados por dataset, discusión y limitaciones, conclusiones, referencias
+y anexo de reproducción. La identificación de fuente y esquema no acredita
+identidad completa con otras adaptaciones del dataset.

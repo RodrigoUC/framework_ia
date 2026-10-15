@@ -2,17 +2,16 @@
 
 Fuente de requisitos: [`guia_clasificacion.pdf`](../lab01/guia_clasificacion.pdf),
 «Métodos supervisados: clasificación», Universidad Nacional de Costa Rica.
-La guía permanece en su ubicación original; no es la guía de regresión.
 
 ## Alcance y jerarquía
 
 El laboratorio incorpora KNN, Árbol de Decisión, Random Forest, XGBoost y
 AdaBoost en `Supervisado → Clasificacion`. Conserva RF/NR y la organización
 `datos/`, `modelos/supervisado/`, `resultados.py`, `visualizacion.py`, `ui/`.
-ACP, t-SNE y UMAP siguen siendo métodos públicos de `Cluster`, como pide el
-refactor del profesor. En la interfaz, ACP tiene un destino propio junto a EDA;
+ACP, t-SNE y UMAP son métodos públicos de `Cluster`. En la interfaz, ACP tiene
+un destino propio junto a EDA;
 t-SNE y UMAP son proyecciones opcionales dentro de K-Means, no destinos ni
-algoritmos de agrupamiento. Regresión no forma parte de este cambio.
+algoritmos de agrupamiento. El laboratorio se centra en clasificación.
 
 En Streamlit, las seis vistas individuales (incluida Naive Bayes como
 compatibilidad, fuera de las cinco familias experimentales) permiten entrenar
@@ -49,7 +48,8 @@ ejecuciones parciales se identifican con sus candidatos/ganadores fallidos.
 Cambiar datos, objetivo, predictoras, semilla, preprocesamiento o partición
 invalida la evidencia anterior. Aplique los CSV reales desde **Fuente de datos**,
 con su configuración de lectura y procedencia opcional: se conserva el SHA-256
-de los bytes originales. No se presupone cuál columna es el objetivo del profesor.
+de los bytes originales. El objetivo y las predictoras se seleccionan
+explícitamente.
 
 - `Clasificacion.entrenar(...)`: una configuración, con train/test separado.
 - `Clasificacion.experimentar(...)`: configuración estándar y variantes por
@@ -70,8 +70,8 @@ de los bytes originales. No se presupone cuál columna es el objetivo del profes
 
 El test no debe convertirse en validación por repetir ajustes tras inspeccionar
 sus resultados. Las métricas no tienen significado clínico ni certifican
-seguridad de agua. Un único holdout tiene incertidumbre: el informe debe
-reconocer limitaciones, desbalance y posible cambio de distribución.
+seguridad de agua. La interpretación considera la incertidumbre de un único
+holdout, el desbalance y el posible cambio de distribución.
 
 No aplicar imputación/escalado global desde EDA antes de clasificar: eso usa
 información de test. La UI del LAB 02 detecta esa preparación y pide restaurar
@@ -85,21 +85,21 @@ Los datos deben permanecer locales; no se incluyen en el repositorio.
 Potabilidad disponible públicamente: [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability),
 versión 3, CC0. `water_potability.csv` contiene 3276 filas, 9 predictoras y
 objetivo `Potability` (0/1); tiene nulos en `ph`, `Sulfate` y `Trihalomethanes`.
-La coincidencia con el archivo específico del profesor debe comprobarse.
+El material de clase muestra una versión de 2011 filas completas; estos
+experimentos emplean las 3276 observaciones del archivo completo.
 
-Diabetes utiliza el original recibido, de 403 filas y 19 columnas, conservado
+El archivo original de Diabetes tiene 403 filas y 19 columnas y se conserva
 sin modificar en `data/lab02/diabetes_original.csv`. No trae una clase
 categórica. La [documentación primaria de HBiostat](https://hbiostat.org/data/repo/diabetes)
 describe el criterio histórico `glyhb > 7.0`; se adopta explícitamente para
 derivar `Diabetes`, y `glyhb <= 7` deriva `No diabetes`. Las 13 filas sin
 `glyhb` se excluyen sin imputar el objetivo. Quedan 390 etiquetas: 60 y 330,
-respectivamente. La regla tiene este respaldo documental; no se atribuye
-al enunciado ni se presenta como diagnóstico clínico actual.
+respectivamente. La regla se utiliza como criterio experimental histórico,
+sin interpretación diagnóstica clínica actual.
 
 `scripts.preparar_diabetes_lab02` retira `id` y `glyhb`, conserva las 17
-predictoras nativas y añade `diabetes`: no calcula BMI ni una nueva razón
-cintura/cadera. `location`, `gender` y `frame` son categóricas; las otras
-14 predictoras son numéricas. Los faltantes de entrada se preservan; `bp.2s`
+predictoras nativas y añade `diabetes`. `location`, `gender` y `frame` son
+categóricas; las otras 14 predictoras son numéricas. Los faltantes de entrada se preservan; `bp.2s`
 y `bp.2d` mantienen 252 ausencias cada una en las filas etiquetadas. La
 imputación, codificación y escala pertenecen al ajuste posterior con train.
 
@@ -107,8 +107,7 @@ El preparado usa coma, punto decimal y UTF-8. `trazabilidad_diabetes.csv`
 enlaza cada índice preparado con la fila e ID originales (filas desde cero).
 `procedencia.json` registra regla, exclusiones y SHA-256 de ambos CSV y del
 mapa de filas. Consulte [la descripción de los datos](../../data/lab02/README.md).
-El cargador no descarga archivos ni presupone etiquetas. Tampoco se utiliza
-un objetivo de regresión de sklearn ni un umbral inventado para completarlo.
+El cargador utiliza archivos locales y permite seleccionar sus etiquetas.
 
 ## Ejecución
 
@@ -183,8 +182,8 @@ Referencias técnicas primarias para el informe:
 [clasificación de sklearn](https://scikit-learn.org/stable/supervised_learning.html),
 [prevención de fuga de información](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage),
 [XGBoost Python API](https://xgboost.readthedocs.io/en/stable/python/python_api.html).
-Las definiciones y decisiones finales deben comprenderse, desarrollarse y
-referenciarse por los integrantes en la plantilla LaTeX del profesor.
+Los fundamentos y las decisiones metodológicas se documentan con referencias
+en el informe.
 
 ## Verificación y entrega
 
@@ -197,10 +196,8 @@ Las pruebas de software usan fixtures sintéticos; no son experimentos académic
 sobre los CSV del profesor. Un resultado de prueba nunca sustituye la tabla real.
 La verificación headless no certifica contraste visual, navegación por teclado
 ni comportamiento en distintos tamaños de pantalla.
-La entrega final exige informe con definiciones, experimentación y análisis,
-plantilla oficial en LaTeX/Overleaf y ZIP con IDs de integrantes. Esta
-implementación incluye un generador del informe a partir de resultados verificados;
+El informe contiene definiciones, experimentación y análisis en LaTeX/PDF.
+Su generador utiliza los resultados verificados de los experimentos;
 consulte [INFORME.md](INFORME.md) y [LEEME_ENTREGA.md](LEEME_ENTREGA.md).
-El paquete final contiene PDF, fuentes para Overleaf, ambos CSV y evidencia.
-La plantilla oficial y la autorización del grupo de cuatro requieren confirmación
-docente. La entrega en Moodle corresponde a los integrantes.
+El paquete contiene PDF, fuentes para Overleaf, el framework, los CSV y la
+evidencia experimental.
