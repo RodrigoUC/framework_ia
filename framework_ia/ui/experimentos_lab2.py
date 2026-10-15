@@ -26,6 +26,7 @@ from .lab2 import (
     _mostrar_dataframe,
     preparacion_segura,
 )
+from .perfil_diabetes import estado_fuente_diabetes
 
 
 def _fuente_ejecutada(datos: pd.DataFrame) -> dict:
@@ -80,6 +81,7 @@ def render_experimentos(
         f"Semilla: {configuracion['random_state']}"
     )
     segura = preparacion_segura(mostrar_guia=True)
+    original_diabetes = estado_fuente_diabetes(datos, st.session_state) == "original"
     catalogo = configuraciones_experimento()
     with st.expander("Catálogo · 5 algoritmos / 15 configuraciones"):
         _mostrar_dataframe(
@@ -154,12 +156,13 @@ def render_experimentos(
             )
     opciones = {"metrica": metrica, "validation_size": validation_size}
     firma = firma_parametros(opciones)
-    if st.button(
+    ejecutar = st.button(
         "Ejecutar experimentos Lab02 · 15 configuraciones",
         key="lab2_benchmark_ejecutar",
         type="primary",
-        disabled=not segura or not configuracion["features"],
-    ):
+        disabled=not segura or not configuracion["features"] or original_diabetes,
+    )
+    if ejecutar and segura and not original_diabetes:
         try:
             with st.spinner(
                 "Entrenando 15 configuraciones y seleccionando en validación…"

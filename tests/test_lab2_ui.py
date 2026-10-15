@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 from sklearn.datasets import make_classification
 from streamlit.testing.v1 import AppTest
+from streamlit.testing.v1.errors import AppTestError
 
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.ui.estado_clasificacion import huella_datos, sincronizar_contexto
@@ -293,7 +294,9 @@ def test_results_route_invalidates_stale_classification_without_rendering_contro
     assert not app.exception
     assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert any("Todavía no hay ejecuciones individuales" in alerta.value for alerta in app.info)
+    assert any(
+        "Todavía no hay ejecuciones individuales" in alerta.value for alerta in app.info
+    )
 
 
 def test_results_route_clears_evidence_when_dataset_has_no_target_feature_pair():
@@ -902,7 +905,9 @@ def test_local_source_lists_nested_csvs_after_root_example_and_applies_read_opti
         assert app.session_state["fuente_metadata"]["lectura"]["decimal"] == ","
 
 
-def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(tmp_path):
+def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
+    tmp_path,
+):
     import os
 
     from framework_ia.ui import streamlit_app
@@ -925,5 +930,250 @@ def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
         streamlit_app._sincronizar_dataset(datos_nuevos, identidad_nueva)
     assert identidad_nueva != identidad
     assert estado["dataset_preparado"].x.tolist() == [9, 8]
-    assert estado["fuente_metadata"]["sha256"] == hashlib.sha256(csv.read_bytes()).hexdigest()
+    assert (
+        estado["fuente_metadata"]["sha256"]
+        == hashlib.sha256(csv.read_bytes()).hexdigest()
+    )
     assert "resultado_lab2_experimento" not in estado
+
+
+def _fuentes_diabetes_sinteticas(tmp_path):
+    from framework_ia.datos.diabetes_lab02 import PREDICTORAS_DIABETES
+
+    filas = 60
+    datos = pd.DataFrame(
+        {
+            columna: [float(i + indice + 1) for i in range(filas)]
+            for indice, columna in enumerate(PREDICTORAS_DIABETES)
+        }
+    )
+    datos["location"] = ["Louisa", "Buckingham"] * (filas // 2)
+    datos["gender"] = ["female", "male"] * (filas // 2)
+    datos["frame"] = ["small", "medium", "large"] * (filas // 3)
+    datos.insert(0, "id", range(1, filas + 1))
+    datos["glyhb"] = [5.0, 8.0] * (filas // 2)
+    datos["diabetes"] = ["No diabetes", "Diabetes"] * (filas // 2)
+    original = datos.drop(columns="diabetes")
+    preparado_sha = hashlib.sha256(datos.to_csv(index=False).encode()).hexdigest()
+    original_sha = hashlib.sha256(original.to_csv(index=False).encode()).hexdigest()
+    procedencia = tmp_path / "procedencia.json"
+    procedencia.write_text(
+        json.dumps(
+            {
+                "diabetes": {
+                    "sha256": preparado_sha,
+                    "original": {"sha256": original_sha},
+                    "derivacion": {
+                        "regla": {"positiva": "Diabetes", "negativa": "No diabetes"}
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return datos, original, preparado_sha, original_sha, procedencia
+
+
+def _app_fuente_diabetes(datos, sha, *, identidad="diabetes-fixture"):
+    app = AppTest.from_file(ENTRYPOINT, default_timeout=60)
+    app.session_state["fuente_aplicada"] = (datos, "diabetes.csv", identidad)
+    app.session_state["fuente_metadata"] = {
+        "identidad": identidad,
+        "sha256": sha,
+        "fuente": "fixture sintético de configuración; sin resultados académicos",
+        "lectura": {"separador": ",", "decimal": ".", "encoding": "utf-8"},
+    }
+    app.run()
+    assert not app.exception
+    return app
+
+
+def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains(
+    tmp_path,
+):
+    from framework_ia.datos.diabetes_lab02 import PREDICTORAS_DIABETES
+    from framework_ia.datos.particion import Particionador
+    from framework_ia.ui import perfil_diabetes
+    from framework_ia.utils import ConfiguracionParticion
+
+    datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
+    with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
+        app = _app_fuente_diabetes(datos, digest)
+        _abrir_experimentos(app)
+        app.slider(key="lab2_benchmark_validacion").set_value(30).run()
+        app.selectbox(key="lab2_benchmark_metrica").set_value("accuracy").run()
+        particion = Particionador(
+            ConfiguracionParticion(
+                porcentaje_test=0.3, columna_estratificacion="diabetes", semilla=9
+            )
+        ).dividir(datos)
+        app.session_state["particion_global"] = particion
+        app.session_state["clasif_target"] = "glyhb"
+        app.session_state["clasif_features"] = ["id"]
+        app.session_state["clasif_random_state"] = 99
+        app.session_state["clasif_test_size"] = 40
+        app.session_state["clasif_usar_particion_global"] = True
+        app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+        assert not app.exception
+        app.session_state["resultado_lab2_experimento"] = {"zip": b"evidencia anterior"}
+        app.session_state["resultado_lab2_modelo_KNN"] = {"anterior": True}
+        app.session_state["error_lab2_experimento"] = "error anterior"
+        with (
+            patch.object(Clasificacion, "entrenar") as entrenar,
+            patch.object(Clasificacion, "experimentar") as experimentar,
+        ):
+            app.button(key="aplicar_configuracion_diabetes_lab02").click().run()
+            assert not app.exception
+            assert app.selectbox(key="clasif_target").value == "diabetes"
+            assert app.multiselect(key="clasif_features").value == list(
+                PREDICTORAS_DIABETES
+            )
+            assert len(app.multiselect(key="clasif_features").value) == 17
+            assert not {"id", "glyhb"} & set(
+                app.multiselect(key="clasif_features").value
+            )
+            assert app.checkbox(key="clasif_incluir_categoricas").value
+            assert app.checkbox(key="clasif_imputar").value
+            assert app.checkbox(key="clasif_escalar").value
+            assert app.checkbox(key="clasif_strat").value
+            assert not app.checkbox(key="clasif_usar_particion_global").value
+            assert app.number_input(key="clasif_random_state").value == 42
+            assert app.slider(key="clasif_test_size").value == 25
+            assert "resultado_lab2_experimento" not in app.session_state
+            assert "resultado_lab2_modelo_KNN" not in app.session_state
+            assert "error_lab2_experimento" not in app.session_state
+            _abrir_experimentos(app)
+            assert app.slider(key="lab2_benchmark_validacion").value == 20
+            assert app.selectbox(key="lab2_benchmark_metrica").value == "f1_macro"
+            assert not app.button(key="lab2_benchmark_ejecutar").disabled
+            entrenar.assert_not_called()
+            experimentar.assert_not_called()
+
+
+def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_path):
+    from framework_ia.ui import perfil_diabetes
+
+    datos, original, preparado_sha, original_sha, procedencia = (
+        _fuentes_diabetes_sinteticas(tmp_path)
+    )
+    with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
+        app = _app_fuente_diabetes(original, original_sha)
+        with patch.object(Clasificacion, "experimentar") as experimentar:
+            _abrir_experimentos(app)
+            assert app.button(key="lab2_benchmark_ejecutar").disabled
+            assert any(
+                "CSV original de Diabetes" in aviso.value for aviso in app.warning
+            )
+            assert not any(
+                button.key == "aplicar_configuracion_diabetes_lab02"
+                for button in app.button
+            )
+            with pytest.raises(AppTestError, match="Cannot update a disabled button"):
+                app.button(key="lab2_benchmark_ejecutar").click()
+            experimentar.assert_not_called()
+        app.session_state["fuente_aplicada"] = (
+            datos,
+            "diabetes.csv",
+            "diabetes-preparado",
+        )
+        app.session_state["fuente_metadata"] = {
+            "identidad": "diabetes-preparado",
+            "sha256": preparado_sha,
+        }
+        app.run()
+        assert not app.exception
+        assert any(
+            button.key == "aplicar_configuracion_diabetes_lab02"
+            for button in app.button
+        )
+        assert not app.button(key="lab2_benchmark_ejecutar").disabled
+        assert not any(
+            "CSV original de Diabetes" in aviso.value for aviso in app.warning
+        )
+
+
+def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
+    from framework_ia.ui import perfil_diabetes
+
+    datos, _, _, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
+    with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
+        app = _app_fuente_diabetes(datos, "hash-de-otro-csv")
+        _abrir_experimentos(app)
+        assert not any(
+            button.key == "aplicar_configuracion_diabetes_lab02"
+            for button in app.button
+        )
+        assert not app.button(key="lab2_benchmark_ejecutar").disabled
+
+
+def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(
+    tmp_path,
+):
+    from framework_ia.ui import perfil_diabetes
+
+    datos, _, preparado_sha, original_sha, procedencia = _fuentes_diabetes_sinteticas(
+        tmp_path
+    )
+    with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
+        metadata = {"identidad": "fixture", "sha256": preparado_sha}
+        estado = {
+            "fuente_aplicada": (datos, "diabetes.csv", "fixture"),
+            "fuente_metadata": metadata,
+        }
+        assert perfil_diabetes.estado_fuente_diabetes(datos, estado) == "preparado"
+        modificados = datos.copy()
+        modificados.loc[0, "age"] += 1
+        assert perfil_diabetes.estado_fuente_diabetes(modificados, estado) is None
+        assert (
+            perfil_diabetes.estado_fuente_diabetes(
+                datos, {**estado, "fuente_metadata": {**metadata, "identidad": "vieja"}}
+            )
+            is None
+        )
+        assert (
+            perfil_diabetes.estado_fuente_diabetes(
+                datos, {**estado, "dataset_preparacion": {"imputar": True}}
+            )
+            is None
+        )
+        assert (
+            perfil_diabetes.estado_fuente_diabetes(
+                datos,
+                {**estado, "fuente_metadata": {**metadata, "sha256": original_sha}},
+            )
+            == "original"
+        )
+        assert (
+            perfil_diabetes.estado_fuente_diabetes(
+                datos, {**estado, "fuente_metadata": {**metadata, "sha256": "otro-csv"}}
+            )
+            is None
+        )
+
+
+@pytest.mark.parametrize(
+    "seccion",
+    [
+        {"original": None},
+        {"original": []},
+        {"derivacion": None},
+        {"derivacion": []},
+        {"derivacion": {"regla": None}},
+        {"derivacion": {"regla": []}},
+    ],
+)
+def test_diabetes_profile_malformed_nested_json_keeps_generic_data_operable(
+    tmp_path, seccion
+):
+    from framework_ia.ui import perfil_diabetes
+
+    datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
+    contenido = json.loads(procedencia.read_text(encoding="utf-8"))
+    contenido["diabetes"].update(seccion)
+    procedencia.write_text(json.dumps(contenido), encoding="utf-8")
+    estado = {
+        "fuente_aplicada": (datos, "diabetes.csv", "fixture"),
+        "fuente_metadata": {"identidad": "fixture", "sha256": digest},
+    }
+    with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
+        assert perfil_diabetes.estado_fuente_diabetes(datos, estado) is None

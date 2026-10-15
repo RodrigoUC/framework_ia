@@ -45,6 +45,7 @@ from .lab2 import (
     render_resultados,
 )
 from .experimentos_lab2 import render_experimentos
+from .perfil_diabetes import render_perfil_diabetes
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PALETA = {
@@ -1394,6 +1395,8 @@ def main() -> None:
     datos = st.session_state["dataset_preparado"]
     vista = _seleccionar_vista()
     _render_encabezado_atlas(datos, etiqueta, vista)
+    if vista in {"clasificacion_configuracion", "lab2_benchmark"}:
+        render_perfil_diabetes(datos)
 
     configuracion = None
     configuracion_clasif = None

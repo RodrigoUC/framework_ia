@@ -117,6 +117,51 @@ def _hash(ruta: Path) -> str:
     return hashlib.sha256(ruta.read_bytes()).hexdigest()
 
 
+def _huella_tex(huella: str) -> str:
+    return (r"{\footnotesize\texttt{" + huella[:32]
+            + r"}\newline\texttt{" + huella[32:] + "}}")
+
+
+def _validar_derivacion_diabetes(evidencia: Evidencia, origen: dict[str, Any]) -> None:
+    """Impide presentar resultados de otra entrada como la nueva derivación."""
+    original, derivacion = origen.get("original", {}), origen.get("derivacion", {})
+    regla = derivacion.get("regla", {})
+    if regla != {"columna": "glyhb", "operador": ">", "umbral": 7.0,
+                 "positiva": "Diabetes", "negativa": "No diabetes"}:
+        raise ValueError("Diabetes requiere la regla documentada glyhb > 7 y su procedencia.")
+    filas_originales = derivacion.get("filas_originales")
+    filas_preparadas = derivacion.get("filas_preparadas")
+    excluidos = derivacion.get("excluidos_sin_glyhb", [])
+    if (filas_originales != original.get("filas") or filas_originales != 403
+            or filas_preparadas != evidencia.configuracion["dataset"]["filas"]
+            or filas_preparadas != 390 or len(excluidos) != 13):
+        raise ValueError("La derivación de Diabetes no acredita las 403 filas originales y 390 etiquetadas.")
+    if filas_originales - len(excluidos) != filas_preparadas:
+        raise ValueError("Las exclusiones de glyhb no explican la muestra preparada.")
+    indices = [fila["fila_original"] for fila in excluidos]
+    if len(set(indices)) != len(indices) or any(not 0 <= i < filas_originales for i in indices):
+        raise ValueError("Índices de exclusión de Diabetes duplicados o fuera de rango.")
+    predictoras = derivacion.get("predictoras", [])
+    nativas = {"chol", "stab.glu", "hdl", "ratio", "location", "age", "gender",
+               "height", "weight", "frame", "bp.1s", "bp.1d", "bp.2s", "bp.2d",
+               "waist", "hip", "time.ppn"}
+    if (len(predictoras) != 17 or set(predictoras) != nativas
+            or predictoras != evidencia.experimento["features"]):
+        raise ValueError("Diabetes debe usar las 17 predictoras nativas, excluyendo id y glyhb.")
+    if set(derivacion.get("categoricas", [])) != {"location", "gender", "frame"}:
+        raise ValueError("La derivación no conserva las tres categóricas nativas de Diabetes.")
+    if not evidencia.experimento["preprocesamiento"]["incluir_categoricas"]:
+        raise ValueError("El experimento debe incluir las categóricas nativas de Diabetes.")
+    trazabilidad = derivacion.get("trazabilidad", {})
+    if trazabilidad.get("filas") != filas_preparadas:
+        raise ValueError("La trazabilidad no cubre las 390 filas preparadas de Diabetes.")
+    for entrada in (original, trazabilidad):
+        if not re.fullmatch(r"[a-fA-F0-9]{64}", entrada.get("sha256", "")):
+            raise ValueError("Falta SHA-256 del original o la trazabilidad de Diabetes.")
+    if derivacion.get("lectura") != {"separador": ",", "decimal": ".", "encoding": "utf-8"}:
+        raise ValueError("La preparación de Diabetes debe conservar lectura coma/punto/UTF-8.")
+
+
 def cargar_evidencia(nombre: str, ruta: Path, *, permitir_parcial: bool = False) -> Evidencia:
     requeridos = ("configuracion.json", "comparacion_validacion.csv", "mejores_modelos.json")
     for archivo in requeridos:
@@ -289,15 +334,32 @@ def _descripcion_datos(evidencia: Evidencia, procedencia: dict[str, Any]) -> str
                ("Objetivo", r"\texttt{" + tex(exp["target"]) + "}"),
                ("Predictoras", tex(", ".join(exp["features"]))),
                ("Fuente registrada", url(fuente) if fuente else "No declarada en la ejecución."),
-               ("SHA-256 del CSV", r"{\footnotesize\texttt{" + entrada["sha256"][:32]
-                + r"}\newline\texttt{" + entrada["sha256"][32:] + "}}"),
+               ("SHA-256 del CSV", _huella_tex(entrada["sha256"])),
                ("Filas con objetivo ausente", str(exp.get("filas_objetivo_nulo", 0)))]
     resultado = [r"\section{Datos y resultados: " + tex(evidencia.nombre.capitalize()) + "}",
                  pares(parejas, "Procedencia y alcance de la entrada experimental.")]
     if evidencia.nombre == "potabilidad":
         resultado.append(r"El CSV público de Water Quality conserva la etiqueta original \texttt{Potability}: 0 significa no potable y 1 potable. El caso de clase usa una versión de 2011 filas con etiquetas textuales. Esta ejecución utiliza las filas de entrada indicadas arriba y no se presenta como una reproducción idéntica de aquel archivo. Las coincidencias de esquema y observaciones apoyan una relación entre fuentes, pero no acreditan igualdad íntegra con la versión del profesor. Las ausencias de predictoras se tratan dentro del entrenamiento; no se confunde esa imputación con un filtrado previo de casos completos.")
     if evidencia.nombre == "diabetes":
-        resultado.append(r"Se utiliza el CSV público de medidas diagnósticas seleccionado para este trabajo. Se conservan las etiquetas literales de \texttt{diabetes}; no se transforma un objetivo continuo en una clase artificial. Los encabezados y el conjunto de atributos de este CSV no acreditan igualdad íntegra con la versión adaptada del material de clase. El identificador de paciente se excluye por no ser una medida predictiva justificable. Las variables categóricas se codifican dentro del preprocesamiento aprendido con train. Los separadores decimal y de columnas quedan registrados en el comando de reproducción.")
+        _validar_derivacion_diabetes(evidencia, origen)
+        original, derivacion = origen["original"], origen["derivacion"]
+        traza = derivacion["trazabilidad"]
+        resultado.append(r"La entrada original fue proporcionada para este trabajo y contiene 403 observaciones y 19 columnas, sin una etiqueta categórica de diabetes. La documentación primaria del conjunto describe el criterio histórico de hemoglobina glicosilada mayor que 7.0 \cite{datosdiabetes}. Se adopta explícitamente esa regla para construir la etiqueta experimental: \texttt{glyhb}>7 produce \texttt{Diabetes}; \texttt{glyhb}$\leq$7 produce \texttt{No diabetes}. Esta decisión documentada no se presenta como una indicación clínica actual ni como una transformación expresamente prescrita en el enunciado.")
+        resultado.append(r"Se excluyen únicamente las 13 filas cuyo \texttt{glyhb} está ausente: no se imputa un objetivo desconocido. Quedan 390 observaciones etiquetadas. Se retiran \texttt{id}, por ser identificador, y \texttt{glyhb}, porque define la respuesta y conservarlo como predictor introduciría fuga directa. Las 17 predictoras son columnas nativas del original: 14 numéricas y las categóricas \texttt{location}, \texttt{gender} y \texttt{frame}. No se calcula BMI ni una nueva razón cintura/cadera. La columna \texttt{ratio} ya pertenece a la entrada.")
+        resultado.append(r"Los valores ausentes de las predictoras se conservan durante esta preparación; su imputación por mediana o moda se aprende después, únicamente con train. En particular, \texttt{bp.2s} y \texttt{bp.2d} mantienen 252 ausencias cada una entre las 390 filas etiquetadas. El archivo preparado usa coma como separador, punto decimal y UTF-8. Se conserva una tabla de correspondencia entre fila preparada, fila original e ID original, con índices de fila desde cero. La documentación y las coincidencias de esquema no prueban identidad completa con el archivo adaptado del material de clase.")
+        resultado.append(pares([
+            ("Original preservado", tex(original["ruta"])),
+            ("SHA-256 original", _huella_tex(original["sha256"])),
+            ("Filas originales / preparadas", str(derivacion["filas_originales"]) + " / " + str(derivacion["filas_preparadas"])),
+            ("Script de preparación", tex(derivacion["script"])),
+            ("Correspondencia de filas", tex(traza["ruta"]) + "; " + str(traza["filas"]) + " registros."),
+            ("SHA-256 correspondencia", _huella_tex(traza["sha256"])),
+        ], "Trazabilidad de la derivación del objetivo de Diabetes."))
+        resultado.append(tabla(["Fila original (base 0)", "ID original"],
+                               [[str(f["fila_original"]), tex(f["id_original"])]
+                                for f in derivacion["excluidos_sin_glyhb"]],
+                               caption="Observaciones excluidas por ausencia de glyhb; sin imputación del objetivo.",
+                               alineacion="rr"))
     distribuciones = exp["distribuciones"]
     clases = list(dict.fromkeys(c for d in distribuciones.values() for c in d))
     filas = []
@@ -463,11 +525,18 @@ def _comando(evidencia: Evidencia) -> str:
     return " \\\n".join(["\n".join(lineas), *extras])
 
 
-def _apendice(evidencias: list[Evidencia]) -> str:
+def _apendice(evidencias: list[Evidencia], procedencia: dict[str, Any]) -> str:
     texto = [r"\appendix\section{Reproducción, integridad y errores}",
              "Los siguientes comandos usan la sintaxis de continuación de una shell POSIX. En PowerShell se pueden introducir en una sola línea. Deben ejecutarse desde la raíz, con los CSV en las rutas indicadas y una carpeta de salida nueva. Las dependencias y sus versiones se registran por ejecución. La semilla conserva la partición, pero no garantiza resultados idénticos entre versiones, plataformas o implementaciones."]
     for evidencia in evidencias:
         texto.append(r"\subsection{" + tex(evidencia.nombre.capitalize()) + "}")
+        if evidencia.nombre == "diabetes":
+            origen = procedencia["diabetes"]
+            texto.append(r"Antes del experimento se reproduce la preparación determinista del original. El script conserva sus bytes, deriva la clase documentada, excluye objetivos ausentes y exporta el mapa de filas; no imputa ni escala predictoras. Si ya existe una preparación idéntica puede repetirse; una entrada distinta requiere una carpeta limpia para no mezclar evidencia.")
+            texto.append(r"\begin{verbatim}" + "\n"
+                         + "python -m scripts.preparar_diabetes_lab02 \\\n  data/lab02/" + origen["original"]["ruta"] + " \\\n  --salida data/lab02\n"
+                         + r"\end{verbatim}")
+            texto.append(r"La regla y los hashes de los archivos se registran en \path{procedencia.json}. El mapa de filas se conserva en \path{trazabilidad_diabetes.csv}. Sus columnas relacionan \texttt{fila\_\allowbreak{}preparada}, \texttt{fila\_\allowbreak{}original} e \texttt{id\_\allowbreak{}original}. Los índices de las particiones experimentales corresponden al CSV preparado y se enlazan al original mediante esa tabla. No se mezcla el índice de fila con un identificador de paciente.")
         # URLs se presentan fuera del bloque para evitar líneas de código largas.
         comando = _comando(evidencia)
         comando = "\n".join(l for l in comando.splitlines() if "--fuente " not in l).rstrip(" \\\n")
@@ -539,7 +608,7 @@ def _discusion(evidencias: list[Evidencia]) -> str:
     texto.extend((r"\subsection{Alcance de la comparación y limitaciones}",
                   "Las puntuaciones de Potabilidad y Diabetes no se promedian ni se utilizan para afirmar que una tarea sea intrínsecamente más fácil. Son muestras distintas, con etiquetas, atributos, proporciones de clase y preparación diferentes. El menor soporte de una clase produce estimaciones más sensibles a unos pocos aciertos o errores. La referencia de clase mayoritaria calculada para cada dataset ayuda a contextualizar la exactitud, pero no sustituye las métricas por clase.",
                   "El experimento utiliza un único holdout estratificado con la semilla registrada y un catálogo finito de variantes. No estima intervalos de confianza, estabilidad entre semillas ni significación estadística de diferencias pequeñas. La validación guía varias decisiones y puede favorecer configuraciones adaptadas a esa partición; el test separado conserva una evaluación posterior, pero no autoriza seguir ajustando tras inspeccionarlo. Los ganadores se mantienen ajustados con train, sin ampliar el entrenamiento con validación.",
-                  "La imputación, el escalado y la codificación se aprendieron sólo con train, evitando usar estadísticas de validación o test durante el ajuste. Aun así, la procedencia pública y el esquema disponible no acreditan igualdad completa con los archivos adaptados del profesor, ni representatividad de una población externa. Tampoco se conoce un diseño temporal o una evaluación clínica independiente. Por ello, los modelos se interpretan como experimentos de clasificación educativos: no certifican agua potable, no proporcionan diagnóstico y no establecen causalidad.",
+                  "La imputación, el escalado y la codificación se aprendieron sólo con train, evitando usar estadísticas de validación o test durante el ajuste. En Diabetes se omitió glyhb de las predictoras porque la regla que define el objetivo depende directamente de esa medida. La exclusión de los objetivos ausentes limita el análisis a los casos con etiqueta derivable; no se acredita que esa ausencia sea aleatoria. Las fuentes y el esquema disponible tampoco prueban igualdad completa con los archivos adaptados del profesor ni representatividad externa. No se ejecutó evaluación clínica independiente. Los modelos son experimentos educativos: no certifican potabilidad, no proporcionan diagnóstico y no establecen causalidad.",
                   r"\FloatBarrier"))
     return "\n\n".join(texto)
 
@@ -557,7 +626,7 @@ def construir_documento(evidencias: list[Evidencia], autores: list[str], procede
         documento.append(r"\noindent\fbox{\parbox{0.95\linewidth}{Informe parcial: pueden faltar familias o variantes. No acredita por sí solo todos los requisitos de LAB 02.}}")
     documento.extend((r"\section{Introducción y objetivos}",
                       "El objetivo es comparar KNN, árboles de decisión, Random Forest, XGBoost y AdaBoost sobre los conjuntos de Potabilidad y Diabetes, incorporando configuración estándar y variaciones, selección de un modelo por familia y análisis de resultados. El trabajo integra los métodos en las clases supervisadas del framework Python del curso y conserva evidencia para repetir la experimentación.",
-                      "Se distingue la fuente pública utilizada del archivo adaptado del material de clase. El informe no afirma equivalencia íntegra que no haya sido demostrada. Las cifras de las secciones experimentales se generan exclusivamente desde los resultados exportados; no se copian mediciones de cuadernos históricos ni se sustituyen por ejemplos sintéticos.",
+                      "Se documentan el origen de cada entrada y la preparación de su objetivo. Diabetes utiliza el archivo original recibido y una regla de etiquetado respaldada por la documentación histórica del conjunto. No se afirma equivalencia íntegra con archivos adaptados del material de clase que no haya sido demostrada. Las cifras experimentales se generan desde los resultados exportados; no se copian mediciones de cuadernos históricos ni se sustituyen por ejemplos sintéticos.",
                       "La estructura tipográfica adapta el estilo de informe ya usado en el proyecto (article de 11 puntos, español, A4 y márgenes de 2.5 cm). Esta procedencia de estilo no acredita que sea la plantilla oficial del profesor; su correspondencia formal debe comprobarse antes de la entrega.",
                       (recursos / "fundamentos.tex").read_text(encoding="utf-8"),
                       _metodologia(evidencias)))
@@ -587,7 +656,7 @@ def construir_documento(evidencias: list[Evidencia], autores: list[str], procede
         if fuente:
             fuentes.append(r"\bibitem{datos" + evidencia.nombre + "}\nFuente del dataset de " + tex(evidencia.nombre.capitalize()) + ". " + url(fuente) + ".\n")
     documento.append(referencias.replace(r"\end{thebibliography}", "\n".join(fuentes) + r"\end{thebibliography}"))
-    documento.extend((r"\clearpage", _apendice(evidencias)))
+    documento.extend((r"\clearpage", _apendice(evidencias, procedencia)))
     documento.append(r"\end{document}")
     return "\n\n".join(documento) + "\n"
 
@@ -620,6 +689,8 @@ def ejecutar(args: argparse.Namespace) -> Path:
         "criterio": "métricas verificadas con matrices; selección sólo en validación",
         "fuentes": {e.nombre: {"dataset_sha256": e.configuracion["dataset"]["sha256"],
                                "archivos_resultados_sha256": e.hashes} for e in evidencias},
+        "original_diabetes": procedencia.get("diabetes", {}).get("original"),
+        "derivacion_diabetes": procedencia.get("diabetes", {}).get("derivacion"),
         "main_tex_sha256": _hash(ruta),
     }
     (args.salida / "manifest_informe.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

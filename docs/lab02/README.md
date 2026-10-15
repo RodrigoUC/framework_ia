@@ -79,7 +79,7 @@ el original; sus controles propios delegan las transformaciones al modelo.
 La exclusión manual de columnas requiere justificación: nunca use la variable
 objetivo como predictora ni incluya identificadores que revelen la etiqueta.
 
-## CSV de Kaggle y procedencia
+## Datos originales, preparación y procedencia
 
 Los datos deben permanecer locales; no se incluyen en el repositorio.
 Potabilidad disponible públicamente: [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability),
@@ -87,12 +87,28 @@ versión 3, CC0. `water_potability.csv` contiene 3276 filas, 9 predictoras y
 objetivo `Potability` (0/1); tiene nulos en `ph`, `Sulfate` y `Trihalomethanes`.
 La coincidencia con el archivo específico del profesor debe comprobarse.
 
-«Diabetes» no identifica de forma unívoca un dataset. Use el CSV y la columna
-objetivo de la fuente elegida; no transforme el objetivo continuo de
-`sklearn.datasets.load_diabetes` en una clase mediante un umbral arbitrario.
-El cargador no descarga archivos ni presupone columnas específicas.
-No elimine ceros como si fueran nulos sin comprobar su significado en la ficha
-y documentar esa decisión (por ejemplo, cero embarazos puede ser válido).
+Diabetes utiliza el original recibido, de 403 filas y 19 columnas, conservado
+sin modificar en `data/lab02/diabetes_original.csv`. No trae una clase
+categórica. La [documentación primaria de HBiostat](https://hbiostat.org/data/repo/diabetes)
+describe el criterio histórico `glyhb > 7.0`; se adopta explícitamente para
+derivar `Diabetes`, y `glyhb <= 7` deriva `No diabetes`. Las 13 filas sin
+`glyhb` se excluyen sin imputar el objetivo. Quedan 390 etiquetas: 60 y 330,
+respectivamente. La regla tiene este respaldo documental; no se atribuye
+al enunciado ni se presenta como diagnóstico clínico actual.
+
+`scripts.preparar_diabetes_lab02` retira `id` y `glyhb`, conserva las 17
+predictoras nativas y añade `diabetes`: no calcula BMI ni una nueva razón
+cintura/cadera. `location`, `gender` y `frame` son categóricas; las otras
+14 predictoras son numéricas. Los faltantes de entrada se preservan; `bp.2s`
+y `bp.2d` mantienen 252 ausencias cada una en las filas etiquetadas. La
+imputación, codificación y escala pertenecen al ajuste posterior con train.
+
+El preparado usa coma, punto decimal y UTF-8. `trazabilidad_diabetes.csv`
+enlaza cada índice preparado con la fila e ID originales (filas desde cero).
+`procedencia.json` registra regla, exclusiones y SHA-256 de ambos CSV y del
+mapa de filas. Consulte [la descripción de los datos](../../data/lab02/README.md).
+El cargador no descarga archivos ni presupone etiquetas. Tampoco se utiliza
+un objetivo de regresión de sklearn ni un umbral inventado para completarlo.
 
 ## Ejecución
 
@@ -103,6 +119,14 @@ python -m pip install -r requirements.txt
 python -m scripts.ejecutar_lab02 /ruta/water_potability.csv \
   --target Potability --salida salida_lab02/potabilidad \
   --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+
+python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv \
+  --salida data/lab02
+python -m scripts.ejecutar_lab02 data/lab02/diabetes.csv \
+  --target diabetes --features chol stab.glu hdl ratio location age gender \
+  height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn \
+  --incluir-categoricas --semilla 42 --salida salida_lab02/diabetes \
+  --fuente https://hbiostat.org/data/repo/diabetes
 ```
 
 Para un CSV con variables categóricas, agregue `--incluir-categoricas`.

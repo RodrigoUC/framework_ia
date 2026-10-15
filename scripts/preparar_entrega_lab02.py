@@ -10,6 +10,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from framework_ia.datos.diabetes_lab02 import (
+    PREDICTORAS_DIABETES,
+    validar_preparacion_diabetes,
+)
 from framework_ia.exportacion_lab02 import construir_zip_experimento
 from framework_ia.utils import ALGORITMOS_LAB2
 
@@ -48,7 +52,9 @@ def _json(ruta: Path) -> dict:
     return contenido
 
 
-def _validar_resultados(resultados: Path, datos: Path) -> dict[str, str]:
+def _validar_resultados(
+    resultados: Path, datos: Path, procedencia: dict
+) -> dict[str, str]:
     """Rechaza ejecuciones parciales o evidencia de otro CSV."""
     huellas = {}
     algoritmos = set(ALGORITMOS_LAB2)
@@ -78,12 +84,32 @@ def _validar_resultados(resultados: Path, datos: Path) -> dict[str, str]:
         archivo = dataset["archivo"]
         if not isinstance(archivo, str) or Path(archivo).name != archivo:
             raise ValueError(f"{nombre}: nombre del CSV inválido.")
+        origen = procedencia[nombre]
+        if archivo != origen["ruta"]:
+            raise ValueError(f"{nombre}: resultados de otro archivo de entrada.")
         csv = datos / archivo
         huella = _sha(csv.read_bytes())
-        if dataset.get("sha256") != huella:
+        if dataset.get("sha256") != huella or origen.get("sha256") != huella:
             raise ValueError(
-                f"{nombre}: SHA-256 de resultados no coincide con el CSV original."
+                f"{nombre}: SHA-256 de resultados y procedencia debe coincidir con el CSV de entrada."
             )
+        if dataset.get("fuente") != origen["fuente"]:
+            raise ValueError(f"{nombre}: fuente de resultados distinta de procedencia.")
+        if nombre == "diabetes":
+            argumentos = configuracion["argumentos"]
+            if (
+                argumentos.get("target") != "diabetes"
+                or argumentos.get("features") != list(PREDICTORAS_DIABETES)
+                or argumentos.get("incluir_categoricas") is not True
+                or argumentos.get("separador") != ","
+                or argumentos.get("decimal") != "."
+                or argumentos.get("encoding") != "utf-8"
+                or dataset.get("filas") != origen["derivacion"]["filas_preparadas"]
+                or dataset.get("columnas") != [*PREDICTORAS_DIABETES, "diabetes"]
+            ):
+                raise ValueError(
+                    "diabetes: resultados incompatibles con el protocolo de preparación y sus 17 predictoras."
+                )
         metadatos = configuracion["experimento"]
         if (
             metadatos.get("candidatos_fallidos") != 0
@@ -177,8 +203,9 @@ def construir_entrega(
         if not any(ruta.is_file() for ruta in (raiz / carpeta).rglob("*.py")):
             raise ValueError(f"Falta el código Python requerido: {carpeta}.")
     datos = raiz / "data" / "lab02"
-    _json(datos / "procedencia.json")
-    huellas = _validar_resultados(argumentos.resultados, datos)
+    procedencia = _json(datos / "procedencia.json")
+    archivos_diabetes = validar_preparacion_diabetes(datos, procedencia["diabetes"])
+    huellas = _validar_resultados(argumentos.resultados, datos, procedencia)
     archivos = {}
 
     def agregar(ruta: Path, nombre: str) -> None:
@@ -214,6 +241,8 @@ def construir_entrega(
     if guia.is_file():
         # Es la guía LAB02; conservar su ruta evita romper el enlace del README.
         agregar(guia, "docs/lab01/guia_clasificacion.pdf")
+    for nombre, contenido in archivos_diabetes.items():
+        archivos[f"data/lab02/{nombre}"] = contenido
     nombres_datos = {"procedencia.json", "README.md"}
     nombres_datos.update(
         _json(argumentos.resultados / nombre / "configuracion.json")["dataset"][
@@ -222,6 +251,8 @@ def construir_entrega(
         for nombre in DATASETS
     )
     for nombre in sorted(nombres_datos):
+        if nombre in archivos_diabetes:
+            continue
         ruta = datos / nombre
         if ruta.is_file():
             agregar(ruta, ruta.relative_to(raiz).as_posix())

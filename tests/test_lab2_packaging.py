@@ -12,6 +12,10 @@ from zipfile import ZipFile
 
 import pandas as pd
 
+from framework_ia.datos.diabetes_lab02 import (
+    PREDICTORAS_DIABETES,
+    preparar_diabetes,
+)
 from framework_ia.utils import ALGORITMOS_LAB2
 from scripts.preparar_entrega_lab02 import crear_parser, ejecutar
 
@@ -46,25 +50,81 @@ class Lab02PackagingTests(unittest.TestCase):
                 "# Código sintético para verificar el inventario del paquete\n",
                 encoding="utf-8",
             )
-        datos = self.raiz / "data" / "lab02"
-        datos.mkdir(parents=True)
-        (datos / "procedencia.json").write_text(
-            '{"tipo":"fixture sintético"}', encoding="utf-8"
+        self.datos = self.raiz / "data" / "lab02"
+        self.datos.mkdir(parents=True)
+        columnas_originales = [
+            "id",
+            "chol",
+            "stab.glu",
+            "hdl",
+            "ratio",
+            "glyhb",
+            "location",
+            "age",
+            "gender",
+            "height",
+            "weight",
+            "frame",
+            "bp.1s",
+            "bp.1d",
+            "bp.2s",
+            "bp.2d",
+            "waist",
+            "hip",
+            "time.ppn",
+        ]
+        original = pd.DataFrame(
+            {columna: range(10, 18) for columna in columnas_originales}
         )
-        for nombre, valores in (
-            ("potabilidad", [1, 2, 3, 4]),
-            ("diabetes", [11, 12, 13, 14]),
-        ):
-            csv = datos / f"{nombre}.csv"
-            pd.DataFrame({"x": valores, "target": [0, 1, 0, 1]}).to_csv(
-                csv, index=False
-            )
+        original["id"] = range(1000, 1008)
+        original["glyhb"] = [4.31, 8.0, None, 7.0, 7.01, 5.0, None, 6.0]
+        original["location"] = ["Buckingham", "Louisa"] * 4
+        original["gender"] = ["female", "male"] * 4
+        original["frame"] = ["medium", "large"] * 4
+        self.archivos_diabetes, metadata = preparar_diabetes(
+            original.to_csv(index=False, lineterminator="\n").encode("utf-8")
+        )
+        for nombre, contenido in self.archivos_diabetes.items():
+            (self.datos / nombre).write_bytes(contenido)
+        potabilidad = self.datos / "potabilidad.csv"
+        pd.DataFrame({"x": [1, 2, 3, 4], "target": [0, 1, 0, 1]}).to_csv(
+            potabilidad, index=False
+        )
+        self.procedencia = {
+            "potabilidad": {
+                "ruta": potabilidad.name,
+                "sha256": hashlib.sha256(potabilidad.read_bytes()).hexdigest(),
+                "fuente": "fixture sintético de potabilidad",
+            },
+            "diabetes": metadata,
+        }
+        (self.datos / "procedencia.json").write_text(
+            json.dumps(self.procedencia), encoding="utf-8"
+        )
+        for nombre in ("potabilidad", "diabetes"):
+            origen = self.procedencia[nombre]
+            csv = self.datos / origen["ruta"]
+            tabla_csv = pd.read_csv(csv)
+            argumentos = {
+                "target": "diabetes" if nombre == "diabetes" else "target",
+                "features": list(PREDICTORAS_DIABETES)
+                if nombre == "diabetes"
+                else ["x"],
+                "incluir_categoricas": nombre == "diabetes",
+                "separador": ",",
+                "decimal": ".",
+                "encoding": "utf-8",
+            }
             resultados = self.raiz / "resultados" / nombre
             resultados.mkdir(parents=True)
             configuracion = {
+                "argumentos": argumentos,
                 "dataset": {
                     "archivo": csv.name,
                     "sha256": hashlib.sha256(csv.read_bytes()).hexdigest(),
+                    "fuente": origen["fuente"],
+                    "filas": len(tabla_csv),
+                    "columnas": list(tabla_csv.columns),
                 },
                 "experimento": {
                     "candidatos_fallidos": 0,
@@ -155,6 +215,27 @@ class Lab02PackagingTests(unittest.TestCase):
             self.assertIn("informe/proyecto_overleaf.zip", nombres)
             self.assertIn(".streamlit/config.toml", nombres)
             self.assertIn("requirements-lab02-lock.txt", nombres)
+            csv_datos = {
+                nombre
+                for nombre in nombres
+                if nombre.startswith("data/lab02/") and nombre.endswith(".csv")
+            }
+            self.assertEqual(
+                csv_datos,
+                {
+                    "data/lab02/potabilidad.csv",
+                    "data/lab02/diabetes_original.csv",
+                    "data/lab02/diabetes.csv",
+                    "data/lab02/trazabilidad_diabetes.csv",
+                },
+            )
+            for nombre, contenido in self.archivos_diabetes.items():
+                self.assertEqual(paquete.read(f"data/lab02/{nombre}"), contenido)
+            for nombre in ("potabilidad", "diabetes"):
+                self.assertEqual(
+                    sum(ruta.startswith(f"salida_lab02/{nombre}/") for ruta in nombres),
+                    13,
+                )
             self.assertNotIn(b"framework_start", paquete.read("README.md"))
             self.assertIn(b"streamlit run app.py", paquete.read("README.md"))
             self.assertNotIn("salida_lab02/diabetes_reproducida/excluir.json", nombres)
@@ -177,9 +258,49 @@ class Lab02PackagingTests(unittest.TestCase):
         csv = self.raiz / "data" / "lab02" / "diabetes.csv"
         csv.write_bytes(csv.read_bytes() + b"15,0\n")
         argumentos = self.argumentos()
-        with self.assertRaisesRegex(ValueError, "SHA-256"):
+        with self.assertRaises(ValueError):
             ejecutar(argumentos, raiz=self.raiz)
         self.assertFalse(argumentos.salida.exists())
+
+    def test_original_trazabilidad_o_regla_modificados_rechazan_entrega(self):
+        alteraciones = {
+            "diabetes_original.csv": lambda contenido: contenido.replace(
+                b"4.31", b"4.32"
+            ),
+            "trazabilidad_diabetes.csv": lambda contenido: contenido + b"fila extra\n",
+            "procedencia.json": lambda contenido: contenido.replace(
+                b'"umbral": 7.0', b'"umbral": 8.0'
+            ),
+        }
+        for nombre, alterar in alteraciones.items():
+            with self.subTest(nombre=nombre):
+                ruta = self.datos / nombre
+                previo = ruta.read_bytes()
+                cambiado = alterar(previo)
+                self.assertNotEqual(cambiado, previo)
+                ruta.write_bytes(cambiado)
+                try:
+                    argumentos = self.argumentos()
+                    with self.assertRaises(ValueError):
+                        ejecutar(argumentos, raiz=self.raiz)
+                    self.assertFalse(argumentos.salida.exists())
+                finally:
+                    ruta.write_bytes(previo)
+
+    def test_resultados_anteriores_o_predictora_del_target_rechazan_entrega(self):
+        ruta = self.raiz / "resultados" / "diabetes" / "configuracion.json"
+        previo = ruta.read_bytes()
+        configuracion = json.loads(previo)
+        configuracion["dataset"]["sha256"] = "0" * 64
+        ruta.write_text(json.dumps(configuracion), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "SHA-256"):
+            ejecutar(self.argumentos(), raiz=self.raiz)
+        configuracion = json.loads(previo)
+        configuracion["argumentos"]["features"].append("glyhb")
+        ruta.write_text(json.dumps(configuracion), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "17 predictoras"):
+            ejecutar(self.argumentos(), raiz=self.raiz)
+        self.assertFalse(self.argumentos().salida.exists())
 
     def test_faltante_o_accuracy_incoherente_rechaza_entrega(self):
         ruta = self.raiz / "resultados" / "diabetes" / "DT" / "predicciones_test.csv"

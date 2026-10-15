@@ -43,6 +43,10 @@ visible; no equivale al laboratorio completo.
 Antes de guardar el informe, el generador comprueba:
 
 - SHA-256 válido de cada entrada y coherencia con `procedencia.json`.
+- En Diabetes, procedencia del original 403 × 19, regla `glyhb > 7`, 13
+  objetivos ausentes excluidos, preparado de 390 filas, 17 predictoras sin
+  `id`/`glyhb` y correspondencia de filas con SHA-256. Un resultado de otra
+  preparación se rechaza antes de escribir el informe.
 - Índices únicos y disjuntos en train, validación y test; tamaños compatibles.
 - Preparación aprendida sólo con train y test excluido de la selección.
 - Existencia de las cinco familias, estándar y variantes, y un ganador por
@@ -61,7 +65,9 @@ El manifiesto registra hashes de los JSON/CSV utilizados y del TEX final.
   integradas mediante `thebibliography`.
 - `manifest_informe.json`: autores, fecha y trazabilidad de fuentes.
 - `README.md`: instrucciones breves para el proyecto de Overleaf.
-- `proyecto_overleaf.zip`: esos tres archivos listos para importar en Overleaf.
+- `proyecto_overleaf.zip`: esos tres archivos listos para importar en Overleaf;
+  tras validar el PDF final se agrega `verificacion_pdf.json`, con sus huellas
+  y el registro de revisión visual.
 
 En Overleaf, importar el ZIP y compilar `main.tex` con **pdfLaTeX**. No requiere
 imágenes, archivos CSV externos ni ejecución de BibTeX. La compilación debe
@@ -73,8 +79,19 @@ resultados; el proyecto de Overleaf no las reemplaza. El ZIP académico de
 entrega debe incluir además código, datos con procedencia y resultados.
 
 El informe diferencia Water Quality completo de la muestra de 2011 filas
-del material de clase, y el CSV público de Diabetes de los encabezados
-adaptados del cuaderno. Esa diferencia se documenta sin afirmar igualdad
-íntegra no probada. La guía contempla trabajo individual o en pareja; la
+del material de clase. En Diabetes documenta la preparación del archivo
+original recibido y el criterio histórico respaldado por HBiostat:
+`glyhb > 7` produce `Diabetes`, `glyhb <= 7` produce `No diabetes`; 13 filas
+sin objetivo se excluyen sin imputar. Conserva 17 predictoras nativas,
+incluidas `location`, `gender` y `frame`, con faltantes preservados hasta el
+ajuste exclusivo de train. No se añaden BMI ni una nueva razón cintura/cadera.
+
+El anexo incluye el comando de `scripts.preparar_diabetes_lab02`, los hashes
+del original y del mapa `trazabilidad_diabetes.csv`, y la relación de índices
+preparados con los originales. El código no reutiliza cifras de una
+preparación distinta. La estructura es introducción, fundamentos, metodología,
+resultados por dataset, discusión y limitaciones, conclusiones, referencias
+y anexo de reproducción. No se afirma igualdad íntegra no probada con el
+archivo adaptado docente. La guía contempla trabajo individual o en pareja; la
 composición final del grupo debe verificarse con el profesor. El documento
 conserva los cuatro autores confirmados por el usuario para este proyecto.
