@@ -6,10 +6,16 @@ from importlib.metadata import version
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from ...resultados import ResultadoParticion, ResultadoRegresion
+from ...utils.configuracion_regresion import ALGORITMOS_LAB3
+from .algoritmos_regresion import (
+    crear_modelo,
+    metadatos_regresion,
+    normalizar_algoritmo,
+    parametros_regresion,
+)
 from .base import Supervisado
 from .particiones import dividir_indices, huella_datos, validar_particion
 from .preprocesamiento import PreprocesadorSupervisado
@@ -108,7 +114,7 @@ class Regresion(Supervisado):
         return train, test, pd.Index([])
 
     def _validar_predictoras(self, base, algoritmo):
-        if algoritmo not in ("RLS", "RLM"):
+        if algoritmo not in ALGORITMOS_LAB3:
             raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}")
         if algoritmo == "RLS":
             if len(self.features) != 1:
@@ -122,7 +128,7 @@ class Regresion(Supervisado):
                 or pd.api.types.is_complex_dtype(serie)
             ):
                 raise TypeError("RLS requiere una variable predictora numérica real.")
-        elif len(self.features) < 2:
+        elif algoritmo == "RLM" and len(self.features) < 2:
             raise ValueError("RLM requiere al menos dos variables predictoras.")
 
     def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
@@ -137,7 +143,7 @@ class Regresion(Supervisado):
         preparados = preprocesador.ajustar_transformar(
             base.loc[train, self.features], y_train
         )
-        modelo = LinearRegression(**parametros)
+        modelo = crear_modelo(algoritmo, random_state, parametros)
         modelo.fit(preparados.matriz, y_train)
         return modelo, preparados
 
@@ -167,9 +173,10 @@ class Regresion(Supervisado):
             muestra_test=len(evaluacion),
             modelo=modelo,
             datos_preparados=preparados,
-            parametros=modelo.get_params(),
+            parametros=parametros_regresion(modelo),
             metadatos={
                 **metadatos,
+                **metadatos_regresion(modelo),
                 "columnas_transformadas": list(preparados.matriz.columns),
                 "columnas_descartadas": list(preparados.columnas_descartadas),
             },
@@ -213,6 +220,7 @@ class Regresion(Supervisado):
         **kwargs,
     ):
         """Separa filas antes de ajustar; validación externa queda reservada."""
+        algoritmo = normalizar_algoritmo(algoritmo)
         base = self._datos_regresion()
         train, test, validacion = self._indices(
             base, particion=particion, test_size=test_size, random_state=random_state
@@ -275,6 +283,35 @@ class Regresion(Supervisado):
 
     RLS = lineal_simple
     RLM = lineal_multiple
+
+    def lasso(self, **kwargs):
+        return self.entrenar(algoritmo="Lasso", **kwargs)
+
+    def lasso_cv(self, **kwargs):
+        return self.entrenar(algoritmo="LassoCV", **kwargs)
+
+    def ridge(self, **kwargs):
+        return self.entrenar(algoritmo="Ridge", **kwargs)
+
+    def ridge_cv(self, **kwargs):
+        return self.entrenar(algoritmo="RidgeCV", **kwargs)
+
+    def svr(self, **kwargs):
+        return self.entrenar(algoritmo="SVR", **kwargs)
+
+    def arbol_decision(self, **kwargs):
+        return self.entrenar(algoritmo="DT", **kwargs)
+
+    def random_forest(self, **kwargs):
+        return self.entrenar(algoritmo="RF", **kwargs)
+
+    Lasso = lasso
+    LassoCV = lasso_cv
+    Ridge = ridge
+    RidgeCV = ridge_cv
+    SVR = svr
+    DT = arbol_decision
+    RF = random_forest
 
     def RL(self, *args, **kwargs):
         """Regresión Logística.

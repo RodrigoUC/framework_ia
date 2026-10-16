@@ -54,22 +54,22 @@ merge, remote execution, final academic report or submission ZIP.
   light/dark validation. Record missing or failed checks honestly.
 - RDD: **on**, global; verified outside sandbox. Follow native candidate
   consent and transitions; never fabricate approval or toggle mode.
-- Initial assessment: explicit inventory exclusion resolved cache discovery;
-  committed range has 0 pending paths/lines, so no assessable candidate yet.
-  Native assessment/preflight pending the first work-unit commit; no approval.
-- Last reviewed boundary: 2f770806ff75b1baecb85642650cda9a1f575535.
+- Initial cache inventory resolved through explicit exclusion. T01 native
+  reliability review approved without findings and exact acknowledgement applied.
+- Last reviewed boundary: 7bb1966b0f3895a1280124ce032c804f84e6d51e.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Forecast: 2,000-3,500 authored changed lines, generated files excluded.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 0. No implementation commits yet.
+- Running authored count: 755 (717 additions + 38 deletions in T01 commit,
+  including 116 tracking lines; 639 behavior/test/documentation lines).
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
   Parent owns reconciliation, task checkoffs, commits and native review.
 
 ## Tasks
 
-- [ ] T01 — Implement linear regression core and result contracts, with focused
+- [x] T01 — Implement linear regression core and result contracts, with focused
   tests and API documentation. Route: delegated (multiple non-trivial files;
   preparation and mapping). Check valid/invalid targets, train-only transforms,
   partitions, predictions, metrics, aliases and original framework tests.
@@ -111,6 +111,29 @@ line count and rollback boundary here before considering the task closed.
   Rollback: regresion.py, resultados.py, test_regresion.py, test_framework.py,
   docs/lab03/README.md only. Roughly 639 authored implementation/test/doc lines;
   cohesive validation and evidence require exceeding advisory size, not splitting
-  tests away from behavior. Commit and native assessment pending.
-- Next: commit verified T01, perform native assessment, then T02.
+  tests away from behavior. Work-unit commit:
+  `7bb1966b0f3895a1280124ce032c804f84e6d51e`.
+  Native assessment: medium, review_due=true, slice_budget_reached; 6 files,
+  755 lines. Cache-only .codegraph/.gitignore explicitly excluded using native
+  canonical inventory. User explicitly granted candidate review (Si autorizo).
+  Native compiled reliability reviewer inspected all six immutable patches;
+  no findings. Approved and exact acknowledgement applied. Reviewer did not
+  independently execute tests; functional evidence is the observed suite above.
+  Candidate: sha256:b676a5370d24f6c532d2d63589e3340403e1fbdb8c65cba314ac5413de82474d.
+  Approved lineage: review-16a6f56aeb1358f6.
+- T02 implementation verified: nine native estimators, fourteen independent
+  default candidate configurations, typed UI catalog and Pythonic wrappers.
+  Literal CV estimators retain native KFold objects; result parameters encode
+  splitter settings and metadata records selected alpha and inner-preprocessing
+  limitation. No benchmark/UI/export implementation included yet.
+  Final full suite: `.venv/Scripts/python.exe -m pytest -q` => 158 passed,
+  152 subtests passed in 118.11s; Ruff, format and git diff --check pass.
+  Runtime boundary: native estimator fit/predict plus native-CV equivalence,
+  deterministic results and holdout independence exercised through tests.
+  Rollback: utils/configuracion_regresion.py, utils/__init__.py,
+  modelos/supervisado/algoritmos_regresion.py, modelos/supervisado/regresion.py,
+  tests/test_regresion_algoritmos.py, docs/lab03/README.md; preserve T01.
+  Approximately 571 authored behavior/test/doc lines form one coherent catalog
+  unit; tests and documentation remain alongside behavior. Commit/RDD pending.
+- Next: commit T02 and assess its native review candidate before T03.
 

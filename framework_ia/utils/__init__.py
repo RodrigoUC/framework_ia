@@ -13,17 +13,27 @@ from .configuracion_clasificacion import (
 from .configuracion_csv import ConfiguracionCSV
 from .configuracion_particion import ConfiguracionParticion
 from .configuracion_preprocesamiento import ConfiguracionPreprocesamiento
+from .configuracion_regresion import (
+    ALGORITMOS_LAB3,
+    CONFIGURACIONES_REGRESION,
+    NOMBRES_REGRESORES,
+    configuraciones_experimento_regresion,
+)
 
 __all__ = [
     "ALGORITMOS_LAB2",
+    "ALGORITMOS_LAB3",
     "CONFIGURACIONES_MODELO",
+    "CONFIGURACIONES_REGRESION",
     "METRICAS_SELECCION",
     "NOMBRES_MODELOS",
+    "NOMBRES_REGRESORES",
     "ConfiguracionCSV",
     "ConfiguracionParticion",
     "ConfiguracionPreprocesamiento",
     "color_texto_por_luminancia",
     "configuraciones_experimento",
+    "configuraciones_experimento_regresion",
     "configurar_cache_numba",
     "crear_codificador_denso",
     "crear_tsne",
