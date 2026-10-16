@@ -64,7 +64,7 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: 4d1973b (passive documentation closure after approved T06).
+- Last reviewed boundary: 7c4fe426c4cf86d8c356ccad96c3dac421828e45.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Updated forecast: 5,500-7,000 authored changed lines, generated files excluded;
@@ -113,7 +113,7 @@ merge, remote execution, final academic report or submission ZIP.
   Check both labs, invalid/valid targets/features/splits, recovery, partial evidence,
   no implicit fitting, AppTest, full suite and real browser desktop/mobile.
 
-- [ ] T07 - Consolidate shared configuration and comparative Results.
+- [x] T07 - Consolidate shared configuration and comparative Results.
   Route: delegated; mapping required 4+ files and implementation spans multiple
   non-trivial UI/test files. Remove duplicate Compare navigation, migrate old
   route IDs, keep execution/individual diagnostics on model pages, and present
@@ -438,3 +438,25 @@ line count and rollback boundary here before considering the task closed.
   Final rollback includes configuracion_supervisada.py/test_configuracion_supervisada.py,
   test_preparacion_supervisada.py, EDA filter/metadata and T07 existing UI/tests/docs
   hunks only. No push, PR, merge or model-domain rewrite.
+
+- T07 work-unit commit: 7c4fe426c4cf86d8c356ccad96c3dac421828e45,
+  feat(ui): unify supervised configuration and simplify results.
+  23 files,1271additions/590deletions=1861 authored lines (including tracker).
+  Running feature count:7604 including prior passive closure20lines.
+  Native assessment base4d1973b: medium,review_due=true/slice_budget_reached.
+  Preflight and consent relay completed; REVIEW NOT STARTED/NOT APPROVED.
+  Await explicit candidate consent for review-a2837d1160699986;
+  target sha256:d8c5ed5dbbbf8c0469d3c7d431092f11f36b58d058c593072eac16520787ae53.
+  Implementation task checked off on observed checks and work-unit commit;
+  review closure was subsequently approved as recorded below. No push/PR/merge
+  performed at this point.
+
+- User granted T07 review and requested commit/push of all changes. Native
+  reliability review inspected all23 immutable patches, approved without findings;
+  exact acknowledgement applied and authority burned. Reviewer did not independently
+  execute commands/tests; functional evidence remains252tests/152subtests above.
+  Lineage review-a2837d1160699986; committed candidate7c4fe42 unchanged.
+  All T07 implementation and review work complete locally. Closure notes now
+  committed separately; push requested to configured origin lab_03, pending
+  explicit authorization of credential/session under repository remote policy.
+  No credential inspection or remote probe performed. No PR/merge requested.
