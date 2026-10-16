@@ -58,15 +58,15 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: b38c24fd720023996fbf8a175de34fe340528108.
+- Last reviewed boundary: c24f0f36eb6a87c5c4cb33f245af9b83646e0f30.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Updated forecast: 5,500-7,000 authored changed lines, generated files excluded;
   includes the user-requested guided workflow and prerequisite gating extension.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 4,805 (T01: 755; T02: 610; T03: 1,362; T03a: 97;
-  T04: 1,310; T05: 671). T01 includes 116 tracking
+- Running authored count: 5,723 (T01: 755; T02: 610; T03: 1,362; T03a: 97;
+  T04: 1,310; T05: 671; T06: 918). T01 includes 116 tracking
   lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
   behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
@@ -98,7 +98,7 @@ merge, remote execution, final academic report or submission ZIP.
   (scripts/docs/CI/tests). Record actual environment versions and outcome;
   preserve Lab02 lock/evidence and never fabricate empirical findings.
 
-- [ ] T06 — Guide the app through Source, Configuration, Execution and Results.
+- [x] T06 — Guide the app through Source, Configuration, Execution and Results.
   Route: delegated (CodeGraph mapping and multiple non-trivial UI/test files).
   Derive readiness from actual prerequisites, not visited/completed flags.
   Explain missing requirements next to disabled dependent navigation/actions;
@@ -296,7 +296,15 @@ line count and rollback boundary here before considering the task closed.
   and previously observed theme-rerender limitation remain as recorded in T04/T05.
   Rollback: new ui/flujo.py,ui/guia_flujo.py,tests/test_flujo_ui.py and T06 UI
   integration/tests/docs hunks only; preserve T01-T05 domain/reference/evidence.
-  Work-unit commit/native assessment pending. T05 advisory R4-001 remains recorded
+  Commit: c24f0f36eb6a87c5c4cb33f245af9b83646e0f30 (873 additions /45 deletions). Native medium,
+  review_due=true/slice_budget_reached,14files/918lines. User granted review;
+  reliability reviewer inspected all14 immutable patches without findings.
+  Approved and exact acknowledgement applied; authority burned. Reviewer did
+  not independently execute tests. Candidate:
+  sha256:af7fb85562a12f7223310e274973ac53a353d83b850a8d6ca884602ed1ff7100.
+  Approved lineage: review-92d5583bc001d816. T05 advisory R4-001 remains recorded
   separately, not silently claimed fixed by this UX change.
-- Next: commit/assess T06 guided workflow.
+- Authorized Lab03 and guided-workflow implementation is complete locally.
+  No push, PR or merge performed. Non-blocking T05 R4-001 and the documented
+  audit/theme limitations remain explicit follow-ups, not claimed fixed.
 
