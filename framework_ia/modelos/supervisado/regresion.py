@@ -292,8 +292,8 @@ class Regresion(Supervisado):
         """Selecciona por RMSE de validación sin usar prueba para decidir.
 
         Una partición con validación externa usa holdout por defecto; en otro
-        caso se aplica CV sólo sobre train. Un intento sin ganadores devuelve
-        su evidencia sin sustituir el último experimento exitoso.
+        caso se aplica CV sólo sobre train. Si falla la evaluación del ganador
+        elegido, devuelve su evidencia sin sustituir el snapshot activo.
         """
         from .experimentos_regresion import ejecutar_experimento
 
@@ -312,14 +312,13 @@ class Regresion(Supervisado):
             imputar=imputar,
             estandarizar=estandarizar,
         )
-        if intento.mejores:
+        elegido = intento.mejores.get(intento.mejor_algoritmo)
+        if elegido is not None:
             self.experimento = intento
-            elegido = intento.mejores.get(intento.mejor_algoritmo)
-            if elegido is not None:
-                self.resultado = elegido
-                self.modelo = elegido.modelo
-                self._preparados = elegido.datos_preparados
-                self.r2 = elegido.metricas["r2"]
+            self.resultado = elegido
+            self.modelo = elegido.modelo
+            self._preparados = elegido.datos_preparados
+            self.r2 = elegido.metricas["r2"]
         return intento
 
     benchmark = experimentar

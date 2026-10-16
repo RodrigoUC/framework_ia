@@ -56,13 +56,13 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: 94d6768b621e50322f7381303abf5f8108e634fa.
+- Last reviewed boundary: de6cffbe53b05abfe336a64043f9d904150d4054.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Forecast: 2,000-3,500 authored changed lines, generated files excluded.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 1,365 (T01: 755; T02: 610). T01 includes 116 tracking
+- Running authored count: 2,727 (T01: 755; T02: 610; T03: 1,362). T01 includes 116 tracking
   lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
   behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
@@ -77,9 +77,15 @@ merge, remote execution, final academic report or submission ZIP.
 - [x] T02 — Add remaining required estimators and typed/configuration catalog,
   with estimator and parameter/CV tests. Route: delegated (multi-file behavior).
   Check all nine model entries, fixed seeds and literal CV-estimator behavior.
-- [ ] T03 — Implement benchmark selection, shared serialization and CLI.
+- [x] T03 — Implement benchmark selection, shared serialization and CLI.
   Route: delegated (domain/orchestration/export/tests). Check identical splits,
   no test leakage, folds/holdout, ties, partial failures and CLI/UI export parity.
+- [ ] T03a — Verify and correct active-result atomicity when only the
+  validation-best winner fails final test evaluation (advisory R3-001).
+  Route: delegated (core and regression tests). Preserve the previous complete
+  active snapshot while returning the partial attempt; never choose by test.
+  This stays within the approved failed-run recovery contract. Separate work
+  unit; the approved T03 receipt remains closed and is not reopened.
 - [ ] T04 — Integrate regression UI, saved results/comparison and Nexo IA branding.
   Route: delegated (multi-file UI/state/tests/docs). Check explicit training,
   invalidation/recovery, branding, preserved styling and browser behavior.
@@ -158,6 +164,23 @@ line count and rollback boundary here before considering the task closed.
   additions to regresion.py, resultados.py and docs/lab03/README.md; keep T01/T02.
   Approximately 1,326 behavior/test/doc lines are cohesive orchestration plus
   no-leakage/export/CLI checks; advisory size exceeded without removing coverage.
-  Commit/native assessment pending. UI and preset reproduction remain pending.
-- Next: commit verified T03 and assess its native review candidate before T04.
+  Commit: `de6cffbe53b05abfe336a64043f9d904150d4054` (1,352 additions / 10
+  deletions including tracking). Native risk medium, slice_budget_reached,
+  9 files / 1,362 lines. User granted review; approved and acknowledged with
+  non-blocking advisory R3-001 (partial final-evaluation failure can mix active
+  experiment/model runs). No correction transition opened; separate T03a will
+  verify the advisory against the existing atomic-state contract. Reviewer did
+  not rerun tests. UI and preset reproduction remain pending.
+  Candidate: sha256:11e912dca6043e84bcb16849594b9ffba70a086a3894bed06282366e7034f082.
+  Approved lineage: review-58c88d65923322dc.
+- T03a: deterministic fresh/prior-success reproductions both failed before the
+  fix. Root cause: experiment published when any family succeeded, while other
+  active artifacts depended on the validation-best result being available.
+  Fixed by a shared publication condition for all active artifacts; partial
+  DTO remains returned and no substitute is selected from test performance.
+  Final checks: focused 44 passed / 93 subtests; full 186 passed / 152 subtests;
+  Ruff check/format and git diff --check pass. Three-file rollback: regresion.py,
+  test_regresion_experimentos.py and relevant README paragraph (51+/13-).
+  Original approved receipt untouched; separate commit/assessment pending.
+- Next: commit/assess T03a, then T04 UI/Nexo IA.
 

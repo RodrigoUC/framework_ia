@@ -129,10 +129,11 @@ prueba. `ResultadoExperimentoRegresion` contiene `tabla`, `mejores`,
 `mejor_algoritmo` y `metadatos`; registra índices de particiones/pliegues,
 selecciones, versiones y fallos. Ninguna métrica de prueba decide el ranking.
 Un candidato fallido no impide evaluar los demás. Datos o particiones inválidos
-se rechazan antes del primer ajuste. Un intento sin ganadores evaluados devuelve
-su evidencia, pero no sustituye `experimento`, modelo ni resultado exitosos
-anteriores. Los errores de prueba se registran sin elegir otro ganador por su
-resultado de prueba.
+se rechazan antes del primer ajuste. Si no puede evaluarse en prueba el ganador
+elegido por validación, el intento devuelve su evidencia parcial y conserva
+conjuntamente `experimento`, modelo, preprocesador, resultado y R² activos
+anteriores (o vacíos en una instancia nueva). Otros algoritmos evaluados siguen
+disponibles en el DTO devuelto, pero no se promueven por el resultado de prueba.
 
 ## CLI y exportación compartida
 

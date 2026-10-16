@@ -247,6 +247,44 @@ def test_test_evaluation_failures_are_visible_without_reselection(data):
     assert model.experimento is None
 
 
+@pytest.mark.parametrize("previous_success", [False, True])
+def test_selected_winner_test_failure_preserves_entire_active_snapshot(
+    data, previous_success
+):
+    model = Regresion(dataframe=data)
+    if previous_success:
+        model.experimentar(algoritmos=["Ridge", "DT"], folds=3)
+    active_fields = ("experimento", "resultado", "modelo", "_preparados", "r2")
+    previous = {name: getattr(model, name) for name in active_fields}
+    original_result = Regresion._resultado
+
+    def evaluate(
+        regressor, base, train, evaluation, algorithm, estimator, prepared, metadata
+    ):
+        if algorithm == "Ridge":
+            raise RuntimeError("selected winner test evaluation failed")
+        return original_result(
+            regressor, base, train, evaluation, algorithm, estimator, prepared, metadata
+        )
+
+    with patch.object(Regresion, "_resultado", autospec=True, side_effect=evaluate):
+        attempted = model.experimentar(
+            algoritmos=["Ridge", "DT"], folds=3, random_state=43
+        )
+
+    assert attempted.mejor_algoritmo == "Ridge"
+    assert set(attempted.mejores) == {"DT"}
+    assert "selected winner" in attempted.metadatos["errores_prueba"]["Ridge"]
+    assert attempted.metadatos["test_usado_para_seleccion"] is False
+    for name, saved in previous.items():
+        assert getattr(model, name) is saved, name
+    if previous_success:
+        assert model.evaluar() is previous["resultado"]
+    else:
+        with pytest.raises(RuntimeError, match="Entrene primero"):
+            model.evaluar()
+
+
 @pytest.mark.parametrize(
     "invalid",
     [
