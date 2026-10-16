@@ -64,9 +64,9 @@ def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
     ):
         st.error(
             "La preparación actual imputó o escaló antes de separar los datos. "
-            "Para evitar fuga de información, restaure el dataset original en "
-            "Datos y preparación. Ajuste imputación y escalado en Configuración "
-            "de clasificación para que se aprendan solo con entrenamiento."
+            "Para evitar fuga de información, desactive esas transformaciones en "
+            "Datos y preparación y vuelva a aplicar sus opciones de limpieza. "
+            "Ajuste imputación y escalado en Configuración para aprenderlos solo con entrenamiento."
         )
         return False
     if mostrar_guia:
@@ -131,10 +131,6 @@ def render_modelo_individual(
 ) -> None:
     """Entrenamiento exploratorio de un único modelo con parámetros visibles."""
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
-    st.markdown(f"### {nombre_modelo}")
-    st.caption(
-        "Entrene una configuración; la comparación conserva esta ejecución hasta que cambie el dataset o la partición compartida."
-    )
     segura = preparacion_segura()
     parametros = parametros_individuales(algoritmo)
     disponibilidad = disponibilidad_supervisada(
@@ -142,8 +138,6 @@ def render_modelo_individual(
         preparacion=st.session_state.get("dataset_preparacion"),
     )
     mostrar_faltantes(disponibilidad)
-    st.caption("Parámetros solicitados; los efectivos se muestran después de entrenar.")
-    st.json(parametros or {"configuracion": "estándar del algoritmo"}, expanded=False)
     firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
     estado_modelo = f"modelo_{algoritmo}"
     resultado_modelo = f"resultado_lab2_{estado_modelo}"
@@ -218,7 +212,14 @@ def render_resultados(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
     """Vista de lectura; nunca ajusta ni selecciona modelos al abrirse."""
-    st.markdown("### Resultados de clasificación")
+    hay_experimento = incluir_experimentos and any(
+        st.session_state.get(clave)
+        for clave in (
+            "resultado_lab2_experimento",
+            "resultado_lab2_intento_experimento",
+            "error_lab2_experimento",
+        )
+    )
     individuales = []
     for codigo in (*NOMBRES_MODELOS, "NR"):
         if codigo == "RF":
@@ -272,8 +273,7 @@ def render_resultados(
     if individuales:
         st.markdown("#### Modelos entrenados individualmente")
         st.caption(
-            "Métricas de prueba de ejecuciones exploratorias; no utilice esta tabla "
-            "para seleccionar hiperparámetros o comparar contra la selección de validación."
+            "Prueba · ejecuciones individuales. Seleccione hiperparámetros por validación, no con test."
         )
         _mostrar_dataframe(
             pd.DataFrame(
@@ -304,36 +304,15 @@ def render_resultados(
             hide_index=True,
             width="stretch",
         )
-        for codigo, criterio, resultado, contexto, parametros in individuales:
-            nombre = NOMBRES_MODELOS.get(
-                codigo, "Naive Bayes" if codigo == "NR" else codigo
-            )
-            with st.expander(
-                f"{nombre}{f' · {criterio}' if criterio else ''} · prueba",
-                expanded=False,
-            ):
-                st.caption(
-                    f"Dataset: {contexto.get('dataset', 'desconocido')} · "
-                    f"Target: {contexto.get('target', 'desconocido')} · "
-                    f"Features: {', '.join(contexto.get('features', []))}"
-                )
-                st.caption(
-                    f"Criterio y parámetros guardados: {criterio or 'predeterminados'} · {_json(parametros or getattr(resultado, 'parametros', {}))}"
-                )
-                _diagnostico(
-                    resultado,
-                    mostrar_figura,
-                    f"clasificacion_{codigo}_{criterio or 'default'}",
-                )
-    if not individuales:
+    if not individuales and not hay_experimento:
         st.info(
             "Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación."
         )
-    if incluir_experimentos:
+    if hay_experimento:
         # Imported lazily: the experiment view reuses the diagnostic renderer above.
         from .experimentos_lab2 import render_resultado_experimento
 
-        render_resultado_experimento(mostrar_figura)
+        render_resultado_experimento(mostrar_figura, solo_comparacion=True)
 
 
 def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None:

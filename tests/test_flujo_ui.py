@@ -82,7 +82,7 @@ def test_continuous_classification_target_is_not_automatically_converted(datos):
 
 def test_predictor_requirements_and_corrections(datos):
     datos["categoria"] = ["a", "b"] * 20
-    estado = {"reg_target": "target", "reg_features": ["a", "categoria"]}
+    estado = {"sup_target": "target", "sup_features": ["a", "categoria"]}
     configuracion = config(datos, estado=estado)
     resultado = disponibilidad_supervisada(datos, configuracion, "regresion")
     assert not resultado.lista and "categoria" in resultado.faltantes[0]
@@ -99,7 +99,7 @@ def test_predictor_requirements_and_corrections(datos):
 
 
 def test_single_feature_only_blocks_multiple_regression_not_other_models(datos):
-    configuracion = config(datos, estado={"reg_features": ["a"]})
+    configuracion = config(datos, estado={"sup_features": ["a"]})
     assert disponibilidad_supervisada(
         datos, configuracion, "regresion", algoritmo="RLS"
     ).lista
@@ -169,6 +169,9 @@ def app_con_datos(datos):
     )
     app.run()
     assert not app.exception
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.radio(key="sup_tarea").set_value("regresion").run()
+    app.sidebar.button(key="nav_datos").click().run()
     return app
 
 
@@ -188,14 +191,14 @@ def test_navigation_and_next_steps_follow_actual_dependencies_without_fitting(da
         assert not app.sidebar.button(key="nav_acp").disabled
         assert not app.sidebar.button(key="nav_kmeans").disabled
         assert app.sidebar.button(key="nav_lab3_resultados").disabled
-        app.button(key="flujo_config_reg").click().run()
+        app.button(key="flujo_configurar").click().run()
         assert not app.exception
         assert any("Etapa 2" in item.value for item in app.markdown)
-        app.multiselect(key="reg_features").set_value([]).run()
+        app.multiselect(key="sup_features").set_value([]).run()
         assert app.button(key="flujo_continuar").disabled
         assert app.sidebar.button(key="nav_regresion_ridge").disabled
-        assert not app.sidebar.button(key="nav_regresion_configuracion").disabled
-        app.multiselect(key="reg_features").set_value(["a", "b"]).run()
+        assert not app.sidebar.button(key="nav_configuracion").disabled
+        app.multiselect(key="sup_features").set_value(["a", "b"]).run()
         app.button(key="flujo_continuar").click().run()
         assert not app.exception
         assert any("Etapa 3" in item.value for item in app.markdown)
@@ -214,7 +217,7 @@ def test_success_enables_results_immediately_and_context_change_revokes_them(dat
     assert not app.sidebar.button(key="nav_lab3_resultados").disabled
     app.button(key="flujo_resultados").click().run()
     assert any("Etapa 4" in item.value for item in app.markdown)
-    app.session_state["reg_random_state"] = 21
+    app.session_state["sup_random_state"] = 21
     app.run()
     assert not app.exception
     assert app.sidebar.button(key="nav_lab3_resultados").disabled
@@ -226,6 +229,7 @@ def test_direct_route_cannot_bypass_target_requirements_and_correction_is_availa
     datos,
 ):
     app = app_con_datos(datos)
+    app.session_state["sup_tarea"] = "clasificacion"
     app.session_state["vista_activa"] = "clasificacion_knn"
     with patch.object(Clasificacion, "entrenar") as entrenar:
         app.run()
@@ -234,14 +238,14 @@ def test_direct_route_cannot_bypass_target_requirements_and_correction_is_availa
         assert any("objetivo continuo" in item.value for item in app.warning)
         assert not app.button(key="flujo_corregir").disabled
         app.button(key="flujo_corregir").click().run()
-        assert app.session_state["vista_activa"] == "clasificacion_configuracion"
+        assert app.session_state["vista_activa"] == "configuracion"
         entrenar.assert_not_called()
 
 
 def test_partial_candidates_do_not_block_a_usable_simple_regression(datos):
     datos["categoria"] = ["a", "b"] * 20
     configuracion = config(
-        datos, estado={"reg_target": "target", "reg_features": ["a", "categoria"]}
+        datos, estado={"sup_target": "target", "sup_features": ["a", "categoria"]}
     )
     opciones = {"estrategia": "cv", "algoritmos": ["RLM", "RLS"]}
     assert disponibilidad_supervisada(
@@ -252,8 +256,8 @@ def test_partial_candidates_do_not_block_a_usable_simple_regression(datos):
         datos, configuracion, "regresion", experimento=opciones
     ).lista
     app = app_con_datos(datos)
-    app.session_state["reg_target"] = "target"
-    app.session_state["reg_features"] = ["a", "categoria"]
+    app.session_state["sup_target"] = "target"
+    app.session_state["sup_features"] = ["a", "categoria"]
     app.run()
     assert not app.sidebar.button(key="nav_regresion_rls").disabled
     assert app.sidebar.button(key="nav_regresion_rlm").disabled

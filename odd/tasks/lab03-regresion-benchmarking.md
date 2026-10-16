@@ -9,6 +9,12 @@ benchmarking, CLI/export and Streamlit workflows, preserving the established
 structure and visual design. Rename visible branding to **Nexo IA**.
 User additionally authorized guided stages, actionable missing prerequisites and
 disabled dependent functionality (2026-10-16).
+User further authorized removing duplicate comparison/results views and reducing
+textual noise across classification/regression: model execution and diagnostics
+belong to model pages; Results is comparative only.
+User clarified that configuration is general/shared, while each model retains
+its own Train button. The proposed global training action was a misunderstanding
+and is explicitly withdrawn; do not implement it.
 Local implementation and Conventional Commits are authorized. No push, PR,
 merge, remote execution, final academic report or submission ZIP.
 
@@ -58,7 +64,7 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: c24f0f36eb6a87c5c4cb33f245af9b83646e0f30.
+- Last reviewed boundary: 4d1973b (passive documentation closure after approved T06).
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Updated forecast: 5,500-7,000 authored changed lines, generated files excluded;
@@ -106,6 +112,42 @@ merge, remote execution, final academic report or submission ZIP.
   manual partitions optional, EDA/clustering independent, and train-only safety.
   Check both labs, invalid/valid targets/features/splits, recovery, partial evidence,
   no implicit fitting, AppTest, full suite and real browser desktop/mobile.
+
+- [ ] T07 - Consolidate shared configuration and comparative Results.
+  Route: delegated; mapping required 4+ files and implementation spans multiple
+  non-trivial UI/test files. Remove duplicate Compare navigation, migrate old
+  route IDs, keep execution/individual diagnostics on model pages, and present
+  only comparative evidence in Results. Preserve individual test vs benchmark
+  validation distinctions, partial errors, exports, RF criterion snapshots,
+  state invalidation and prerequisite gates. Compact guidance and disclose
+  secondary details rather than repeat explanatory blocks.
+  Clarified scope: one Configuration page and canonical common state for task,
+  target, predictors, split/seed and train-only preparation; task-specific controls
+  remain conditional (stratification or simple predictor). Explicit task selection
+  avoids guessing from numeric dtype; source presets may explicitly select task.
+  Enable only the selected task's models when valid. Retain each model's own
+  hyperparameters and Train button. Data keeps load/inspection/exclusion/restore;
+  global transformations remain advanced exploration-only, not supervised prep.
+  Centralize optional external supervised split controls in Configuration without
+  conflicting percentages/seeds. Migrate legacy routes/presets/reset contracts.
+  Latest accepted refinement: disabled navigation reasons belong in button hover
+  help, not permanent sidebar paragraphs. Keep correction details in Configuration
+  and operation errors near their action; preserve accessible control names.
+  Preparation refinement: explicit null-row filtering on selected retained
+  columns before supervised configuration; include target only if user selects it.
+  Preserve original/default API behavior, record policy/removed counts, reject
+  empty prepared result before publishing. Prepared data feeds configuration;
+  cleanup invalidates stale evidence/partitions. Global learned imputation/scaling
+  stays blocked; message offers reapplying cleanup without global transforms,
+  not mandatory destruction of safe column/row cleanup. Test target-null behavior,
+  no implicit fits, safe cleanup-to-regression, recovery and transform guard.
+  Forecast: 1,500-1,950 authored lines; cohesive behavior/tests/docs, advisory only.
+  Checks: focused AppTest/read-only route and isolation assertions, full pytest,
+  changed-file Ruff, diff check, bounded desktop/mobile/keyboard browser QA,
+  scoped design detector, canonical configuration/preset migration, task gating,
+  shared-state invalidation and no fit on configuration/navigation. TDD remains off; existing .venv runner unchanged.
+  Rollback boundary: T07 UI/test/docs hunks plus EDA preparation filter/metadata;
+  preserve classifier/regressor domain behavior and earlier reference dataset.
 
 Each task's work-unit commit contains its behavior, tests and documentation;
 append commit identity, exact check outcomes, RDD assessment/outcome, authored
@@ -308,3 +350,91 @@ line count and rollback boundary here before considering the task closed.
   No push, PR or merge performed. Non-blocking T05 R4-001 and the documented
   audit/theme limitations remain explicit follow-ups, not claimed fixed.
 
+
+- T07 started after user request: CodeGraph mapping confirms Compare and Results
+  dispatch the same renderers, with Results adding experiment evidence. Those
+  renderers also embed individual diagnostics; shared guidance repeats context.
+  Prior completed T01-T06 remain valid. Current working tree was clean at start.
+  T07 uses existing single-pr strategy and local branch, no remote operations.
+  Implementation and checks pending; native RDD mode verified on/global.
+
+- T07 first increment implemented (uncommitted): unique comparative Results,
+  legacy route aliases, model-only diagnostics and reduced guidance. Full tests
+  233 passed /152 subtests in133.37s; focused109/22; changed Ruff/F821/diff and
+  scoped detector[] pass;15 inherited entrypoint lint findings unchanged.
+  Browser attempt not accepted: old server appeared to render prior imported
+  modules, then QA paused for user clarification. Restart only owned server for
+  final QA. No claim that current T07 browser checks passed.
+- User clarified configuration is shared, training remains per model. T07 expanded
+  before completion to canonical common configuration, explicit task choice and
+  per-task availability. Delegated CodeGraph mapping confirms duplicated controls
+  and separate clasif_/reg_ common state. Domain contracts remain unchanged;
+  no numeric-dtype task guessing, no automatic fit. Existing single-pr strategy
+  retained; larger cohesive scope includes migration/tests, no size-only splitting.
+  Next: delegated configuration changes, all final checks, local work-unit commit
+  and native assessment against4d1973b. Earlier receipts remain closed.
+
+- T07 shared configuration and visual correction verified: full238passed plus
+  152subtests in235.16s; changed Ruff/F821/diff pass. Scoped design detector[]
+  earlier in this same increment. Fresh owned server8502 browser confirmed one
+  configuration, task keyboard switch, per-model Ridge/RF training, comparative
+  Results only, blocked empty predictors and recovery, desktop/mobile no clipping.
+  Parent inspected final mobile22-14-31-139Z after removing duplicate route titles.
+  No repeated benchmark/partial-errors/exports/external-split browser run; tests
+  cover them. Existing8501 includes unowned server; not stopped or modified.
+- User now requested disabled navigation reasons on hover instead of permanent
+  text. Accept this presentation change; core writer owns narrow nav refinement.
+  User also reported null cleanup blocked by train-only guard: separate mapping
+  verified current UI offers global imputation but no null-row deletion; config
+  already consumes dataset_preparado. Safe deterministic cleanup design pending,
+  guard not weakened. Final commit/checkoff remains pending these refinements.
+
+- Null-cleanup mapping reproduced: current UI only imputes globally, using all
+  columns including future target; it has no drop-null-row action. Deterministic
+  column exclusion/dedup already passes readiness and configuration already reads
+  dataset_preparado. Add explicit selected-column row filtering, not a bypass.
+  Mapper released as bounded writer after tooltip source settled; preserve T07.
+- Hover refinement focused25passed in25.29s; local Streamlit button help/disabled
+  API and AppTest proto.help verified. No permanent sidebar blocker paragraphs;
+  enabled buttons have no stale help. Full suite deferred until cleanup increment.
+  Process deviation: parent initially released tooltip writer before tracker
+  amendment; writer applied authorized batch before hold arrived. Tracker then
+  synchronized before continuing checks; no unauthorized scope or rollback needed.
+
+- T07 final implementation and functional verification complete, local commit and
+  native assessment pending. One common sup_* Configuration, explicit task and
+  conditional controls, train-only preparation with optional fingerprint-bound
+  external split. Each model retains own hyperparameters/Train/diagnostic;
+  Results comparative-only with distinct test/validation evidence and exports.
+  Legacy routes migrate, inactive family direct actions guarded, context/presets
+  invalidate safely. Duplicate headings/copy removed; disabled nav help appears
+  only on hover, while correction details stay in Configuration.
+- Safe cleanup: EDA.preparar_dataset accepts explicit columnas_sin_nulos, preserves
+  default API and original input, rejects empty result before UI publication,
+  records removed-row counts/policy. Preparation widget choices persist across
+  navigation; recovery reapplies safe cleanup without global statistical transforms.
+  Model snapshots/export retain preparacion_previa. No change to historical
+  classification missing-label handling; preparation itself never infers target.
+- Final checks: full252passed/152subtests in334.25s, exit0 with thread limits2.
+  Focused cleanup12passed, broader121passed in197.34s; prior tooltip25passed.
+  Changed modules/newtests Ruff and entryF821 pass; inherited entry15/EDA5 lint
+  code/message-equivalent to HEAD. Scoped detector[] and git diff --check pass.
+  Initial obsolete recovery-text expectation corrected; behavior still blocked
+  global learned transforms. No failed final tests; CI remote execution not run.
+- Browser final evidence on owned http://127.0.0.1:8502: configuration/task gates,
+  explicit Ridge and RF, comparison-only Results, desktop1440/light and390/dark,
+  keyboard task change; final title correction confirmed desktop/mobile without
+  retraining. Cleanup localCSV40rows with predictor+target nulls, explicitly select
+  x/target ->38prepared, Ridge28train/10test. ZIP CRC and preparacion_previa counts,
+  source/effective identity verified. Hover native help visible for disabled Results,
+  permanent sidebar messages absent. Fresh console0errors/0warnings.
+  Parent inspected images22-25-30-569Z tooltip and22-25-13-737Z cleanup in temporary
+  lab03-browser-qa/.playwright-cli. Browser did not repeat full benchmark/partial
+  errors/external-split/advanced-impute recovery after latest changes; tests cover
+  these. Unowned8501 server untouched; updated app uses8502.
+- Hosted12ui not run (external upload not authorized); earlier broad premium audit
+  unavailable, scoped detector used instead. Existing theme-rerender limitation and
+  separate T05 interrupted-write advisory remain, not silently claimed fixed.
+  Final rollback includes configuracion_supervisada.py/test_configuracion_supervisada.py,
+  test_preparacion_supervisada.py, EDA filter/metadata and T07 existing UI/tests/docs
+  hunks only. No push, PR, merge or model-domain rewrite.

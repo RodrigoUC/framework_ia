@@ -54,6 +54,7 @@ class EDA(DataFrameBase):
         encoding: str = "utf-8",
     ) -> None:
         super().__init__(dataframe=dataframe)
+        self.preparacion: dict | None = None
         if ruta_datos is not None:
             self.cargar_csv(ruta_datos, separador=separador, encoding=encoding)
 
@@ -65,17 +66,31 @@ class EDA(DataFrameBase):
         self,
         *,
         columnas_eliminar: list[str] | tuple[str, ...] | None = None,
+        columnas_sin_nulos: list[str] | tuple[str, ...] | None = None,
         eliminar_duplicados: bool = True,
         imputar_nulos: bool = True,
         normalizar: bool = False,
         estandarizar: bool = False,
     ) -> pd.DataFrame:
-        """Prepara el dataset y lo deja ordenado para el análisis posterior."""
+        """Filtra filas sólo en columnas explícitas; la imputación conserva su API."""
         if self.datos.empty:
             raise ValueError("El DataFrame está vacío.")
 
+        filas_originales = len(self.datos)
         if columnas_eliminar:
             self.eliminar_columnas(columnas_eliminar)
+        columnas_sin_nulos = list(dict.fromkeys(columnas_sin_nulos or ()))
+        inexistentes = [c for c in columnas_sin_nulos if c not in self.datos]
+        if inexistentes:
+            raise KeyError(f"Columnas para filtrar nulos inexistentes: {inexistentes}")
+        filtrado = self.datos.dropna(subset=columnas_sin_nulos)
+        if filtrado.empty:
+            raise ValueError(
+                "El filtro de nulos eliminaría todas las filas. Revise las columnas seleccionadas."
+            )
+        filas_eliminadas_nulos = len(self.datos) - len(filtrado)
+        self.datos = filtrado.copy()
+        antes_duplicados = len(self.datos)
         if eliminar_duplicados:
             self.eliminar_duplicados()
         if imputar_nulos:
@@ -88,6 +103,15 @@ class EDA(DataFrameBase):
             self.estandarizar()
 
         self.datos = self.datos.reset_index(drop=True)
+        self.preparacion = {
+            "columnas_eliminar": list(columnas_eliminar or ()),
+            "columnas_sin_nulos": columnas_sin_nulos,
+            "eliminar_duplicados": eliminar_duplicados,
+            "filas_originales": filas_originales,
+            "filas_eliminadas_nulos": filas_eliminadas_nulos,
+            "filas_eliminadas_duplicados": antes_duplicados - len(self.datos),
+            "filas_preparadas": len(self.datos),
+        }
         return self.datos
 
     def resumen_calidad(self) -> dict[str, int | float]:

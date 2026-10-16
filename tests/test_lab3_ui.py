@@ -40,10 +40,15 @@ def nueva_app():
     }
     app.run()
     assert not app.exception
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.radio(key="sup_tarea").set_value("regresion").run()
+    app.sidebar.button(key="nav_datos").click().run()
     return app
 
 
 def navegar(app, ruta):
+    if ruta in {"regresion_configuracion", "clasificacion_configuracion"}:
+        ruta = "configuracion"
     app.sidebar.button(key=f"nav_{ruta}").click().run()
     assert not app.exception
 
@@ -55,6 +60,7 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
     app = nueva_app()
     with patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")):
         navegar(app, ruta)
+    assert not any(item.value.startswith("### ") for item in app.markdown)
     app.button(key=f"lab3_entrenar_{algoritmo}").click().run()
     assert not app.exception
     snapshot = app.session_state[f"resultado_lab3_modelo_{algoritmo}"]
@@ -73,12 +79,23 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
     )
     with (
         patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch(
+            "framework_ia.ui.lab3.mostrar_resultado_modelo",
+            side_effect=AssertionError("individual diagnostic in comparison"),
+        ),
         patch.object(
             Regresion, "experimentar", side_effect=AssertionError("auto-benchmark")
         ),
     ):
-        navegar(app, "lab3_comparacion")
+        app.session_state["vista_activa"] = "lab3_comparacion"
+        app.run()
+        assert app.session_state["vista_activa"] == "lab3_resultados"
         navegar(app, "lab3_resultados")
+    assert not app.exception
+    assert "nav_lab3_comparacion" not in {button.key for button in app.sidebar.button}
+    assert not app.metric
+    assert not any(widget.label == "Modelo guardado" for widget in app.selectbox)
+    assert not any(button.key.startswith("lab3_entrenar_") for button in app.button)
     assert app.session_state[f"resultado_lab3_modelo_{algoritmo}"] is snapshot
 
 
@@ -103,11 +120,11 @@ def test_parameter_edits_and_failure_keep_success_and_do_not_touch_classificatio
 def test_configuration_and_read_only_context_change_invalidates_results():
     app = nueva_app()
     navegar(app, "regresion_configuracion")
-    assert app.selectbox(key="reg_feature_simple").value == "a"
-    assert app.slider(key="reg_test_size").value == 25
+    assert app.selectbox(key="sup_feature_simple").value == "a"
+    assert app.slider(key="sup_test_size").value == 25
     navegar(app, "regresion_rlm")
     app.button(key="lab3_entrenar_RLM").click().run()
-    app.session_state["reg_random_state"] = 43
+    app.session_state["sup_random_state"] = 43
     navegar(app, "lab3_resultados")
     assert "resultado_lab3_modelo_RLM" not in app.session_state
     assert any("Todavía no" in aviso.value for aviso in app.info)
@@ -116,6 +133,7 @@ def test_configuration_and_read_only_context_change_invalidates_results():
 def test_benchmark_partial_winner_failure_and_total_failure_keep_previous_success():
     app = nueva_app()
     navegar(app, "lab3_benchmark")
+    assert not any(item.value == "### Experimentos Lab03" for item in app.markdown)
     app.multiselect(key="lab3_algoritmos").set_value(["RLM", "Ridge"]).run()
     app.button(key="lab3_ejecutar_experimento").click().run()
     assert not app.exception
@@ -164,7 +182,7 @@ def test_shared_partition_preprocessing_guard_and_source_reset():
     ).dividir(datos)
     app.session_state["particion_global"] = particion
     navegar(app, "regresion_configuracion")
-    app.checkbox(key="reg_usar_particion_global").check().run()
+    app.checkbox(key="sup_usar_particion_global").check().run()
     navegar(app, "regresion_rlm")
     app.button(key="lab3_entrenar_RLM").click().run()
     assert not app.exception
@@ -180,7 +198,7 @@ def test_shared_partition_preprocessing_guard_and_source_reset():
     assert not app.exception
     assert "resultado_lab3_modelo_RLM" not in app.session_state
     assert "error_lab3_experimento" not in app.session_state
-    assert "reg_usar_particion_global" not in app.session_state
+    assert not app.session_state["sup_usar_particion_global"]
 
 
 def test_context_fingerprint_covers_simple_feature_values_and_split_indices():
@@ -214,6 +232,33 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     assert len(resultado.mejores) == 9
     assert resultado.mejor_algoritmo in resultado.mejores
     assert resultado.metadatos["metrica_seleccion"] == "rmse"
+    with (
+        patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
+        patch(
+            "framework_ia.ui.experimentos_lab3.mostrar_resultado_modelo",
+            side_effect=AssertionError("individual diagnostic in results"),
+        ),
+    ):
+        navegar(app, "lab3_resultados")
+    assert not app.exception
+    assert any("puntuacion_validacion" in frame.value for frame in app.dataframe)
+    assert any("rmse" in frame.value for frame in app.dataframe)
+    assert not any("real" in chart.key for chart in app.get("plotly_chart"))
+    assert len(app.get("download_button")) == 3
+
+
+def test_individual_regression_page_keeps_only_its_own_diagnostic():
+    app = nueva_app()
+    for ruta, algoritmo in (("regresion_rls", "RLS"), ("regresion_ridge", "Ridge")):
+        navegar(app, ruta)
+        app.button(key=f"lab3_entrenar_{algoritmo}").click().run()
+    with patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")):
+        navegar(app, "regresion_rls")
+    assert not app.exception
+    assert len(app.metric) == 4
+    keys = {chart.key for chart in app.get("plotly_chart")}
+    assert keys == {"lab3_RLS_real", "lab3_RLS_residuos"}
+    assert len(app.get("download_button")) == 2
 
 
 def test_invalid_alpha_entry_blocks_training_without_discarding_success():
@@ -233,7 +278,7 @@ def test_applied_data_split_and_global_clear_remove_all_regression_evidence():
     navegar(app, "regresion_rlm")
     app.button(key="lab3_entrenar_RLM").click().run()
     app.session_state["error_lab3_experimento"] = "anterior"
-    navegar(app, "datos")
+    navegar(app, "configuracion")
     app.button(key="particion_calcular").click().run()
     assert not app.exception
     assert "particion_global" in app.session_state

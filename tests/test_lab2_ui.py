@@ -53,6 +53,9 @@ def nueva_app():
     }
     app.run()
     assert not app.exception
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.radio(key="sup_tarea").set_value("clasificacion").run()
+    app.sidebar.button(key="nav_datos").click().run()
     return app
 
 
@@ -108,6 +111,10 @@ def test_navigation_comparison_is_read_only_and_never_experiments():
     app.sidebar.button(key="nav_clasificacion_knn").click().run()
     app.button(key="lab2_entrenar_KNN").click().run()
     with (
+        patch(
+            "framework_ia.ui.lab2._diagnostico",
+            side_effect=AssertionError("individual diagnostic in results"),
+        ),
         patch.object(
             Clasificacion, "entrenar", side_effect=AssertionError("comparison trained")
         ),
@@ -117,13 +124,20 @@ def test_navigation_comparison_is_read_only_and_never_experiments():
             side_effect=AssertionError("comparison experimented"),
         ),
     ):
-        app.sidebar.button(key="nav_lab2_experimentos").click().run()
+        app.sidebar.button(key="nav_lab2_resultados").click().run()
         assert not app.exception
         assert any("KNN" in str(frame.value) for frame in app.dataframe)
+        assert not app.metric
+        assert not app.get("plotly_chart")
         assert not any(widget.key == "lab2_ejecutar" for widget in app.button)
         app.sidebar.button(key="nav_lab2_resultados").click().run()
         assert not app.exception
         assert any("KNN" in str(frame.value) for frame in app.dataframe)
+        app.session_state["vista_activa"] = "lab2_experimentos"
+        app.run()
+        assert not app.exception
+        assert app.session_state["vista_activa"] == "lab2_resultados"
+        assert "nav_lab2_experimentos" not in {button.key for button in app.sidebar.button}
 
 
 def test_random_forest_criteria_are_retained_independently_and_comparison_is_read_only():
@@ -144,9 +158,9 @@ def test_random_forest_criteria_are_retained_independently_and_comparison_is_rea
         entropy = guardados["entropy"]["resultado"]
         assert guardados["gini"]["resultado"] is gini
         assert entropy.parametros["criterion"] == "entropy"
-        app.sidebar.button(key="nav_lab2_experimentos").click().run()
+        app.sidebar.button(key="nav_lab2_resultados").click().run()
         assert not app.exception
-        visible = " ".join(str(expander.label) for expander in app.expander)
+        visible = " ".join(str(frame.value) for frame in app.dataframe)
         assert "gini" in visible and "entropy" in visible
         assert not any(button.key == "lab2_ejecutar" for button in app.button)
 
@@ -260,9 +274,10 @@ def test_target_balance_reports_numeric_classes_missing_and_rare_without_mutatio
     dataset.loc[dataset.index[0], "clase"] = None
     dataset.loc[dataset.index[1], "clase"] = 2
     app.session_state["fuente_aplicada"] = (dataset, name, identity + ":missing-target")
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    assert any("Valores faltantes en target: 1" in item.value for item in app.caption)
-    assert any("Clases con dos o menos filas" in item.value for item in app.warning)
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.radio(key="sup_tarea").set_value("clasificacion").run()
+    assert any("Nulos: 1" in item.value for item in app.caption)
+    assert app.button(key="flujo_continuar").disabled
     assert not app.exception
 
     vacios = pd.DataFrame({"clase": [None, None]})
@@ -291,11 +306,11 @@ def test_eda_and_acp_remain_independent_destinations():
 def test_results_route_invalidates_stale_classification_without_rendering_controls():
     app = nueva_app()
     ejecutar_comparacion(app)
-    app.session_state["clasif_random_state"] = 99
+    app.session_state["sup_random_state"] = 99
     app.sidebar.button(key="nav_lab2_resultados").click().run()
     assert not app.exception
     assert "resultado_lab2_modelo_KNN" not in app.session_state
-    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
+    assert not any(widget.key == "sup_target" for widget in app.selectbox)
     assert any(
         "Todavía no hay ejecuciones individuales" in alerta.value for alerta in app.info
     )
@@ -381,17 +396,17 @@ def test_model_settings_and_results_are_scoped_to_each_classifier():
 
 def test_shared_classification_setup_applies_to_models_and_invalidates_them():
     app = nueva_app()
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.selectbox(key="clasif_target").set_value("clase").run()
-    app.multiselect(key="clasif_features").set_value(["a", "b"]).run()
-    app.slider(key="clasif_test_size").set_value(30).run()
-    app.number_input(key="clasif_random_state").set_value(19).run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.selectbox(key="sup_target").set_value("clase").run()
+    app.multiselect(key="sup_features").set_value(["a", "b"]).run()
+    app.slider(key="sup_test_size").set_value(30).run()
+    app.number_input(key="sup_random_state").set_value(19).run()
 
     app.sidebar.button(key="nav_clasificacion_knn").click().run()
-    assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-    assert not any(widget.key == "clasif_features" for widget in app.multiselect)
-    assert not any(widget.key == "clasif_test_size" for widget in app.slider)
-    assert not any(widget.key == "clasif_random_state" for widget in app.number_input)
+    assert not any(widget.key == "sup_target" for widget in app.selectbox)
+    assert not any(widget.key == "sup_features" for widget in app.multiselect)
+    assert not any(widget.key == "sup_test_size" for widget in app.slider)
+    assert not any(widget.key == "sup_random_state" for widget in app.number_input)
     assert not {"Filas", "Columnas", "Nulos", "Duplicados"} & {
         metric.label for metric in app.metric
     }
@@ -408,8 +423,8 @@ def test_shared_classification_setup_applies_to_models_and_invalidates_them():
     assert first.features == second.features == ("a", "b")
     assert first.y_true.index.equals(second.y_true.index)
 
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.number_input(key="clasif_random_state").set_value(20).run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.number_input(key="sup_random_state").set_value(20).run()
     assert "resultado_lab2_modelo_KNN" not in app.session_state
     assert "resultado_lab2_modelo_RF" not in app.session_state
     assert "resultado_lab2_modelo_KNN" not in app.session_state
@@ -431,8 +446,8 @@ def test_reused_global_partition_is_shared_across_classifier_routes():
     ).dividir(datos)
     app.session_state["particion_global"] = particion
     app.run()
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.checkbox(key="clasif_usar_particion_global").check().run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.checkbox(key="sup_usar_particion_global").check().run()
 
     app.sidebar.button(key="nav_clasificacion_knn").click().run()
     app.button(key="lab2_entrenar_KNN").click().run()
@@ -458,8 +473,8 @@ def test_classifier_route_offers_setup_path_when_dataset_is_not_configurable():
         item.label == "Abrir configuración de clasificación" for item in app.button
     )
     app.button(key="abrir_configuracion_clasificacion").click().run()
-    assert app.session_state["vista_activa"] == "clasificacion_configuracion"
-    assert any("al menos dos columnas" in item.value for item in app.warning)
+    assert app.session_state["vista_activa"] == "configuracion"
+    assert any("al menos una variable predictora" in item.value for item in app.warning)
     assert not app.exception
 
 
@@ -533,11 +548,13 @@ def test_result_signature_detects_content_and_target_changes():
 def test_applying_a_new_global_split_invalidates_read_only_results():
     app = nueva_app()
     ejecutar_comparacion(app)
-    app.sidebar.button(key="nav_datos").click().run()
+    app.sidebar.button(key="nav_configuracion").click().run()
     app.button(key="particion_calcular").click().run()
     assert not app.exception
     assert "resultado_lab2_modelo_KNN" not in app.session_state
-    app.sidebar.button(key="nav_lab2_resultados").click().run()
+    assert app.sidebar.button(key="nav_lab2_resultados").disabled
+    app.session_state["vista_activa"] = "lab2_resultados"
+    app.run()
     assert any("Todavía no hay ejecuciones individuales" in e.value for e in app.info)
 
 
@@ -557,6 +574,9 @@ def resultado_benchmark():
 
 def _abrir_experimentos(app, estrategia="holdout"):
     """Abre la vista; las pruebas históricas fijan validación simple explícitamente."""
+    if app.session_state["sup_tarea"] is None:
+        app.sidebar.button(key="nav_configuracion").click().run()
+        app.radio(key="sup_tarea").set_value("clasificacion").run()
     app.sidebar.button(key="nav_lab2_benchmark").click().run()
     assert not app.exception
     if app.radio(key="lab2_benchmark_estrategia").value != estrategia:
@@ -566,8 +586,8 @@ def _abrir_experimentos(app, estrategia="holdout"):
 
 def test_benchmark_usa_validacion_cruzada_por_defecto_y_la_ejecuta():
     app = nueva_app()
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.multiselect(key="clasif_features").set_value(["a", "b", "c"]).run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.multiselect(key="sup_features").set_value(["a", "b", "c"]).run()
     app.sidebar.button(key="nav_lab2_benchmark").click().run()
     assert app.radio(key="lab2_benchmark_estrategia").value == "cv"
     assert not any(widget.key == "lab2_benchmark_validacion" for widget in app.slider)
@@ -620,8 +640,8 @@ def test_benchmark_navigation_catalog_and_shared_setup_do_not_train():
         assert set(catalogo["Algoritmo"]) == {"KNN", "DT", "RF", "XGBoost", "AdaBoost"}
         assert app.selectbox(key="lab2_benchmark_metrica").value == "f1_macro"
         assert app.slider(key="lab2_benchmark_validacion").value == 20
-        assert not any(widget.key == "clasif_target" for widget in app.selectbox)
-        assert not any(widget.key == "clasif_features" for widget in app.multiselect)
+        assert not any(widget.key == "sup_target" for widget in app.selectbox)
+        assert not any(widget.key == "sup_features" for widget in app.multiselect)
         assert "resultado_lab2_experimento" not in app.session_state
         entrenamiento.assert_not_called()
         experimento.assert_not_called()
@@ -629,9 +649,9 @@ def test_benchmark_navigation_catalog_and_shared_setup_do_not_train():
 
 def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result():
     app = nueva_app()
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.multiselect(key="clasif_features").set_value(["a", "b", "c"]).run()
-    app.number_input(key="clasif_random_state").set_value(19).run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.multiselect(key="sup_features").set_value(["a", "b", "c"]).run()
+    app.number_input(key="sup_random_state").set_value(19).run()
     _abrir_experimentos(app)
     original = Clasificacion.experimentar
     with patch.object(
@@ -691,11 +711,12 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
         app.sidebar.button(key="nav_lab2_resultados").click().run()
         assert not app.exception
         assert any("Accuracy prueba" in frame.value.columns for frame in app.dataframe)
-        assert app.sidebar.button(key="nav_lab2_experimentos").disabled
+        assert "nav_lab2_experimentos" not in {button.key for button in app.sidebar.button}
         app.session_state["vista_activa"] = "lab2_experimentos"
         app.run()  # No individual snapshots: direct consultation must remain read-only.
         assert not app.exception
-        assert not any(
+        assert app.session_state["vista_activa"] == "lab2_resultados"
+        assert any(
             "puntuacion_validacion" in frame.value.columns for frame in app.dataframe
         )
 
@@ -715,8 +736,8 @@ def test_benchmark_reuses_global_validation_or_splits_only_global_train(validaci
         )
     ).dividir(app.session_state["dataset_preparado"])
     app.session_state["particion_global"] = particion
-    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
-    app.checkbox(key="clasif_usar_particion_global").check().run()
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.checkbox(key="sup_usar_particion_global").check().run()
     _abrir_experimentos(app)
     assert any(widget.key == "lab2_benchmark_validacion" for widget in app.slider) == (
         validacion == 0.0
@@ -842,11 +863,11 @@ def test_benchmark_context_change_removes_saved_download_and_error(
         app.session_state["fuente_aplicada"] = (datos, "otro.csv", "otro-csv")
         app.run()
     else:
-        app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+        app.sidebar.button(key="nav_configuracion").click().run()
         if cambio == "semilla":
-            app.number_input(key="clasif_random_state").set_value(99).run()
+            app.number_input(key="sup_random_state").set_value(99).run()
         else:
-            app.slider(key="clasif_test_size").set_value(30).run()
+            app.slider(key="sup_test_size").set_value(30).run()
     assert not app.exception
     assert "resultado_lab2_experimento" not in app.session_state
     assert "error_lab2_experimento" not in app.session_state
@@ -862,7 +883,7 @@ def test_benchmark_global_imputation_blocks_execution():
     ):
         _abrir_experimentos(app)
     assert app.button(key="lab2_benchmark_ejecutar").disabled
-    assert any("restaure el dataset original" in aviso.value for aviso in app.error)
+    assert any("vuelva a aplicar sus opciones de limpieza" in aviso.value for aviso in app.error)
 
 
 def test_applied_csv_provenance_tracks_exact_bytes_and_read_options(tmp_path):
@@ -1042,12 +1063,12 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
             )
         ).dividir(datos)
         app.session_state["particion_global"] = particion
-        app.session_state["clasif_target"] = "glyhb"
-        app.session_state["clasif_features"] = ["id"]
-        app.session_state["clasif_random_state"] = 99
-        app.session_state["clasif_test_size"] = 40
-        app.session_state["clasif_usar_particion_global"] = True
-        app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+        app.session_state["sup_target"] = "glyhb"
+        app.session_state["sup_features"] = ["id"]
+        app.session_state["sup_random_state"] = 99
+        app.session_state["sup_test_size"] = 40
+        app.session_state["sup_usar_particion_global"] = True
+        app.sidebar.button(key="nav_configuracion").click().run()
         assert not app.exception
         app.session_state["resultado_lab2_experimento"] = {"zip": b"evidencia anterior"}
         app.session_state["resultado_lab2_modelo_KNN"] = {"anterior": True}
@@ -1058,21 +1079,22 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
         ):
             app.button(key="aplicar_configuracion_diabetes_lab02").click().run()
             assert not app.exception
-            assert app.selectbox(key="clasif_target").value == "diabetes"
-            assert app.multiselect(key="clasif_features").value == list(
+            assert app.selectbox(key="sup_target").value == "diabetes"
+            assert app.multiselect(key="sup_features").value == list(
                 PREDICTORAS_DIABETES
             )
-            assert len(app.multiselect(key="clasif_features").value) == 17
+            assert len(app.multiselect(key="sup_features").value) == 17
             assert not {"id", "glyhb"} & set(
-                app.multiselect(key="clasif_features").value
+                app.multiselect(key="sup_features").value
             )
-            assert app.checkbox(key="clasif_incluir_categoricas").value
-            assert app.checkbox(key="clasif_imputar").value
-            assert app.checkbox(key="clasif_escalar").value
-            assert app.checkbox(key="clasif_strat").value
-            assert not app.checkbox(key="clasif_usar_particion_global").value
-            assert app.number_input(key="clasif_random_state").value == 42
-            assert app.slider(key="clasif_test_size").value == 25
+            assert app.checkbox(key="sup_incluir_categoricas").value
+            assert app.checkbox(key="sup_imputar").value
+            assert app.checkbox(key="sup_escalar").value
+            assert app.checkbox(key="sup_strat").value
+            assert not app.session_state["sup_usar_particion_global"]
+            assert "particion_global" not in app.session_state
+            assert app.number_input(key="sup_random_state").value == 42
+            assert app.slider(key="sup_test_size").value == 25
             assert "resultado_lab2_experimento" not in app.session_state
             assert "resultado_lab2_modelo_KNN" not in app.session_state
             assert "error_lab2_experimento" not in app.session_state
@@ -1136,6 +1158,8 @@ def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
     datos, _, _, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
         app = _app_fuente_diabetes(datos, "hash-de-otro-csv")
+        app.sidebar.button(key="nav_configuracion").click().run()
+        app.radio(key="sup_tarea").set_value("clasificacion").run()
         assert app.sidebar.button(key="nav_lab2_benchmark").disabled
         app.session_state["vista_activa"] = "lab2_benchmark"
         app.run()

@@ -83,8 +83,7 @@ def render_experimentos(
 ) -> None:
     """La navegación y los controles no entrenan; el botón realiza un benchmark."""
     st.caption(
-        f"Cinco algoritmos, una configuración estándar y variantes de un solo cambio por algoritmo ({TOTAL_CANDIDATOS} candidatos). "
-        "Validación selecciona; prueba evalúa únicamente los ganadores. La CLI usa además validación cruzada."
+        f"{TOTAL_CANDIDATOS} configuraciones · 5 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
     )
     contexto = _contexto_ejecucion(configuracion)
     st.caption(
@@ -251,7 +250,8 @@ def render_experimentos(
 
 
 def render_resultado_experimento(
-    mostrar_figura: MostrarFigura, *, prefijo: str = "lab2_resultados_experimento"
+    mostrar_figura: MostrarFigura, *, prefijo: str = "lab2_resultados_experimento",
+    solo_comparacion: bool = False,
 ) -> None:
     """Renderiza el snapshot sin entrenar ni seleccionar de nuevo."""
     guardado = st.session_state.get("resultado_lab2_experimento")
@@ -372,24 +372,25 @@ def render_resultado_experimento(
         hide_index=True,
         width="stretch",
     )
-    with st.expander("Diagnóstico del ganador · matriz de confusión y predicciones"):
-        algoritmos = list(resultado.mejores)
-        clave_ganador = f"{prefijo}_ganador"
-        if st.session_state.get(clave_ganador) not in algoritmos:
-            st.session_state.pop(clave_ganador, None)
-        algoritmo = st.selectbox("Ganador a analizar", algoritmos, key=clave_ganador)
-        _diagnostico(
-            resultado.mejores[algoritmo], mostrar_figura, f"{prefijo}_{algoritmo}"
-        )
-        figura_clases = VisualizadorSupervisado.metricas_barras(
-            resultado.mejores[algoritmo]
-        )
-        if figura_clases is not None:
-            mostrar_figura(
-                figura_clases,
-                key=f"{prefijo}_{algoritmo}_clases",
-                alt="Precisión, recall y F1 por clase del ganador en prueba",
+    if not solo_comparacion:
+        with st.expander("Diagnóstico del ganador · matriz de confusión y predicciones"):
+            algoritmos = list(resultado.mejores)
+            clave_ganador = f"{prefijo}_ganador"
+            if st.session_state.get(clave_ganador) not in algoritmos:
+                st.session_state.pop(clave_ganador, None)
+            algoritmo = st.selectbox("Ganador a analizar", algoritmos, key=clave_ganador)
+            _diagnostico(
+                resultado.mejores[algoritmo], mostrar_figura, f"{prefijo}_{algoritmo}"
             )
+            figura_clases = VisualizadorSupervisado.metricas_barras(
+                resultado.mejores[algoritmo]
+            )
+            if figura_clases is not None:
+                mostrar_figura(
+                    figura_clases,
+                    key=f"{prefijo}_{algoritmo}_clases",
+                    alt="Precisión, recall y F1 por clase del ganador en prueba",
+                )
     _descargas(guardado, prefijo)
 
 

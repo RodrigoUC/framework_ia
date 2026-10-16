@@ -147,24 +147,24 @@ def test_source_selection_only_applies_on_confirmation_and_never_trains():
         ).click().run()
         assert not app.exception
         assert app.session_state["dataset_preparado"].shape == (442, 11)
-        assert app.session_state["reg_target"] == "target"
-        assert app.session_state["reg_feature_simple"] == "bmi"
-        assert app.session_state["reg_test_size"] == 25
-        assert app.session_state["reg_random_state"] == 42
-        assert len(app.session_state["reg_features"]) == 10
+        assert app.session_state["sup_target"] == "target"
+        assert app.session_state["sup_feature_simple"] == "bmi"
+        assert app.session_state["sup_test_size"] == 25
+        assert app.session_state["sup_random_state"] == 42
+        assert len(app.session_state["sup_features"]) == 10
         assert "resultado_lab3_modelo_RLM" not in app.session_state
         assert "fuente_preset_regresion" not in app.session_state
-        app.sidebar.button(key="nav_regresion_configuracion").click().run()
+        app.sidebar.button(key="nav_configuracion").click().run()
         assert not app.exception
-        assert app.selectbox(key="reg_feature_simple").value == "bmi"
-        app.selectbox(key="reg_feature_simple").set_value("bp").run()
-        app.number_input(key="reg_random_state").set_value(17).run()
+        assert app.selectbox(key="sup_feature_simple").value == "bmi"
+        app.selectbox(key="sup_feature_simple").set_value("bp").run()
+        app.number_input(key="sup_random_state").set_value(17).run()
         assert app.sidebar.button(key="nav_lab3_resultados").disabled
         app.sidebar.button(key="nav_eda").click().run()
-        app.sidebar.button(key="nav_regresion_configuracion").click().run()
+        app.sidebar.button(key="nav_configuracion").click().run()
         assert not app.exception
-    assert app.selectbox(key="reg_feature_simple").value == "bp"
-    assert app.number_input(key="reg_random_state").value == 17
+    assert app.selectbox(key="sup_feature_simple").value == "bp"
+    assert app.number_input(key="sup_random_state").value == 17
 
 
 def test_reference_failure_preserves_source_and_csv_remains_available():
@@ -189,14 +189,15 @@ def test_reference_failure_preserves_source_and_csv_remains_available():
     ).click().run()
     assert not app.exception
     assert app.session_state["fuente_aplicada"][2].startswith("local:")
-    assert "reg_feature_simple" not in app.session_state
+    assert app.session_state["sup_tarea"] is None
+    assert app.session_state["sup_feature_simple"] != "bmi"
 
 
 def test_pending_preset_is_identity_scoped_and_export_keeps_materialization():
-    estado = {"fuente_preset_regresion": {"identidad": "old"}, "reg_target": "manual"}
+    estado = {"fuente_preset_regresion": {"identidad": "old"}, "sup_target": "manual"}
     with patch.object(streamlit_app.st, "session_state", estado):
         streamlit_app._aplicar_preset_regresion("new")
-    assert estado == {"reg_target": "manual"}
+    assert estado == {"sup_target": "manual"}
     datos, _, metadata = cargar_diabetes_regresion()
     estado = {"fuente_metadata": metadata}
     with patch.object(streamlit_app.st, "session_state", estado):

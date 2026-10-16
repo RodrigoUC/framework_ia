@@ -24,7 +24,7 @@ from .lab3 import (
 )
 
 
-def mostrar_experimento_guardado(mostrar_figura) -> None:
+def mostrar_experimento_guardado(mostrar_figura, *, solo_comparacion=False) -> None:
     intento = st.session_state.get("resultado_lab3_intento_experimento")
     if intento:
         st.warning(
@@ -82,7 +82,19 @@ def mostrar_experimento_guardado(mostrar_figura) -> None:
             }
         )
     ganador = resultado.mejores.get(resultado.mejor_algoritmo)
-    if ganador is not None:
+    if solo_comparacion and resultado.mejores:
+        st.markdown("#### Prueba reservada · ganadores seleccionados")
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"Algoritmo": algoritmo, **modelo.metricas}
+                    for algoritmo, modelo in resultado.mejores.items()
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+    if ganador is not None and not solo_comparacion:
         mostrar_resultado_modelo(
             {**snapshot, "resultado": ganador}, mostrar_figura, clave="lab3_ganador"
         )
@@ -113,9 +125,8 @@ def mostrar_experimento_guardado(mostrar_figura) -> None:
 
 
 def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
-    st.markdown("### Experimentos Lab03")
     st.caption(
-        "Catorce configuraciones para nueve algoritmos. La validación selecciona dentro de cada familia y entre familias; solo sus ganadores pasan a prueba."
+        "14 configuraciones · 9 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
     )
     segura = preparacion_regresion_segura()
     algoritmos = st.multiselect(

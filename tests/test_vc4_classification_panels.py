@@ -13,9 +13,12 @@ class ClassificationPanelTests(unittest.TestCase):
     def test_random_forest_and_naive_bayes_have_independent_routes(self):
         app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
         self.assertFalse(app.exception)
+        app.sidebar.button(key="nav_configuracion").click().run()
+        app.radio(key="sup_tarea").set_value("clasificacion").run()
         app.sidebar.button(key="nav_clasificacion").click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any("Random Forest" in item.value for item in app.markdown))
+        self.assertFalse(any(item.value == "### Random Forest" for item in app.markdown))
 
         app.button(key="lab2_entrenar_RF").click().run()
         self.assertFalse(app.exception)
@@ -48,12 +51,13 @@ class ClassificationPanelTests(unittest.TestCase):
         self.assertTrue(
             any("Resultados de clasificación" in item.value for item in app.markdown)
         )
-        self.assertTrue(
-            any("Random Forest · gini · prueba" == item.label for item in app.expander)
+        self.assertEqual(
+            sum('<h1 class="atlas-title">Resultados de clasificación</h1>' in item.value for item in app.markdown), 1
         )
-        self.assertTrue(
-            any("Naive Bayes · prueba" == item.label for item in app.expander)
-        )
+        self.assertFalse(any(item.value == "### Resultados de clasificación" for item in app.markdown))
+        self.assertFalse(any("Compare ejecuciones guardadas" in item.value for item in app.caption))
+        self.assertFalse(app.metric)
+        self.assertFalse(app.get("plotly_chart"))
         self.assertTrue(
             any(
                 "Modelos entrenados individualmente" in item.value
@@ -61,12 +65,10 @@ class ClassificationPanelTests(unittest.TestCase):
             )
         )
         self.assertTrue(
-            any("no utilice esta tabla" in item.value for item in app.caption)
+            any("no con test" in item.value for item in app.caption)
         )
         for descripcion in (
             "Métricas de prueba y parámetros de los modelos entrenados individualmente",
-            "Valores de la matriz de confusión de prueba",
-            "Clases reales, predicciones y aciertos de cada fila de prueba",
         ):
             self.assertTrue(
                 any(descripcion in item.value for item in app.caption), descripcion
@@ -93,6 +95,15 @@ class ClassificationPanelTests(unittest.TestCase):
             self.assertTrue(fila["Parámetros efectivos"])
         self.assertFalse(
             any("Comparación de modelos" in item.value for item in app.markdown)
+        )
+        app.sidebar.button(key="nav_clasificacion_nb").click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(len(app.metric), 4)
+        self.assertTrue(
+            any("Valores de la matriz de confusión" in item.value for item in app.caption)
+        )
+        self.assertFalse(
+            any("Modelos entrenados individualmente" in item.value for item in app.markdown)
         )
 
     def test_comparison_is_empty_until_a_model_is_trained(self):

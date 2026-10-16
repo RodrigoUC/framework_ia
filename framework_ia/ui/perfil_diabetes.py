@@ -84,15 +84,16 @@ def _aplicar_configuracion_diabetes() -> None:
     if datos is None or estado_fuente_diabetes(datos, st.session_state) != "preparado":
         return
     st.session_state.update(
-        clasif_target="diabetes",
-        clasif_features=list(PREDICTORAS_DIABETES),
-        clasif_incluir_categoricas=True,
-        clasif_imputar=True,
-        clasif_escalar=True,
-        clasif_random_state=42,
-        clasif_test_size=25,
-        clasif_strat=True,
-        clasif_usar_particion_global=False,
+        sup_tarea="clasificacion",
+        sup_target="diabetes",
+        sup_features=list(PREDICTORAS_DIABETES),
+        sup_incluir_categoricas=True,
+        sup_imputar=True,
+        sup_escalar=True,
+        sup_random_state=42,
+        sup_test_size=25,
+        sup_strat=True,
+        sup_usar_particion_global=False,
         lab2_benchmark_validacion=20,
         lab2_benchmark_metrica="f1_macro",
     )
@@ -125,8 +126,8 @@ def render_perfil_diabetes(datos: pd.DataFrame) -> None:
         if (
             st.session_state.get("perfil_diabetes_aplicado")
             == st.session_state["fuente_aplicada"][2]
-            and st.session_state.get("clasif_target") == "diabetes"
-            and st.session_state.get("clasif_features") == list(PREDICTORAS_DIABETES)
+            and st.session_state.get("sup_target") == "diabetes"
+            and st.session_state.get("sup_features") == list(PREDICTORAS_DIABETES)
         ):
             st.caption(
                 "Configuración aplicada. Revise las opciones y ejecute los experimentos cuando esté listo."

@@ -143,7 +143,7 @@ def disponibilidad_supervisada(
         or preparacion.get("escalado", "Ninguno") != "Ninguno"
     ):
         faltantes.append(
-            "Restaure el dataset original en Datos y preparación: la imputación/escalado supervisados deben aprenderse solo con train."
+            "En Datos y preparación, desactive imputación y escalado globales y vuelva a aplicar la limpieza. Puede mantener columnas excluidas, eliminación de duplicados y filtros de filas. Las transformaciones supervisadas se aprenden solo con train."
         )
     if datos is None or datos.empty:
         return Disponibilidad(
@@ -156,13 +156,15 @@ def disponibilidad_supervisada(
                 "Se necesitan una columna objetivo y al menos una predictora. Revise la fuente en Datos y preparación.",
             )
         )
+    if "tarea" in configuracion and configuracion["tarea"] != familia:
+        return Disponibilidad((f"Seleccione la tarea {familia} en Configuración.",))
     try:
         features = configuracion["features"]
         if familia == "regresion" and algoritmo == "RLS":
             simple = configuracion.get("feature_simple")
             if simple is None or simple not in features:
                 raise ValueError(
-                    "Seleccione un predictor numérico para RLS en Configuración de regresión."
+                    "Seleccione un predictor numérico para RLS en Configuración."
                 )
             features = [simple]
         clase = Regresion if familia == "regresion" else Clasificacion
@@ -239,7 +241,7 @@ def disponibilidad_supervisada(
         )
         if familia == "clasificacion" and "continuos" in str(exc):
             faltantes.append(
-                "Para un objetivo continuo, use Configuración de regresión. No se convierte automáticamente en clases."
+                "Para un objetivo continuo, use Configuración. No se convierte automáticamente en clases."
             )
     return Disponibilidad(tuple(faltantes))
 

@@ -207,10 +207,15 @@ ausencia de ganadores; en estos últimos casos no crea la carpeta de salida.
 
 ### Orientación y requisitos
 
-La aplicación muestra **Fuente → Configuración → Ejecución → Resultados**,
-la etapa actual y la siguiente acción. En cada familia verá el target, número
-de predictores, porcentaje de prueba y semilla efectivos antes de entrenar.
-Los accesos y botones no disponibles explican qué falta: por ejemplo, corregir
+El flujo es **Fuente → Configuración → Ejecución → Resultados**.
+La aplicación muestra la etapa actual y la siguiente acción. **Contexto activo**
+despliega target, predictores, porcentaje de prueba y semilla efectivos.
+**Configuración** es única: elija explícitamente Clasificación o Regresión y
+prepare objetivo, predictores y protocolo comunes. No se deduce la tarea del
+tipo de columna. Cada modelo conserva sus hiperparámetros y su propio botón
+**Entrenar modelo**; configurar o cambiar de tarea nunca entrena.
+Los accesos no disponibles explican el motivo en su ayuda al pasar el cursor.
+Configuración y los botones de ejecución muestran qué falta: por ejemplo, corregir
 un target con nulos, activar codificación de predictores categóricos, seleccionar
 más variables para RLM o disponer de suficientes filas para validación cruzada.
 Datos y Configuración permanecen accesibles para resolverlo.
@@ -226,29 +231,68 @@ de disponibilidad no entrenan: sólo el botón explícito lo hace. Resultados se
 habilita cuando hay evidencia vigente de esa familia y se deshabilita al cambiar
 su contexto. Un intento parcial sigue siendo consultable.
 
+La partición externa opcional también está en Configuración y reutiliza su
+porcentaje, semilla y estratificación. Cambiar tarea, objetivo, predictores o
+preparación descarta una partición incompatible. Sin partición externa, cada
+ejecución divide automáticamente con el protocolo común. La imputación y el
+escalado supervisados se aprenden con train; las transformaciones globales de
+Datos son opciones avanzadas para exploración/clustering y no son obligatorias.
+
+### Limpiar antes de configurar
+
+En **Datos y preparación**, excluya columnas, quite duplicados y seleccione
+**Eliminar filas con nulos en estas columnas**. La selección comienza vacía:
+una fila sólo se elimina si tiene un nulo en alguna columna elegida. Si quiere
+descartar filas sin objetivo, seleccione también esa columna explícitamente.
+El filtro no rellena valores ni decide cuál será el target. Revise el conteo
+previsto y pulse **Aplicar preparación**; Configuración utilizará ese resultado.
+
+La limpieza se recalcula desde el original, no sobre una versión ya filtrada.
+Se guardan política y conteos de filas retiradas por nulos/duplicados, y se
+conservan las opciones al navegar. Si se eliminarían todas las filas, se muestra
+un error y permanecen los datos y la evidencia anteriores. Aplicar una limpieza
+válida invalida modelos y particiones anteriores. **Restaurar dataset original**
+recupera los datos sin modificar el archivo fuente.
+
+**Imputar** no significa eliminar filas: calcula valores de relleno. Para
+supervisado, deje desactivadas las transformaciones globales y active imputación
+de predictores/escalado en Configuración para aprenderlos sólo con train. Si ya
+aplicó una transformación global, desactívela y vuelva a aplicar sus opciones de
+limpieza; no necesita descartar las exclusiones o filtros seleccionados.
+
+En Python, `EDA.preparar_dataset(columnas_sin_nulos=["x", "respuesta"],
+imputar_nulos=False)` ofrece el mismo filtro. `columnas_sin_nulos=None` o `[]`
+no elimina filas por nulos; los valores predeterminados anteriores de la API
+se conservan. `eda.preparacion` describe la última preparación correcta.
+
 Abra `app.py` con Streamlit. La identidad conserva los colores, tipografía,
 controles nativos y temas claro/oscuro del proyecto; el nombre visible es **Nexo IA**.
 
 1. Aplique un CSV en **Fuente de datos**. No se exige un dataset específico.
-2. En **Configuración de regresión**, elija target numérico, predictores y el
+2. En **Configuración**, seleccione Regresión, target numérico, predictores y el
    predictor de RLS. Revise nulos y variación: el target no se imputa ni se
-   descartan sus filas automáticamente. Puede reutilizar la partición de Datos.
+   descartan sus filas automáticamente. La partición externa es opcional.
 3. Abra uno de los nueve modelos. **Estándar** usa el catálogo; **Personalizada**
    expone parámetros propios de regresión. Pulse **Entrenar modelo**.
 4. Para seleccionar modelos, abra **Experimentos Lab03** y pulse
    **Ejecutar experimento**. Automática usa validación externa cuando existe;
    de lo contrario, CV de cinco pliegues. La tabla y su RMSE preceden a prueba.
-5. **Comparar regresores entrenados** y **Resultados de regresión** consultan
-   snapshots sin entrenar. Las descargas conservan argumentos y procedencia
-   de la ejecución, no los controles modificados posteriormente.
+5. **Resultados de regresión** compara snapshots sin entrenar: prueba individual,
+   validación del benchmark y prueba de sus ganadores, en secciones separadas.
+   No repite diagnósticos: vuelva a cada modelo para sus gráficos y descargas
+   individuales. El benchmark conserva sus exportaciones. Las rutas antiguas
+   de comparación abren este único destino. Clasificación sigue el mismo esquema.
+   Las descargas conservan argumentos y procedencia de la ejecución, no los
+   controles modificados posteriormente.
 
 Editar parámetros conserva la evidencia y señala ajustes pendientes. Cambiar
 datos, target, predictores, predictor simple, semilla, partición o preparación
 la invalida. Un reintento fallido conserva el último éxito del mismo contexto.
 Si falla la evaluación final del ganador por validación, el intento parcial
 queda visible sin sustituir el experimento exitoso anterior ni elegir por test.
-La imputación/escalado global previo al split bloquea el ajuste: restaure el
-original y configure estas operaciones en regresión para aprenderlas con train.
+La imputación/escalado global previo al split bloquea el ajuste: desactívelos y
+reaplique la limpieza; configure estas operaciones en Configuración para
+aprenderlas con train.
 
 Las métricas RMSE/MAE/MSE/R² son numéricas; R² puede ser negativo. Los gráficos
 contrastan reales y predicciones y muestran residuos `real − predicción`.

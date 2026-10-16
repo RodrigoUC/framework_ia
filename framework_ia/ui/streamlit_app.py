@@ -54,6 +54,7 @@ from .experimentos_lab3 import render_experimentos_regresion
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
 from .flujo import disponibilidad_supervisada, hay_evidencia
 from .guia_flujo import mostrar_guia
+from .configuracion_supervisada import configurar_supervisado, inicializar_configuracion, firma_preparacion
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 APP_NAME = "Nexo IA"
@@ -95,13 +96,13 @@ TITULOS_VISTA = {
     "kmeans": "K-Means",
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
-    "clasificacion": "Clasificación",
+    "clasificacion": "Random Forest",
     "clasificacion_knn": "KNN",
     "clasificacion_dt": "Árbol de decisión",
     "clasificacion_xgboost": "XGBoost",
     "clasificacion_adaboost": "AdaBoost",
     "clasificacion_nb": "Naive Bayes",
-    "clasificacion_configuracion": "Configuración de clasificación",
+    "clasificacion_configuracion": "Configuración",
     "lab2_experimentos": "Comparar modelos entrenados",
     "lab2_benchmark": "Experimentos Lab02",
     "lab2_resultados": "Resultados de clasificación",
@@ -114,7 +115,7 @@ RUTAS_VISTA = {
     "kmeans": "Clustering / K-Means",
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
-    "clasificacion": "Clasificación / Modelos disponibles",
+    "clasificacion": "Clasificación / Random Forest",
     "clasificacion_knn": "Clasificación / KNN",
     "clasificacion_dt": "Clasificación / Árbol de decisión",
     "clasificacion_xgboost": "Clasificación / XGBoost",
@@ -267,15 +268,16 @@ def _aplicar_preset_regresion(identidad: str) -> None:
         return
     limpiar_resultados_regresion(st.session_state)
     st.session_state.update({
-        "reg_target": preset["target"],
-        "reg_features": list(preset["features"]),
-        "reg_feature_simple": preset["feature_simple"],
-        "reg_test_size": int(preset["test_size"] * 100),
-        "reg_random_state": preset["random_state"],
-        "reg_usar_particion_global": False,
-        "reg_incluir_categoricas": False,
-        "reg_imputar": True,
-        "reg_escalar": True,
+        "sup_tarea": "regresion",
+        "sup_target": preset["target"],
+        "sup_features": list(preset["features"]),
+        "sup_feature_simple": preset["feature_simple"],
+        "sup_test_size": int(preset["test_size"] * 100),
+        "sup_random_state": preset["random_state"],
+        "sup_usar_particion_global": False,
+        "sup_incluir_categoricas": False,
+        "sup_imputar": True,
+        "sup_escalar": True,
     })
 
 
@@ -315,8 +317,12 @@ def _cargar_fuente_csv(
 def _seleccionar_vista(disponibilidades=None) -> str:
     """Renderiza la navegación multinivel y devuelve la vista activa."""
     vista = st.session_state.setdefault("vista_activa", "datos")
-    if vista == "comparacion":
+    if vista in {"comparacion", "lab2_experimentos"}:
         vista = "lab2_resultados"
+    elif vista == "lab3_comparacion":
+        vista = "lab3_resultados"
+    elif vista in {"clasificacion_configuracion", "regresion_configuracion", "regresion"}:
+        vista = "configuracion"
     elif vista in {"tsne", "umap"}:
         vista = "kmeans"
     st.session_state["vista_activa"] = vista
@@ -325,12 +331,13 @@ def _seleccionar_vista(disponibilidades=None) -> str:
     def navegar(destino: str) -> None:
         st.session_state["vista_activa"] = destino
 
-    def boton(etiqueta: str, destino: str, *, disabled: bool = False) -> None:
+    def boton(etiqueta: str, destino: str, *, disabled: bool = False, help: str | None = None) -> None:
         st.button(
             etiqueta,
             key=f"nav_{destino}",
             type="primary" if vista == destino else "secondary",
             disabled=disabled,
+            help=help if disabled else None,
             on_click=navegar if not disabled else None,
             args=(destino,) if not disabled else None,
         )
@@ -355,8 +362,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
             '<p class="atlas-nav-label">Configuración</p>',
             unsafe_allow_html=True,
         )
-        boton("Configuración de clasificación", "clasificacion_configuracion")
-        boton("Configuración de regresión", "regresion_configuracion")
+        boton("Configuración", "configuracion")
         with st.expander(
             "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac"}
         ):
@@ -367,31 +373,27 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"}):
             disponible = disponibilidades.get("clasificacion")
             bloqueada = disponible is not None and not disponible.lista
-            if bloqueada:
-                st.caption("Pendiente en Configuración de clasificación: " + " ".join(disponible.faltantes))
+            motivo = " ".join(disponible.faltantes) if bloqueada else None
             st.markdown(
                 '<p class="atlas-family">Modelos disponibles</p>',
                 unsafe_allow_html=True,
             )
-            boton("KNN", "clasificacion_knn", disabled=bloqueada)
-            boton("Árbol de decisión", "clasificacion_dt", disabled=bloqueada)
-            boton("Random Forest", "clasificacion", disabled=bloqueada)
-            boton("XGBoost", "clasificacion_xgboost", disabled=bloqueada)
-            boton("AdaBoost", "clasificacion_adaboost", disabled=bloqueada)
-            boton("Naive Bayes", "clasificacion_nb", disabled=bloqueada)
-            boton("Experimentos Lab02", "lab2_benchmark", disabled=bloqueada)
-            boton("Comparar modelos entrenados", "lab2_experimentos", disabled=not hay_evidencia(st.session_state, "clasificacion", solo_modelos=True))
+            boton("KNN", "clasificacion_knn", disabled=bloqueada, help=motivo)
+            boton("Árbol de decisión", "clasificacion_dt", disabled=bloqueada, help=motivo)
+            boton("Random Forest", "clasificacion", disabled=bloqueada, help=motivo)
+            boton("XGBoost", "clasificacion_xgboost", disabled=bloqueada, help=motivo)
+            boton("AdaBoost", "clasificacion_adaboost", disabled=bloqueada, help=motivo)
+            boton("Naive Bayes", "clasificacion_nb", disabled=bloqueada, help=motivo)
+            boton("Experimentos Lab02", "lab2_benchmark", disabled=bloqueada, help=motivo)
 
         with st.expander("Regresión", expanded=vista in VISTAS_REGRESION):
             disponible = disponibilidades.get("regresion")
             bloqueada = disponible is not None and not disponible.lista
-            if bloqueada:
-                st.caption("Pendiente en Configuración de regresión: " + " ".join(disponible.faltantes))
+            motivo = " ".join(disponible.faltantes) if bloqueada else None
             for destino, algoritmo in VISTAS_REGRESORES.items():
                 bloqueo_modelo = bloqueada and not (algoritmo == "RLS" and disponibilidades.get("RLS", disponible).lista)
-                boton(NOMBRES_REGRESORES[algoritmo], destino, disabled=bloqueo_modelo)
-            boton("Experimentos Lab03", "lab3_benchmark", disabled=bloqueada and not disponibilidades.get("RLS", disponible).lista)
-            boton("Comparar regresores entrenados", "lab3_comparacion", disabled=not hay_evidencia(st.session_state, "regresion", solo_modelos=True))
+                boton(NOMBRES_REGRESORES[algoritmo], destino, disabled=bloqueo_modelo, help=motivo)
+            boton("Experimentos Lab03", "lab3_benchmark", disabled=bloqueada and not disponibilidades.get("RLS", disponible).lista, help=motivo)
 
         st.markdown(
             '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
@@ -399,9 +401,8 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         for familia, destino, etiqueta in (("clasificacion", "lab2_resultados", "Resultados de clasificación"),
                                           ("regresion", "lab3_resultados", "Resultados de regresión")):
             evidencia = hay_evidencia(st.session_state, familia)
-            boton(etiqueta, destino, disabled=not evidencia)
-            if not evidencia:
-                st.caption(f"{etiqueta}: ejecute primero un modelo o experimento del contexto actual.")
+            boton(etiqueta, destino, disabled=not evidencia,
+                  help="Ejecute primero un modelo o experimento del contexto actual.")
     return st.session_state["vista_activa"]
 
 
@@ -409,14 +410,14 @@ def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> 
     """Show the current dataset and route; data health belongs to data/EDA views."""
     titulos_regresion = {
         **{ruta: NOMBRES_REGRESORES[alg] for ruta, alg in VISTAS_REGRESORES.items()},
-        "regresion": "Configuración de regresión",
-        "regresion_configuracion": "Configuración de regresión",
+        "regresion": "Configuración",
+        "regresion_configuracion": "Configuración",
         "lab3_benchmark": "Experimentos Lab03",
         "lab3_comparacion": "Comparar regresores entrenados",
         "lab3_resultados": "Resultados de regresión",
     }
-    titulo = titulos_regresion[vista] if vista in VISTAS_REGRESION else TITULOS_VISTA[vista]
-    ruta = f"Regresión / {titulo}" if vista in VISTAS_REGRESION else RUTAS_VISTA[vista]
+    titulo = "Configuración" if vista == "configuracion" else titulos_regresion[vista] if vista in VISTAS_REGRESION else TITULOS_VISTA[vista]
+    ruta = "Configuración" if vista == "configuracion" else f"Regresión / {titulo}" if vista in VISTAS_REGRESION else RUTAS_VISTA[vista]
     nombre_dataset = escape(etiqueta)
     st.markdown(
         f"""
@@ -435,7 +436,7 @@ def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> 
 def _render_regresion() -> None:
     """Orienta destinos antiguos hacia las vistas de regresión disponibles."""
     st.info(
-        "Abra Configuración de regresión para elegir target y predictores; "
+        "Abra Configuración para elegir target y predictores; "
         "después seleccione un modelo o Experimentos Lab03 en la navegación."
     )
 
@@ -443,7 +444,7 @@ def _render_regresion() -> None:
 def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
     """Offer a direct path when shared classification settings need attention."""
     st.info(
-        "Seleccione al menos una variable predictora en Configuración de clasificación."
+        "Seleccione al menos una variable predictora en Configuración."
         if sin_features
         else "La clasificación necesita al menos una variable objetivo y una "
         "variable predictora. Revise la configuración compartida antes de continuar."
@@ -466,7 +467,7 @@ def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
     _limpiar_resultados()
     st.session_state.pop("dataset_preparacion", None)
     for clave in list(st.session_state):
-        if clave.startswith(("modelo_", "clasif_", "reg_", "lab3_", "dataset_")) and clave not in {"dataset_original", "dataset_preparado", "dataset_identidad"}:
+        if clave.startswith(("modelo_", "clasif_", "reg_", "sup_", "lab3_", "dataset_")) and clave not in {"dataset_original", "dataset_preparado", "dataset_identidad"}:
             del st.session_state[clave]
 
 
@@ -522,21 +523,41 @@ def _render_dataset() -> None:
         _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
 
     st.markdown("#### Preparación y limpieza")
-    st.caption("Opcional para exploración y clustering. Para clasificación/regresión, conserve los datos sin imputación ni escalado global: esas operaciones se configuran y aprenden solo con train. Puede continuar directamente a Configuración.")
+    st.caption("Puede limpiar filas, columnas y duplicados antes de Configuración. La imputación y el escalado supervisados se aprenden solo con train.")
     columnas_eliminar = st.multiselect(
         "Columnas a eliminar",
         options=original.columns.tolist(),
         default=[],
         key="dataset_columnas_eliminar",
+        persist_state="session",
         help="Se descartan del dataset original antes de aplicar el resto de la preparación.",
     )
-    c1, c2, c3 = st.columns(3)
-    eliminar_duplicados = c1.checkbox("Eliminar duplicados", value=True)
-    imputar_nulos = c2.checkbox("Imputar valores nulos", value=True)
-    escalado = c3.selectbox(
-        "Escalado permanente",
-        options=["Ninguno", "Normalizar", "Estandarizar"],
+    retenidas = [col for col in original if col not in columnas_eliminar]
+    seleccion_nulos = st.session_state.get("dataset_columnas_sin_nulos", [])
+    if any(col not in retenidas for col in seleccion_nulos):
+        st.session_state["dataset_columnas_sin_nulos"] = [
+            col for col in seleccion_nulos if col in retenidas
+        ]
+    columnas_sin_nulos = st.multiselect(
+        "Eliminar filas con nulos en estas columnas",
+        options=retenidas,
+        default=[],
+        key="dataset_columnas_sin_nulos",
+        persist_state="session",
+        help="Se elimina la fila completa si falta un valor en alguna columna seleccionada. El objetivo sólo se filtra si lo selecciona; no se rellena ni se deduce automáticamente.",
     )
+    if columnas_sin_nulos:
+        eliminadas = int(original[columnas_sin_nulos].isna().any(axis=1).sum())
+        st.caption(f"El filtro eliminará {eliminadas} de {len(original)} filas antes de quitar duplicados. Se aplica siempre sobre el original.")
+    eliminar_duplicados = st.checkbox("Eliminar duplicados", value=True, key="dataset_eliminar_duplicados", persist_state="session")
+    with st.expander("Transformaciones globales · solo exploración y clustering"):
+        imputar_nulos = st.checkbox("Imputar valores nulos", value=False, key="dataset_imputar", persist_state="session")
+        escalado = st.selectbox(
+            "Escalado permanente",
+            options=["Ninguno", "Normalizar", "Estandarizar"],
+            key="dataset_escalado",
+            persist_state="session",
+        )
 
     accion, restaurar = st.columns(2)
     if accion.button("Aplicar preparación", type="primary"):
@@ -544,6 +565,7 @@ def _render_dataset() -> None:
             eda = EDA(dataframe=original)
             preparado = eda.preparar_dataset(
                 columnas_eliminar=columnas_eliminar,
+                columnas_sin_nulos=columnas_sin_nulos,
                 eliminar_duplicados=eliminar_duplicados,
                 imputar_nulos=imputar_nulos,
                 normalizar=escalado == "Normalizar",
@@ -551,9 +573,8 @@ def _render_dataset() -> None:
             )
             st.session_state["dataset_preparado"] = preparado.copy()
             st.session_state["dataset_preparacion"] = {
+                **eda.preparacion,
                 "imputar": imputar_nulos, "escalado": escalado,
-                "eliminar_duplicados": eliminar_duplicados,
-                "columnas_eliminar": list(columnas_eliminar),
             }
             _limpiar_resultados()
             st.success("La preparación se aplicó correctamente.")
@@ -568,6 +589,12 @@ def _render_dataset() -> None:
         st.success("Se restauró el contenido original.")
         st.rerun()
 
+    if preparacion := st.session_state.get("dataset_preparacion"):
+        st.caption(
+            f"Preparación aplicada: {preparacion.get('filas_preparadas', len(actual))} filas · "
+            f"Nulos: {preparacion.get('filas_eliminadas_nulos', 0)} filas eliminadas · "
+            f"Duplicados: {preparacion.get('filas_eliminadas_duplicados', 0)} filas eliminadas."
+        )
     st.dataframe(actual, width="stretch")
     st.download_button(
         "Descargar dataset actual",
@@ -576,21 +603,15 @@ def _render_dataset() -> None:
         mime="text/csv",
     )
 
-    _render_particion(actual)
-
-
-def _render_particion(datos: pd.DataFrame) -> None:
+def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
     """Calcula una partición train/test/validación reutilizable en el framework."""
     st.markdown("#### División en entrenamiento y prueba")
     st.caption(
         "La partición calculada aquí queda disponible para Clasificación y "
         "Regresión, que pueden reutilizarla en vez de dividir los datos de nuevo."
     )
-    c1, c2 = st.columns(2)
-    porcentaje_test = c1.slider(
-        "Porcentaje de prueba (%)", 10, 50, 20, 5, key="particion_test_pct"
-    )
-    porcentaje_val = c2.slider(
+    porcentaje_test = st.session_state["sup_test_size"]
+    porcentaje_val = st.slider(
         "Porcentaje de validación (%) · opcional",
         0,
         30,
@@ -607,19 +628,12 @@ def _render_particion(datos: pd.DataFrame) -> None:
         resumen += f" · Validación: **{porcentaje_val}%**"
     st.caption(resumen)
 
-    columna_seleccionada = st.selectbox(
-        "Columna para estratificar (opcional)",
-        options=["Ninguna"] + datos.columns.tolist(),
-        key="particion_columna_estrato",
+    columna_seleccionada = (
+        configuracion["target"]
+        if st.session_state["sup_tarea"] == "clasificacion" and st.session_state["sup_strat"]
+        else None
     )
-    semilla = st.number_input(
-        "Semilla (random_state)",
-        min_value=0,
-        max_value=10_000,
-        value=42,
-        step=1,
-        key="particion_semilla",
-    )
+    semilla = st.session_state["sup_random_state"]
 
     if st.button("Calcular partición", type="primary", key="particion_calcular"):
         try:
@@ -627,11 +641,13 @@ def _render_particion(datos: pd.DataFrame) -> None:
                 porcentaje_test=porcentaje_test / 100.0,
                 porcentaje_validacion=porcentaje_val / 100.0,
                 columna_estratificacion=(
-                    None if columna_seleccionada == "Ninguna" else columna_seleccionada
+                    columna_seleccionada
                 ),
                 semilla=int(semilla),
             )
             st.session_state["particion_global"] = Particionador(configuracion).dividir(datos)
+            st.session_state["sup_particion_firma"] = firma_preparacion(st.session_state)
+            st.session_state.pop("sup_aviso_particion", None)
             limpiar_resultados_regresion(st.session_state)
             # A new applied split invalidates even the read-only results route.
             for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
@@ -642,6 +658,7 @@ def _render_particion(datos: pd.DataFrame) -> None:
                 if clave.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
                     st.session_state.pop(clave, None)
             st.success("Partición calculada y disponible para el resto del framework.")
+            st.rerun()
         except Exception as exc:  # pylint: disable=broad-except
             st.error(f"No fue posible calcular la partición: {exc}")
 
@@ -1472,6 +1489,7 @@ def main() -> None:
     _sincronizar_dataset(datos_cargados, identidad)
     _aplicar_preset_regresion(identidad)
     datos = st.session_state["dataset_preparado"]
+    inicializar_configuracion(datos, st.session_state)
     configuraciones_actuales = {
         "clasificacion": configuracion_clasificacion_actual(datos, st.session_state),
         "regresion": configuracion_regresion_actual(datos, st.session_state),
@@ -1497,15 +1515,22 @@ def main() -> None:
         )
     vista = _seleccionar_vista(disponibilidades)
     _render_encabezado_atlas(datos, etiqueta, vista)
-    familia = ("regresion" if vista in VISTAS_REGRESION else "clasificacion"
+    familia = (st.session_state.get("sup_tarea") if vista == "configuracion" else "regresion" if vista in VISTAS_REGRESION else "clasificacion"
                if vista in {*VISTAS_CLASIFICADORES, "clasificacion_configuracion", "lab2_benchmark", "lab2_experimentos", "lab2_resultados"} else None)
     disponibilidad_vista = disponibilidades.get(familia)
     if (vista in {"regresion_rls", "lab3_benchmark"}
             and disponibilidades.get("RLS") is not None and disponibilidades["RLS"].lista):
         disponibilidad_vista = disponibilidades["RLS"]
     mostrar_guia(vista, familia, disponibilidad_vista, configuraciones_actuales.get(familia))
-    if vista in {"clasificacion_configuracion", "lab2_benchmark"}:
+    if vista in {"configuracion", "lab2_benchmark"}:
         render_perfil_diabetes(datos)
+    if vista == "configuracion":
+        configurar_supervisado(datos)
+        actual = configuraciones_actuales.get(st.session_state.get("sup_tarea"))
+        if actual is not None:
+            with st.expander("Partición externa opcional"):
+                _render_particion(datos, actual)
+        return
 
     configuracion = None
     configuracion_clasif = None
@@ -1561,7 +1586,7 @@ def main() -> None:
 
     if vista in VISTAS_REGRESION:
         if configuracion_reg is None or not configuracion_reg["features"]:
-            st.warning("Seleccione un target y predictores en Configuración de regresión.")
+            st.warning("Seleccione un target y predictores en Configuración.")
         elif vista in VISTAS_REGRESORES:
             render_modelo_regresion(datos, configuracion_reg, _mostrar_figura,
                                     algoritmo=VISTAS_REGRESORES[vista])

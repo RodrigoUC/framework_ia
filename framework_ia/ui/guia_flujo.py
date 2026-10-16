@@ -15,35 +15,29 @@ def ir_a(destino: str) -> None:
 
 
 def mostrar_guia(vista, familia=None, disponibilidad=None, configuracion=None) -> None:
-    st.caption(
-        "Flujo de trabajo: 1. Fuente → 2. Configuración → 3. Ejecución → 4. Resultados"
-    )
     if familia is None:
+        if vista == "configuracion":
+            st.markdown("**Etapa 2 · Configuración**")
+            return
         if vista == "datos":
             st.markdown("**Etapa 1 · Fuente activa**")
             st.caption(
-                "Revise columnas y calidad. La limpieza global y la partición manual son opcionales; no necesita aplicarlas para entrenar."
+                "Cargue los datos y configure un modelo. Limpieza global y partición manual son opcionales."
             )
-            izquierda, derecha = st.columns(2)
-            izquierda.button(
-                "Configurar clasificación",
-                key="flujo_config_clasif",
+            st.button(
+                "Configurar tarea",
+                key="flujo_configurar",
                 on_click=ir_a,
-                args=("clasificacion_configuracion",),
-            )
-            derecha.button(
-                "Configurar regresión",
-                key="flujo_config_reg",
-                on_click=ir_a,
-                args=("regresion_configuracion",),
+                args=("configuracion",),
             )
         else:
             st.caption(
-                "Exploración independiente: EDA, ACP y clustering no requieren target ni partición supervisada. Configure las variables de esta vista antes de ejecutar."
+                "Exploración independiente: no requiere objetivo ni partición supervisada."
             )
         return
     nombre = "regresión" if familia == "regresion" else "clasificación"
     configurando = vista in (
+        "configuracion",
         "regresion",
         "regresion_configuracion",
         "clasificacion_configuracion",
@@ -68,42 +62,34 @@ def mostrar_guia(vista, familia=None, disponibilidad=None, configuracion=None) -
             if configuracion.get("particion_global") is not None
             else "automática al ejecutar"
         )
-        st.caption(
-            f"Objetivo: {configuracion['target']} · Predictores: {len(configuracion['features'])} · "
-            f"Prueba: {configuracion['test_size']:.0%} · Semilla: {configuracion['random_state']} · Partición {particion}."
-        )
+        with st.expander("Contexto activo"):
+            st.caption(
+                f"Objetivo: {configuracion['target']} · Predictores: {len(configuracion['features'])} · "
+                f"Prueba: {configuracion['test_size']:.0%} · Semilla: {configuracion['random_state']} · Partición {particion}."
+            )
     if configurando and familia == "clasificacion":
         st.caption(
-            "Clasificación requiere etiquetas discretas. Si quiere predecir una cantidad continua, use Configuración de regresión; no se convierten automáticamente los objetivos."
+            "Use clases discretas para clasificar y regresión para cantidades continuas. No se convierten objetivos automáticamente."
         )
     if disponibilidad is not None and not disponibilidad.lista:
-        st.caption(
-            "Hay requisitos pendientes. No se ejecutarán modelos hasta resolverlos."
-        )
         if configurando or consultando:
             mostrar_faltantes(disponibilidad)
     elif configurando:
         st.success(
-            "Configuración utilizable. Puede abrir modelos o experimentos; cada ejecución verifica sus requisitos propios. No hace falta confirmar ni preparar globalmente los datos."
+            "Configuración utilizable. Continúe a un modelo o experimento."
         )
-    elif consultando:
+    elif not consultando:
         st.caption(
-            "Está consultando evidencia guardada. Esta vista no vuelve a entrenar."
+            "Ajuste los parámetros y ejecute. Editarlos no reemplaza la evidencia guardada."
         )
-    else:
-        st.caption(
-            "Revise los parámetros de esta vista y pulse su botón de ejecución. Cambiarlos no ejecuta ni reemplaza los resultados guardados."
-        )
-    destino = (
-        f"{'regresion' if familia == 'regresion' else 'clasificacion'}_configuracion"
-    )
+    destino = "configuracion"
     if consultando and not hay_evidencia(st.session_state, familia):
         st.info(
             "Falta ejecutar un modelo o experimento del contexto actual. Revise la configuración y continúe a un modelo."
         )
     if not configurando:
         st.button(
-            f"Revisar configuración de {nombre}",
+            "Revisar configuración",
             key="flujo_corregir",
             on_click=ir_a,
             args=(destino,),

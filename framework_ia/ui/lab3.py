@@ -47,7 +47,7 @@ def preparacion_regresion_segura() -> bool:
         or preparacion.get("escalado", "Ninguno") != "Ninguno"
     ):
         st.error(
-            "La preparación global imputó o escaló antes del split. Restaure el dataset original en Datos y preparación; configure esas transformaciones en Configuración de regresión para aprenderlas solo con train."
+            "La preparación global imputó o escaló antes del split. Desactive esas transformaciones en Datos y preparación y vuelva a aplicar sus opciones de limpieza. Configure imputación y escalado en Configuración para aprenderlos solo con train."
         )
         return False
     return True
@@ -62,6 +62,9 @@ def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
     }
     argumentos["parametros_solicitados"] = deepcopy(parametros)
     fuente = deepcopy(st.session_state.get("fuente_metadata", {}))
+    fuente["preparacion_previa"] = deepcopy(
+        st.session_state.get("dataset_preparacion", {})
+    )
     fuente["huella_datos_efectivos"] = huella_datos(datos)
     fuente.setdefault(
         "etiqueta", st.session_state.get("fuente_aplicada", (None, "Dataset activo"))[1]
@@ -131,10 +134,6 @@ def mostrar_resultado_modelo(snapshot, mostrar_figura, *, clave: str) -> None:
 def render_modelo_regresion(
     datos, configuracion, mostrar_figura, *, algoritmo: str
 ) -> None:
-    st.markdown(f"### {NOMBRES_REGRESORES[algoritmo]}")
-    st.caption(
-        "Entrene explícitamente. Editar parámetros conserva la última ejecución exitosa; navegar no ajusta modelos."
-    )
     segura = preparacion_regresion_segura()
     parametros = parametros_regresion(algoritmo)
     disponibilidad = disponibilidad_supervisada(
@@ -151,7 +150,7 @@ def render_modelo_regresion(
     sin_simple = algoritmo == "RLS" and configuracion["feature_simple"] is None
     if sin_simple:
         st.warning(
-            "Seleccione un predictor numérico para RLS en Configuración de regresión."
+            "Seleccione un predictor numérico para RLS en Configuración."
         )
     if (
         st.button(
@@ -199,16 +198,24 @@ def render_modelo_regresion(
 
 
 def render_resultados_regresion(mostrar_figura, *, incluir_experimentos=False) -> None:
+    hay_experimento = incluir_experimentos and any(
+        st.session_state.get(clave)
+        for clave in (
+            "resultado_lab3_experimento",
+            "resultado_lab3_intento_experimento",
+            "error_lab3_experimento",
+        )
+    )
     snapshots = {
         alg: st.session_state[f"resultado_lab3_modelo_{alg}"]
         for alg in ALGORITMOS_LAB3
         if f"resultado_lab3_modelo_{alg}" in st.session_state
     }
-    st.markdown("### Modelos de regresión entrenados")
-    st.caption(
-        "Consulta de evidencia guardada: no entrena ni selecciona hiperparámetros. Comparar test es exploratorio; use Experimentos Lab03 para seleccionar por validación."
-    )
     if snapshots:
+        st.markdown("### Modelos de regresión entrenados")
+        st.caption(
+            "Prueba · ejecuciones individuales. Seleccione hiperparámetros en Experimentos Lab03, no con test."
+        )
         st.dataframe(
             pd.DataFrame(
                 [
@@ -219,15 +226,9 @@ def render_resultados_regresion(mostrar_figura, *, incluir_experimentos=False) -
             hide_index=True,
             width="stretch",
         )
-        algoritmo = st.selectbox(
-            "Modelo guardado", list(snapshots), key="lab3_resultado_seleccionado"
-        )
-        mostrar_resultado_modelo(
-            snapshots[algoritmo], mostrar_figura, clave="lab3_consulta"
-        )
-    else:
+    elif not hay_experimento:
         st.info("Todavía no hay modelos entrenados en este contexto.")
-    if incluir_experimentos:
+    if hay_experimento:
         from .experimentos_lab3 import mostrar_experimento_guardado
 
-        mostrar_experimento_guardado(mostrar_figura)
+        mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
