@@ -56,14 +56,15 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: 7bb1966b0f3895a1280124ce032c804f84e6d51e.
+- Last reviewed boundary: 94d6768b621e50322f7381303abf5f8108e634fa.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Forecast: 2,000-3,500 authored changed lines, generated files excluded.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 755 (717 additions + 38 deletions in T01 commit,
-  including 116 tracking lines; 639 behavior/test/documentation lines).
+- Running authored count: 1,365 (T01: 755; T02: 610). T01 includes 116 tracking
+  lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
+  behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
   Parent owns reconciliation, task checkoffs, commits and native review.
 
@@ -73,7 +74,7 @@ merge, remote execution, final academic report or submission ZIP.
   tests and API documentation. Route: delegated (multiple non-trivial files;
   preparation and mapping). Check valid/invalid targets, train-only transforms,
   partitions, predictions, metrics, aliases and original framework tests.
-- [ ] T02 — Add remaining required estimators and typed/configuration catalog,
+- [x] T02 — Add remaining required estimators and typed/configuration catalog,
   with estimator and parameter/CV tests. Route: delegated (multi-file behavior).
   Check all nine model entries, fixed seeds and literal CV-estimator behavior.
 - [ ] T03 — Implement benchmark selection, shared serialization and CLI.
@@ -134,6 +135,29 @@ line count and rollback boundary here before considering the task closed.
   modelos/supervisado/algoritmos_regresion.py, modelos/supervisado/regresion.py,
   tests/test_regresion_algoritmos.py, docs/lab03/README.md; preserve T01.
   Approximately 571 authored behavior/test/doc lines form one coherent catalog
-  unit; tests and documentation remain alongside behavior. Commit/RDD pending.
-- Next: commit T02 and assess its native review candidate before T03.
+  unit; tests and documentation remain alongside behavior. Work-unit commit:
+  `94d6768b621e50322f7381303abf5f8108e634fa` (595 additions, 15 deletions).
+  Native assessment: medium, slice_budget_reached, 7 files / 610 lines;
+  User granted separate candidate consent. Native reliability review inspected
+  seven immutable patches, approved without findings; acknowledgement applied.
+  Review did not independently execute tests; suite evidence recorded above.
+  Candidate: sha256:380d63275619122c868dbec52e73d4952d399bda2595e9040f5682827bb631b4.
+  Approved lineage: review-bdf7cdc359e9055d.
+- T03 implementation verified: shared outer folds, isolated RLS predictor,
+  validation-only selection, reserved external validation under explicit CV,
+  visible partial failures and preserved last success on all-failed retries.
+  Shared individual/experiment CSV+JSON export and CLI implemented; stored fit
+  versions take precedence over export-time values, source bytes retain SHA-256.
+  Final full suite: `.venv/Scripts/python.exe -m pytest -q` => 184 passed,
+  152 subtests passed in 123.50s (thread limits OMP/OPENBLAS/NUMBA=2).
+  Focused: 42 passed, 93 subtests in 12.23s. Ruff check/format, CLI help and
+  git diff --check pass. Initial lint findings corrected before final checks.
+  Runtime: actual CLI on local synthetic CSV, default14 candidates / 9 winners /
+  0 errors, exit0; smoke artifacts outside repository in temporary storage.
+  Rollback: new experiment/export/CLI modules and two test files, plus only T03
+  additions to regresion.py, resultados.py and docs/lab03/README.md; keep T01/T02.
+  Approximately 1,326 behavior/test/doc lines are cohesive orchestration plus
+  no-leakage/export/CLI checks; advisory size exceeded without removing coverage.
+  Commit/native assessment pending. UI and preset reproduction remain pending.
+- Next: commit verified T03 and assess its native review candidate before T04.
 

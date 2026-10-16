@@ -94,5 +94,82 @@ splitter; el objeto sklearn original permanece en `resultado.modelo.cv`.
 Los modelos aleatorios utilizan la semilla de entrenamiento; RF y LassoCV
 usan un trabajo por defecto (`n_jobs=1`).
 
-Los experimentos, exportación y vistas del Lab03 se incorporan en las siguientes
-unidades de implementación.
+## Benchmark reproducible
+
+```python
+experimento = regresion.experimentar(feature_simple="x1")
+print(experimento.tabla)
+print(experimento.mejor_algoritmo)
+# benchmark(...) es un alias de experimentar(...).
+```
+
+El benchmark compara los catorce candidatos y selecciona una configuración por
+algoritmo con el menor RMSE de validación. Todos comparten las mismas filas y
+pliegues. RLS usa sólo `feature_simple`; los demás conservan las predictoras
+seleccionadas. Si se omite, RLS utiliza la primera predictora numérica real en
+el orden de `features`, sin inspeccionar correlaciones ni prueba. El preset de
+referencia puede indicar `bmi` explícitamente; el núcleo no conoce ese nombre.
+
+| Estrategia | Selección y ajuste final |
+|---|---|
+| Automática (`estrategia=None`) | CV si no hay validación externa; holdout si la partición compartida incluye validación. |
+| `cv` | KFold mezclado de cinco pliegues sobre train. Cada pliegue ajusta su propio preprocesamiento. El ganador se reajusta con train completo. Una validación externa se conserva reservada, sin incorporarla a train. |
+| `holdout` | Reutiliza validación externa o reserva `validation_size=0.2` de train. No modifica prueba ni reajusta con train+validación. |
+
+`test_size=0.25`, `random_state=42`, `folds=5` y preprocesamiento son opciones
+comunes. El score es la media aritmética de los RMSE por pliegue; su desviación
+usa `ddof=1` (cero para una única validación). La tabla también muestra MAE,
+MSE y R² medios, métricas por pliegue, parámetros efectivos y errores. Los
+empates conservan el primer candidato y algoritmo declarados. El catálogo se
+puede limitar con `algoritmos` o extender con `configuraciones`, manteniendo el
+formato `{"Ridge": [{"nombre": "alpha_2", "parametros": {"alpha": 2}}]}`.
+
+Todas las decisiones de validación terminan antes de evaluar ganadores en
+prueba. `ResultadoExperimentoRegresion` contiene `tabla`, `mejores`,
+`mejor_algoritmo` y `metadatos`; registra índices de particiones/pliegues,
+selecciones, versiones y fallos. Ninguna métrica de prueba decide el ranking.
+Un candidato fallido no impide evaluar los demás. Datos o particiones inválidos
+se rechazan antes del primer ajuste. Un intento sin ganadores evaluados devuelve
+su evidencia, pero no sustituye `experimento`, modelo ni resultado exitosos
+anteriores. Los errores de prueba se registran sin elegir otro ganador por su
+resultado de prueba.
+
+## CLI y exportación compartida
+
+```powershell
+.venv\Scripts\python.exe -m scripts.ejecutar_lab03 datos.csv --target respuesta --features x1 x2 --feature-simple x1 --salida salida_lab03
+```
+
+La CLI lee bytes locales, registra su SHA-256 y opciones de lectura, y no
+descarga ni transmite datos. Conserva las opciones de lectura de Lab02:
+`--separador`, `--decimal`, `--encoding`, además de `--fuente` para registrar
+procedencia. `--algoritmos`, `--estrategia`, `--folds`, `--validation-size`,
+`--test-size`, `--semilla`, `--incluir-categoricas`, `--sin-escalar` y
+`--sin-imputar` controlan el experimento. RMSE es siempre la métrica de selección.
+
+`framework_ia.exportacion_lab03.construir_archivos_experimento(...)` devuelve
+los mismos bytes UTF-8 para CLI e interfaz, sin entrenar ni escribir archivos:
+
+- `configuracion.json`: argumentos, procedencia, hash, versiones y protocolo.
+- `comparacion_validacion.csv`: todos los candidatos, errores y scores.
+- `mejores_modelos.json`: parámetros, métricas train/test y metadatos por ganador.
+- `<algoritmo>/configuracion.json`, `metricas.json`, `predicciones_train.csv`
+  y `predicciones_test.csv`: snapshot individual. Las predicciones conservan el
+  índice `fila` y columnas `real`, `prediccion`, `residuo`.
+
+Para una ejecución individual, `construir_archivos_modelo(resultado, *,
+argumentos, dataset, versiones=None)` devuelve esos cuatro archivos sin el
+prefijo de algoritmo; no necesita fabricar un experimento. Ambos constructores
+conservan las versiones registradas al entrenar por encima de valores posteriores.
+`construir_zip_experimento(archivos)` sólo agrupa esos bytes en memoria para
+descarga; no prepara la entrega académica final.
+
+La CLI no sobrescribe carpetas no vacías. Código de salida: **0** para éxito
+completo, **1** para evidencia parcial exportada y **2** para entrada inválida o
+ausencia de ganadores; en estos últimos casos no crea la carpeta de salida.
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q tests/test_regresion_experimentos.py tests/test_lab3_cli.py
+```
+
+Las vistas del Lab03 se incorporan en la siguiente unidad de implementación.

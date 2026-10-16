@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import platform
 from importlib.metadata import version
 
 import numpy as np
@@ -202,8 +203,11 @@ class Regresion(Supervisado):
                 "ajustado_solo_train": True,
             },
             "versiones": {
-                nombre: version(nombre)
-                for nombre in ("numpy", "pandas", "scikit-learn")
+                "python": platform.python_version(),
+                **{
+                    nombre: version(nombre)
+                    for nombre in ("numpy", "pandas", "scikit-learn")
+                },
             },
         }
 
@@ -268,6 +272,57 @@ class Regresion(Supervisado):
         return pd.Series(
             resultado.modelo.predict(transformados), index=X.index, name="prediccion"
         )
+
+    def experimentar(
+        self,
+        *,
+        algoritmos=None,
+        configuraciones=None,
+        feature_simple=None,
+        particion=None,
+        test_size=0.25,
+        validation_size=0.2,
+        random_state=42,
+        estrategia=None,
+        folds=5,
+        incluir_categoricas=False,
+        imputar=True,
+        estandarizar=True,
+    ):
+        """Selecciona por RMSE de validación sin usar prueba para decidir.
+
+        Una partición con validación externa usa holdout por defecto; en otro
+        caso se aplica CV sólo sobre train. Un intento sin ganadores devuelve
+        su evidencia sin sustituir el último experimento exitoso.
+        """
+        from .experimentos_regresion import ejecutar_experimento
+
+        intento = ejecutar_experimento(
+            self,
+            algoritmos=algoritmos,
+            configuraciones=configuraciones,
+            feature_simple=feature_simple,
+            particion=particion,
+            test_size=test_size,
+            validation_size=validation_size,
+            random_state=random_state,
+            estrategia=estrategia,
+            folds=folds,
+            incluir_categoricas=incluir_categoricas,
+            imputar=imputar,
+            estandarizar=estandarizar,
+        )
+        if intento.mejores:
+            self.experimento = intento
+            elegido = intento.mejores.get(intento.mejor_algoritmo)
+            if elegido is not None:
+                self.resultado = elegido
+                self.modelo = elegido.modelo
+                self._preparados = elegido.datos_preparados
+                self.r2 = elegido.metricas["r2"]
+        return intento
+
+    benchmark = experimentar
 
     def evaluar(self):
         """Devuelve la última evaluación sin volver a entrenar."""

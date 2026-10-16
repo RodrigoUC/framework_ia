@@ -153,3 +153,13 @@ class ResultadoRegresion:
     datos_preparados: DatosPreparados = field(repr=False)
     parametros: dict[str, Any] = field(default_factory=dict)
     metadatos: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ResultadoExperimentoRegresion:
+    """Comparación por validación; sólo los ganadores tienen evaluación en prueba."""
+
+    tabla: pd.DataFrame
+    mejores: dict[str, ResultadoRegresion]
+    mejor_algoritmo: str | None
+    metadatos: dict[str, Any]
