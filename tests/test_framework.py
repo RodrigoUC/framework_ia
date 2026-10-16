@@ -260,8 +260,12 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         )
         self.assertEqual(previsualizacion["tam_train"], 30)
         self.assertEqual(previsualizacion["tam_test"], 10)
+        datos_regresion = pd.DataFrame({"x": range(20), "target": np.arange(20) * 2})
+        regresion = Regresion(dataframe=datos_regresion).RLS()
+        self.assertEqual(regresion.algoritmo, "RLS")
+        self.assertAlmostEqual(regresion.metricas["r2"], 1.0)
         with self.assertRaises(NotImplementedError):
-            Regresion(dataframe=self.datos, target="x").RLS()
+            Regresion(dataframe=datos_regresion).RL()
 
     def test_alias_progresion_conserva_compatibilidad(self) -> None:
         """El nombre anterior sigue disponible, pero Regresion es el oficial."""

@@ -124,3 +124,32 @@ class ResultadoExperimentoClasificacion:
     mejores: dict[str, ResultadoClasificacion]
     mejor_algoritmo: str | None
     metadatos: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ResultadoRegresion:
+    """Evaluación numérica y artefactos ajustados sólo con entrenamiento.
+
+    ``y_true``, ``y_pred``, ``residuos`` y ``metricas`` corresponden al conjunto
+    de evaluación indicado por ``metadatos``; los campos train son separados.
+    El contenedor es frozen, como los demás resultados; pandas/modelos internos
+    siguen siendo objetos mutables y deben tratarse como snapshots de lectura.
+    """
+
+    algoritmo: str
+    target: str
+    features: tuple[str, ...]
+    y_true: pd.Series
+    y_pred: pd.Series
+    y_train: pd.Series
+    y_pred_train: pd.Series
+    residuos: pd.Series
+    residuos_train: pd.Series
+    metricas: dict[str, float]
+    metricas_train: dict[str, float]
+    muestra_train: int
+    muestra_test: int
+    modelo: Any = field(repr=False)
+    datos_preparados: DatosPreparados = field(repr=False)
+    parametros: dict[str, Any] = field(default_factory=dict)
+    metadatos: dict[str, Any] = field(default_factory=dict)
