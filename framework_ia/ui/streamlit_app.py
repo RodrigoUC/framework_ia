@@ -19,6 +19,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.colors import sample_colorscale
 
+from ..datos.diabetes_lab03 import cargar_diabetes_regresion
 from ..datos.eda import EDA
 from ..datos.fuentes import CargadorCSV, ConfiguracionCSV
 from ..datos.particion import ConfiguracionParticion, Particionador
@@ -193,26 +194,36 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
             # Source type changes only the controls, never the applied dataset.
-            origen = st.radio("Origen", ["CSV local", "Subir CSV"], key="fuente_origen")
+            origen = st.radio("Origen", ["CSV local", "Subir CSV", "Diabetes · referencia Lab03"], key="fuente_origen")
             with st.form("form_fuente_datos"):
-                separador = st.text_input("Separador", value=",", max_chars=3, key="fuente_separador")
-                decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
-                encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
-                usar_indice = st.checkbox("Usar primera columna como índice", key="fuente_usar_indice")
-                referencia = st.text_input("Procedencia (URL o referencia, opcional)", key="fuente_referencia")
                 seleccion = None
                 archivo = None
-                if origen == "CSV local":
-                    if archivos:
-                        seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: str(ruta.relative_to(directorio_datos)), key="fuente_archivo")
-                    else:
-                        st.warning("No hay archivos CSV en data/. Use la opción de carga.")
+                if origen == "Diabetes · referencia Lab03":
+                    st.caption(
+                        "Referencia local de scikit-learn: 442 filas, diez predictoras crudas y "
+                        "target cuantitativo. No es Diabetes de HBiostat (Lab02). "
+                        "Aplicar configura target, predictor simple bmi y semilla 42; no entrena."
+                    )
                 else:
-                    archivo = st.file_uploader("Archivo CSV", type=["csv"], key="fuente_upload")
+                    separador = st.text_input("Separador", value=",", max_chars=3, key="fuente_separador")
+                    decimal = st.text_input("Separador decimal", value=".", max_chars=1, key="fuente_decimal")
+                    encoding = st.selectbox("Codificación", ["utf-8", "latin-1", "cp1252"], key="fuente_encoding")
+                    usar_indice = st.checkbox("Usar primera columna como índice", key="fuente_usar_indice")
+                    referencia = st.text_input("Procedencia (URL o referencia, opcional)", key="fuente_referencia")
+                    if origen == "CSV local":
+                        if archivos:
+                            seleccion = st.selectbox("Archivo", archivos, format_func=lambda ruta: str(ruta.relative_to(directorio_datos)), key="fuente_archivo")
+                        else:
+                            st.warning("No hay archivos CSV en data/. Use la opción de carga.")
+                    else:
+                        archivo = st.file_uploader("Archivo CSV", type=["csv"], key="fuente_upload")
                 aplicar = st.form_submit_button("Aplicar fuente", type="primary")
 
             if aplicar:
                 try:
+                    if origen == "Diabetes · referencia Lab03":
+                        _cargar_referencia_regresion()
+                        return st.session_state["fuente_aplicada"]
                     configuracion = ConfiguracionCSV(
                         separador=separador, decimal=decimal, encoding=encoding,
                         usar_primera_columna_como_indice=usar_indice,
@@ -234,6 +245,36 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                 except Exception as exc:  # pylint: disable=broad-except
                     st.error(f"No fue posible aplicar la fuente: {exc}")
     return st.session_state.get("fuente_aplicada", (None, "", ""))
+
+
+def _cargar_referencia_regresion() -> None:
+    """Prepara una fuente local y difiere el preset hasta después del reset de datos."""
+    datos, _, metadata = cargar_diabetes_regresion()
+    identidad = f"builtin:sklearn-diabetes:{metadata['sha256']}"
+    st.session_state["fuente_aplicada"] = (datos, metadata["archivo"], identidad)
+    st.session_state["fuente_metadata"] = {**metadata, "identidad": identidad}
+    st.session_state["fuente_preset_regresion"] = {
+        "identidad": identidad, **metadata["preset_regresion"],
+    }
+
+
+def _aplicar_preset_regresion(identidad: str) -> None:
+    """Consume una sola confirmación; reruns y navegación conservan ajustes manuales."""
+    preset = st.session_state.pop("fuente_preset_regresion", None)
+    if preset is None or preset["identidad"] != identidad:
+        return
+    limpiar_resultados_regresion(st.session_state)
+    st.session_state.update({
+        "reg_target": preset["target"],
+        "reg_features": list(preset["features"]),
+        "reg_feature_simple": preset["feature_simple"],
+        "reg_test_size": int(preset["test_size"] * 100),
+        "reg_random_state": preset["random_state"],
+        "reg_usar_particion_global": False,
+        "reg_incluir_categoricas": False,
+        "reg_imputar": True,
+        "reg_escalar": True,
+    })
 
 
 def _guardar_metadatos_fuente(
@@ -1411,6 +1452,7 @@ def main() -> None:
         st.info("Seleccione un CSV local o suba un archivo para comenzar.")
         return
     _sincronizar_dataset(datos_cargados, identidad)
+    _aplicar_preset_regresion(identidad)
     datos = st.session_state["dataset_preparado"]
     vista = _seleccionar_vista()
     _render_encabezado_atlas(datos, etiqueta, vista)

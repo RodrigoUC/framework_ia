@@ -1,7 +1,7 @@
 # Cómo ejecutar
 
 ```bash
-cd framework_start
+cd framework_ia
 python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
@@ -21,7 +21,8 @@ python -m streamlit run app.py
 Para validar el framework sin abrir la interfaz:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
 ```
 
 ## Experimentos para Lab01
@@ -61,9 +62,30 @@ python -m scripts.preparar_entrega_lab01 \
 El script valida que el informe sea un PDF y que existan resultados antes de
 crear `ID-1_ID-2.zip`.
 
-La aplicación acepta CSV locales ubicados en este directorio o archivos
+## Regresión y referencia de Lab03
+
+La referencia se incluye en scikit-learn: no hace falta descargarla ni subir un
+CSV. En **Fuente de datos**, seleccione **Diabetes · referencia Lab03** y pulse
+**Aplicar fuente**. Esto configura `target`, las diez predictoras, `bmi` para
+regresión simple, 25 % de prueba y semilla 42; no entrena. Después revise
+**Configuración de regresión** y ejecute un modelo o **Experimentos Lab03**.
+
+Para reproducir desde la terminal:
+
+```bash
+python -m scripts.preparar_diabetes_lab03
+python -m scripts.ejecutar_lab03 data/lab03/diabetes_regresion.csv --target target --feature-simple bmi --salida salida_lab03
+```
+
+La preparación guarda el CSV y `procedencia.json`; repetirla conserva bytes
+idénticos y rechaza archivos distintos sin sobrescribirlos. El benchmark no
+sobrescribe carpetas de resultados no vacías. Consulte
+[la guía de Lab03](docs/lab03/README.md) y
+[la verificación observada](docs/lab03/VERIFICACION.md).
+
+La aplicación también acepta CSV locales ubicados en `data/` o archivos
 subidos desde el navegador. Permite configurar separador, decimal, codificación
 y uso de la primera columna como índice. La navegación lateral agrupa el
 trabajo en Datos, Exploración y tres pilares: Agrupamiento, Clasificación y
-Regresión. La regresión se muestra como próxima porque sus métodos todavía son
-una plantilla.
+Regresión, con configuración compartida, nueve regresores, benchmarking y
+resultados guardados. Ningún cambio de fuente o navegación entrena modelos.

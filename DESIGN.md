@@ -48,6 +48,9 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 ## Contratos de interacción
 
 - La fuente cambia sólo al aplicar; cambiar datos invalida resultados derivados.
+- Diabetes de referencia Lab03 se carga localmente, sin red ni entrenamiento.
+  Aplicar consume un preset de regresión una sola vez después de sincronizar
+  los datos; navegar no vuelve a imponerlo sobre los ajustes manuales.
 - Objetivo, features, semilla, preparación, partición o fuente modificados
   invalidan evidencia incomparable. Los cambios de parámetros de widgets solos
   no sustituyen la última ejecución guardada; sólo un entrenamiento explícito

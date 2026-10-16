@@ -7,6 +7,8 @@ Implement the user-approved functional Lab03 plan on `lab_03`, starting at
 Deliver all required regression estimators, reproducible intra/inter-family
 benchmarking, CLI/export and Streamlit workflows, preserving the established
 structure and visual design. Rename visible branding to **Nexo IA**.
+User additionally authorized guided stages, actionable missing prerequisites and
+disabled dependent functionality (2026-10-16).
 Local implementation and Conventional Commits are authorized. No push, PR,
 merge, remote execution, final academic report or submission ZIP.
 
@@ -56,14 +58,15 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: de6cffbe53b05abfe336a64043f9d904150d4054.
+- Last reviewed boundary: 5032478452540922d4b1c27a09db86c0e1a66e42.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
-- Updated forecast: 4,500-5,500 authored changed lines, generated files excluded;
-  complete UI/state/browser evidence exceeds initial estimate, scope unchanged.
+- Updated forecast: 5,500-7,000 authored changed lines, generated files excluded;
+  includes the user-requested guided workflow and prerequisite gating extension.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 2,824 (T01: 755; T02: 610; T03: 1,362; T03a: 97). T01 includes 116 tracking
+- Running authored count: 4,134 (T01: 755; T02: 610; T03: 1,362; T03a: 97;
+  T04: 1,310). T01 includes 116 tracking
   lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
   behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
@@ -87,13 +90,22 @@ merge, remote execution, final academic report or submission ZIP.
   active snapshot while returning the partial attempt; never choose by test.
   This stays within the approved failed-run recovery contract. Separate work
   unit; the approved T03 receipt remains closed and is not reopened.
-- [ ] T04 — Integrate regression UI, saved results/comparison and Nexo IA branding.
+- [x] T04 — Integrate regression UI, saved results/comparison and Nexo IA branding.
   Route: delegated (multi-file UI/state/tests/docs). Check explicit training,
   invalidation/recovery, branding, preserved styling and browser behavior.
 - [ ] T05 — Add reproducible Diabetes preparation, usage docs and Lab03 CI;
   run end-to-end reproduction and full compatibility checks. Route: delegated
   (scripts/docs/CI/tests). Record actual environment versions and outcome;
   preserve Lab02 lock/evidence and never fabricate empirical findings.
+
+- [ ] T06 — Guide the app through Source, Configuration, Execution and Results.
+  Route: delegated (CodeGraph mapping and multiple non-trivial UI/test files).
+  Derive readiness from actual prerequisites, not visited/completed flags.
+  Explain missing requirements next to disabled dependent navigation/actions;
+  retain correction routes and guard direct entry. Keep global preparation and
+  manual partitions optional, EDA/clustering independent, and train-only safety.
+  Check both labs, invalid/valid targets/features/splits, recovery, partial evidence,
+  no implicit fitting, AppTest, full suite and real browser desktop/mobile.
 
 Each task's work-unit commit contains its behavior, tests and documentation;
 append commit identity, exact check outcomes, RDD assessment/outcome, authored
@@ -212,6 +224,41 @@ line count and rollback boundary here before considering the task closed.
   Hosted12ui not run (remote upload outside authorized scope); local maintained
   design/craft checks used. Rollback: five new UI modules/new UI tests and T04
   edits in entrypoint, visualization, current design/config/docs only; keep domain.
-  Commit/native assessment pending, including the under-budget T03a slice.
-- Next: commit/assess T04, then T05 offline Diabetes preset/reproduction/CI.
+  Commit: `5032478452540922d4b1c27a09db86c0e1a66e42` (1,273+/37-).
+  Native assessment includes under-budget T03a: medium, slice_budget_reached,
+  15 files / 1,399 net-range authored lines. User granted review; native
+  reliability reviewer inspected all 15 immutable patches with no findings.
+  Approved and exact acknowledgement applied; authority burned. Reviewer did
+  not independently run tests; functional evidence remains the checks above.
+  Candidate:
+  sha256:866297ba5faec810b76402415d960fc791df1b312ce9a9d04ba7f5c55a0c06a2.
+  Approved lineage: review-7573f86162a3afb3.
+- T06 mapping verified: global preparation defaults to imputation and would
+  block both supervised labs; do not force it. Manual split is optional in domain.
+  Reuse native widgets/design and existing validators; no model fitting in readiness.
+- T05 implemented: offline raw Diabetes provider/materializer with provenance,
+  preflight conflicts/idempotence; explicit source Apply and one-shot post-sync
+  preset; preserved CSV paths/manual edits; scoped ignores, usage/evidence docs,
+  CI lab_03 plus offline smoke. No change to historical Lab02 lock/evidence.
+  Full suite: 217 passed / 152 subtests in 156.69s; focused 98 passed in 50.41s.
+  New-file Ruff/format, app F821, pip check, CLI helps and diff check pass.
+  Full app Ruff retains 15 pre-existing code/message-equivalent findings.
+  Premium audit interrupted without result while scanning virtualenv; GitHub
+  Actions not run (local definition and equivalent commands checked).
+  Actual offline CLI twice: 14 candidates / nine families / zero failures,
+  train331/test111, validation folds67/66/66/66/66. Lasso alpha=.1 selected by
+  validation RMSE56.055613 +/-3.573092; test RMSE53.281974. All39 files equivalent:
+  29 byte-identical and ten JSON identical except argumentos.salida. Evidence
+  temporary lab03-reference-20261016-130250/verificacion.json; versions/metrics
+  documented in docs/lab03/VERIFICACION.md, not a final academic report.
+  Real browser: source choice alone retained prior CSV; Apply loaded442rows,
+  target/all10/bmi/test25/seed42; manual seed persisted through navigation.
+  Actual14-candidate benchmark matched CLI and ZIP/JSON metadata/integrity passed.
+  Screenshot page-2026-10-16T19-15-16-082Z.png inspected by parent. Four console
+  errors came from antivirus-injected Kaspersky DNS requests, no app errors;
+  browser network silence not claimed. No dataset upload/download required.
+  Rollback: new provider/prep script/reference tests/data README/verification doc,
+  T05 entrypoint source-preset hunks and CI/ignore/usage/design/README edits only.
+  Commit and native assessment pending; T06 source edits not started.
+- Next: commit/assess T05, then implement T06 guided workflow.
 

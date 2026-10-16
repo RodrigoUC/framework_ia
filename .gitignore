@@ -22,3 +22,9 @@ output/lab02/
 output/pdf/
 tmp/lab02/
 tmp/pdfs/
+
+# Referencia y resultados locales de Lab03; conservar documentación versionada.
+/.codegraph/
+/salida_lab03/
+/data/lab03/diabetes_regresion.csv
+/data/lab03/procedencia.json

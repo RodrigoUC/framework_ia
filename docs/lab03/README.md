@@ -3,6 +3,36 @@
 El núcleo de regresión conserva la jerarquía `Supervisado → Regresion` y separa
 los modelos de la interfaz. `Progresion` sigue siendo un alias compatible.
 
+## Referencia local sin descargas
+
+En **Fuente de datos → Diabetes · referencia Lab03 → Aplicar fuente** se carga
+`sklearn.datasets.load_diabetes(as_frame=True, scaled=False)`. Son 442 filas,
+diez predictoras crudas y `target`: una medida cuantitativa de progresión de la
+enfermedad al año. No es un diagnóstico binario ni el dataset HBiostat de Lab02.
+La nota de estandarización del texto `DESCR` de sklearn describe su opción
+predeterminada `scaled=True`; aquí se solicita explícitamente `False`.
+
+Aplicar la fuente configura una sola vez `target`, las diez predictoras,
+`feature_simple="bmi"`, 25 % de prueba y semilla 42. No entrena ni imputa/escala
+globalmente. Los ajustes manuales posteriores se conservan al navegar. Cambiar
+el radio de origen sin pulsar **Aplicar fuente** no cambia los datos activos.
+Los CSV arbitrarios siguen disponibles; el núcleo no reconoce nombres de datasets.
+
+```powershell
+.venv\Scripts\python.exe -m scripts.preparar_diabetes_lab03
+.venv\Scripts\python.exe -m scripts.ejecutar_lab03 data/lab03/diabetes_regresion.csv --target target --feature-simple bmi --salida salida_lab03 --fuente https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_diabetes.html
+```
+
+La preparación es offline e idempotente: comprueba CSV y procedencia antes de
+escribir, conserva archivos ajenos y rechaza contenido distinto. Registra
+opciones de carga, esquema, preset y versiones en `data/lab03/procedencia.json`.
+Su SHA-256 corresponde al **CSV materializado** (UTF-8, LF, sin índice), no a
+los archivos comprimidos originales incluidos en sklearn. La interfaz conserva
+esa distinción en sus snapshots/exportaciones. La CLI registra los bytes del
+CSV leído y sus opciones; conserve el sidecar de preparación como evidencia de
+la materialización. [Detalles de los datos](../../data/lab03/README.md) y
+[versiones/resultados realmente observados](VERIFICACION.md).
+
 ## Primer entrenamiento
 
 ```python
