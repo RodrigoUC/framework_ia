@@ -323,7 +323,8 @@ def test_global_imputation_blocks_lab2_until_source_is_restored():
     app.sidebar.button(key="nav_clasificacion_knn").click().run()
     assert app.button(key="lab2_entrenar_KNN").disabled
     assert any("fuga de información" in e.value for e in app.error)
-    app.sidebar.button(key="nav_clasificacion_knn").click().run()
+    assert app.sidebar.button(key="nav_clasificacion_knn").disabled
+    app.run()  # Direct/current routes remain guarded even when navigation is disabled.
     assert app.button(key="lab2_entrenar_KNN").disabled
     app.sidebar.button(key="nav_datos").click().run()
     next(b for b in app.button if b.label == "Restaurar dataset original").click().run()
@@ -690,7 +691,9 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
         app.sidebar.button(key="nav_lab2_resultados").click().run()
         assert not app.exception
         assert any("Accuracy prueba" in frame.value.columns for frame in app.dataframe)
-        app.sidebar.button(key="nav_lab2_experimentos").click().run()
+        assert app.sidebar.button(key="nav_lab2_experimentos").disabled
+        app.session_state["vista_activa"] = "lab2_experimentos"
+        app.run()  # No individual snapshots: direct consultation must remain read-only.
         assert not app.exception
         assert not any(
             "puntuacion_validacion" in frame.value.columns for frame in app.dataframe
@@ -1030,9 +1033,9 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
         app = _app_fuente_diabetes(datos, digest)
-        _abrir_experimentos(app)
-        app.slider(key="lab2_benchmark_validacion").set_value(30).run()
-        app.selectbox(key="lab2_benchmark_metrica").set_value("accuracy").run()
+        assert app.sidebar.button(key="nav_lab2_benchmark").disabled
+        app.session_state["lab2_benchmark_validacion"] = 30
+        app.session_state["lab2_benchmark_metrica"] = "accuracy"
         particion = Particionador(
             ConfiguracionParticion(
                 porcentaje_test=0.3, columna_estratificacion="diabetes", semilla=9
@@ -1090,7 +1093,9 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
         app = _app_fuente_diabetes(original, original_sha)
         with patch.object(Clasificacion, "experimentar") as experimentar:
-            _abrir_experimentos(app)
+            assert app.sidebar.button(key="nav_lab2_benchmark").disabled
+            app.session_state["vista_activa"] = "lab2_benchmark"
+            app.run()
             assert app.button(key="lab2_benchmark_ejecutar").disabled
             assert any(
                 "CSV original de Diabetes" in aviso.value for aviso in app.warning
@@ -1117,6 +1122,8 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
             button.key == "aplicar_configuracion_diabetes_lab02"
             for button in app.button
         )
+        assert app.button(key="lab2_benchmark_ejecutar").disabled
+        app.button(key="aplicar_configuracion_diabetes_lab02").click().run()
         assert not app.button(key="lab2_benchmark_ejecutar").disabled
         assert not any(
             "CSV original de Diabetes" in aviso.value for aviso in app.warning
@@ -1129,12 +1136,15 @@ def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
     datos, _, _, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
         app = _app_fuente_diabetes(datos, "hash-de-otro-csv")
-        _abrir_experimentos(app)
+        assert app.sidebar.button(key="nav_lab2_benchmark").disabled
+        app.session_state["vista_activa"] = "lab2_benchmark"
+        app.run()
         assert not any(
             button.key == "aplicar_configuracion_diabetes_lab02"
             for button in app.button
         )
-        assert not app.button(key="lab2_benchmark_ejecutar").disabled
+        assert app.button(key="lab2_benchmark_ejecutar").disabled
+        assert any("categóricas" in aviso.value for aviso in app.warning)
 
 
 def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(

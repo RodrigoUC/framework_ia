@@ -47,6 +47,21 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 
 ## Contratos de interacción
 
+- Flujo guiado: **Fuente → Configuración → Ejecución → Resultados**. Cada vista
+  supervisada muestra etapa, objetivo/predictores/split efectivos y siguiente
+  acción. La disponibilidad se deriva de datos y configuración, sin flags de
+  pantallas visitadas ni confirmaciones adicionales.
+- Los destinos dependientes y sus acciones se deshabilitan ante requisitos
+  incumplidos, con razones visibles y acceso permanente a Datos/Configuración
+  para corregirlos. Las rutas directas verifican los mismos requisitos.
+- Preparación global y partición manual son opcionales. EDA, ACP y clustering
+  son ramas independientes, no pasos obligatorios antes de los laboratorios.
+  Clasificación requiere clases discretas; regresión un objetivo numérico real
+  válido. No se convierten objetivos automáticamente.
+- Los diagnósticos de disponibilidad no ajustan modelos ni transformadores.
+  Un candidato inviable no impide ejecutar otros candidatos preparados de un
+  benchmark. Tras ejecutar, la navegación de resultados se actualiza sin otro ajuste.
+
 - La fuente cambia sólo al aplicar; cambiar datos invalida resultados derivados.
 - Diabetes de referencia Lab03 se carga localmente, sin red ni entrenamiento.
   Aplicar consume un preset de regresión una sola vez después de sincronizar

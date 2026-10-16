@@ -205,6 +205,27 @@ ausencia de ganadores; en estos últimos casos no crea la carpeta de salida.
 
 ## Interfaz Nexo IA
 
+### Orientación y requisitos
+
+La aplicación muestra **Fuente → Configuración → Ejecución → Resultados**,
+la etapa actual y la siguiente acción. En cada familia verá el target, número
+de predictores, porcentaje de prueba y semilla efectivos antes de entrenar.
+Los accesos y botones no disponibles explican qué falta: por ejemplo, corregir
+un target con nulos, activar codificación de predictores categóricos, seleccionar
+más variables para RLM o disponer de suficientes filas para validación cruzada.
+Datos y Configuración permanecen accesibles para resolverlo.
+
+No es obligatorio pulsar **Aplicar preparación** ni **Calcular partición**:
+el split puede generarse al ejecutar y la preparación supervisada se aprende
+solo con train. EDA/clustering son independientes. No se exige confirmar una
+configuración válida ni visitar previamente todas las pantallas.
+
+Clasificación usa clases discretas; regresión predice cantidades. El framework
+no convierte automáticamente una cantidad continua en clases. Los diagnósticos
+de disponibilidad no entrenan: sólo el botón explícito lo hace. Resultados se
+habilita cuando hay evidencia vigente de esa familia y se deshabilita al cambiar
+su contexto. Un intento parcial sigue siendo consultable.
+
 Abra `app.py` con Streamlit. La identidad conserva los colores, tipografía,
 controles nativos y temas claro/oscuro del proyecto; el nombre visible es **Nexo IA**.
 

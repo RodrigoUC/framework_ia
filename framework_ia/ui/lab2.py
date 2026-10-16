@@ -15,6 +15,8 @@ import streamlit as st
 from ..modelos.supervisado import Clasificacion
 from ..visualizacion import VisualizadorSupervisado
 from .estado_clasificacion import firma_parametros
+from .flujo import disponibilidad_supervisada
+from .guia_flujo import mostrar_faltantes
 from .parametros_clasificacion import (
     NOMBRES_MODELOS,
     parametros_individuales,
@@ -135,6 +137,11 @@ def render_modelo_individual(
     )
     segura = preparacion_segura()
     parametros = parametros_individuales(algoritmo)
+    disponibilidad = disponibilidad_supervisada(
+        datos, configuracion, "clasificacion", algoritmo=algoritmo, parametros=parametros,
+        preparacion=st.session_state.get("dataset_preparacion"),
+    )
+    mostrar_faltantes(disponibilidad)
     st.caption("Parámetros solicitados; los efectivos se muestran después de entrenar.")
     st.json(parametros or {"configuracion": "estándar del algoritmo"}, expanded=False)
     firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
@@ -147,8 +154,8 @@ def render_modelo_individual(
         "Entrenar modelo",
         key=f"lab2_entrenar_{algoritmo}",
         type="primary",
-        disabled=not configuracion["features"] or not segura,
-    ):
+        disabled=not configuracion["features"] or not segura or not disponibilidad.lista,
+    ) and disponibilidad.lista:
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
                 resultado = _modelo(datos, configuracion).entrenar(
@@ -177,6 +184,7 @@ def render_modelo_individual(
             st.success(
                 "Modelo entrenado. Las métricas siguientes corresponden a prueba."
             )
+            st.rerun()
         except Exception as exc:  # noqa: BLE001 - isolate model failures at the UI boundary.
             if algoritmo == "RF":
                 errores = dict(st.session_state.get(intentos_rf, {}))

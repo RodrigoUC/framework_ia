@@ -58,15 +58,15 @@ merge, remote execution, final academic report or submission ZIP.
   consent and transitions; never fabricate approval or toggle mode.
 - Initial cache inventory resolved through explicit exclusion. T01 native
   reliability review approved without findings and exact acknowledgement applied.
-- Last reviewed boundary: 5032478452540922d4b1c27a09db86c0e1a66e42.
+- Last reviewed boundary: b38c24fd720023996fbf8a175de34fe340528108.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
 - Updated forecast: 5,500-7,000 authored changed lines, generated files excluded;
   includes the user-requested guided workflow and prerequisite gating extension.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 4,134 (T01: 755; T02: 610; T03: 1,362; T03a: 97;
-  T04: 1,310). T01 includes 116 tracking
+- Running authored count: 4,805 (T01: 755; T02: 610; T03: 1,362; T03a: 97;
+  T04: 1,310; T05: 671). T01 includes 116 tracking
   lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
   behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
@@ -93,7 +93,7 @@ merge, remote execution, final academic report or submission ZIP.
 - [x] T04 — Integrate regression UI, saved results/comparison and Nexo IA branding.
   Route: delegated (multi-file UI/state/tests/docs). Check explicit training,
   invalidation/recovery, branding, preserved styling and browser behavior.
-- [ ] T05 — Add reproducible Diabetes preparation, usage docs and Lab03 CI;
+- [x] T05 — Add reproducible Diabetes preparation, usage docs and Lab03 CI;
   run end-to-end reproduction and full compatibility checks. Route: delegated
   (scripts/docs/CI/tests). Record actual environment versions and outcome;
   preserve Lab02 lock/evidence and never fabricate empirical findings.
@@ -259,6 +259,44 @@ line count and rollback boundary here before considering the task closed.
   browser network silence not claimed. No dataset upload/download required.
   Rollback: new provider/prep script/reference tests/data README/verification doc,
   T05 entrypoint source-preset hunks and CI/ignore/usage/design/README edits only.
-  Commit and native assessment pending; T06 source edits not started.
-- Next: commit/assess T05, then implement T06 guided workflow.
+  Commit: b38c24f (643 additions / 28 deletions). Native high risk due to
+  CI shell source; review_due=true/high_risk, 12 files/671 lines.
+  User granted native review; risk, resilience, readability and reliability
+  inspected all12 immutable patches. Approved and acknowledged; authority burned.
+  Advisory R4-001: interrupted direct file writes can leave truncated output
+  blocking retries. Non-blocking; no correction opened, receipt remains closed.
+  Record for separate scoped follow-up; no tests independently run by reviewers.
+  Candidate: sha256:6e12153d0b292731c86f9a8dac450054b6f973ca5b8cd050a4e84cceb61acbc2.
+  Approved lineage: review-821edbc8c7b50192.
+- T06 implemented: shared pure readiness adapters reuse domain data/split checks
+  without fitting; Source -> Configuration -> Execution -> Results guide with
+  current context/next action, disabled dependent navigation and execution with
+  visible missing requirements, direct-route guards and reachable correction.
+  Configuration readiness and saved evidence are separate. Successful explicit
+  fits rerun rendering once to enable results immediately, never refit on navigation.
+  Global preprocessing and manual partitions remain optional; independent
+  exploration/clustering are not forced through supervised stages. Partial
+  regression candidates remain possible. No domain/source/preset behavior changed.
+  Full final suite: 232 passed / 152 subtests in 254.16s (exit0), threads2.
+  Focused flow/VC3/themes:34 passed /22subtests; VC4 updated navigation:3passed.
+  Earlier full iteration231passed had one old test trying a now-disabled empty
+  results link; updated to assert disabled then test the direct-route guard.
+  New/changed UI modules and tests Ruff pass; entrypointF821 passes and full
+  entrypoint Ruff retains exactly15 inherited code/message-equivalent findings.
+  Diff check passes. Real browser blocked->corrected->enabled: remove predictors
+  disables models/benchmark/Continue/results with specific reason; restore all10
+  enables execution only; explicit Ridge train331/test111 unlocks results.
+  Observed RMSE53.3182,R2.4859. Stage4->configuration keyboard Enter works.
+  Desktop/light and mobile390/dark inspected; width390=scrollWidth390.
+  Diabetes classification correctly blocks invalid stratification, regression
+  remains available. No global preparation/manual split performed or required.
+  Browser console12 accumulated antivirus Kaspersky DNS errors; no app errors.
+  Parent inspected blocked screenshot20-07-13-780Z and mobile20-08-44-194Z in
+  temporary lab03-browser-qa/.playwright-cli (2026-10-16). Local audit limitations
+  and previously observed theme-rerender limitation remain as recorded in T04/T05.
+  Rollback: new ui/flujo.py,ui/guia_flujo.py,tests/test_flujo_ui.py and T06 UI
+  integration/tests/docs hunks only; preserve T01-T05 domain/reference/evidence.
+  Work-unit commit/native assessment pending. T05 advisory R4-001 remains recorded
+  separately, not silently claimed fixed by this UX change.
+- Next: commit/assess T06 guided workflow.
 

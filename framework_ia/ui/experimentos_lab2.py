@@ -16,6 +16,8 @@ from ..exportacion_lab02 import (
 from ..utils import ALGORITMOS_LAB2, METRICAS_SELECCION, configuraciones_experimento
 from ..visualizacion import VisualizadorSupervisado
 from .estado_clasificacion import firma_parametros
+from .flujo import disponibilidad_supervisada
+from .guia_flujo import mostrar_faltantes
 from .lab2 import (
     MostrarFigura,
     _argumentos_comunes,
@@ -190,13 +192,18 @@ def render_experimentos(
             )
     opciones = {"metrica": metrica, "validation_size": validation_size, "estrategia": estrategia}
     firma = firma_parametros(opciones)
+    disponibilidad = disponibilidad_supervisada(
+        datos, configuracion, "clasificacion", experimento={**opciones, "folds": FOLDS_LAB2},
+        preparacion=st.session_state.get("dataset_preparacion"),
+    )
+    mostrar_faltantes(disponibilidad)
     ejecutar = st.button(
         f"Ejecutar experimentos Lab02 · {TOTAL_CANDIDATOS} configuraciones",
         key="lab2_benchmark_ejecutar",
         type="primary",
-        disabled=not segura or not configuracion["features"] or original_diabetes,
+        disabled=not segura or not configuracion["features"] or original_diabetes or not disponibilidad.lista,
     )
-    if ejecutar and segura and not original_diabetes:
+    if ejecutar and segura and not original_diabetes and disponibilidad.lista:
         try:
             with st.spinner(
                 f"Entrenando {TOTAL_CANDIDATOS} configuraciones y seleccionando en validación…"
@@ -230,6 +237,7 @@ def render_experimentos(
             else:
                 st.session_state["resultado_lab2_intento_experimento"] = snapshot
             st.session_state.pop("error_lab2_experimento", None)
+            st.rerun()
         except Exception as exc:  # noqa: BLE001 - keep successful evidence on failure.
             st.session_state["error_lab2_experimento"] = str(exc)
             st.session_state.pop("resultado_lab2_intento_experimento", None)

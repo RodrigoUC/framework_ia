@@ -97,7 +97,9 @@ class ClassificationPanelTests(unittest.TestCase):
 
     def test_comparison_is_empty_until_a_model_is_trained(self):
         app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
-        app.sidebar.button(key="nav_lab2_resultados").click().run()
+        self.assertTrue(app.sidebar.button(key="nav_lab2_resultados").disabled)
+        app.session_state["vista_activa"] = "lab2_resultados"
+        app.run()  # Direct routes still explain the missing execution without training.
         self.assertFalse(app.exception)
         self.assertTrue(
             any("Todavía no hay ejecuciones individuales" in item.value for item in app.info)

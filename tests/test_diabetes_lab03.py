@@ -159,7 +159,8 @@ def test_source_selection_only_applies_on_confirmation_and_never_trains():
         assert app.selectbox(key="reg_feature_simple").value == "bmi"
         app.selectbox(key="reg_feature_simple").set_value("bp").run()
         app.number_input(key="reg_random_state").set_value(17).run()
-        app.sidebar.button(key="nav_lab3_resultados").click().run()
+        assert app.sidebar.button(key="nav_lab3_resultados").disabled
+        app.sidebar.button(key="nav_eda").click().run()
         app.sidebar.button(key="nav_regresion_configuracion").click().run()
         assert not app.exception
     assert app.selectbox(key="reg_feature_simple").value == "bp"

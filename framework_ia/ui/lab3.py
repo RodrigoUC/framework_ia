@@ -10,6 +10,8 @@ from ..modelos.supervisado import Regresion
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
 from ..visualizacion import VisualizadorRegresion
 from .estado_clasificacion import firma_parametros, huella_datos
+from .flujo import disponibilidad_supervisada
+from .guia_flujo import mostrar_faltantes
 from .parametros_regresion import parametros_regresion
 
 
@@ -135,6 +137,15 @@ def render_modelo_regresion(
     )
     segura = preparacion_regresion_segura()
     parametros = parametros_regresion(algoritmo)
+    disponibilidad = disponibilidad_supervisada(
+        datos,
+        configuracion,
+        "regresion",
+        algoritmo=algoritmo,
+        parametros=parametros,
+        preparacion=st.session_state.get("dataset_preparacion"),
+    )
+    mostrar_faltantes(disponibilidad)
     clave = f"resultado_lab3_modelo_{algoritmo}"
     error = f"error_lab3_modelo_{algoritmo}"
     sin_simple = algoritmo == "RLS" and configuracion["feature_simple"] is None
@@ -142,11 +153,17 @@ def render_modelo_regresion(
         st.warning(
             "Seleccione un predictor numérico para RLS en Configuración de regresión."
         )
-    if st.button(
-        "Entrenar modelo",
-        key=f"lab3_entrenar_{algoritmo}",
-        type="primary",
-        disabled=not segura or parametros is None or sin_simple,
+    if (
+        st.button(
+            "Entrenar modelo",
+            key=f"lab3_entrenar_{algoritmo}",
+            type="primary",
+            disabled=not segura
+            or parametros is None
+            or sin_simple
+            or not disponibilidad.lista,
+        )
+        and disponibilidad.lista
     ):
         try:
             with st.spinner("Ajustando regresión solo con entrenamiento…"):
@@ -161,6 +178,7 @@ def render_modelo_regresion(
                 resultado, datos, configuracion, parametros
             )
             st.session_state.pop(error, None)
+            st.rerun()
         except (ValueError, TypeError, RuntimeError) as exc:
             st.session_state[error] = str(exc)
     if st.session_state.get(error):

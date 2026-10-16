@@ -52,6 +52,8 @@ from .estado_regresion import limpiar_resultados_regresion, sincronizar_contexto
 from .lab3 import preparacion_regresion_segura, render_modelo_regresion, render_resultados_regresion
 from .experimentos_lab3 import render_experimentos_regresion
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
+from .flujo import disponibilidad_supervisada, hay_evidencia
+from .guia_flujo import mostrar_guia
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 APP_NAME = "Nexo IA"
@@ -310,7 +312,7 @@ def _cargar_fuente_csv(
     _guardar_metadatos_fuente(contenido, configuracion, fuente)
 
 
-def _seleccionar_vista() -> str:
+def _seleccionar_vista(disponibilidades=None) -> str:
     """Renderiza la navegación multinivel y devuelve la vista activa."""
     vista = st.session_state.setdefault("vista_activa", "datos")
     if vista == "comparacion":
@@ -318,6 +320,7 @@ def _seleccionar_vista() -> str:
     elif vista in {"tsne", "umap"}:
         vista = "kmeans"
     st.session_state["vista_activa"] = vista
+    disponibilidades = disponibilidades or {}
 
     def navegar(destino: str) -> None:
         st.session_state["vista_activa"] = destino
@@ -362,30 +365,43 @@ def _seleccionar_vista() -> str:
             boton("HAC", "hac")
 
         with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"}):
+            disponible = disponibilidades.get("clasificacion")
+            bloqueada = disponible is not None and not disponible.lista
+            if bloqueada:
+                st.caption("Pendiente en Configuración de clasificación: " + " ".join(disponible.faltantes))
             st.markdown(
                 '<p class="atlas-family">Modelos disponibles</p>',
                 unsafe_allow_html=True,
             )
-            boton("KNN", "clasificacion_knn")
-            boton("Árbol de decisión", "clasificacion_dt")
-            boton("Random Forest", "clasificacion")
-            boton("XGBoost", "clasificacion_xgboost")
-            boton("AdaBoost", "clasificacion_adaboost")
-            boton("Naive Bayes", "clasificacion_nb")
-            boton("Experimentos Lab02", "lab2_benchmark")
-            boton("Comparar modelos entrenados", "lab2_experimentos")
+            boton("KNN", "clasificacion_knn", disabled=bloqueada)
+            boton("Árbol de decisión", "clasificacion_dt", disabled=bloqueada)
+            boton("Random Forest", "clasificacion", disabled=bloqueada)
+            boton("XGBoost", "clasificacion_xgboost", disabled=bloqueada)
+            boton("AdaBoost", "clasificacion_adaboost", disabled=bloqueada)
+            boton("Naive Bayes", "clasificacion_nb", disabled=bloqueada)
+            boton("Experimentos Lab02", "lab2_benchmark", disabled=bloqueada)
+            boton("Comparar modelos entrenados", "lab2_experimentos", disabled=not hay_evidencia(st.session_state, "clasificacion", solo_modelos=True))
 
         with st.expander("Regresión", expanded=vista in VISTAS_REGRESION):
+            disponible = disponibilidades.get("regresion")
+            bloqueada = disponible is not None and not disponible.lista
+            if bloqueada:
+                st.caption("Pendiente en Configuración de regresión: " + " ".join(disponible.faltantes))
             for destino, algoritmo in VISTAS_REGRESORES.items():
-                boton(NOMBRES_REGRESORES[algoritmo], destino)
-            boton("Experimentos Lab03", "lab3_benchmark")
-            boton("Comparar regresores entrenados", "lab3_comparacion")
+                bloqueo_modelo = bloqueada and not (algoritmo == "RLS" and disponibilidades.get("RLS", disponible).lista)
+                boton(NOMBRES_REGRESORES[algoritmo], destino, disabled=bloqueo_modelo)
+            boton("Experimentos Lab03", "lab3_benchmark", disabled=bloqueada and not disponibilidades.get("RLS", disponible).lista)
+            boton("Comparar regresores entrenados", "lab3_comparacion", disabled=not hay_evidencia(st.session_state, "regresion", solo_modelos=True))
 
         st.markdown(
             '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
         )
-        boton("Resultados de clasificación", "lab2_resultados")
-        boton("Resultados de regresión", "lab3_resultados")
+        for familia, destino, etiqueta in (("clasificacion", "lab2_resultados", "Resultados de clasificación"),
+                                          ("regresion", "lab3_resultados", "Resultados de regresión")):
+            evidencia = hay_evidencia(st.session_state, familia)
+            boton(etiqueta, destino, disabled=not evidencia)
+            if not evidencia:
+                st.caption(f"{etiqueta}: ejecute primero un modelo o experimento del contexto actual.")
     return st.session_state["vista_activa"]
 
 
@@ -506,6 +522,7 @@ def _render_dataset() -> None:
         _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
 
     st.markdown("#### Preparación y limpieza")
+    st.caption("Opcional para exploración y clustering. Para clasificación/regresión, conserve los datos sin imputación ni escalado global: esas operaciones se configuran y aprenden solo con train. Puede continuar directamente a Configuración.")
     columnas_eliminar = st.multiselect(
         "Columnas a eliminar",
         options=original.columns.tolist(),
@@ -1449,13 +1466,44 @@ def main() -> None:
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()
     if datos_cargados is None:
         st.markdown(f"# {APP_NAME}")
+        st.caption("Etapa 1 · Fuente pendiente. Aplique un CSV o la referencia local desde Fuente de datos para habilitar el análisis.")
         st.info("Seleccione un CSV local o suba un archivo para comenzar.")
         return
     _sincronizar_dataset(datos_cargados, identidad)
     _aplicar_preset_regresion(identidad)
     datos = st.session_state["dataset_preparado"]
-    vista = _seleccionar_vista()
+    configuraciones_actuales = {
+        "clasificacion": configuracion_clasificacion_actual(datos, st.session_state),
+        "regresion": configuracion_regresion_actual(datos, st.session_state),
+    }
+    for familia, sincronizar, limpiar in (
+        ("clasificacion", sincronizar_contexto, limpiar_resultados_clasificacion),
+        ("regresion", sincronizar_contexto_regresion, limpiar_resultados_regresion),
+    ):
+        actual = configuraciones_actuales[familia]
+        if actual is None:
+            limpiar(st.session_state)
+        else:
+            sincronizar(st.session_state, datos, actual)
+    disponibilidades = {
+        familia: disponibilidad_supervisada(datos, actual, familia,
+                                            preparacion=st.session_state.get("dataset_preparacion"))
+        for familia, actual in configuraciones_actuales.items()
+    }
+    if not disponibilidades["regresion"].lista:
+        disponibilidades["RLS"] = disponibilidad_supervisada(
+            datos, configuraciones_actuales["regresion"], "regresion", algoritmo="RLS",
+            preparacion=st.session_state.get("dataset_preparacion"),
+        )
+    vista = _seleccionar_vista(disponibilidades)
     _render_encabezado_atlas(datos, etiqueta, vista)
+    familia = ("regresion" if vista in VISTAS_REGRESION else "clasificacion"
+               if vista in {*VISTAS_CLASIFICADORES, "clasificacion_configuracion", "lab2_benchmark", "lab2_experimentos", "lab2_resultados"} else None)
+    disponibilidad_vista = disponibilidades.get(familia)
+    if (vista in {"regresion_rls", "lab3_benchmark"}
+            and disponibilidades.get("RLS") is not None and disponibilidades["RLS"].lista):
+        disponibilidad_vista = disponibilidades["RLS"]
+    mostrar_guia(vista, familia, disponibilidad_vista, configuraciones_actuales.get(familia))
     if vista in {"clasificacion_configuracion", "lab2_benchmark"}:
         render_perfil_diabetes(datos)
 

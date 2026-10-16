@@ -13,6 +13,8 @@ from ..utils.configuracion_regresion import (
 )
 from ..visualizacion import VisualizadorRegresion
 from .estado_clasificacion import firma_parametros
+from .flujo import disponibilidad_supervisada
+from .guia_flujo import mostrar_faltantes
 from .lab3 import (
     argumentos_comunes,
     crear_regresor,
@@ -152,6 +154,14 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         "feature_simple": configuracion["feature_simple"],
     }
     catalogo = configuraciones_experimento_regresion()
+    disponibilidad = disponibilidad_supervisada(
+        datos,
+        configuracion,
+        "regresion",
+        experimento=opciones,
+        preparacion=st.session_state.get("dataset_preparacion"),
+    )
+    mostrar_faltantes(disponibilidad)
     with st.expander("Candidatos que se ejecutarán"):
         st.dataframe(
             pd.DataFrame(
@@ -168,11 +178,14 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
             hide_index=True,
             width="stretch",
         )
-    if st.button(
-        "Ejecutar experimento",
-        key="lab3_ejecutar_experimento",
-        type="primary",
-        disabled=not segura or not algoritmos,
+    if (
+        st.button(
+            "Ejecutar experimento",
+            key="lab3_ejecutar_experimento",
+            type="primary",
+            disabled=not segura or not algoritmos or not disponibilidad.lista,
+        )
+        and disponibilidad.lista
     ):
         try:
             with st.spinner("Comparando candidatos por validación…"):
@@ -186,6 +199,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
             else:
                 st.session_state["resultado_lab3_intento_experimento"] = snapshot
             st.session_state.pop("error_lab3_experimento", None)
+            st.rerun()
         except (ValueError, TypeError, RuntimeError) as exc:
             st.session_state["error_lab3_experimento"] = str(exc)
             st.session_state.pop("resultado_lab3_intento_experimento", None)
