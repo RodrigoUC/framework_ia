@@ -14,12 +14,14 @@ from framework_ia.datos.diabetes_lab02 import (
     PREDICTORAS_DIABETES,
     validar_preparacion_diabetes,
 )
+from framework_ia.datos.potabilidad_lab02 import validar_preparacion_potabilidad
 from framework_ia.exportacion_lab02 import construir_zip_experimento
-from framework_ia.utils import ALGORITMOS_LAB2
+from framework_ia.utils import ALGORITMOS_LAB2, configuraciones_experimento
 
 RAIZ = Path(__file__).resolve().parents[1]
 DATASETS = ("potabilidad", "diabetes")
-EXCLUIDOS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
+EXCLUIDOS = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".ruff_cache"}
+CON_IMPORTANCIA_INTERNA = {"DT", "RF", "XGBoost", "AdaBoost"}
 
 
 def crear_parser() -> argparse.ArgumentParser:
@@ -52,22 +54,38 @@ def _json(ruta: Path) -> dict:
     return contenido
 
 
-def _validar_resultados(
-    resultados: Path, datos: Path, procedencia: dict
-) -> dict[str, str]:
-    """Rechaza ejecuciones parciales o evidencia de otro CSV."""
-    huellas = {}
-    algoritmos = set(ALGORITMOS_LAB2)
-    esperados = {
+def archivos_evidencia() -> tuple[set[str], set[str]]:
+    """Archivos obligatorios y opcionales de cada carpeta de resultados."""
+    obligatorios = {
         "configuracion.json",
         "comparacion_validacion.csv",
         "mejores_modelos.json",
+        "ranking_atributos.csv",
+        "DT/arbol.txt",
     }
-    esperados.update(
-        f"{algoritmo}/{nombre}"
-        for algoritmo in algoritmos
-        for nombre in ("matriz_confusion_test.csv", "predicciones_test.csv")
-    )
+    for algoritmo in ALGORITMOS_LAB2:
+        obligatorios.update(
+            f"{algoritmo}/{nombre}"
+            for nombre in (
+                "matriz_confusion_test.csv",
+                "predicciones_test.csv",
+                "importancia_permutacion.csv",
+                "roc_test.csv",
+            )
+        )
+    opcionales = {f"{a}/importancia_modelo.csv" for a in CON_IMPORTANCIA_INTERNA}
+    return obligatorios, opcionales
+
+
+def _validar_resultados(
+    resultados: Path, datos: Path, procedencia: dict
+) -> dict[str, str]:
+    """Rechaza ejecuciones parciales, otro protocolo o evidencia de otro CSV."""
+    huellas = {}
+    algoritmos = set(ALGORITMOS_LAB2)
+    catalogo = configuraciones_experimento()
+    total = sum(len(lista) for lista in catalogo.values())
+    obligatorios, opcionales = archivos_evidencia()
     for nombre in DATASETS:
         directorio = resultados / nombre
         presentes = {
@@ -75,9 +93,11 @@ def _validar_resultados(
             for ruta in directorio.rglob("*")
             if ruta.is_file()
         }
-        if presentes != esperados:
+        if not obligatorios <= presentes or not presentes <= obligatorios | opcionales:
+            faltan = sorted(obligatorios - presentes)
+            sobran = sorted(presentes - obligatorios - opcionales)
             raise ValueError(
-                f"{nombre}: se requieren exactamente los 13 archivos de evidencia."
+                f"{nombre}: evidencia incompleta o ajena (faltan {faltan}; sobran {sobran})."
             )
         configuracion = _json(directorio / "configuracion.json")
         dataset = configuracion["dataset"]
@@ -87,58 +107,66 @@ def _validar_resultados(
         origen = procedencia[nombre]
         if archivo != origen["ruta"]:
             raise ValueError(f"{nombre}: resultados de otro archivo de entrada.")
-        csv = datos / archivo
-        huella = _sha(csv.read_bytes())
+        huella = _sha((datos / archivo).read_bytes())
         if dataset.get("sha256") != huella or origen.get("sha256") != huella:
             raise ValueError(
                 f"{nombre}: SHA-256 de resultados y procedencia debe coincidir con el CSV de entrada."
             )
         if dataset.get("fuente") != origen["fuente"]:
             raise ValueError(f"{nombre}: fuente de resultados distinta de procedencia.")
-        if nombre == "diabetes":
-            argumentos = configuracion["argumentos"]
-            if (
-                argumentos.get("target") != "diabetes"
-                or argumentos.get("features") != list(PREDICTORAS_DIABETES)
-                or argumentos.get("incluir_categoricas") is not True
-                or argumentos.get("separador") != ","
-                or argumentos.get("decimal") != "."
-                or argumentos.get("encoding") != "utf-8"
-                or dataset.get("filas") != origen["derivacion"]["filas_preparadas"]
-                or dataset.get("columnas") != [*PREDICTORAS_DIABETES, "diabetes"]
-            ):
-                raise ValueError(
-                    "diabetes: resultados incompatibles con el protocolo de preparación y sus 17 predictoras."
-                )
+        if dataset.get("filas") != origen["derivacion"]["filas_preparadas"]:
+            raise ValueError(f"{nombre}: filas distintas de la preparación registrada.")
+        argumentos = configuracion["argumentos"]
+        if nombre == "diabetes" and (
+            argumentos.get("target") != "diabetes"
+            or argumentos.get("features") != list(PREDICTORAS_DIABETES)
+            or argumentos.get("incluir_categoricas") is not True
+            or dataset.get("columnas") != [*PREDICTORAS_DIABETES, "diabetes"]
+        ):
+            raise ValueError(
+                "diabetes: resultados incompatibles con el protocolo de preparación y sus 17 predictoras."
+            )
+        if nombre == "potabilidad" and argumentos.get("target") != "Potability":
+            raise ValueError("potabilidad: el objetivo debe ser Potability.")
         metadatos = configuracion["experimento"]
         if (
-            metadatos.get("candidatos_fallidos") != 0
-            or metadatos.get("candidatos_exitosos") != 15
+            metadatos.get("estrategia_seleccion") != "validacion_cruzada_estratificada"
+            or metadatos.get("candidatos_fallidos") != 0
+            or metadatos.get("candidatos_exitosos") != total
             or metadatos.get("errores_prueba")
             or metadatos.get("test_usado_para_seleccion") is not False
         ):
             raise ValueError(
-                f"{nombre}: experimento incompleto o selección sin test reservado."
+                f"{nombre}: experimento incompleto, sin validación cruzada o sin test reservado."
             )
         tabla = pd.read_csv(directorio / "comparacion_validacion.csv")
+        configs = tabla[tabla.etapa == "configuracion"]
         if (
-            len(tabla) != 15
-            or set(tabla.algoritmo) != algoritmos
+            len(configs) != total
+            or set(configs.algoritmo) != algoritmos
             or not tabla.estado.eq("ok").all()
-            or not tabla.groupby("algoritmo").size().eq(3).all()
-            or not tabla.loc[tabla.configuracion.eq("estandar")]
-            .groupby("algoritmo")
-            .size()
-            .reindex(ALGORITMOS_LAB2, fill_value=0)
-            .eq(1)
-            .all()
+            or any(
+                (configs.algoritmo == a).sum() != len(catalogo[a]) for a in algoritmos
+            )
+            or any(
+                ((configs.algoritmo == a) & (configs.configuracion == "estandar")).sum() != 1
+                for a in algoritmos
+            )
         ):
             raise ValueError(
-                f"{nombre}: faltan configuraciones estándar y dos variantes por método."
+                f"{nombre}: faltan configuraciones estándar y variantes por método."
             )
         seleccionadas = tabla.loc[tabla.seleccionado.astype(str).str.lower().eq("true")]
         if len(seleccionadas) != 5 or set(seleccionadas.algoritmo) != algoritmos:
             raise ValueError(f"{nombre}: debe existir un ganador por método.")
+        for algoritmo, grupo in tabla.groupby("algoritmo"):
+            elegido = grupo.loc[grupo.seleccionado.astype(str).str.lower().eq("true")]
+            if not math.isclose(
+                float(elegido.puntuacion_validacion.iloc[0]),
+                float(grupo.puntuacion_validacion.max()),
+                abs_tol=1e-12,
+            ):
+                raise ValueError(f"{nombre}/{algoritmo}: el ganador no maximiza la validación.")
         mejores = _json(directorio / "mejores_modelos.json")
         if set(mejores) != algoritmos:
             raise ValueError(f"{nombre}: faltan ganadores evaluados en test.")
@@ -204,12 +232,16 @@ def construir_entrega(
             raise ValueError(f"Falta el código Python requerido: {carpeta}.")
     datos = raiz / "data" / "lab02"
     procedencia = _json(datos / "procedencia.json")
-    archivos_diabetes = validar_preparacion_diabetes(datos, procedencia["diabetes"])
+    archivos_datos = {
+        **validar_preparacion_diabetes(datos, procedencia["diabetes"]),
+        **validar_preparacion_potabilidad(datos, procedencia["potabilidad"]),
+    }
     huellas = _validar_resultados(argumentos.resultados, datos, procedencia)
     archivos = {}
 
     def agregar(ruta: Path, nombre: str) -> None:
-        if any(parte in EXCLUIDOS for parte in ruta.parts):
+        partes = ruta.relative_to(raiz).parts if ruta.is_relative_to(raiz) else ruta.parts
+        if any(parte in EXCLUIDOS for parte in partes):
             return
         contenido = ruta.read_bytes()
         if nombre in archivos and archivos[nombre] != contenido:
@@ -227,8 +259,7 @@ def construir_entrega(
         ".streamlit/config.toml",
     ):
         agregar(raiz / nombre, nombre)
-    leeme = raiz / "docs" / "lab02" / "LEEME_ENTREGA.md"
-    agregar(leeme, "README.md")
+    agregar(raiz / "docs" / "lab02" / "LEEME_ENTREGA.md", "README.md")
     for carpeta in ("framework_ia", "scripts", "tests"):
         for ruta in sorted((raiz / carpeta).rglob("*.py")):
             if ruta.name in {"ejecutar_lab01.py", "preparar_entrega_lab01.py"}:
@@ -239,52 +270,31 @@ def construir_entrega(
             agregar(ruta, ruta.relative_to(raiz).as_posix())
     guia = raiz / "docs" / "lab01" / "guia_clasificacion.pdf"
     if guia.is_file():
-        # Es la guía LAB02; conservar su ruta evita romper el enlace del README.
         agregar(guia, "docs/lab01/guia_clasificacion.pdf")
-    for nombre, contenido in archivos_diabetes.items():
+    ejemplo = raiz / "data" / "ejemplo_analisis.csv"
+    if ejemplo.is_file():  # Dataset de ejemplo que la aplicación abre por defecto.
+        agregar(ejemplo, "data/ejemplo_analisis.csv")
+    for nombre, contenido in archivos_datos.items():
         archivos[f"data/lab02/{nombre}"] = contenido
-    nombres_datos = {"procedencia.json", "README.md"}
-    nombres_datos.update(
-        _json(argumentos.resultados / nombre / "configuracion.json")["dataset"][
-            "archivo"
-        ]
-        for nombre in DATASETS
-    )
-    for nombre in sorted(nombres_datos):
-        if nombre in archivos_diabetes:
-            continue
+    for nombre in ("procedencia.json", "README.md", "trazabilidad_diabetes.csv"):
         ruta = datos / nombre
         if ruta.is_file():
             agregar(ruta, ruta.relative_to(raiz).as_posix())
     for nombre in DATASETS:
         for ruta in sorted((argumentos.resultados / nombre).rglob("*")):
             if ruta.is_file():
-                agregar(
-                    ruta,
-                    "salida_lab02/"
-                    + ruta.relative_to(argumentos.resultados).as_posix(),
-                )
-    agregar(argumentos.informe, "informe/main.pdf")
+                archivos[
+                    "salida_lab02/" + ruta.relative_to(argumentos.resultados).as_posix()
+                ] = ruta.read_bytes()
+    archivos["informe/main.pdf"] = pdf
     for ruta in sorted(argumentos.fuentes_tex.parent.rglob("*")):
         if ruta.is_file() and ruta.suffix.lower() in {
-            ".tex",
-            ".bib",
-            ".sty",
-            ".cls",
-            ".bst",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".svg",
-            ".csv",
-            ".json",
-            ".md",
-            ".zip",
+            ".tex", ".bib", ".sty", ".cls", ".bst", ".png", ".jpg", ".jpeg",
+            ".svg", ".csv", ".json", ".md", ".zip",
         }:
-            agregar(
-                ruta,
-                "informe/" + ruta.relative_to(argumentos.fuentes_tex.parent).as_posix(),
-            )
+            archivos[
+                "informe/" + ruta.relative_to(argumentos.fuentes_tex.parent).as_posix()
+            ] = ruta.read_bytes()
     manifiesto = {
         "laboratorio": "Lab02",
         "integrantes": argumentos.ids,

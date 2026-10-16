@@ -115,40 +115,39 @@ NOMBRES_MODELOS = {
     for algoritmo, configuracion in CONFIGURACIONES_MODELO.items()
 }
 
+# Cada variante cambia UN solo aspecto respecto de la configuración estándar,
+# para que su efecto pueda atribuirse a ese hiperparámetro. ``balancear_clases``
+# pondera las observaciones según la frecuencia inversa de su clase en train.
 _CONFIGURACIONES_EXPERIMENTO = {
     "KNN": (
         ("estandar", {}),
-        ("vecinos_3_distancia", {"n_neighbors": 3, "weights": "distance"}),
-        ("vecinos_9_manhattan", {"n_neighbors": 9, "p": 1}),
+        ("k_15", {"n_neighbors": 15}),
+        ("pesos_distancia", {"weights": "distance"}),
+        ("manhattan", {"p": 1}),
     ),
     "DT": (
         ("estandar", {}),
-        ("profundidad_4", {"max_depth": 4, "min_samples_leaf": 2}),
-        ("entropia_8", {"criterion": "entropy", "max_depth": 8}),
+        ("profundidad_5", {"max_depth": 5}),
+        ("hoja_minima_10", {"min_samples_leaf": 10}),
+        ("clases_balanceadas", {"balancear_clases": True}),
     ),
     "RF": (
         ("estandar", {}),
-        ("profundidad_6", {"max_depth": 6, "min_samples_leaf": 2}),
-        ("200_arboles", {"n_estimators": 200, "max_features": "log2"}),
+        ("500_arboles", {"n_estimators": 500}),
+        ("hoja_minima_5", {"min_samples_leaf": 5}),
+        ("clases_balanceadas", {"balancear_clases": True}),
     ),
     "XGBoost": (
         ("estandar", {}),
-        ("profundidad_3", {"max_depth": 3, "learning_rate": 0.1, "n_estimators": 100}),
-        (
-            "submuestreo",
-            {
-                "max_depth": 4,
-                "learning_rate": 0.05,
-                "n_estimators": 150,
-                "subsample": 0.8,
-                "colsample_bytree": 0.8,
-            },
-        ),
+        ("tasa_0_05", {"learning_rate": 0.05}),
+        ("profundidad_3", {"max_depth": 3}),
+        ("clases_balanceadas", {"balancear_clases": True}),
     ),
     "AdaBoost": (
         ("estandar", {}),
-        ("100_estimadores", {"n_estimators": 100, "learning_rate": 0.5}),
-        ("200_estimadores", {"n_estimators": 200, "learning_rate": 0.1}),
+        ("200_estimadores", {"n_estimators": 200}),
+        ("tasa_0_5", {"learning_rate": 0.5}),
+        ("clases_balanceadas", {"balancear_clases": True}),
     ),
 }
 

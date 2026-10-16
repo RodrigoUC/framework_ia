@@ -47,6 +47,18 @@ def crear_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--algoritmos", nargs="+", choices=["KNN", "DT", "RF", "XGBoost", "AdaBoost"]
     )
+    parser.add_argument(
+        "--estrategia",
+        choices=["cv", "holdout"],
+        default="cv",
+        help="cv: validación cruzada estratificada en train (predeterminada); holdout: una validación.",
+    )
+    parser.add_argument("--folds", type=int, default=5, help="Pliegues de la validación cruzada.")
+    parser.add_argument(
+        "--seleccion-k",
+        default="auto",
+        help="Atributos a conservar en la etapa de selección; 'auto' usa la mitad, 0 la omite.",
+    )
     parser.add_argument("--incluir-categoricas", action="store_true")
     parser.add_argument("--sin-escalar", action="store_true")
     parser.add_argument("--sin-imputar", action="store_true")
@@ -72,14 +84,26 @@ def ejecutar(argumentos: argparse.Namespace) -> Path:
     clasificador = Clasificacion(
         dataframe=datos, target=argumentos.target, features=argumentos.features
     )
+    estrategia = getattr(argumentos, "estrategia", "holdout")
+    opciones_estrategia = (
+        {
+            "estrategia": "cv",
+            "folds": argumentos.folds,
+            "seleccion_k": "auto"
+            if str(argumentos.seleccion_k) == "auto"
+            else int(argumentos.seleccion_k),
+        }
+        if estrategia == "cv"
+        else {"validation_size": argumentos.validation_size}
+    )
     experimento = clasificador.experimentar(
         algoritmos=argumentos.algoritmos,
         test_size=argumentos.test_size,
-        validation_size=argumentos.validation_size,
         random_state=argumentos.semilla,
         incluir_categoricas=argumentos.incluir_categoricas,
         imputar=not argumentos.sin_imputar,
         estandarizar=not argumentos.sin_escalar,
+        **opciones_estrategia,
     )
     if not experimento.mejores:
         errores = experimento.tabla["error"].dropna().tolist()

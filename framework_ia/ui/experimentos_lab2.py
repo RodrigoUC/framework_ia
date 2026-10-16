@@ -28,6 +28,13 @@ from .lab2 import (
 )
 from .perfil_diabetes import estado_fuente_diabetes
 
+FOLDS_LAB2 = 5
+ESTRATEGIAS = {
+    "cv": f"Validación cruzada estratificada ({FOLDS_LAB2} pliegues)",
+    "holdout": "Validación simple (una partición)",
+}
+TOTAL_CANDIDATOS = sum(len(lista) for lista in configuraciones_experimento().values())
+
 
 def _fuente_ejecutada(datos: pd.DataFrame) -> dict:
     fuente = st.session_state.get("fuente_aplicada", (None, "", ""))
@@ -55,6 +62,8 @@ def _argumentos_exportacion(configuracion: dict, opciones: dict, fuente: dict) -
         "semilla": configuracion["random_state"],
         "test_size": configuracion["test_size"],
         "validation_size": opciones["validation_size"],
+        "estrategia": opciones.get("estrategia", "holdout"),
+        "folds": FOLDS_LAB2 if opciones.get("estrategia") == "cv" else None,
         "metrica": opciones["metrica"],
         "algoritmos": list(ALGORITMOS_LAB2),
         "incluir_categoricas": configuracion["incluir_categoricas"],
@@ -72,8 +81,8 @@ def render_experimentos(
 ) -> None:
     """La navegación y los controles no entrenan; el botón realiza un benchmark."""
     st.caption(
-        "Cinco algoritmos, una configuración estándar y dos variantes por algoritmo. "
-        "Validación selecciona; prueba evalúa únicamente los ganadores."
+        f"Cinco algoritmos, una configuración estándar y variantes de un solo cambio por algoritmo ({TOTAL_CANDIDATOS} candidatos). "
+        "Validación selecciona; prueba evalúa únicamente los ganadores. La CLI usa además validación cruzada."
     )
     contexto = _contexto_ejecucion(configuracion)
     st.caption(
@@ -83,7 +92,7 @@ def render_experimentos(
     segura = preparacion_segura(mostrar_guia=True)
     original_diabetes = estado_fuente_diabetes(datos, st.session_state) == "original"
     catalogo = configuraciones_experimento()
-    with st.expander("Catálogo · 5 algoritmos / 15 configuraciones"):
+    with st.expander(f"Catálogo · 5 algoritmos / {TOTAL_CANDIDATOS} configuraciones"):
         _mostrar_dataframe(
             pd.DataFrame(
                 [
@@ -98,7 +107,7 @@ def render_experimentos(
                     for candidato in candidatos
                 ]
             ),
-            alt="Catálogo de las cinco familias: estándar y dos variantes de cada una",
+            alt="Catálogo de las cinco familias: estándar y variantes de cada una",
             hide_index=True,
             width="stretch",
         )
@@ -111,13 +120,38 @@ def render_experimentos(
         key="lab2_benchmark_metrica",
         persist_state="session",
     )
+    estrategia = st.radio(
+        "Estrategia de validación",
+        list(ESTRATEGIAS),
+        format_func=ESTRATEGIAS.get,
+        key="lab2_benchmark_estrategia",
+        horizontal=True,
+        help="La validación cruzada es la usada en el informe: cada configuración se "
+        "entrena 5 veces sobre train y se promedia el F1 macro.",
+    )
     particion = configuracion.get("particion_global")
     validacion_externa = (
-        particion is not None
+        estrategia == "holdout"
+        and particion is not None
         and particion.validacion is not None
         and not particion.validacion.empty
     )
-    if validacion_externa:
+    if estrategia == "cv":
+        validation_size = None
+        if particion is not None:
+            filas_train = len(particion.train) + (
+                0 if particion.validacion is None else len(particion.validacion)
+            )
+            st.caption(
+                f"Entrenamiento: {filas_train} filas divididas en {FOLDS_LAB2} pliegues "
+                f"estratificados · Prueba reservada: {len(particion.test)} filas"
+            )
+        else:
+            st.caption(
+                f"Train ({1 - configuracion['test_size']:.0%}) se divide en {FOLDS_LAB2} pliegues "
+                f"estratificados; prueba ({configuracion['test_size']:.0%}) se usa una vez al final."
+            )
+    elif validacion_externa:
         validation_size = None
         derecha.caption(
             f"Validación reutilizada: {len(particion.validacion)} filas. "
@@ -154,10 +188,10 @@ def render_experimentos(
                 f"train {(1 - test_size) * (1 - validation_size):.0%} · "
                 f"validación {(1 - test_size) * validation_size:.0%} · prueba {test_size:.0%}"
             )
-    opciones = {"metrica": metrica, "validation_size": validation_size}
+    opciones = {"metrica": metrica, "validation_size": validation_size, "estrategia": estrategia}
     firma = firma_parametros(opciones)
     ejecutar = st.button(
-        "Ejecutar experimentos Lab02 · 15 configuraciones",
+        f"Ejecutar experimentos Lab02 · {TOTAL_CANDIDATOS} configuraciones",
         key="lab2_benchmark_ejecutar",
         type="primary",
         disabled=not segura or not configuracion["features"] or original_diabetes,
@@ -165,10 +199,12 @@ def render_experimentos(
     if ejecutar and segura and not original_diabetes:
         try:
             with st.spinner(
-                "Entrenando 15 configuraciones y seleccionando en validación…"
+                f"Entrenando {TOTAL_CANDIDATOS} configuraciones y seleccionando en validación…"
             ):
                 argumentos = {**_argumentos_comunes(configuracion), "metrica": metrica}
-                if validation_size is not None:
+                if estrategia == "cv":
+                    argumentos.update(estrategia="cv", folds=FOLDS_LAB2)
+                elif validation_size is not None:
                     argumentos["validation_size"] = validation_size
                 resultado = _modelo(datos, configuracion).experimentar(
                     algoritmos=list(ALGORITMOS_LAB2),
@@ -230,7 +266,7 @@ def render_resultado_experimento(
     if guardado is None:
         if intento is None:
             st.info(
-                "Todavía no hay experimentos guardados. Ejecute las 15 configuraciones en Experimentos Lab02."
+                f"Todavía no hay experimentos guardados. Ejecute las {TOTAL_CANDIDATOS} configuraciones en Experimentos Lab02."
             )
         return
     resultado = guardado["resultado"]
@@ -242,10 +278,18 @@ def render_resultado_experimento(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
     )
-    st.caption(
-        f"Filas efectivas: train {metadatos['muestra_train']} · "
-        f"validación {metadatos['muestra_validacion']} · prueba {metadatos['muestra_test']}"
-    )
+    if metadatos.get("estrategia_seleccion") == "validacion_cruzada_estratificada":
+        st.caption(
+            f"Filas efectivas: train {metadatos['muestra_train']} · validación cruzada de "
+            f"{metadatos['folds']} pliegues "
+            f"({'/'.join(map(str, metadatos['muestra_validacion_por_pliegue']))} filas) · "
+            f"prueba {metadatos['muestra_test']}"
+        )
+    else:
+        st.caption(
+            f"Filas efectivas: train {metadatos['muestra_train']} · "
+            f"validación {metadatos['muestra_validacion']} · prueba {metadatos['muestra_test']}"
+        )
     fallidos = metadatos.get("candidatos_fallidos", 0)
     errores_test = metadatos.get("errores_prueba", {})
     if fallidos or errores_test or len(resultado.mejores) != len(ALGORITMOS_LAB2):
@@ -256,7 +300,7 @@ def render_resultado_experimento(
         )
     else:
         st.success(
-            "15 configuraciones evaluadas; 5 ganadores seleccionados por validación."
+            f"{TOTAL_CANDIDATOS} configuraciones evaluadas; 5 ganadores seleccionados por validación."
         )
     for algoritmo, detalle in errores_test.items():
         st.error(f"Prueba de {algoritmo}: {detalle}")

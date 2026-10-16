@@ -122,8 +122,10 @@ class Lab02CLITests(unittest.TestCase):
         resultado = Clasificacion(dataframe=datos, target="clase").experimentar(
             algoritmos=argumentos.algoritmos,
             test_size=argumentos.test_size,
-            validation_size=argumentos.validation_size,
             random_state=argumentos.semilla,
+            estrategia=argumentos.estrategia,
+            folds=argumentos.folds,
+            seleccion_k=argumentos.seleccion_k,
         )
         tabla_original = resultado.tabla.copy(deep=True)
         metadatos_originales = deepcopy(resultado.metadatos)

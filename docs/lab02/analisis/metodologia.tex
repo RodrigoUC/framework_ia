@@ -1,0 +1,72 @@
+\section{Metodología}
+
+\subsection{Integración en el framework}
+Los algoritmos se implementaron en la jerarquía de clases del framework del curso:
+\texttt{EDA} $\rightarrow$ \texttt{Supervisado} $\rightarrow$ \texttt{Clasificacion}
+(módulo \texttt{framework\_ia/modelos/supervisado}). \texttt{Clasificacion} expone un
+método por algoritmo (\texttt{knn}, \texttt{arbol\_decision}, \texttt{random\_forest},
+\texttt{xgboost}, \texttt{adaboost}, con los alias \texttt{KNN}, \texttt{DT},
+\texttt{RF}, \texttt{XGBoost}, \texttt{AdaBoost}) para entrenar una configuración, y el
+método \texttt{experimentar} para el protocolo completo de este informe:
+
+\begin{verbatim}
+from framework_ia.modelos import Clasificacion
+modelo = Clasificacion(dataframe=datos, target="diabetes", features=predictoras)
+resultado = modelo.experimentar(estrategia="cv", folds=5, random_state=42,
+                                incluir_categoricas=True)
+resultado.tabla            # todas las configuraciones evaluadas
+resultado.mejores["RF"]    # ganador de Random Forest evaluado en test
+\end{verbatim}
+
+El preprocesamiento vive en \texttt{PreprocesadorSupervisado}: imputación por mediana
+(numéricas) y moda (categóricas), codificación one-hot, estandarización y, de forma
+opcional, selección de los $k$ atributos con mayor información mutua. Es un
+transformador de scikit-learn \cite{pedregosa} que se ajusta en cada pliegue sólo con
+las filas de entrenamiento. La validación cruzada está en
+\texttt{validacion\_cruzada.py}, y el script \texttt{scripts/ejecutar\_lab02.py} ejecuta
+el mismo flujo desde la terminal y exporta toda la evidencia (tablas, matrices,
+predicciones, curvas ROC, importancias y reglas del árbol). La interfaz Streamlit del
+framework permite entrenar cada algoritmo de forma individual y, en la vista
+\emph{Experimentos Lab02}, ejecutar este mismo protocolo con validación cruzada.
+
+\subsection{Preparación de los datos}
+\textbf{Potabilidad.} El archivo público de Water Quality \cite{datospotabilidad} tiene
+3276 filas, pero \texttt{ph}, \texttt{Sulfate} y \texttt{Trihalomethanes} tienen 491,
+781 y 162 valores ausentes. La versión usada en clase contiene 2011 filas, que son
+exactamente los casos completos del archivo; por eso se trabajó con esos 2011 casos,
+sin imputar. El objetivo \texttt{Potability} vale 1 para agua potable y 0 para no potable.
+
+\textbf{Diabetes.} El archivo original \cite{datosdiabetes} tiene 403 pacientes y 19
+columnas, sin una columna de clase. La clase se construyó con el criterio histórico del
+propio conjunto: hemoglobina glicosilada \texttt{glyhb} $>7$ indica diabetes. Se
+excluyeron las 13 filas sin \texttt{glyhb} (no se imputa la etiqueta), y se retiraron
+\texttt{id} (identificador) y \texttt{glyhb} (define la clase: usarla sería fuga
+directa). Quedan 390 pacientes y 17 predictoras: 14 numéricas y 3 categóricas
+(\texttt{location}, \texttt{gender}, \texttt{frame}). Los valores ausentes de las
+predictoras (por ejemplo, 252 en \texttt{bp.2s} y \texttt{bp.2d}) se imputan dentro de
+cada ajuste.
+
+Ambas preparaciones son deterministas, se ejecutan con un script cada una (Anexo) y
+registran el SHA-256 de cada archivo.
+
+\subsection{Protocolo experimental}
+\begin{enumerate}
+\item \textbf{Prueba reservada.} Se separa un 25\,\% estratificado (semilla 42) que no
+interviene en ninguna decisión.
+\item \textbf{Validación cruzada.} El 75\,\% restante se divide en 5 pliegues
+estratificados. Cada configuración del catálogo (Tabla~\ref{tab:catalogo}) se entrena
+5 veces y se registra la media y la desviación estándar del F1 macro en los pliegues
+de validación. Se elige F1 macro porque ambos datasets están desbalanceados.
+\item \textbf{Variantes de un solo cambio.} Cada familia tiene su configuración estándar
+(valores predeterminados de la biblioteca) y tres variantes. Para DT, RF, XGBoost y
+AdaBoost una de ellas pondera las clases de forma inversa a su frecuencia.
+\item \textbf{Selección de atributos.} La mejor configuración de cada familia se vuelve a
+evaluar con los mismos pliegues conservando sólo la mitad de los atributos con mayor
+información mutua. Se adopta la versión con mejor F1 macro medio.
+\item \textbf{Modelo final.} El ganador de cada familia se reajusta con todo el
+entrenamiento y se evalúa una vez en prueba: matriz de confusión, métricas por clase,
+exactitud, F1 macro y AUC.
+\item \textbf{Interpretación.} Para el ganador se calcula la importancia por permutación
+en prueba, las importancias internas de los árboles y, en DT, sus reglas. Estas
+herramientas no se usan para seleccionar.
+\end{enumerate}

@@ -1,88 +1,81 @@
-# Entrega Lab02
+# Entrega Lab02 · Clasificación supervisada
 
-El ZIP contiene cuatro CSV: Potabilidad, Diabetes original, Diabetes preparado y
-su trazabilidad. Incluye `data/lab02/procedencia.json`, el framework, la aplicación,
-los ejecutores, pruebas, resultados de ambos datasets y el informe PDF con su
-fuente LaTeX. `MANIFIESTO.json` permite comprobar el SHA-256 y tamaño de cada
-archivo; no incorpora rutas absolutas ni fechas variables.
+Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero
+(402680547), Rodrigo Ureña Castillo (118910482) y Mariana Ureña Padilla
+(119180324).
 
-Para abrir la aplicación tras extraer el ZIP, abra PowerShell en la carpeta extraída:
+## Contenido
+
+| Ruta | Qué es |
+| --- | --- |
+| `informe/main.pdf` | Informe final (definiciones, mapa conceptual, experimentación y análisis) |
+| `informe/main.tex`, `informe/proyecto_overleaf.zip` | Fuente LaTeX autónoma; el ZIP se sube tal cual a Overleaf |
+| `framework_ia/` | Framework del curso; los cinco algoritmos están en `Supervisado → Clasificacion` |
+| `scripts/` | Preparación de datos, experimentos, informe y empaquetado |
+| `data/lab02/` | CSV originales y preparados, con `procedencia.json` (ver su `README.md`) |
+| `data/ejemplo_analisis.csv` | Dataset de ejemplo que la aplicación abre al iniciar |
+| `salida_lab02/` | Evidencia de los experimentos usados en el informe |
+| `docs/lab02/` | Documentación, textos del informe y referencias |
+| `tests/` | Pruebas automáticas del software |
+| `MANIFIESTO.json` | SHA-256 y tamaño de cada archivo del ZIP |
+
+## Abrir la aplicación
+
+En PowerShell, dentro de la carpeta extraída (Python 3.11 o superior; los
+resultados se generaron con 3.13):
 
 ```powershell
-py -3.11 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-lab02-lock.txt
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-La configuración de tema Atlas se conserva en `.streamlit/config.toml`. Para
-Diabetes, cargue `data/lab02/diabetes.csv` y pulse **Aplicar configuración Diabetes
-Lab02** en Clasificación o Experimentos Lab02. El botón selecciona el objetivo,
-las 17 predictoras y el protocolo experimental; entrenar requiere pulsar después
-**Ejecutar experimentos Lab02**. El CSV se lee con separador coma y punto decimal,
-como Potabilidad. Si carga el original, la interfaz le indica usar el preparado.
+Para repetir un experimento en la interfaz: cargue `data/lab02/potabilidad.csv`
+o `data/lab02/diabetes.csv` (para Diabetes, pulse **Aplicar configuración
+Diabetes Lab02**), abra **Experimentos Lab02**, deje la estrategia en
+**Validación cruzada estratificada (5 pliegues)** y pulse **Ejecutar experimentos
+Lab02**. Navegar o cambiar opciones no entrena; sólo el botón lo hace.
 
-La entrada original de Diabetes tiene 403 filas y 19 columnas. La preparación
-asigna `Diabetes` cuando `glyhb > 7` y `No diabetes` cuando `glyhb <= 7`; excluye
-únicamente las 13 filas sin `glyhb`. El preparado tiene 390 filas, 17 predictoras
-y la clase. `id` y `glyhb` quedan fuera de las predictoras; `location`, `gender`
-y `frame` se codifican dentro del pipeline. Los faltantes en las predictoras se
-conservan: su imputación se aprende con entrenamiento.
+## Protocolo usado en el informe
 
-La regla de clase y la procedencia se registran en `procedencia.json`, que
-contiene huellas separadas del original, del preparado y de la trazabilidad.
-`trazabilidad_diabetes.csv` permite relacionar las filas originales con su
-preparación. Para verificar y regenerar esos archivos desde el original incluido:
+1. Prueba reservada: 25 % estratificado, semilla 42. No participa en ninguna decisión.
+2. Validación cruzada estratificada de 5 pliegues sobre el 75 % restante.
+3. Cada familia (KNN, DT, RF, XGBoost, AdaBoost) tiene su configuración estándar y
+   tres variantes que cambian un solo hiperparámetro (20 configuraciones).
+4. Gana en cada familia la de mayor F1 macro promedio. Esa ganadora se vuelve a
+   evaluar conservando la mitad de los atributos con mayor información mutua y se
+   queda la mejor de las dos.
+5. La elegida se reajusta con todo el entrenamiento y se evalúa una vez en prueba.
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv --salida data/lab02
-```
+Imputación, one-hot, escalado y selección de atributos se ajustan sólo con los
+datos de entrenamiento de cada pliegue.
 
-El preparador acepta repetir la operación con el mismo contenido y rechaza
-reemplazar CSV existentes diferentes. La huella que registra cada experimento
-corresponde al CSV preparado que realmente leyó.
+## Reproducir desde cero
 
-Para repetir los experimentos, use carpetas de salida nuevas:
+Las carpetas de salida deben estar vacías: los scripts no sobrescriben evidencia.
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/water_potability.csv --target Potability --salida salida_lab02_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
-.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_lab02_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
-```
-
-Para preparar el paquete desde la raíz del proyecto:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.preparar_entrega_lab02 --ids 504610652 402680547 118910482 119180324 --informe output/lab02/informe/main.pdf --fuentes-tex output/lab02/informe/main.tex
-```
-
-En una copia extraída del ZIP, use `--informe informe/main.pdf` y
-`--fuentes-tex informe/main.tex`. Puede indicar otra carpeta con `--salida`.
-
-En una reproducción, indique `--resultados salida_lab02_reproducida` y otra
-carpeta `--salida`, después de generar un informe que corresponda a esas salidas.
-
-El empaquetador valida ambos experimentos antes de crear el ZIP: 15 configuraciones
-exitosas por dataset (estándar y dos variantes de cada método), cinco ganadores,
-test reservado, predicciones coherentes con accuracy y SHA-256 de los CSV. También
-regenera la preparación de Diabetes en memoria y comprueba sus tres CSV, la regla
-y la procedencia; verifica que los resultados usen las 17 predictoras nativas.
-Cada dataset conserva 13 archivos de evidencia. Rechaza resultados incompletos,
-resultados de otra entrada, preparación alterada, fuentes LaTeX incompletas,
-archivos que no son PDF y un ZIP previo con otro contenido.
-Una repetición con los mismos archivos produce los mismos bytes del ZIP.
-
-Para consultar los ejecutores y comprobar las pruebas:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.preparar_diabetes_lab02 --help
-.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 --help
+.\.venv\Scripts\python.exe -m scripts.preparar_potabilidad_lab02 data/lab02/water_potability.csv
+.\.venv\Scripts\python.exe -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv
+.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/potabilidad.csv --target Potability --salida salida_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-El paquete exige el archivo de versiones fijadas; los JSON de configuración
-registran además las versiones de la ejecución conservada.
-Consulte `docs/lab02/README.md` para repetir los experimentos en carpetas nuevas.
-Ejecutarlos no actualiza el informe: sus tablas, figuras y conclusiones deben
-corresponder a las salidas conservadas. `informe/main.tex` es autónomo y puede
-abrirse en Overleaf; también se incluye `informe/proyecto_overleaf.zip` si existe.
+Con las versiones de `requirements-lab02-lock.txt`, las tablas de
+`salida_reproducida/` deben coincidir con las de `salida_lab02/`. Otras versiones
+de las bibliotecas pueden cambiar decimales.
 
-El nombre del ZIP se forma con los IDs indicados mediante `--ids`.
+Para regenerar el informe y el paquete desde la raíz del proyecto:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.generar_informe_lab02 salida_lab02 --salida output/lab02/informe --autor "Nombre Apellido (ID)"
+.\.venv\Scripts\python.exe -m scripts.preparar_entrega_lab02 --ids 504610652 402680547 118910482 119180324 --informe output/lab02/informe/main.pdf --fuentes-tex output/lab02/informe/main.tex
+```
+
+`generar_informe_lab02` escribe `main.tex`; el PDF se compila con pdfLaTeX (dos
+pasadas) o en Overleaf. El empaquetador rechaza la entrega si falta evidencia, si
+los resultados no corresponden a los CSV preparados, si un ganador no es el mejor
+en validación, si las predicciones no reproducen la exactitud registrada o si el
+PDF o el LaTeX están incompletos. Repetirlo con los mismos archivos produce un ZIP
+idéntico byte a byte.

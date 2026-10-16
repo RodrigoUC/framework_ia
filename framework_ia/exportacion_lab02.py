@@ -119,6 +119,7 @@ def construir_archivos_experimento(
             .to_csv(index_label="fila", lineterminator="\n")
             .encode("utf-8")
         )
+        archivos.update(_archivos_analisis(algoritmo, ganador.metadatos.get("analisis")))
         resumen[algoritmo] = {
             "parametros": ganador.parametros,
             "metricas_test": ganador.metricas,
@@ -127,6 +128,43 @@ def construir_archivos_experimento(
             "muestra_test": ganador.muestra_test,
         }
     archivos["mejores_modelos.json"] = _bytes_json(resumen)
+    ranking = resultado.metadatos.get("seleccion_atributos", {}).get(
+        "ranking_informacion_mutua_train"
+    )
+    if ranking:
+        archivos["ranking_atributos.csv"] = (
+            pd.Series(ranking, name="informacion_mutua")
+            .rename_axis("atributo")
+            .to_csv(lineterminator="\n")
+            .encode("utf-8")
+        )
+    return archivos
+
+
+def _archivos_analisis(algoritmo: str, analisis: Mapping[str, Any] | None) -> dict[str, bytes]:
+    """Tablas interpretativas del ganador (sólo existen en la estrategia CV)."""
+    if not analisis:
+        return {}
+    archivos = {}
+    tablas = {
+        "importancia_permutacion.csv": analisis.get("importancia_permutacion"),
+        "importancia_modelo.csv": analisis.get("importancia_modelo"),
+    }
+    for nombre, filas in tablas.items():
+        if filas:
+            archivos[f"{algoritmo}/{nombre}"] = (
+                pd.DataFrame(filas).to_csv(index=False, lineterminator="\n").encode("utf-8")
+            )
+    roc = analisis.get("roc") or {}
+    if "fpr" in roc:
+        archivos[f"{algoritmo}/roc_test.csv"] = (
+            pd.DataFrame({"fpr": roc["fpr"], "tpr": roc["tpr"]})
+            .to_csv(index=False, lineterminator="\n")
+            .encode("utf-8")
+        )
+    arbol = analisis.get("arbol")
+    if arbol:
+        archivos[f"{algoritmo}/arbol.txt"] = arbol["texto"].encode("utf-8")
     return archivos
 
 

@@ -2,15 +2,20 @@
 
 La limpieza, selección de columnas constantes, imputación, codificación y escala
 se reutilizan sin volver a ajustar al transformar validación, prueba o inferencia.
+La selección opcional de atributos (información mutua) también se ajusta sólo
+con las filas de entrenamiento recibidas en ``fit``.
 El preprocesador no supervisado público conserva su comportamiento original.
 """
 
 from __future__ import annotations
 
+from functools import partial
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -21,12 +26,26 @@ from ...utils import crear_codificador_denso
 
 
 class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
-    """Transformador sklearn ajustable y clonable, con índices preservados."""
+    """Transformador sklearn ajustable y clonable, con índices preservados.
 
-    def __init__(self, *, incluir_categoricas=False, imputar=True, estandarizar=True):
+    ``seleccion_k`` conserva los ``k`` atributos transformados con mayor
+    información mutua respecto del objetivo. Requiere ``y`` en ``fit``.
+    """
+
+    def __init__(
+        self,
+        *,
+        incluir_categoricas=False,
+        imputar=True,
+        estandarizar=True,
+        seleccion_k=None,
+        random_state=0,
+    ):
         self.incluir_categoricas = incluir_categoricas
         self.imputar = imputar
         self.estandarizar = estandarizar
+        self.seleccion_k = seleccion_k
+        self.random_state = random_state
 
     @staticmethod
     def _tabla(datos):
@@ -100,12 +119,28 @@ class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
             )
         self.transformador_ = ColumnTransformer(transformadores, remainder="drop")
         self.transformador_.fit(self._limpiar(X), y)
+        self.selector_ = None
+        if self.seleccion_k is not None:
+            if y is None:
+                raise ValueError("La selección de atributos requiere el objetivo de train.")
+            completas = np.asarray(
+                self.transformador_.transform(self._limpiar(X)), dtype=float
+            )
+            k = int(self.seleccion_k)
+            if k < 1:
+                raise ValueError("seleccion_k debe ser un entero positivo.")
+            self.selector_ = SelectKBest(
+                partial(mutual_info_classif, random_state=self.random_state),
+                k=min(k, completas.shape[1]),
+            ).fit(completas, np.asarray(y))
         return self
 
     def transform(self, X):
         check_is_fitted(self, "transformador_")
         trabajo = self._limpiar(X)
         valores = np.asarray(self.transformador_.transform(trabajo), dtype=float)
+        if getattr(self, "selector_", None) is not None:
+            valores = valores[:, self.selector_.get_support()]
         if not np.isfinite(valores).all():
             raise ValueError("El preprocesamiento produjo valores no finitos.")
         return pd.DataFrame(
@@ -115,10 +150,24 @@ class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
     def get_feature_names_out(self, input_features=None):
         check_is_fitted(self, "transformador_")
         # Preserve prefixes to prevent collisions between original/dummy names.
-        return self.transformador_.get_feature_names_out()
+        nombres = self.transformador_.get_feature_names_out()
+        if getattr(self, "selector_", None) is not None:
+            return nombres[self.selector_.get_support()]
+        return nombres
 
-    def ajustar_transformar(self, datos):
-        matriz = self.fit_transform(datos)
+    def puntajes_informacion_mutua(self) -> pd.Series | None:
+        """Información mutua de cada atributo transformado, calculada en train."""
+        check_is_fitted(self, "transformador_")
+        if getattr(self, "selector_", None) is None:
+            return None
+        return pd.Series(
+            self.selector_.scores_,
+            index=self.transformador_.get_feature_names_out(),
+            name="informacion_mutua",
+        ).sort_values(ascending=False)
+
+    def ajustar_transformar(self, datos, y=None):
+        matriz = self.fit(datos, y).transform(datos)
         return DatosPreparados(
             matriz=matriz,
             columnas_origen=self.columnas_origen_,

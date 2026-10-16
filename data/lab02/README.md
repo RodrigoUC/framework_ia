@@ -1,64 +1,53 @@
 # Datos de Lab02
 
-Los CSV se conservan localmente y se incluyen en la entrega académica, pero no
-se publican automáticamente desde Git. `procedencia.json` registra sus huellas.
+Los CSV se incluyen en la entrega académica. Si el repositorio Git no los
+contiene, los originales se descargan de las fuentes indicadas y los preparados
+se regeneran con los comandos del final. `procedencia.json` registra fuente,
+reglas de preparación y SHA-256 de cada archivo.
 
-| Archivo | Fuente | Objetivo | Lectura |
-| --- | --- | --- | --- |
-| `water_potability.csv` | [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability) | `Potability` | Coma como separador; punto decimal |
-| `diabetes_original.csv` | Archivo original, documentado en [HBiostat: Diabetes Dataset](https://hbiostat.org/data/repo/diabetes) | `glyhb`, antes de derivar la clase | Coma como separador; punto decimal; UTF-8 |
-| `diabetes.csv` | Preparación reproducible de `diabetes_original.csv` | `diabetes`, derivado con la regla documentada | Coma como separador; punto decimal; UTF-8 |
+| Archivo | Qué es | Filas |
+| --- | --- | --- |
+| `water_potability.csv` | Original de [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability), sin modificar | 3276 |
+| `potabilidad.csv` | Casos completos del original; es el archivo usado en los experimentos | 2011 |
+| `diabetes_original.csv` | Original documentado en [HBiostat: Diabetes Dataset](https://hbiostat.org/data/repo/diabetes), sin modificar | 403 |
+| `diabetes.csv` | Preparado con la clase `diabetes`; es el archivo usado en los experimentos | 390 |
+| `trazabilidad_diabetes.csv` | Relación fila preparada → fila e `id` originales | 390 |
 
-Potabilidad contiene 3276 observaciones y nueve predictoras. Se conserva el
-archivo completo: la imputación de `ph`, `Sulfate` y `Trihalomethanes` se aprende
-únicamente con entrenamiento. El ejemplo de clase muestra 2011 filas completas;
-esa versión preparada no es la entrada empleada en estos experimentos.
+Todos usan coma como separador, punto decimal y UTF-8.
 
-## Preparación de Diabetes
+## Potabilidad
 
-El original tiene 403 filas y 19 columnas. No contiene una clase categórica
-de diabetes. La documentación primaria describe el criterio histórico
-`glyhb > 7.0`, utilizado para construir la etiqueta experimental:
+El original tiene valores ausentes en `ph` (491), `Sulfate` (781) y
+`Trihalomethanes` (162). La versión de clase del curso usa los 2011 casos
+completos, y eso es lo que produce `scripts.preparar_potabilidad_lab02`: elimina
+las filas con algún faltante, no imputa nada y conserva el orden original.
+Resultado: 1200 no potables (0) y 811 potables (1).
 
-- `glyhb > 7`: `Diabetes`.
-- `glyhb <= 7`: `No diabetes`.
-- `glyhb` ausente: excluir la fila; no imputar una etiqueta desconocida.
+## Diabetes
 
-Son 13 exclusiones y 390 filas etiquetadas: 60 `Diabetes` y 330 `No diabetes`.
-El criterio se documenta como regla experimental histórica del conjunto,
-sin interpretación diagnóstica clínica actual. La identificación de fuente y
-esquema no acredita identidad completa con otras adaptaciones del dataset.
+El original no trae una clase. Se usa el criterio histórico de la documentación
+del dataset: `glyhb > 7` es `Diabetes`, `glyhb <= 7` es `No diabetes` y las 13
+filas sin `glyhb` se excluyen (no se inventa una etiqueta). Quedan 390 pacientes:
+60 con diabetes y 330 sin diabetes.
 
-Se retiran `id` y `glyhb` del archivo preparado: el primero es identificador;
-el segundo define la respuesta y sería fuga directa si fuera predictor.
-Se conservan las 17 predictoras nativas, incluida la columna `ratio`.
-El preparado contiene esas 17 predictoras y la nueva columna `diabetes` (390 × 18).
+Se retiran `id` (identificador) y `glyhb` (define la clase; usarla sería fuga
+directa). Quedan 17 predictoras:
 
 | Tipo | Columnas |
 | --- | --- |
 | Categóricas | `location`, `gender`, `frame` |
 | Numéricas | `chol`, `stab.glu`, `hdl`, `ratio`, `age`, `height`, `weight`, `bp.1s`, `bp.1d`, `bp.2s`, `bp.2d`, `waist`, `hip`, `time.ppn` |
 
-La preparación no elimina filas por faltantes de predictoras ni las imputa.
-`bp.2s` y `bp.2d` conservan 252 ausencias cada una entre las 390 filas.
-La imputación numérica por mediana, la categórica por moda, la codificación
-one-hot y el escalado se aprenden únicamente con entrenamiento durante cada
-experimento. No se usa un filtrado global de casos completos.
+Los faltantes de las predictoras se conservan (por ejemplo, 252 en `bp.2s` y
+`bp.2d`). La imputación, la codificación one-hot y el escalado se aprenden sólo
+con entrenamiento dentro de cada experimento.
 
-`trazabilidad_diabetes.csv` relaciona `fila_preparada`, `fila_original` e
-`id_original`, con índices de fila desde cero. Los índices de partición
-exportados por la CLI corresponden al preparado; esta tabla permite llegar
-a la fila original. `procedencia.json` conserva la regla, las 13 exclusiones,
-las rutas y SHA-256 de original, preparado y correspondencia.
-
-Para reproducir:
+## Regenerar
 
 ```powershell
-python -m scripts.ejecutar_lab02 data/lab02/water_potability.csv --target Potability --salida salida_lab02/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
-python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv --salida data/lab02
-python -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_lab02/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
+python -m scripts.preparar_potabilidad_lab02 data/lab02/water_potability.csv
+python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv
 ```
 
-Cada experimento requiere una carpeta de salida nueva. El preparador admite
-repetición idéntica; si cambiarían los datos, exige una carpeta limpia para no
-mezclar entradas. No impute ni escale globalmente antes de estos comandos.
+Ambos son deterministas: repetirlos con el mismo original produce los mismos
+bytes, y se niegan a reemplazar un CSV existente con contenido distinto.

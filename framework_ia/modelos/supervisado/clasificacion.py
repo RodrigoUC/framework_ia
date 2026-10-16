@@ -20,6 +20,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.utils.multiclass import type_of_target
 
 from ...resultados import ResultadoClasificacion, ResultadoParticion
@@ -80,10 +81,10 @@ class _XGBoostEtiquetas:
         self.estimador = estimador
         self.codificador = LabelEncoder()
 
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weight=None):
         codificadas = self.codificador.fit_transform(y)
         self.classes_ = self.codificador.classes_
-        self.estimador.fit(X, codificadas)
+        self.estimador.fit(X, codificadas, sample_weight=sample_weight)
         return self
 
     def predict(self, X):
@@ -219,10 +220,32 @@ class Clasificacion(Supervisado):
         return train, test, pd.Index([])
 
     def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
-        preprocesador = PreprocesadorSupervisado(**opciones)
-        preparados = preprocesador.ajustar_transformar(base.loc[train, self.features])
+        """Ajusta preprocesamiento y modelo sólo con las filas ``train``.
+
+        ``balancear_clases`` no es un argumento del estimador: el framework lo
+        convierte en pesos por observación inversamente proporcionales a la
+        frecuencia de cada clase en train (``compute_sample_weight``).
+        """
+        parametros = dict(parametros)
+        balancear = bool(parametros.pop("balancear_clases", False))
+        y_train = base.loc[train, self.target]
+        preprocesador = PreprocesadorSupervisado(
+            **{"random_state": random_state, **opciones}
+        )
+        preparados = preprocesador.ajustar_transformar(
+            base.loc[train, self.features], y_train
+        )
         modelo = _crear_modelo(algoritmo, random_state, parametros)
-        modelo.fit(preparados.matriz, base.loc[train, self.target])
+        if balancear:
+            if algoritmo == "KNN":
+                raise ValueError("KNN no admite pesos por observación.")
+            modelo.fit(
+                preparados.matriz,
+                y_train,
+                sample_weight=compute_sample_weight("balanced", y_train),
+            )
+        else:
+            modelo.fit(preparados.matriz, y_train)
         return modelo, preparados
 
     def _resultado(

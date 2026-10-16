@@ -28,6 +28,8 @@ from framework_ia.utils import (
     configuraciones_experimento,
 )
 
+TOTAL_CANDIDATOS = sum(len(lista) for lista in configuraciones_experimento().values())
+
 
 def synthetic(n=120, classes=2):
     X, y = make_classification(
@@ -182,6 +184,35 @@ class ClasificacionLab2Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "variación"):
             PreprocesadorSupervisado().fit(pd.DataFrame({"x": [np.nan, np.nan]}))
 
+    def test_feature_selection_keeps_k_columns_learned_only_from_train(self):
+        rng = np.random.default_rng(0)
+        X = pd.DataFrame(rng.normal(size=(80, 6)), columns=list("uvwxyz"))
+        y = (X["u"] + 0.1 * rng.normal(size=80) > 0).astype(int)
+        selector = PreprocesadorSupervisado(seleccion_k=2, random_state=0).fit(X, y)
+        nombres = list(selector.get_feature_names_out())
+        self.assertEqual(len(nombres), 2)
+        self.assertIn("numericas__u", nombres)
+        self.assertEqual(selector.transform(X).shape, (80, 2))
+        ranking = selector.puntajes_informacion_mutua()
+        self.assertEqual(ranking.index[0], "numericas__u")
+        with self.assertRaisesRegex(ValueError, "objetivo"):
+            PreprocesadorSupervisado(seleccion_k=2).fit(X)
+
+    def test_balanced_class_weights_are_registered_and_rejected_for_knn(self):
+        data = synthetic()
+        data.loc[data.index[:40], "target"] = 0
+        c = Clasificacion(dataframe=data, target="target")
+        tabla = c.experimentar(
+            algoritmos=["DT", "KNN"],
+            configuraciones={
+                "DT": [{"nombre": "balanceado", "parametros": {"balancear_clases": True}}],
+                "KNN": [{"nombre": "balanceado", "parametros": {"balancear_clases": True}}],
+            },
+        ).tabla.set_index("algoritmo")
+        self.assertTrue(tabla.loc["DT", "parametros"]["balancear_clases"])
+        self.assertEqual(tabla.loc["KNN", "estado"], "error")
+        self.assertIn("pesos", tabla.loc["KNN", "error"])
+
     def test_preview_preserves_original_nonrange_indices_and_null_target_filter(self):
         data = self.data.copy()
         data["target"] = data.target.astype(float)
@@ -294,15 +325,15 @@ class ClasificacionLab2Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partición"):
             Clasificacion(dataframe=data, target="target").DT()
 
-    def test_default_catalog_is_fresh_and_covers_five_standard_plus_variants(self):
+    def test_default_catalog_has_standard_and_single_change_variants(self):
         first = configuraciones_lab2()
         self.assertEqual(set(first), {"KNN", "DT", "RF", "XGBoost", "AdaBoost"})
-        self.assertTrue(
-            all(
-                len(configs) == 3 and configs[0]["nombre"] == "estandar"
-                for configs in first.values()
-            )
-        )
+        for algoritmo, configs in first.items():
+            with self.subTest(algoritmo=algoritmo):
+                self.assertGreaterEqual(len(configs), 3)
+                self.assertEqual(configs[0], {"nombre": "estandar", "parametros": {}})
+                for variante in configs[1:]:
+                    self.assertEqual(len(variante["parametros"]), 1, variante)
         first["KNN"][0]["parametros"]["n_neighbors"] = 100
         self.assertEqual(configuraciones_lab2()["KNN"][0]["parametros"], {})
 
@@ -328,7 +359,7 @@ class ClasificacionLab2Tests(unittest.TestCase):
             random_state=23
         )
         assert_frame_equal(first.tabla, second.tabla)
-        self.assertEqual(len(first.tabla), 15)
+        self.assertEqual(len(first.tabla), TOTAL_CANDIDATOS)
         self.assertEqual(first.metadatos["candidatos_fallidos"], 0)
         self.assertEqual(
             first.metadatos["test_indices"], second.metadatos["test_indices"]
@@ -382,9 +413,10 @@ class ClasificacionLab2Tests(unittest.TestCase):
             calls.append(metadata["conjunto_evaluacion"])
             return original(*args, **kwargs)
 
+        candidatos = len(configuraciones_lab2()["KNN"]) + len(configuraciones_lab2()["DT"])
         with patch.object(c, "_resultado", side_effect=tracking):
             c.experimentar(algoritmos=["KNN", "DT"])
-        self.assertEqual(calls, ["validacion"] * 6 + ["test"] * 2)
+        self.assertEqual(calls, ["validacion"] * candidatos + ["test"] * 2)
 
     def test_candidate_failures_are_isolated_and_clear_old_success(self):
         c = Clasificacion(dataframe=self.data, target="target")
@@ -432,6 +464,8 @@ class ClasificacionLab2Tests(unittest.TestCase):
                     "XGB": [{"nombre": "x", "parametros": {"eval_set": []}}]
                 }
             },
+            {"estrategia": "desconocida"},
+            {"estrategia": "cv", "folds": 1},
         ):
             with (
                 self.subTest(kwargs=kwargs),
@@ -440,6 +474,86 @@ class ClasificacionLab2Tests(unittest.TestCase):
                 Clasificacion(dataframe=self.data, target="target").experimentar(
                     **kwargs
                 )
+
+
+class ValidacionCruzadaTests(unittest.TestCase):
+    """Protocolo CV: test reservado, pliegues sobre train y reajuste final."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.data = synthetic(n=150)
+        cls.result = Clasificacion(dataframe=cls.data, target="target").experimentar(
+            estrategia="cv", algoritmos=["KNN", "DT"], folds=3, random_state=5
+        )
+
+    def test_folds_partition_train_and_never_touch_test(self):
+        meta = self.result.metadatos
+        train, test = set(meta["train_indices"]), set(meta["test_indices"])
+        self.assertFalse(train & test)
+        pliegues = [set(p) for p in meta["pliegues_indices"]]
+        self.assertEqual(len(pliegues), 3)
+        self.assertEqual(set().union(*pliegues), train)
+        self.assertEqual(sum(map(len, pliegues)), len(train))
+        self.assertFalse(meta["test_usado_para_seleccion"])
+        self.assertTrue(meta["reajustado_train_completo"])
+        for ganador in self.result.mejores.values():
+            self.assertEqual(ganador.muestra_train, len(train))
+            self.assertEqual(ganador.muestra_test, len(test))
+
+    def test_table_has_mean_std_per_fold_and_selection_stage(self):
+        tabla = self.result.tabla
+        configs = tabla[tabla.etapa == "configuracion"]
+        self.assertEqual(
+            len(configs), len(configuraciones_lab2()["KNN"]) + len(configuraciones_lab2()["DT"])
+        )
+        for _, fila in configs.iterrows():
+            self.assertEqual(len(fila.puntuaciones_pliegues), 3)
+            self.assertAlmostEqual(
+                fila.puntuacion_validacion, np.mean(fila.puntuaciones_pliegues)
+            )
+        self.assertEqual(set(tabla[tabla.etapa == "seleccion_atributos"].algoritmo), {"KNN", "DT"})
+        for algoritmo, grupo in tabla.groupby("algoritmo"):
+            elegido = grupo[grupo.seleccionado]
+            self.assertEqual(len(elegido), 1)
+            self.assertAlmostEqual(
+                elegido.puntuacion_validacion.iloc[0], grupo.puntuacion_validacion.max()
+            )
+
+    def test_test_labels_do_not_change_cv_table(self):
+        split = Particionador(
+            ConfiguracionParticion(
+                porcentaje_test=0.25, columna_estratificacion="target", semilla=3
+            )
+        ).dividir(self.data)
+        first = Clasificacion(dataframe=self.data, target="target").experimentar(
+            estrategia="cv", algoritmos=["KNN", "DT"], folds=3, particion=split
+        )
+        changed = self.data.copy()
+        changed.loc[split.test.index, "target"] = 1 - changed.loc[split.test.index, "target"]
+        changed.loc[split.test.index, "a"] *= 1000
+        second = Clasificacion(dataframe=changed, target="target").experimentar(
+            estrategia="cv",
+            algoritmos=["KNN", "DT"],
+            folds=3,
+            particion=replace(split, test=changed.loc[split.test.index].copy()),
+        )
+        columnas = ["algoritmo", "configuracion", "puntuacion_validacion", "seleccionado"]
+        assert_frame_equal(first.tabla[columnas], second.tabla[columnas])
+        self.assertNotEqual(
+            first.mejores["DT"].metricas["accuracy"],
+            second.mejores["DT"].metricas["accuracy"],
+        )
+
+    def test_winner_analysis_has_roc_permutation_and_tree_in_original_units(self):
+        analisis = self.result.mejores["DT"].metadatos["analisis"]
+        self.assertGreaterEqual(analisis["roc"]["auc"], 0.0)
+        self.assertEqual(len(analisis["roc"]["fpr"]), len(analisis["roc"]["tpr"]))
+        self.assertEqual(
+            {fila["atributo"] for fila in analisis["importancia_permutacion"]},
+            set("abcde"),
+        )
+        self.assertIn("|---", analisis["arbol"]["texto"])
+        self.assertIn("metricas_train", analisis)
 
 
 if __name__ == "__main__":

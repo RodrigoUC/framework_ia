@@ -1,0 +1,26 @@
+\section{Introducción y objetivos}
+
+El objetivo general del laboratorio es realizar experimentos de clasificación
+supervisada con los conjuntos de datos del curso, Potabilidad y Diabetes, usando el
+framework de Python construido durante el semestre. Los objetivos específicos son:
+
+\begin{enumerate}
+\item Explicar el funcionamiento de KNN, árboles de decisión, Random Forest,
+XGBoost y AdaBoost (Sección~2).
+\item Definir modelos que combinen preprocesamiento, selección de atributos y cada
+algoritmo; para cada uno, comparar la configuración estándar con variaciones,
+seleccionar el mejor modelo y analizarlo (Secciones~3 a~5).
+\end{enumerate}
+
+Para que las comparaciones sean justas y repetibles se fijaron tres reglas. Primero,
+cada variante cambia un solo hiperparámetro respecto del estándar, de modo que
+cualquier diferencia se pueda atribuir a ese cambio. Segundo, la elección se hace
+con validación cruzada sobre el conjunto de entrenamiento, y el conjunto de prueba
+se usa una única vez al final. Tercero, todo el preprocesamiento se aprende sólo
+con datos de entrenamiento, para evitar fuga de información.
+
+El documento se organiza así: la Sección~2 presenta los fundamentos teóricos y un
+mapa conceptual; la Sección~3, la metodología y su implementación en el framework;
+las Secciones~4 y~5, los resultados y el análisis de cada dataset; la Sección~6
+compara ambos casos y discute limitaciones, y la Sección~7 resume las conclusiones.
+El anexo contiene los comandos para reproducir todo.

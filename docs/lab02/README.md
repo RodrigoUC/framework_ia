@@ -1,203 +1,82 @@
 # LAB 02 · Clasificación supervisada
 
-Fuente de requisitos: [`guia_clasificacion.pdf`](../lab01/guia_clasificacion.pdf),
-«Métodos supervisados: clasificación», Universidad Nacional de Costa Rica.
+Requisitos: enunciado EIF420O Lab02 «Métodos supervisados: clasificación»
+(Universidad Nacional de Costa Rica). Entrega: 15 de octubre de 2026.
 
-## Alcance y jerarquía
+## Alcance
 
-El laboratorio incorpora KNN, Árbol de Decisión, Random Forest, XGBoost y
-AdaBoost en `Supervisado → Clasificacion`. Conserva RF/NR y la organización
-`datos/`, `modelos/supervisado/`, `resultados.py`, `visualizacion.py`, `ui/`.
-ACP, t-SNE y UMAP son métodos públicos de `Cluster`. En la interfaz, ACP tiene
-un destino propio junto a EDA;
-t-SNE y UMAP son proyecciones opcionales dentro de K-Means, no destinos ni
-algoritmos de agrupamiento. El laboratorio se centra en clasificación.
+Los cinco algoritmos del laboratorio (KNN, árbol de decisión, Random Forest,
+XGBoost y AdaBoost) están en la jerarquía del framework
+`EDA → Supervisado → Clasificacion` (`framework_ia/modelos/supervisado/`).
 
-En Streamlit, las seis vistas individuales (incluida Naive Bayes como
-compatibilidad, fuera de las cinco familias experimentales) permiten entrenar
-explícitamente y reutilizan la configuración compartida elegida en
-**Configuración de clasificación**. Allí se eligen objetivo, predictoras,
-partición, semilla y preprocesamiento; el balance del objetivo aparece una sola
-vez en esa vista. Si no se visita antes, las vistas usan una configuración
-predeterminada viable. Las métricas de salud del dataset permanecen en Datos y
-EDA, no se repiten en cada pantalla de modelo.
-**Comparar modelos entrenados** es un destino de solo lectura para ejecuciones
-individuales guardadas. **Resultados de clasificación** también es de lectura y
-presenta por separado esas ejecuciones y los experimentos académicos guardados;
-ninguna de estas vistas entrena al navegar. Random Forest conserva la última ejecución exitosa
-por criterio (`gini` y `entropy`), de modo que ambos pueden compararse sin
-volver a ejecutar el otro. La comparación presenta accuracy general y recall
-por clase real como porcentajes; sólo etiquetas de texto `y`/`n` se muestran
-como Y/N, mientras que otras etiquetas conservan su nombre literal. Una clase
-sin casos reales en test se indica como no evaluada.
+- `Clasificacion.entrenar(...)`: entrena una configuración con train/test.
+- `Clasificacion.experimentar(estrategia="cv", folds=5, ...)`: protocolo completo
+  del laboratorio. Con `estrategia="holdout"` usa una única partición de
+  validación (comparación rápida; no es la usada en el informe).
+- `scripts/ejecutar_lab02.py`: el mismo protocolo desde la terminal, con
+  exportación de toda la evidencia. Por omisión usa validación cruzada.
+- Streamlit (`app.py`): vistas individuales por algoritmo y **Experimentos Lab02**,
+  que ofrece las dos estrategias (validación cruzada por omisión).
 
-**Experimentos Lab02** ejecuta el flujo académico con el CSV activo y la misma
-configuración compartida. Su catálogo contiene las cinco familias con estándar
-y dos variantes, 15 candidatos en total. El botón **Ejecutar experimentos Lab02**
-invoca `Clasificacion.experimentar(...)` una sola vez: cambiar opciones o navegar
-no entrena. La métrica predeterminada es F1 macro. Si la partición compartida ya
-contiene validación, se reutilizan sus índices; de otro modo, se reserva el 20%
-del train restante para validación sin alterar test. La vista muestra cantidades
-efectivas, tabla/gráfica de validación, ganadores y diagnóstico final de prueba.
-La CLI utiliza el mismo protocolo. No seleccione hiperparámetros por métricas de test.
+## Protocolo
 
-Las opciones modificadas se distinguen de la última ejecución: las descargas
-conservan la configuración que produjo los resultados. Un intento fallido
-mantiene la evidencia exitosa del mismo contexto y muestra el error; las
-ejecuciones parciales se identifican con sus candidatos/ganadores fallidos.
-Cambiar datos, objetivo, predictoras, semilla, preprocesamiento o partición
-invalida la evidencia anterior. Aplique los CSV reales desde **Fuente de datos**,
-con su configuración de lectura y procedencia opcional: se conserva el SHA-256
-de los bytes originales. El objetivo y las predictoras se seleccionan
-explícitamente.
+1. Prueba reservada: 25 % estratificado (semilla 42), usado una sola vez al final.
+2. Validación cruzada estratificada de 5 pliegues sobre train.
+3. Catálogo (`utils/configuracion_clasificacion.py`): por familia, el estándar
+   (valores predeterminados de la biblioteca) y tres variantes de un solo cambio.
 
-- `Clasificacion.entrenar(...)`: una configuración, con train/test separado.
-- `Clasificacion.experimentar(...)`: configuración estándar y variantes por
-  algoritmo, selección por F1 macro en validación y evaluación final en test.
-- `ResultadoExperimentoClasificacion`: tabla de comparación, mejores modelos
-  por algoritmo y metadatos, sin depender de Streamlit.
-- `python -m scripts.ejecutar_lab02`: el mismo flujo desde la terminal.
+   | Familia | Variantes |
+   | --- | --- |
+   | KNN | `k_15`, `pesos_distancia`, `manhattan` |
+   | DT | `profundidad_5`, `hoja_minima_10`, `clases_balanceadas` |
+   | RF | `500_arboles`, `hoja_minima_5`, `clases_balanceadas` |
+   | XGBoost | `tasa_0_05`, `profundidad_3`, `clases_balanceadas` |
+   | AdaBoost | `200_estimadores`, `tasa_0_5`, `clases_balanceadas` |
 
-## Protocolo experimental
+   `clases_balanceadas` pondera cada observación de train de forma inversa a la
+   frecuencia de su clase (`compute_sample_weight("balanced")`). KNN no admite
+   pesos por observación, por eso su tercera variante es la distancia.
+4. Gana en cada familia la configuración con mayor F1 macro medio. Después se
+   evalúa esa ganadora con `SelectKBest(mutual_info_classif)` y
+   `k = ceil(atributos transformados / 2)`, ajustado dentro de cada pliegue; se
+   conserva la mejor de las dos.
+5. El elegido se reajusta con todo train y se evalúa en prueba: matriz de
+   confusión, métricas por clase, curva ROC/AUC (clase minoritaria de train como
+   positiva) e importancia por permutación (10 repeticiones, sólo interpretación).
+   En DT se exportan las reglas del árbol con umbrales en unidades originales.
 
-1. Leer el CSV original y seleccionar explícitamente objetivo y predictoras.
-2. Separar train, validación y test de forma reproducible y estratificada.
-3. Ajustar imputación, codificación y estandarización **sólo con train**.
-4. Entrenar cada configuración con la misma partición; comparar en validación.
-5. Seleccionar un ganador por algoritmo mediante F1 macro. Registrar los
-   hiperparámetros efectivos y la semilla; no elegir por el resultado de test.
-6. Evaluar los ganadores en test y analizar errores y distribución por clase.
+Imputación (mediana/moda), one-hot, estandarización y selección de atributos
+viven en `PreprocesadorSupervisado` y se ajustan sólo con datos de entrenamiento
+de cada pliegue. No aplique imputación ni escalado global desde EDA antes de
+clasificar: la interfaz lo detecta y pide restaurar el original.
 
-El test no debe convertirse en validación por repetir ajustes tras inspeccionar
-sus resultados. Las métricas no tienen significado clínico ni certifican
-seguridad de agua. La interpretación considera la incertidumbre de un único
-holdout, el desbalance y el posible cambio de distribución.
+## Datos
 
-No aplicar imputación/escalado global desde EDA antes de clasificar: eso usa
-información de test. La UI del LAB 02 detecta esa preparación y pide restaurar
-el original; sus controles propios delegan las transformaciones al modelo.
-La exclusión manual de columnas requiere justificación: nunca use la variable
-objetivo como predictora ni incluya identificadores que revelen la etiqueta.
+Ver [`data/lab02/README.md`](../../data/lab02/README.md): Potabilidad usa los 2011
+casos completos del archivo de Kaggle; Diabetes usa 390 pacientes con la clase
+`glyhb > 7` y 17 predictoras.
 
-## Datos originales, preparación y procedencia
+## Archivos generados por experimento
 
-Los datos deben permanecer locales; no se incluyen en el repositorio.
-Potabilidad disponible públicamente: [Water Quality, Aditya Kadiwal](https://www.kaggle.com/datasets/adityakadiwal/water-potability),
-versión 3, CC0. `water_potability.csv` contiene 3276 filas, 9 predictoras y
-objetivo `Potability` (0/1); tiene nulos en `ph`, `Sulfate` y `Trihalomethanes`.
-El material de clase muestra una versión de 2011 filas completas; estos
-experimentos emplean las 3276 observaciones del archivo completo.
+- `configuracion.json`: argumentos, SHA-256 del CSV, versiones, índices de train,
+  test y de cada pliegue, distribución de clases y atributos seleccionados.
+- `comparacion_validacion.csv`: todas las configuraciones con media, desviación y
+  F1 de cada pliegue.
+- `mejores_modelos.json`: hiperparámetros efectivos, métricas de entrenamiento y
+  de prueba, ROC y árbol del ganador de cada familia.
+- `ranking_atributos.csv`: información mutua de cada atributo transformado.
+- Por algoritmo: `matriz_confusion_test.csv`, `predicciones_test.csv`,
+  `roc_test.csv`, `importancia_permutacion.csv` e `importancia_modelo.csv`
+  (familias basadas en árboles). `DT/arbol.txt`: reglas completas.
 
-El archivo original de Diabetes tiene 403 filas y 19 columnas y se conserva
-sin modificar en `data/lab02/diabetes_original.csv`. No trae una clase
-categórica. La [documentación primaria de HBiostat](https://hbiostat.org/data/repo/diabetes)
-describe el criterio histórico `glyhb > 7.0`; se adopta explícitamente para
-derivar `Diabetes`, y `glyhb <= 7` deriva `No diabetes`. Las 13 filas sin
-`glyhb` se excluyen sin imputar el objetivo. Quedan 390 etiquetas: 60 y 330,
-respectivamente. La regla se utiliza como criterio experimental histórico,
-sin interpretación diagnóstica clínica actual.
-
-`scripts.preparar_diabetes_lab02` retira `id` y `glyhb`, conserva las 17
-predictoras nativas y añade `diabetes`. `location`, `gender` y `frame` son
-categóricas; las otras 14 predictoras son numéricas. Los faltantes de entrada se preservan; `bp.2s`
-y `bp.2d` mantienen 252 ausencias cada una en las filas etiquetadas. La
-imputación, codificación y escala pertenecen al ajuste posterior con train.
-
-El preparado usa coma, punto decimal y UTF-8. `trazabilidad_diabetes.csv`
-enlaza cada índice preparado con la fila e ID originales (filas desde cero).
-`procedencia.json` registra regla, exclusiones y SHA-256 de ambos CSV y del
-mapa de filas. Consulte [la descripción de los datos](../../data/lab02/README.md).
-El cargador utiliza archivos locales y permite seleccionar sus etiquetas.
-
-## Ejecución
-
-Desde la raíz del repositorio (Python 3.11+ y Streamlit 1.65+):
+## Verificación
 
 ```bash
-python -m pip install -r requirements.txt
-python -m scripts.ejecutar_lab02 /ruta/water_potability.csv \
-  --target Potability --salida salida_lab02/potabilidad \
-  --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
-
-python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv \
-  --salida data/lab02
-python -m scripts.ejecutar_lab02 data/lab02/diabetes.csv \
-  --target diabetes --features chol stab.glu hdl ratio location age gender \
-  height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn \
-  --incluir-categoricas --semilla 42 --salida salida_lab02/diabetes \
-  --fuente https://hbiostat.org/data/repo/diabetes
-```
-
-Para un CSV con variables categóricas, agregue `--incluir-categoricas`.
-`--features columna_1 columna_2` permite estudiar un subconjunto explícito.
-`--algoritmos KNN DT` sirve para un ensayo rápido; el laboratorio completo
-requiere las cinco familias. `--test-size` y `--validation-size` configuran
-la partición. Validación es una fracción del train restante tras separar test: con
-los valores predeterminados se obtiene 60% train, 15% validación y 25% test.
-Los ganadores conservan su ajuste con train, sin reajuste con validación.
-Consulte `--help` y los metadatos exportados para los tamaños exactos.
-
-Use una carpeta de salida nueva: el script rechaza directorios no vacíos para
-no sobrescribir evidencia anterior. Fije versiones de dependencias al repetir
-una ejecución histórica; una semilla por sí sola no garantiza igualdad entre
-versiones o plataformas.
-
-### Archivos generados
-
-- `configuracion.json`: argumentos, hash SHA-256 del CSV, referencia de origen,
-  versiones de bibliotecas y metadatos de la partición/experimento.
-- `comparacion_validacion.csv`: configuraciones y desempeño de validación.
-- `mejores_modelos.json`: métricas de test, parámetros y trazabilidad del ganador
-  de cada algoritmo.
-- Carpetas por algoritmo con matriz de confusión y predicciones de test.
-
-Streamlit permite descargar los mismos archivos como ZIP en memoria, además del
-CSV de comparación y el JSON de configuración. La CLI y la interfaz comparten
-el serializador de evidencia; descargar o volver a abrir resultados no entrena.
-
-Las predicciones pueden contener información derivada del dataset. Son salidas
-locales: no publicarlas automáticamente, especialmente con datos médicos o
-material cuya licencia limite redistribución.
-
-## Guía para interpretar, no conclusiones predeterminadas
-
-- **KNN:** votación de vecinos; analizar número de vecinos, distancia y efecto
-  del escalado. Muchos atributos irrelevantes pueden deteriorar la distancia.
-- **Árbol:** particiones sucesivas; comparar profundidad y mínimos por hoja,
-  interpretabilidad y sobreajuste.
-- **Random Forest:** ensamble de árboles sobre muestras/atributos variados;
-  comparar número de árboles, profundidad y balance entre clases.
-- **XGBoost:** árboles aditivos que corrigen errores mediante optimización de
-  gradiente; discutir tasa de aprendizaje, profundidad y número de árboles.
-- **AdaBoost:** combinación secuencial de aprendices débiles que enfatiza
-  observaciones difíciles; analizar estimadores, aprendizaje y sensibilidad
-  a ruido/atípicos.
-
-Para cada familia explique por qué la variante ganadora supera o no al estándar,
-revise precisión/recall/F1 por clase y falsos positivos/negativos. Una exactitud
-alta puede esconder una clase minoritaria mal detectada. No interprete una
-importancia de variable como causalidad ni como recomendación médica.
-
-Referencias técnicas primarias para el informe:
-[clasificación de sklearn](https://scikit-learn.org/stable/supervised_learning.html),
-[prevención de fuga de información](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage),
-[XGBoost Python API](https://xgboost.readthedocs.io/en/stable/python/python_api.html).
-Los fundamentos y las decisiones metodológicas se documentan con referencias
-en el informe.
-
-## Verificación y entrega
-
-```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-lab02-lock.txt
 python -m pytest -q
 ```
 
-Las pruebas de software usan fixtures sintéticos; no son experimentos académicos
-sobre los CSV del profesor. Un resultado de prueba nunca sustituye la tabla real.
-La verificación headless no certifica contraste visual, navegación por teclado
-ni comportamiento en distintos tamaños de pantalla.
-El informe contiene definiciones, experimentación y análisis en LaTeX/PDF.
-Su generador utiliza los resultados verificados de los experimentos;
-consulte [INFORME.md](INFORME.md) y [LEEME_ENTREGA.md](LEEME_ENTREGA.md).
-El paquete contiene PDF, fuentes para Overleaf, el framework, los CSV y la
-evidencia experimental.
+Las pruebas usan datos sintéticos y verifican el software (ausencia de fuga,
+partición, CV, exportación, informe y empaquetado); no sustituyen los resultados
+reales de `salida_lab02/`. Ver [VERIFICACION.md](VERIFICACION.md),
+[INFORME.md](INFORME.md) y [LEEME_ENTREGA.md](LEEME_ENTREGA.md).

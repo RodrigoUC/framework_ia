@@ -22,8 +22,10 @@ from streamlit.testing.v1.errors import AppTestError
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.ui.estado_clasificacion import huella_datos, sincronizar_contexto
 from framework_ia.ui.lab2 import _metricas_porcentuales
+from framework_ia.utils import configuraciones_experimento
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
+TOTAL_CANDIDATOS = sum(len(lista) for lista in configuraciones_experimento().values())
 
 
 def nueva_app():
@@ -552,9 +554,38 @@ def resultado_benchmark():
     return Clasificacion(dataframe=datos, target="clase").experimentar()
 
 
-def _abrir_experimentos(app):
+def _abrir_experimentos(app, estrategia="holdout"):
+    """Abre la vista; las pruebas históricas fijan validación simple explícitamente."""
     app.sidebar.button(key="nav_lab2_benchmark").click().run()
     assert not app.exception
+    if app.radio(key="lab2_benchmark_estrategia").value != estrategia:
+        app.radio(key="lab2_benchmark_estrategia").set_value(estrategia).run()
+        assert not app.exception
+
+
+def test_benchmark_usa_validacion_cruzada_por_defecto_y_la_ejecuta():
+    app = nueva_app()
+    app.sidebar.button(key="nav_clasificacion_configuracion").click().run()
+    app.multiselect(key="clasif_features").set_value(["a", "b", "c"]).run()
+    app.sidebar.button(key="nav_lab2_benchmark").click().run()
+    assert app.radio(key="lab2_benchmark_estrategia").value == "cv"
+    assert not any(widget.key == "lab2_benchmark_validacion" for widget in app.slider)
+    original = Clasificacion.experimentar
+    with patch.object(
+        Clasificacion, "experimentar", autospec=True, side_effect=original
+    ) as llamada:
+        app.button(key="lab2_benchmark_ejecutar").click().run()
+    assert not app.exception
+    assert llamada.call_count == 1
+    assert llamada.call_args.kwargs["estrategia"] == "cv"
+    assert llamada.call_args.kwargs["folds"] == 5
+    assert "validation_size" not in llamada.call_args.kwargs
+    guardado = app.session_state["resultado_lab2_experimento"]
+    metadatos = guardado["resultado"].metadatos
+    assert metadatos["estrategia_seleccion"] == "validacion_cruzada_estratificada"
+    assert metadatos["muestra_train"] + metadatos["muestra_test"] == 120
+    assert guardado["argumentos"]["estrategia"] == "cv"
+    assert any("validación cruzada de 5 pliegues" in texto.value for texto in app.caption)
 
 
 def _guardar_benchmark(app, resultado):
@@ -584,7 +615,7 @@ def test_benchmark_navigation_catalog_and_shared_setup_do_not_train():
             for frame in app.dataframe
             if "Configuración" in frame.value.columns
         )
-        assert len(catalogo) == 15
+        assert len(catalogo) == TOTAL_CANDIDATOS
         assert set(catalogo["Algoritmo"]) == {"KNN", "DT", "RF", "XGBoost", "AdaBoost"}
         assert app.selectbox(key="lab2_benchmark_metrica").value == "f1_macro"
         assert app.slider(key="lab2_benchmark_validacion").value == 20
@@ -612,7 +643,7 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
     assert llamada.call_args.kwargs["random_state"] == 19
     guardado = app.session_state["resultado_lab2_experimento"]
     resultado = guardado["resultado"]
-    assert len(resultado.tabla) == 15
+    assert len(resultado.tabla) == TOTAL_CANDIDATOS
     assert len(resultado.mejores) == 5
     assert resultado.metadatos["muestra_train"] == 72
     assert resultado.metadatos["muestra_validacion"] == 18

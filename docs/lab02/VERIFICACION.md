@@ -1,68 +1,52 @@
-# Verificación de Lab02
+# Verificación Lab02
 
-## Datos y protocolo
+Estado al 15 de octubre de 2026 (Python 3.13.16, versiones de
+`requirements-lab02-lock.txt`).
 
-- Diabetes original: 403 observaciones y 19 columnas; copia íntegra con SHA-256.
-- Etiquetas: `Diabetes` si `glyhb > 7` y `No diabetes` si `glyhb <= 7`, según
-  el criterio histórico de [HBiostat](https://hbiostat.org/data/repo/diabetes).
-- Se excluyen las 13 observaciones sin `glyhb`, sin imputar etiquetas:
-  390 casos, 60 `Diabetes` y 330 `No diabetes`.
-- Se utilizan 17 predictoras nativas, sin `id` ni `glyhb`. Las categóricas son
-  `location`, `gender` y `frame`. No se calculan BMI ni nuevas razones.
-- Los faltantes de predictoras se conservan hasta el ajuste con entrenamiento;
-  `bp.2s` y `bp.2d` tienen 252 ausencias cada una en el preparado.
-- `trazabilidad_diabetes.csv` relaciona las 390 filas preparadas con sus filas
-  e IDs originales. Los índices de fila comienzan en cero.
-- Potabilidad: 3276 observaciones, nueve predictoras y objetivo `Potability`.
-- Semilla 42, particiones estratificadas y selección por F1 macro de validación.
-  Imputación, codificación y escala se ajustan exclusivamente con entrenamiento.
+## Cumplimiento del enunciado
 
-## Evidencia experimental
+| Requisito | Dónde se cumple |
+| --- | --- |
+| KNN, DT, RF, XGBoost y AdaBoost en el framework (clase Supervisados) | `framework_ia/modelos/supervisado/clasificacion.py`, `Clasificacion` hereda de `Supervisado` |
+| Configuración estándar y variaciones | 20 configuraciones (estándar + 3 variantes por familia) y selección de atributos; informe, secciones 4 y 5 |
+| Seleccionar el mejor modelo y analizarlo | Validación cruzada de 5 pliegues, ganador por familia y global; análisis por familia, discusión y conclusiones |
+| Definiciones (20 %) y mapa conceptual | Informe, sección 2 y figura 1 |
+| Desarrollo, experimentación y análisis (80 %) | Informe, secciones 3 a 7 y anexo |
+| LaTeX / Overleaf | `informe/main.tex` y `informe/proyecto_overleaf.zip` |
+| ZIP `ID-1_ID-2.zip` | `504610652_402680547_118910482_119180324.zip` |
 
-Cada dataset contiene 15 candidatos exitosos, cero fallidos y cinco ganadores.
-Cada familia incluye una configuración estándar y dos variantes. La selección
-no utiliza el conjunto de prueba.
+## Comprobaciones realizadas
 
-| Dataset | Entrenamiento | Validación | Prueba |
-| --- | ---: | ---: | ---: |
-| Potabilidad | 1965 | 492 | 819 |
-| Diabetes | 233 | 59 | 98 |
+- `python -m pytest -q`: 142 pruebas y 59 subpruebas aprobadas.
+- Repetir ambos experimentos con la semilla 42 en carpetas nuevas produjo
+  `comparacion_validacion.csv` y `predicciones_test.csv` idénticos byte a byte a
+  los de `salida_lab02/`.
+- Sin fuga de información: las pruebas verifican que cambiar las etiquetas de
+  prueba no altera la tabla de validación cruzada, que los pliegues particionan
+  exactamente train y que la preparación se ajusta sólo con train.
+- Cada cifra del análisis escrito se contrastó con `comparacion_validacion.csv`,
+  `mejores_modelos.json` y los archivos por algoritmo.
+- El informe compila con pdfLaTeX sin errores ni cajas desbordadas (31 páginas);
+  se revisaron visualmente todas las páginas.
+- El empaquetador valida evidencia completa, correspondencia con los CSV
+  preparados (SHA-256), ganadores coherentes con la validación, exactitud
+  reproducida por las predicciones, 17 predictoras en Diabetes y PDF/LaTeX
+  completos; el ZIP es determinista y `MANIFIESTO.json` lista el SHA-256 de cada
+  archivo.
 
-Los ganadores de Diabetes utilizan 21 columnas transformadas a partir de las
-17 predictoras nativas. Los índices de los tres subconjuntos son únicos y
-disjuntos. Las métricas por clase, accuracy y F1 macro coinciden con las
-matrices de confusión y las predicciones exportadas.
+## Resultados principales (prueba reservada)
 
-La reproducción del protocolo desde una extracción limpia obtuvo los mismos
-15 candidatos exitosos y cinco ganadores de Diabetes. Los 12 archivos de
-resultados coincidieron byte a byte; el JSON de configuración difirió sólo en
-`argumentos.salida`. Particiones, métricas, versiones y datos coincidieron.
+| Dataset | Mejor por validación cruzada | F1 macro CV | F1 macro test | Exactitud test | AUC |
+| --- | --- | --- | --- | --- | --- |
+| Potabilidad (2011) | RF, 500 árboles | 0.644 ± 0.022 | 0.659 | 70.2 % | 0.727 |
+| Diabetes (390) | RF estándar + selección de 11 atributos | 0.840 ± 0.066 | 0.764 | 88.8 % | 0.892 |
 
-## Software e interfaz
+Referencias triviales (predecir siempre la clase mayoritaria): 59.6 % de
+exactitud y F1 macro 0.374 en Potabilidad; 84.7 % y 0.459 en Diabetes.
 
-Las pruebas cubren el umbral estricto, etiquetas ausentes, trazabilidad,
-preparación repetible, rechazo de campos CSV adicionales, integridad del paquete
-y configuración de Streamlit. Configurar o navegar no entrena modelos.
+## Límites conocidos
 
-La interfaz se verificó en anchos de 1440 px con tema claro, 1024 px con tema
-oscuro y 390 px con tema claro, sin errores JavaScript ni desborde horizontal.
-La descarga no ejecuta otro entrenamiento. Los 12 archivos de resultados
-exportados por la interfaz para Diabetes coincidieron con la CLI; también
-coincidió el JSON de experimento.
-
-## Informe e integridad de entrega
-
-El generador comprueba procedencia, hashes, particiones disjuntas, selección
-por validación y coherencia de las métricas antes de construir el informe.
-La fuente LaTeX es autónoma, con tablas, figuras y referencias integradas.
-
-El PDF se valida mediante compilación y revisión visual de todas sus páginas.
-`informe/verificacion_pdf.json` registra sus huellas, las páginas revisadas y
-el orden de las secciones. El proyecto Overleaf incluye la misma fuente y su
-manifiesto de procedencia.
-
-El ZIP contiene cuatro CSV y 13 archivos de evidencia por dataset.
-`MANIFIESTO.json` registra el tamaño y SHA-256 de cada archivo incluido.
-La verificación comprueba CRC, hashes, copia original de Diabetes y su
-derivación reproducible. Los 14 archivos conservados de Potabilidad mantienen
-sus bytes y huellas.
+- Una sola partición de prueba; sin intervalos de confianza.
+- Umbral de decisión fijo en 0.5.
+- La verificación automática de Streamlit no certifica contraste visual ni uso
+  con teclado.

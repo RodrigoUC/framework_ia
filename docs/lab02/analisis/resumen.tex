@@ -1,0 +1,16 @@
+Se compararon cinco familias de clasificadores (KNN, árbol de decisión, Random
+Forest, XGBoost y AdaBoost) en dos problemas: potabilidad del agua (2011 muestras,
+9 variables fisicoquímicas) y diabetes (390 pacientes, 17 variables clínicas). Para
+cada familia se evaluó la configuración estándar y tres variantes que cambian un
+único hiperparámetro, con validación cruzada estratificada de 5 pliegues sobre el
+75\,\% de los datos, y se probó además la selección de atributos por información
+mutua. El modelo elegido en cada familia se evaluó una sola vez en un 25\,\% de
+prueba reservado. En Potabilidad, Random Forest con 500 árboles obtuvo el mejor
+resultado (F1 macro 0.659, exactitud 70.2\,\%, AUC 0.727), pero ningún modelo
+detectó más de la mitad de las muestras potables: la señal de los datos es débil y
+no lineal. En Diabetes, todos los modelos basados en árboles alcanzaron F1 macro
+entre 0.76 y 0.78 y AUC cercanas a 0.9, dominados por la glucosa estabilizada; los
+siete diabéticos que ningún modelo detecta tienen glucosa en rango normal, lo que
+muestra un límite de la información disponible y no de los algoritmos. Todo el
+trabajo se integró en la clase \texttt{Clasificacion} del framework del curso y es
+reproducible con un solo comando por dataset.

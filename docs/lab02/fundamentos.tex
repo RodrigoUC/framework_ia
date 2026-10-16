@@ -1,128 +1,172 @@
 \section{Fundamentos teóricos}
+
 \subsection{Aprendizaje supervisado y generalización}
-En clasificación, cada observación contiene predictoras $x_i$ y una etiqueta
-discreta $y_i$. El modelo aprende una regla $\hat y=f(x)$ a partir del
-entrenamiento; su utilidad se evalúa en observaciones que no participaron en
-ese aprendizaje. Los hiperparámetros controlan el procedimiento de ajuste,
-mientras que los parámetros del modelo se estiman con los datos. Una mayor
-complejidad puede reducir el error de entrenamiento y aumentar la variación
-ante nuevas muestras. Por ello, seleccionar un modelo exige separar ajuste,
-selección y evaluación final \cite{sklearnleakage,sklearnmetrics}.
+En clasificación, cada observación contiene predictoras $x_i\in\mathbb{R}^d$ y una
+etiqueta discreta $y_i$. El modelo aprende una regla $\hat y=f(x)$ a partir de
+datos de entrenamiento, y su utilidad se mide en observaciones que no participaron
+en ese aprendizaje \cite{hastie}. Los \emph{hiperparámetros} (por ejemplo, el número
+de vecinos o la profundidad de un árbol) controlan el procedimiento de ajuste; los
+\emph{parámetros} se estiman con los datos. Más complejidad reduce el error de
+entrenamiento, pero puede aumentar la varianza ante muestras nuevas: el modelo
+memoriza ruido (sobreajuste). Si el modelo es demasiado simple, no captura la
+estructura (subajuste). Por eso hay que separar ajuste, selección y evaluación final
+\cite{sklearnleakage,sklearnmetrics}.
 
 \subsection{KNN: vecinos más cercanos}
-KNN conserva las observaciones de entrenamiento y clasifica un nuevo punto
-mediante las etiquetas de sus $k$ vecinos más próximos \cite{coverhart,sklearnknn}.
-Con distancia de Minkowski,
+KNN no construye un modelo explícito: guarda las observaciones de entrenamiento y
+clasifica un punto nuevo según las etiquetas de sus $k$ vecinos más próximos
+\cite{coverhart,sklearnknn}. Con la distancia de Minkowski,
 \[
- d_p(x,z)=\left(\sum_{j=1}^{d}|x_j-z_j|^p\right)^{1/p},
+ d_p(x,z)=\Bigl(\sum_{j=1}^{d}|x_j-z_j|^p\Bigr)^{1/p},
  \qquad
- \hat y=\arg\max_c\sum_{i\in N_k(x)}w_i\,\mathbf{1}(y_i=c).
+ \hat y=\arg\max_c\sum_{i\in N_k(x)}w_i\,\mathbf{1}(y_i=c),
 \]
-Los pesos pueden ser uniformes o depender inversamente de la distancia.
-Un $k$ pequeño conserva detalles locales y puede ser sensible al ruido;
-uno grande suaviza la decisión y puede diluir una clase poco frecuente.
-El escalado afecta directamente qué observaciones se consideran cercanas.
-La distancia Manhattan corresponde a $p=1$ y la euclidiana a $p=2$.
-Los atributos irrelevantes y una dimensión elevada pueden dificultar la
-interpretación de las distancias. El algoritmo de búsqueda acelera la
-consulta, pero no debe confundirse con una nueva familia de clasificador.
+donde $p=2$ es la distancia euclidiana, $p=1$ la Manhattan, y los pesos $w_i$ son
+uniformes o inversamente proporcionales a la distancia. Un $k$ pequeño conserva
+detalles locales y es sensible al ruido; uno grande suaviza la frontera y puede
+diluir una clase poco frecuente, porque la mayoría de los vecinos pertenecerá a la
+clase dominante. Como todas las variables entran en la distancia con el mismo peso,
+el escalado es obligatorio y los atributos irrelevantes empeoran el método: con
+muchas dimensiones las distancias tienden a parecerse entre sí.
 
 \subsection{Árbol de decisión (DT)}
-Un árbol divide recursivamente el espacio de atributos mediante reglas
-como $x_j\leq t$. Cada hoja representa una región y estima las probabilidades
-de clase con las frecuencias observadas. La implementación utilizada es
-\texttt{DecisionTreeClassifier}, basada en CART \cite{sklearntree}.
-Para proporciones $p_c$ de las clases en un nodo, dos criterios habituales son
+Un árbol divide recursivamente el espacio de atributos con reglas de la forma
+$x_j\le t$. Cada hoja es una región y predice la clase más frecuente de las
+observaciones de train que caen en ella. La implementación utilizada,
+\texttt{DecisionTreeClassifier}, sigue el algoritmo CART \cite{sklearntree}. Para las
+proporciones $p_c$ de cada clase en un nodo, las impurezas habituales son
 \[
- G=1-\sum_c p_c^2, \qquad H=-\sum_c p_c\log p_c.
+ G=1-\sum_c p_c^2 \quad\text{(Gini)}, \qquad H=-\sum_c p_c\log p_c \quad\text{(entropía)},
 \]
-Una división se elige por la reducción de impureza, ponderando el tamaño
-de sus hijos. La profundidad máxima y los mínimos de muestras por hoja
-o división controlan la complejidad. Un árbol profundo puede memorizar
-particularidades; una restricción excesiva puede impedir representar
-relaciones útiles. Sus reglas son inspeccionables y admiten interacciones
-no lineales. Pequeños cambios en la muestra pueden producir árboles
-distintos. Una importancia de atributo mide el uso predictivo dentro del
-modelo; no demuestra causalidad.
+y en cada nodo se elige la división que más reduce la impureza ponderada de los
+hijos. Sin restricciones, el árbol crece hasta que cada hoja es pura y memoriza el
+entrenamiento. La profundidad máxima y el mínimo de observaciones por hoja limitan
+esa complejidad. Sus reglas se pueden leer directamente, pero cambios pequeños en la
+muestra producen árboles distintos: es un método de alta varianza.
 
 \subsection{Random Forest (RF)}
-Random Forest combina árboles ajustados con aleatoriedad en las muestras
-y en los atributos candidatos a cada división \cite{breiman,sklearnensemble}.
-En la implementación de scikit-learn se agregan sus probabilidades para
-determinar la clase. Reducir la dependencia entre árboles ayuda a disminuir
-la variación del ensamble respecto de un árbol individual.
-\texttt{n\_estimators} controla cuántos árboles se construyen;
-\texttt{max\_features}, cuántos atributos se consideran por división;
-y \texttt{max\_depth} o \texttt{min\_samples\_leaf} limitan cada árbol.
-Más árboles incrementan el coste computacional y no garantizan una mejora
-en cada muestra. Los bosques pueden aprender relaciones complejas con
-poco preprocesamiento de escala, pero su decisión resulta menos sencilla
-de explicar que una sola regla. El error fuera de bolsa es una alternativa
-de evaluación interna cuando se configura; este laboratorio selecciona
-mediante un holdout común y no lo sustituye por una estimación no calculada.
+Random Forest promedia muchos árboles profundos, cada uno entrenado con una muestra
+\emph{bootstrap} de las filas y con un subconjunto aleatorio de atributos candidatos
+en cada división \cite{breiman,sklearnensemble}. Cada árbol individual sobreajusta,
+pero sus errores están poco correlacionados y el promedio reduce la varianza sin
+aumentar mucho el sesgo. \texttt{n\_estimators} fija cuántos árboles se promedian
+(más árboles estabilizan la predicción pero no cambian el sesgo), y
+\texttt{max\_depth} o \texttt{min\_samples\_leaf} limitan cada árbol. Es habitual que
+un bosque alcance exactitud casi perfecta en train sin que eso implique la misma
+calidad en datos nuevos.
 
 \subsection{XGBoost}
-XGBoost ajusta un ensamble aditivo de árboles mediante optimización de una
-pérdida y penalizaciones de complejidad \cite{chen,xgboostmodel}:
+XGBoost construye un ensamble \emph{aditivo}: cada árbol nuevo corrige los errores
+del conjunto anterior siguiendo el gradiente de una función de pérdida, con una
+penalización explícita de complejidad \cite{chen,xgboostmodel}:
 \[
  F_T(x)=\sum_{t=1}^{T}\eta f_t(x),\qquad
- \mathcal L=\sum_i\ell(y_i,F_T(x_i))+\sum_t\Omega(f_t),
- \quad \Omega(f)=\gamma L+\frac{\lambda}{2}\sum_{j=1}^{L}w_j^2.
+ \mathcal L=\sum_i\ell\bigl(y_i,F_T(x_i)\bigr)+\sum_t\Omega(f_t),
+ \qquad \Omega(f)=\gamma L+\tfrac{\lambda}{2}\sum_{j=1}^{L}w_j^2,
 \]
-Aquí $L$ es el número de hojas, $w_j$ su puntuación y $\eta$ la tasa de
-aprendizaje. Cada nuevo árbol se obtiene a partir de gradientes y curvatura
-de la pérdida del ensamble anterior. Profundidad, número de estimadores,
-submuestreo de filas y atributos, y regularización cambian la capacidad
-del modelo. Una tasa menor suele requerir más iteraciones; el equilibrio
-debe evaluarse con datos de selección. Se utiliza \texttt{xgboost.XGBClassifier}:
-\texttt{GradientBoostingClassifier} de scikit-learn pertenece al boosting
-por gradiente, pero no equivale a implementar XGBoost. El test se mantiene
-fuera del ajuste y de cualquier decisión de parada o selección.
+donde $L$ es el número de hojas, $w_j$ el valor de cada hoja y $\eta$ la tasa de
+aprendizaje. Una $\eta$ menor hace que cada árbol aporte menos y actúa como
+regularización; una profundidad menor limita las interacciones que cada árbol
+puede representar. Se usa la biblioteca \texttt{xgboost.XGBClassifier}, no el
+\texttt{GradientBoostingClassifier} de scikit-learn.
 
 \subsection{AdaBoost}
-AdaBoost construye una secuencia de aprendices débiles y cambia los pesos
-de las observaciones para enfatizar los errores anteriores
-\cite{freund,sklearnada}. En su formulación binaria clásica, con etiquetas
-$y_i\in\{-1,+1\}$ y error ponderado $\epsilon_t$,
+AdaBoost combina en secuencia aprendices débiles, por defecto árboles de un solo
+nivel (\emph{stumps}), y aumenta el peso de las observaciones mal clasificadas para
+que el siguiente aprendiz se concentre en ellas \cite{freund,sklearnada}. En la
+versión binaria, con error ponderado $\epsilon_t$,
 \[
- \alpha_t=\frac12\log\frac{1-\epsilon_t}{\epsilon_t},\qquad
- D_{t+1}(i)\propto D_t(i)e^{-\alpha_t y_i h_t(x_i)},\qquad
- \hat y=\operatorname{sign}\left(\sum_t\alpha_t h_t(x)\right).
+ \alpha_t=\tfrac12\log\frac{1-\epsilon_t}{\epsilon_t},\qquad
+ D_{t+1}(i)\propto D_t(i)\,e^{-\alpha_t y_i h_t(x_i)},\qquad
+ \hat y=\operatorname{sign}\Bigl(\sum_t\alpha_t h_t(x)\Bigr).
 \]
-Esta expresión explica la ponderación secuencial; la biblioteca implementa
-su variante discreta de clasificación, compatible también con múltiples
-clases. El estimador base predeterminado es un árbol de profundidad uno.
-Número de estimadores y tasa de aprendizaje regulan el ensamble.
-Concentrar peso en casos difíciles puede ayudar a corregir errores, pero
-también amplifica ruido o etiquetas incorrectas. Su progreso no garantiza
-una mejora monotónica sobre observaciones nuevas. La versión de la biblioteca
-y los parámetros efectivos se conservan para interpretar las variantes.
+El número de estimadores y la tasa de aprendizaje regulan el ensamble. Si cada stump
+apenas supera el azar ($\epsilon_t\approx0.5$), su peso $\alpha_t$ es casi nulo y el
+ensamble aprende muy poco; además, concentrar peso en casos difíciles puede
+amplificar el ruido de las etiquetas.
 
-\subsection{Matriz de confusión y métricas}
-Se usa $C_{ij}=\#\{y=i,\hat y=j\}$: filas reales y columnas predichas.
-Para cada clase $c$, tratada como positiva frente al resto,
+\subsection{Evaluación: matriz de confusión y métricas}
+La matriz de confusión cuenta $C_{ij}=\#\{y=i,\hat y=j\}$ (filas reales, columnas
+predichas). Para cada clase $c$, tratada como positiva frente al resto,
 \[
  P_c=\frac{TP_c}{TP_c+FP_c},\qquad
  R_c=\frac{TP_c}{TP_c+FN_c},\qquad
- F1_c=\frac{2P_cR_c}{P_c+R_c}.
+ F1_c=\frac{2P_cR_c}{P_c+R_c},\qquad
+ \text{F1 macro}=\frac1{|C|}\sum_c F1_c .
 \]
-La exactitud es $\mathrm{accuracy}=\sum_c C_{cc}/n$ y el error global es
-$1-\mathrm{accuracy}$. F1 macro promedia $F1_c$ dando igual peso a cada
-clase; no es la media armónica de precisión macro y recall macro.
-Recall pregunta qué fracción de una clase real se detecta y precisión
-qué fracción de las predicciones de esa clase es correcta
-\cite{sklearnmetrics}. Una exactitud alta puede coexistir con mal recall
-de una clase poco frecuente. Se conserva el orden literal de las etiquetas
-y no se asigna una clase positiva por su posición. Cuando no existen
-predicciones de una clase, el exportador usa cero para métricas con
-denominador nulo; las matrices permiten reconocer esa situación.
+La exactitud $\sum_c C_{cc}/n$ puede ser alta aunque una clase poco frecuente no se
+detecte nunca. El F1 macro da el mismo peso a cada clase y por eso es la métrica de
+selección de este trabajo: los dos conjuntos están desbalanceados (60/40 y 85/15)
+\cite{sklearnmetrics,hegarcia}.
 
-\begin{center}
-\fbox{\parbox{0.88\linewidth}{\centering
-\textbf{Mapa conceptual:} datos etiquetados $\rightarrow$
-procedencia y exploración $\rightarrow$ particiones disjuntas
-$\rightarrow$ preparación ajustada en train $\rightarrow$
-\{KNN, DT, RF, XGBoost, AdaBoost\} $\rightarrow$
-comparación en validación $\rightarrow$ prueba de ganadores
-$\rightarrow$ interpretación por clase y límites de generalización.}}
-\end{center}
+La \textbf{curva ROC} grafica la tasa de verdaderos positivos contra la de falsos
+positivos al mover el umbral de decisión sobre la probabilidad estimada. El área
+bajo la curva (AUC) es la probabilidad de que el modelo asigne mayor puntuación a un
+positivo que a un negativo elegidos al azar: 0.5 equivale al azar y 1 a una
+separación perfecta. No depende del umbral 0.5 que se usa para producir la matriz
+de confusión \cite{fawcett}.
+
+\subsection{Validación cruzada estratificada}
+Una única partición de validación es muy sensible a qué filas caen en ella,
+sobre todo con pocos casos de la clase minoritaria. En la validación cruzada de $K$
+pliegues, el entrenamiento se divide en $K$ partes; cada configuración se entrena $K$
+veces con $K-1$ partes y se evalúa en la restante, y se reporta la media y la
+desviación de la métrica \cite{kohavi,sklearncv}. La versión \emph{estratificada}
+conserva la proporción de clases en cada pliegue. Todo preprocesamiento (imputación,
+codificación, escalado y selección de atributos) se ajusta dentro de cada pliegue,
+para que el pliegue de evaluación nunca influya en el modelo. El conjunto de prueba
+se separa antes y sólo se usa una vez, con el modelo ya elegido.
+
+\subsection{Selección de atributos por información mutua}
+La información mutua $I(X_j;Y)$ mide cuánto se reduce la incertidumbre sobre la clase
+al conocer una variable; es cero si son independientes y, a diferencia de la
+correlación, también detecta relaciones no lineales \cite{kraskov,ross}. Un método de
+filtro como \texttt{SelectKBest} conserva las $k$ variables con mayor $I(X_j;Y)$
+\cite{guyon}. Su limitación es que evalúa cada variable por separado: una variable que
+sólo es útil en combinación con otra puede recibir una puntuación cercana a cero.
+
+\subsection{Desbalance de clases y ponderación}
+Con clases desbalanceadas, un algoritmo que minimiza el error total tiende a favorecer
+la clase mayoritaria. Una corrección simple es ponderar cada observación de train con
+$w_i=\frac{n}{|C|\,n_{y_i}}$, inversamente proporcional a la frecuencia de su clase,
+de modo que ambas clases pesen lo mismo en el ajuste \cite{hegarcia}. Se aplica a DT, RF,
+XGBoost y AdaBoost; KNN no admite pesos por observación.
+
+\subsection{Importancia por permutación}
+Para interpretar un modelo ya entrenado se permuta al azar una variable en el conjunto
+de prueba y se mide cuánto empeora la métrica. Si la caída es grande, el modelo
+depende de esa variable; si es nula, la ignora. Al ser independiente del algoritmo,
+permite comparar KNN con los métodos basados en árboles \cite{breiman,sklearnperm}.
+No demuestra causalidad.
+
+\subsection{Mapa conceptual}
+La Figura~\ref{fig:mapa} resume cómo se relacionan los conceptos anteriores dentro del
+flujo experimental.
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  caja/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, anchor=north, fill=#1},
+  caja/.default=white,
+  flecha/.style={-{Stealth[length=2mm]}, thick, gray!70!black}]
+\node[caja=gray!12, text width=13.2cm] (sup) at (0.5,0) {\textbf{Aprendizaje supervisado: clasificación}\\ datos etiquetados $(x_i,y_i)$ $\rightarrow$ regla $\hat y=f(x)$ que generalice a datos nuevos};
+\node[caja=blue!8, text width=5.0cm] (inst) at (-3.6,-1.6) {\textbf{Basado en instancias}\\ KNN: vota con los $k$ vecinos;\\ depende de la distancia\\ y del escalado};
+\node[caja=green!10, text width=5.6cm] (arb) at (3.7,-1.6) {\textbf{Basado en árboles}\\ DT: reglas $x_j\le t$ elegidas por impureza (Gini, entropía)};
+\node[caja=yellow!15, text width=5.0cm] (pre) at (-3.6,-3.75) {\textbf{Preparación (sólo con train)}\\ imputación, one-hot, escalado,\\ selección por información mutua,\\ ponderación de clases};
+\node[caja=green!18, text width=3.3cm] (bag) at (1.9,-3.75) {\textbf{Bagging}\\ RF: promedia árboles independientes\\ $\rightarrow$ menos varianza};
+\node[caja=orange!15, text width=3.3cm] (boost) at (5.5,-3.75) {\textbf{Boosting}\\ secuencial, corrige errores: AdaBoost (pesos), XGBoost (gradiente)};
+\node[caja=purple!10, text width=13.2cm] (val) at (0.5,-6.2) {\textbf{Selección del modelo}: estándar y variantes de un solo cambio $\rightarrow$ validación cruzada estratificada de 5 pliegues $\rightarrow$ ganador por familia con mayor F1 macro};
+\node[caja=red!8, text width=13.2cm] (eval) at (0.5,-7.5) {\textbf{Evaluación final en test reservado}: matriz de confusión, precisión, recall y F1 por clase, ROC/AUC\\ \textbf{Interpretación}: importancia por permutación, reglas del árbol, sobreajuste (train vs.\ CV vs.\ test)};
+\draw[flecha] (sup.south -| inst.north) -- (inst.north);
+\draw[flecha] (sup.south -| arb.north) -- (arb.north);
+\draw[flecha] (arb.south -| bag.north) -- (bag.north);
+\draw[flecha] (arb.south -| boost.north) -- (boost.north);
+\draw[flecha] (inst) -- (pre);
+\draw[flecha] (pre.south) -- (pre.south |- val.north);
+\draw[flecha] (bag.south) -- (bag.south |- val.north);
+\draw[flecha] (boost.south) -- (boost.south |- val.north);
+\draw[flecha] (val) -- (eval);
+\end{tikzpicture}
+\caption{Mapa conceptual: familias de clasificadores, preparación sin fuga de información, selección por validación cruzada y evaluación final.}
+\label{fig:mapa}
+\end{figure}

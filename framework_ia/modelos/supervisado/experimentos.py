@@ -93,6 +93,14 @@ def _candidatos(algoritmos, configuraciones):
     return resultado
 
 
+def _parametros_registrados(efectivos: dict, solicitados: dict) -> dict:
+    """Parámetros del estimador más las opciones propias del framework."""
+    registrados = dict(efectivos)
+    if solicitados.get("balancear_clases"):
+        registrados["balancear_clases"] = True
+    return registrados
+
+
 def ejecutar_experimento(
     clasificador,
     *,
@@ -107,11 +115,17 @@ def ejecutar_experimento(
     incluir_categoricas=False,
     imputar=True,
     estandarizar=True,
+    estrategia="holdout",
+    folds=5,
+    seleccion_k="auto",
 ) -> ResultadoExperimentoClasificacion:
     """Ejecuta un benchmark con particiones idénticas para todos los candidatos.
 
-    ``validation_size`` es la fracción de train reservada para validar cuando la
-    partición no incluye validación. ``test_size`` solo aplica sin partición.
+    ``estrategia="holdout"`` reserva ``validation_size`` de train para validar
+    (o reutiliza la validación de ``particion``). ``estrategia="cv"`` usa
+    validación cruzada estratificada de ``folds`` pliegues sobre todo train,
+    compara además cada ganador con selección de atributos y reajusta el
+    elegido con train completo; test se usa una sola vez al final.
     Los errores de un candidato quedan registrados y no abortan los restantes.
     Los errores de datos/partición sí abortan antes de entrenar cualquier modelo.
     """
@@ -119,6 +133,26 @@ def ejecutar_experimento(
         raise ValueError(
             f"Métrica de selección no soportada: {metrica}. Use {METRICAS_SELECCION}."
         )
+    if estrategia == "cv":
+        from .validacion_cruzada import ejecutar_experimento_cv
+
+        return ejecutar_experimento_cv(
+            clasificador,
+            algoritmos=algoritmos,
+            configuraciones=configuraciones,
+            particion=particion,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=stratify,
+            metrica=metrica,
+            incluir_categoricas=incluir_categoricas,
+            imputar=imputar,
+            estandarizar=estandarizar,
+            folds=folds,
+            seleccion_k=seleccion_k,
+        )
+    if estrategia != "holdout":
+        raise ValueError("estrategia debe ser 'holdout' o 'cv'.")
     catalogo = _candidatos(algoritmos, configuraciones)
     base = clasificador._datos_clasificacion()
     train, test, validacion = clasificador._indices(
@@ -219,7 +253,9 @@ def ejecutar_experimento(
                     preparados,
                     {"conjunto_evaluacion": "validacion"},
                 )
-                fila["parametros"] = validado.parametros
+                fila["parametros"] = _parametros_registrados(
+                    validado.parametros, config["parametros"]
+                )
                 scores = {
                     "accuracy": validado.metricas["accuracy"],
                     **{
