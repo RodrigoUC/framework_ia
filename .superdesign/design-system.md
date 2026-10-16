@@ -1,11 +1,11 @@
-# Sistema de diseño — Framework IA
+# Sistema de diseño — Nexo IA
 
 ## Producto y usuarios
 
 Aplicación de escritorio para estudiantes y docentes que cargan un CSV,
 preparan datos y ejecutan análisis exploratorio, clustering, reducción de
-dimensionalidad o clasificación. El trabajo principal es comparar resultados,
-entender calidad de datos y exportar evidencia reproducible para Lab01.
+dimensionalidad, clasificación o regresión. El trabajo principal es comparar resultados,
+entender calidad de datos y exportar evidencia reproducible.
 
 ## Problemas UX a resolver
 
@@ -18,7 +18,7 @@ entender calidad de datos y exportar evidencia reproducible para Lab01.
 
 ## Dirección de experiencia
 
-Nueva identidad: **Atlas Analítico**. Un lenguaje técnico-minimalista inspirado
+Identidad vigente: **Nexo IA**. Un lenguaje técnico-minimalista inspirado
 en planos de ingeniería y cuadernos de laboratorio, con jerarquía editorial y
 una cuadrícula bento sutil. Convertir el flujo en una secuencia visible:
 **1. Datos → 2. Preparar → 3. Explorar → 4. Modelar → 5. Comparar y exportar**.
@@ -48,7 +48,7 @@ colapsados hasta que el usuario los necesite.
   columnas, nulos y estado de preparación.
 - Navegación lateral: Datos; los destinos independientes **EDA** y **ACP**;
   **Clustering**, **Clasificación** y **Regresión** como grupos expandibles; y
-  Resultados de clasificación como destino propio.
+  Resultados de clasificación y de regresión como destinos propios.
   Las vistas disponibles son:
   - EDA → gráficos exploratorios existentes.
   - ACP → análisis explícito independiente, fuera de Clustering.
@@ -65,12 +65,17 @@ colapsados hasta que el usuario los necesite.
     clase real, con las etiquetas reales y la partición aplicada.
   - Experimentos Lab02 → catálogo de 15 configuraciones, ejecución explícita de
     `Clasificacion.experimentar(...)`, selección en validación y diagnóstico en
-    prueba de los cinco ganadores. La navegación sola no entrena. Mantiene Atlas,
+    prueba de los cinco ganadores. La navegación sola no entrena. Mantiene la identidad,
     tablas/captions y gráficos existentes, con ZIP/CSV/JSON reproducibles.
   - Resultados de clasificación presenta los experimentos y las ejecuciones
     individuales en apartados separados; el comparador conserva sólo individuales.
-  - Regresión → lineal simple y múltiple (marcadas como próximas mientras sean
-    plantillas).
+  - Regresión → RLS, RLM, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT y RF;
+    configuración compartida, experimentos y comparación de snapshots.
+  - Experimentos Lab03 → catorce candidatos; selección por RMSE de validación
+    y prueba final separada. Métricas numéricas, real frente a predicción,
+    residuos con referencia cero y descargas reproducibles.
+  - Resultados de regresión → solo lectura de modelos y experimentos; errores
+    parciales visibles sin reemplazar un ganador fallido usando prueba.
   El ítem activo debe mostrar toda la ruta (breadcrumb), y el menú conserva
   sus grupos abiertos al navegar entre técnicas hermanas. Etiquetas técnicas
   en mayúscula con índice.

@@ -1,8 +1,8 @@
-# Contexto de diseño · Atlas Analítico
+# Contexto de diseño · Nexo IA
 
 La identidad visual vigente está en [.superdesign/design-system.md](.superdesign/design-system.md)
 y los colores de Streamlit en [.streamlit/config.toml](.streamlit/config.toml).
-La clasificación conserva esa identidad y controles nativos; no introduce un segundo tema.
+Clasificación y regresión conservan esa identidad y controles nativos; no introducen otro tema.
 
 ## Usuarios y flujo principal
 
@@ -35,7 +35,15 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 - Resultados de clasificación: destino de solo lectura para ejecuciones
   individuales y experimentos guardados, en apartados separados. Muestra modelo,
   parámetros, métricas, partición y procedencia; nunca invoca entrenamiento.
-- Regresión: próxima etapa, fuera del alcance de esta implementación.
+- Configuración de regresión: target numérico, predictores, predictor simple,
+  semilla, partición y preparación aprendida solo con train.
+- Regresión: RLS, RLM, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT y RF en destinos
+  separados. Entrenamiento explícito, métricas numéricas y diagnósticos de prueba.
+- Experimentos Lab03: catorce candidatos, selección por RMSE de validación,
+  comparación con dispersión por pliegue y prueba final de ganadores; descargas
+  ZIP/CSV/JSON usan los exportadores compartidos con CLI.
+- Comparar regresores entrenados / Resultados de regresión: solo lectura,
+  sin ajustar modelos; resultados incluye también el experimento guardado.
 
 ## Contratos de interacción
 
@@ -47,7 +55,11 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
 - Las opciones experimentales modificadas se señalan sin alterar la evidencia
   ejecutada. Un intento fallido conserva el último experimento exitoso del mismo
   contexto; los fallos de candidatos se muestran como ejecución parcial.
-- Preparación global con imputación/escalado bloquea clasificación y muestra
+- En regresión, cambiar el predictor simple también invalida la evidencia.
+  Si falla la prueba del ganador seleccionado por validación, se muestra el
+  intento parcial y se conserva la ejecución completa anterior; nunca se
+  sustituye al ganador por otro elegido usando test.
+- Preparación global con imputación/escalado bloquea clasificación y regresión y muestra
   cómo restaurar el original para evitar fuga de información.
 - Acciones principales identificables y errores cerca del control; estados
   vacíos explican qué falta. Errores de candidatos y de test son visibles.
@@ -57,6 +69,8 @@ comparación/resultados leen ejecuciones guardadas; visitarlos nunca entrena.
   conservan sus etiquetas literales y clases sin soporte se marcan no evaluadas.
 - Streamlit 1.65+ conserva widgets por sesión y permite descripciones accesibles
   de tablas/gráficos. Preservar estas capacidades al cambiar dependencias.
+- RMSE, MAE, MSE y R² se muestran como números, no porcentajes. Los residuos
+  son real menos predicción. Los controles de ambas familias están aislados.
 
 ## Verificación
 

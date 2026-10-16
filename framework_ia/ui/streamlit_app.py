@@ -46,8 +46,17 @@ from .lab2 import (
 )
 from .experimentos_lab2 import render_experimentos
 from .perfil_diabetes import render_perfil_diabetes
+from .configuracion_regresion import configuracion_regresion_actual, configurar_regresion
+from .estado_regresion import limpiar_resultados_regresion, sincronizar_contexto_regresion
+from .lab3 import preparacion_regresion_segura, render_modelo_regresion, render_resultados_regresion
+from .experimentos_lab3 import render_experimentos_regresion
+from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+APP_NAME = "Nexo IA"
+VISTAS_REGRESORES = {f"regresion_{alg.lower()}": alg for alg in ALGORITMOS_LAB3}
+VISTAS_REGRESION = {*VISTAS_REGRESORES, "regresion", "regresion_configuracion",
+                    "lab3_benchmark", "lab3_comparacion", "lab3_resultados"}
 PALETA = {
     "fondo": "#f7f7f5",
     "superficie": "#eeeee9",
@@ -117,7 +126,7 @@ RUTAS_VISTA = {
 
 
 def _aplicar_estilos_atlas() -> None:
-    """Instala la capa visual compartida de la experiencia Atlas Analítico."""
+    """Instala la capa visual compartida de Nexo IA; conserva contratos CSS."""
     oscuro = st.context.theme.type == "dark"
     focus_color = "#9effbf" if oscuro else "#1a3c2b"
     chip_background = "#9effbf" if oscuro else "#1a3c2b"
@@ -303,6 +312,7 @@ def _seleccionar_vista() -> str:
             unsafe_allow_html=True,
         )
         boton("Configuración de clasificación", "clasificacion_configuracion")
+        boton("Configuración de regresión", "regresion_configuracion")
         with st.expander(
             "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac"}
         ):
@@ -324,29 +334,37 @@ def _seleccionar_vista() -> str:
             boton("Experimentos Lab02", "lab2_benchmark")
             boton("Comparar modelos entrenados", "lab2_experimentos")
 
-        with st.expander("Regresión", expanded=vista == "regresion"):
-            st.markdown(
-                '<p class="atlas-family">En preparación</p>',
-                unsafe_allow_html=True,
-            )
-            boton("Regresión · Próximamente", "regresion")
+        with st.expander("Regresión", expanded=vista in VISTAS_REGRESION):
+            for destino, algoritmo in VISTAS_REGRESORES.items():
+                boton(NOMBRES_REGRESORES[algoritmo], destino)
+            boton("Experimentos Lab03", "lab3_benchmark")
+            boton("Comparar regresores entrenados", "lab3_comparacion")
 
         st.markdown(
             '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
         )
         boton("Resultados de clasificación", "lab2_resultados")
+        boton("Resultados de regresión", "lab3_resultados")
     return st.session_state["vista_activa"]
 
 
 def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> None:
     """Show the current dataset and route; data health belongs to data/EDA views."""
-    titulo = TITULOS_VISTA[vista]
-    ruta = RUTAS_VISTA[vista]
+    titulos_regresion = {
+        **{ruta: NOMBRES_REGRESORES[alg] for ruta, alg in VISTAS_REGRESORES.items()},
+        "regresion": "Configuración de regresión",
+        "regresion_configuracion": "Configuración de regresión",
+        "lab3_benchmark": "Experimentos Lab03",
+        "lab3_comparacion": "Comparar regresores entrenados",
+        "lab3_resultados": "Resultados de regresión",
+    }
+    titulo = titulos_regresion[vista] if vista in VISTAS_REGRESION else TITULOS_VISTA[vista]
+    ruta = f"Regresión / {titulo}" if vista in VISTAS_REGRESION else RUTAS_VISTA[vista]
     nombre_dataset = escape(etiqueta)
     st.markdown(
         f"""
         <section class="atlas-header">
-          <div class="atlas-breadcrumb">{ruta}</div>
+          <div class="atlas-breadcrumb">{APP_NAME} / {ruta}</div>
           <h1 class="atlas-title">{titulo}</h1>
           <p class="atlas-subtitle">Dataset activo: <strong>{nombre_dataset}</strong></p>
         </section>
@@ -358,11 +376,10 @@ def _render_encabezado_atlas(datos: pd.DataFrame, etiqueta: str, vista: str) -> 
 
 
 def _render_regresion() -> None:
-    """Explica con claridad el estado actual del contrato de regresión."""
+    """Orienta destinos antiguos hacia las vistas de regresión disponibles."""
     st.info(
-        "La capa de regresión ya está separada dentro de `modelos.supervisado`, "
-        "pero sus métodos todavía son una plantilla. Esta vista estará disponible "
-        "cuando se implementen regresión lineal simple y múltiple."
+        "Abra Configuración de regresión para elegir target y predictores; "
+        "después seleccione un modelo o Experimentos Lab03 en la navegación."
     )
 
 
@@ -392,12 +409,13 @@ def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
     _limpiar_resultados()
     st.session_state.pop("dataset_preparacion", None)
     for clave in list(st.session_state):
-        if clave.startswith(("modelo_", "clasif_", "dataset_")) and clave not in {"dataset_original", "dataset_preparado", "dataset_identidad"}:
+        if clave.startswith(("modelo_", "clasif_", "reg_", "lab3_", "dataset_")) and clave not in {"dataset_original", "dataset_preparado", "dataset_identidad"}:
             del st.session_state[clave]
 
 
 def _limpiar_resultados() -> None:
     """Descarta resultados que ya no corresponden al dataset activo."""
+    limpiar_resultados_regresion(st.session_state)
     for clave in list(st.session_state):
         if (
             clave.startswith("resultado_")
@@ -556,6 +574,7 @@ def _render_particion(datos: pd.DataFrame) -> None:
                 semilla=int(semilla),
             )
             st.session_state["particion_global"] = Particionador(configuracion).dividir(datos)
+            limpiar_resultados_regresion(st.session_state)
             # A new applied split invalidates even the read-only results route.
             for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
                           "resultado_lab2_intento_experimento", "error_lab2_experimento",
@@ -1369,7 +1388,7 @@ def _render_umap(
 def main() -> None:
     """Punto de entrada de la aplicación Streamlit."""
     st.set_page_config(
-        page_title="Atlas Analítico",
+        page_title=APP_NAME,
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -1388,7 +1407,7 @@ def main() -> None:
 
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()
     if datos_cargados is None:
-        st.markdown("# Atlas Analítico")
+        st.markdown(f"# {APP_NAME}")
         st.info("Seleccione un CSV local o suba un archivo para comenzar.")
         return
     _sincronizar_dataset(datos_cargados, identidad)
@@ -1400,6 +1419,18 @@ def main() -> None:
 
     configuracion = None
     configuracion_clasif = None
+    configuracion_reg = None
+    if vista in VISTAS_REGRESION:
+        configuracion_reg = (
+            configurar_regresion(datos) if vista in {"regresion", "regresion_configuracion"}
+            else configuracion_regresion_actual(datos, st.session_state)
+        )
+        if configuracion_reg is None:
+            limpiar_resultados_regresion(st.session_state)
+        else:
+            sincronizar_contexto_regresion(st.session_state, datos, configuracion_reg)
+            if vista in {"regresion", "regresion_configuracion"}:
+                preparacion_regresion_segura()
     if vista in VISTAS_NO_SUPERVISADAS:
         configuracion = _configurar_modelos(datos)
     elif vista == "clasificacion_configuracion":
@@ -1438,7 +1469,17 @@ def main() -> None:
                         f"resultado_lab2_modelo_{codigo}", entrada.get("resultado")
                     )
 
-    if vista == "datos":
+    if vista in VISTAS_REGRESION:
+        if configuracion_reg is None or not configuracion_reg["features"]:
+            st.warning("Seleccione un target y predictores en Configuración de regresión.")
+        elif vista in VISTAS_REGRESORES:
+            render_modelo_regresion(datos, configuracion_reg, _mostrar_figura,
+                                    algoritmo=VISTAS_REGRESORES[vista])
+        elif vista == "lab3_benchmark":
+            render_experimentos_regresion(datos, configuracion_reg, _mostrar_figura)
+        elif vista in {"lab3_comparacion", "lab3_resultados"}:
+            render_resultados_regresion(_mostrar_figura, incluir_experimentos=vista == "lab3_resultados")
+    elif vista == "datos":
         _render_dataset()
     elif vista == "eda":
         _render_eda(datos)

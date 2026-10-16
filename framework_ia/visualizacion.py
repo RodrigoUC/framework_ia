@@ -22,6 +22,79 @@ COLOR_TERCIARIO = "#3C7D65"
 PALETA_CUALITATIVA = px.colors.qualitative.T10
 
 
+class VisualizadorRegresion:
+    """Diagnósticos numéricos sobre evidencia guardada, sin recalcular modelos."""
+
+    @staticmethod
+    def real_predicho(resultado) -> go.Figure:
+        limites = [
+            min(resultado.y_true.min(), resultado.y_pred.min()),
+            max(resultado.y_true.max(), resultado.y_pred.max()),
+        ]
+        figura = go.Figure(
+            go.Scatter(
+                x=resultado.y_true,
+                y=resultado.y_pred,
+                mode="markers",
+                name="Prueba",
+                marker={"color": COLOR_PRIMARIO},
+            )
+        )
+        figura.add_trace(
+            go.Scatter(
+                x=limites,
+                y=limites,
+                mode="lines",
+                name="Predicción ideal",
+                line={"color": COLOR_SECUNDARIO, "dash": "dash"},
+            )
+        )
+        figura.update_layout(
+            title="Valores reales y predichos · prueba",
+            xaxis_title="Valor real",
+            yaxis_title="Predicción",
+        )
+        return figura
+
+    @staticmethod
+    def residuos(resultado) -> go.Figure:
+        figura = go.Figure(
+            go.Scatter(
+                x=resultado.y_pred,
+                y=resultado.residuos,
+                mode="markers",
+                name="Residuos",
+                marker={"color": COLOR_PRIMARIO},
+            )
+        )
+        figura.add_hline(y=0, line_dash="dash", line_color=COLOR_SECUNDARIO)
+        figura.update_layout(
+            title="Residuos · prueba",
+            xaxis_title="Predicción",
+            yaxis_title="Real − predicción",
+        )
+        return figura
+
+    @staticmethod
+    def comparacion_validacion(tabla: pd.DataFrame) -> go.Figure:
+        disponibles = tabla.dropna(subset=["puntuacion_validacion"])
+        return go.Figure(
+            go.Bar(
+                x=disponibles["algoritmo"] + " · " + disponibles["configuracion"],
+                y=disponibles["puntuacion_validacion"],
+                error_y={
+                    "type": "data",
+                    "array": disponibles["puntuacion_validacion_std"],
+                },
+                marker_color=COLOR_PRIMARIO,
+            )
+        ).update_layout(
+            title="Comparación por validación",
+            xaxis_title="Candidato",
+            yaxis_title="RMSE medio (menor es mejor)",
+        )
+
+
 def _posiciones_etiquetas_acp(
     cargas: pd.DataFrame,
 ) -> dict[object, tuple[float, float, int]]:

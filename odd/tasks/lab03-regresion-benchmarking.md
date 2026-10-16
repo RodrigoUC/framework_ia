@@ -59,10 +59,11 @@ merge, remote execution, final academic report or submission ZIP.
 - Last reviewed boundary: de6cffbe53b05abfe336a64043f9d904150d4054.
 - Delivery strategy: single-pr (approved plan), one requested local lab_03
   branch with work-unit commits. No actual PR is authorized.
-- Forecast: 2,000-3,500 authored changed lines, generated files excluded.
+- Updated forecast: 4,500-5,500 authored changed lines, generated files excluded;
+  complete UI/state/browser evidence exceeds initial estimate, scope unchanged.
   About 400 lines per work unit is advisory, not a hard acceptance gate:
   do not omit tests/docs, minify, delete whitespace or split artificially.
-- Running authored count: 2,727 (T01: 755; T02: 610; T03: 1,362). T01 includes 116 tracking
+- Running authored count: 2,824 (T01: 755; T02: 610; T03: 1,362; T03a: 97). T01 includes 116 tracking
   lines and 639 behavior/test/doc lines; T02 includes tracking plus 571
   behavior/test/doc lines. Each commit remains a local single-PR slice.
 - Mirror: odd/lab03-regresion-benchmarking/tasks; full document plus locator.
@@ -80,7 +81,7 @@ merge, remote execution, final academic report or submission ZIP.
 - [x] T03 — Implement benchmark selection, shared serialization and CLI.
   Route: delegated (domain/orchestration/export/tests). Check identical splits,
   no test leakage, folds/holdout, ties, partial failures and CLI/UI export parity.
-- [ ] T03a — Verify and correct active-result atomicity when only the
+- [x] T03a — Verify and correct active-result atomicity when only the
   validation-best winner fails final test evaluation (advisory R3-001).
   Route: delegated (core and regression tests). Preserve the previous complete
   active snapshot while returning the partial attempt; never choose by test.
@@ -181,6 +182,36 @@ line count and rollback boundary here before considering the task closed.
   Final checks: focused 44 passed / 93 subtests; full 186 passed / 152 subtests;
   Ruff check/format and git diff --check pass. Three-file rollback: regresion.py,
   test_regresion_experimentos.py and relevant README paragraph (51+/13-).
-  Original approved receipt untouched; separate commit/assessment pending.
-- Next: commit/assess T03a, then T04 UI/Nexo IA.
+  Original approved receipt untouched. Separate commit
+  `51661e3252eea494c9f279c434831867a042285a` (79+/18- including tracking).
+  Native assessment: medium, review_due=false, under_budget. This 97-line
+  slice remains pending until the next due work unit; reviewed boundary stays
+  de6cffb (no approval fabricated).
+- T04 implemented: isolated regression configuration/state/native parameters,
+  nine model views, experiment/partial-error views, read-only comparison/results,
+  numeric diagnostics/shared downloads, source/preparation/split invalidation,
+  APP_NAME Nexo IA and current design docs (private atlas contracts preserved).
+  Visual ordering corrected after screenshot inspection: metrics, chart, table,
+  downloads; explicit renderer-order assertion added.
+  Final suite: 207 passed / 152 subtests in 298.00s. Focused UI 21 passed;
+  earlier UI/themes/Lab02 focused 84 passed / 22 subtests. Ruff newfiles/tests,
+  F821 entrypoint/visualization and git diff --check pass. Twelve C408 warnings
+  in shared visualization were verified unchanged from HEAD, not unrelated-fixed.
+  Real Chromium: uploaded synthetic80-row CSV, explicit RLM train60/test20,
+  saved navigation/comparison, default14 benchmark / 9 families, individual and
+  experiment downloads (ZIP integrity verified), console0 errors/0 warnings.
+  Desktop1440x1000/mobile390x844 light/dark inspected; no horizontal overflow,
+  popup/sidebar scrolling and Tab/ShiftTab/ArrowDown/Enter/Escape verified.
+  Final light desktop screenshot: temporary lab03-browser-qa/.playwright-cli/
+  page-2026-10-16T18-45-02-366Z.png, inspected by parent. Processes retained
+  for T05: Streamlit26932/browser43892, isolated CLI session lab03qa.
+  Limits: no-data state verified by AppTest, not browser (example auto-loads).
+  Theme switch can leave rendered chart colors stale until ordinary rerender;
+  rerender resolves it; inherited origin unproven. Local premium audit stopped
+  without result because it scans .venv frontend bundles; not claimed passed.
+  Hosted12ui not run (remote upload outside authorized scope); local maintained
+  design/craft checks used. Rollback: five new UI modules/new UI tests and T04
+  edits in entrypoint, visualization, current design/config/docs only; keep domain.
+  Commit/native assessment pending, including the under-budget T03a slice.
+- Next: commit/assess T04, then T05 offline Diabetes preset/reproduction/CI.
 

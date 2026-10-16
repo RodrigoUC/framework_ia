@@ -173,4 +173,40 @@ ausencia de ganadores; en estos últimos casos no crea la carpeta de salida.
 .venv\Scripts\python.exe -m pytest -q tests/test_regresion_experimentos.py tests/test_lab3_cli.py
 ```
 
-Las vistas del Lab03 se incorporan en la siguiente unidad de implementación.
+## Interfaz Nexo IA
+
+Abra `app.py` con Streamlit. La identidad conserva los colores, tipografía,
+controles nativos y temas claro/oscuro del proyecto; el nombre visible es **Nexo IA**.
+
+1. Aplique un CSV en **Fuente de datos**. No se exige un dataset específico.
+2. En **Configuración de regresión**, elija target numérico, predictores y el
+   predictor de RLS. Revise nulos y variación: el target no se imputa ni se
+   descartan sus filas automáticamente. Puede reutilizar la partición de Datos.
+3. Abra uno de los nueve modelos. **Estándar** usa el catálogo; **Personalizada**
+   expone parámetros propios de regresión. Pulse **Entrenar modelo**.
+4. Para seleccionar modelos, abra **Experimentos Lab03** y pulse
+   **Ejecutar experimento**. Automática usa validación externa cuando existe;
+   de lo contrario, CV de cinco pliegues. La tabla y su RMSE preceden a prueba.
+5. **Comparar regresores entrenados** y **Resultados de regresión** consultan
+   snapshots sin entrenar. Las descargas conservan argumentos y procedencia
+   de la ejecución, no los controles modificados posteriormente.
+
+Editar parámetros conserva la evidencia y señala ajustes pendientes. Cambiar
+datos, target, predictores, predictor simple, semilla, partición o preparación
+la invalida. Un reintento fallido conserva el último éxito del mismo contexto.
+Si falla la evaluación final del ganador por validación, el intento parcial
+queda visible sin sustituir el experimento exitoso anterior ni elegir por test.
+La imputación/escalado global previo al split bloquea el ajuste: restaure el
+original y configure estas operaciones en regresión para aprenderlas con train.
+
+Las métricas RMSE/MAE/MSE/R² son numéricas; R² puede ser negativo. Los gráficos
+contrastan reales y predicciones y muestran residuos `real − predicción`.
+Las exportaciones ZIP son evidencia técnica, no una entrega académica final.
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q tests/test_lab3_ui.py tests/test_theme_contrast.py
+```
+
+AppTest verifica comportamiento y estado, no revisión visual real en navegador.
+La extensión usa el diseño local mantenido; no se subieron datos ni diseños a
+servicios externos para alineación visual.
