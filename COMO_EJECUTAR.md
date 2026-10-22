@@ -89,3 +89,20 @@ y uso de la primera columna como índice. La navegación lateral agrupa el
 trabajo en Datos, Exploración y tres pilares: Agrupamiento, Clasificación y
 Regresión, con configuración compartida, nueve regresores, benchmarking y
 resultados guardados. Ningún cambio de fuente o navegación entrena modelos.
+
+## Concrete · Lab03
+
+Con el XLS oficial descargado localmente:
+
+```powershell
+python -m scripts.preparar_concrete_lab03 Concrete_Data.xls
+python -m scripts.ejecutar_lab03 data/lab03/concrete/concrete.csv --target strength --feature-simple cement --salida salida_lab03/concrete --fuente https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength
+```
+
+En la aplicación, cargue `data/lab03/concrete/concrete.csv` con **CSV local**.
+Seleccione Regresión, objetivo `strength`, las otras ocho columnas como
+predictoras y `cement` para la regresión simple. Use prueba 25 %, semilla 42
+y Experimentos Lab03 con CV de cinco pliegues.
+
+La preparación no descarga datos ni entrena.
+[Reproducción del informe y resultados observados](docs/lab03/CONCRETE.md).
