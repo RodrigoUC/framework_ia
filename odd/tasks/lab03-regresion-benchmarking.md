@@ -475,7 +475,7 @@ is the document deliverable. Dataset and generated evidence remain local.
 - [x] T08 — Prepare official Concrete XLS, deduplicate exact rows only, preserve
   source and canonical hashes, expose a local idempotent CLI and provenance.
   Dataset input/output is separate from generic supervised models and UI.
-- [ ] T09 — Validate all 39 regression exports against data, provenance, common
+- [x] T09 — Validate all 39 regression exports against data, provenance, common
   splits, the fourteen-candidate catalog, validation selection and predictions.
   Reject partial or inconsistent evidence without training or writing files.
 - [ ] T10 — Generate an autonomous academic LaTeX report from validated evidence;
@@ -499,3 +499,12 @@ Ruff and diff check passed; pip check reports no broken requirements. Rollback:
 Concrete adapter/preparation/tests/docs, xlrd requirement and generated-path
 ignore entries. Original classifier/regressor training behavior is unchanged.
 Native RDD unavailable; independent parent readback found no unresolved issue.
+
+T08 commit: `daa8dcc`; 529 additions/2 deletions, 531 authored lines.
+T09 verification: 41 focused evidence tests passed in 19.62 s, including malformed
+JSON/CSV, altered hashes, splits, catalog, selections, snapshot metrics and
+recalculated predictions. Real Concrete exports loaded successfully with all
+42 evidence/data hashes. Ruff and format passed. Independent read-only review
+found no functional/scientific issue. Native RDD remains unavailable. Rollback:
+remove evidencia_lab03.py and its isolated tests; existing export schema remains
+unchanged. No model is trained during evidence validation.
