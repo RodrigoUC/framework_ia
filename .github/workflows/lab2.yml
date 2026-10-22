@@ -39,6 +39,8 @@ jobs:
           python -m scripts.ejecutar_lab02 --help
           python -m scripts.ejecutar_lab03 --help
           python -m scripts.preparar_diabetes_lab03 --help
+          python -m scripts.preparar_concrete_lab03 --help
+          python -m scripts.generar_informe_lab03 --help
       - name: Reproduce the offline Lab 03 reference
         run: |
           python -m scripts.preparar_diabetes_lab03 --salida "$RUNNER_TEMP/lab03-data"

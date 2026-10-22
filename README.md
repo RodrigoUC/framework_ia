@@ -1,3 +1,17 @@
+# Framework IA · laboratorios supervisados
+
+## Lab03 · regresión con Concrete
+
+El caso Concrete utiliza el cargador CSV existente, los nueve regresores y
+el benchmark del framework. La preparación conserva el XLS original, retira
+únicamente duplicados completos y registra procedencia verificable.
+
+- [Preparación y variables de Concrete](data/lab03/concrete/README.md).
+- [Experimentos, informe y resultados verificados](docs/lab03/CONCRETE.md).
+- [API y flujos de regresión](docs/lab03/README.md).
+
+La documentación y evidencia histórica de Lab02 se conservan a continuación.
+
 # Entrega Lab02 · Clasificación supervisada
 
 Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero
