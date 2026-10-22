@@ -478,7 +478,7 @@ is the document deliverable. Dataset and generated evidence remain local.
 - [x] T09 — Validate all 39 regression exports against data, provenance, common
   splits, the fourteen-candidate catalog, validation selection and predictions.
   Reject partial or inconsistent evidence without training or writing files.
-- [ ] T10 — Generate an autonomous academic LaTeX report from validated evidence;
+- [x] T10 — Generate an autonomous academic LaTeX report from validated evidence;
   add sourced foundations, taxonomy, real experimental analysis and bibliography.
 - [ ] T11 — Reproduce Concrete twice, capture the environment, compile the report,
   run focused/full checks and publish one draft PR with exact verification status.
@@ -508,3 +508,19 @@ recalculated predictions. Real Concrete exports loaded successfully with all
 found no functional/scientific issue. Native RDD remains unavailable. Rollback:
 remove evidencia_lab03.py and its isolated tests; existing export schema remains
 unchanged. No model is trained during evidence validation.
+
+T09 commit: `af71989`; 833 additions/1 deletion, 834 authored lines.
+T10 verification: 20 report tests passed in 17.91 s after final narrative and
+reproduction corrections. Generated Concrete LaTeX compiled successfully with
+the desktop editor compiler. Tables/figures derive from validated evidence;
+original-source derivation is rechecked before report output. Six of eleven
+references are peer-reviewed papers. Independent read-only reviews found no
+remaining functional/scientific issue. Native RDD unavailable. Rollback: report
+generator/tests and foundations/references; training and existing UI unchanged.
+
+Concrete reproduction: both full runs exit 0; 39 exported files each, 29 byte
+identical and ten configurations differing only in argumentos.salida. RF wins
+validation with RMSE 5.522453 MPa (sample SD .319743); final test RMSE 5.380506
+MPa, MAE 3.650200, R2 .900070. 753 train/252 test rows. Receipt and generated
+report remain local; exported values, not historical Diabetes scores, support
+the report. Full framework regression and remote CI are pending at this point.
