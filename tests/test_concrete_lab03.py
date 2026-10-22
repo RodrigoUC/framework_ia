@@ -56,18 +56,26 @@ def test_prepara_sin_red_preserva_original_y_conserva_distinta_respuesta(lectura
     esperado.columns = list(concrete.COLUMNAS_CONCRETE)
     pd.testing.assert_frame_equal(preparado, esperado)
     assert len(preparado) == 1028
-    assert (preparado.loc[2, list(concrete.PREDICTORAS_CONCRETE)] == preparado.loc[8, list(concrete.PREDICTORAS_CONCRETE)]).all()
+    assert (
+        preparado.loc[2, list(concrete.PREDICTORAS_CONCRETE)]
+        == preparado.loc[8, list(concrete.PREDICTORAS_CONCRETE)]
+    ).all()
     assert preparado.loc[2, "strength"] != preparado.loc[8, "strength"]
     assert b"\r" not in contenido and contenido.endswith(b"\n")
     assert metadata["sha256"] == hashlib.sha256(contenido).hexdigest()
     assert metadata["hash_sobre"] == "csv_materializado"
-    assert metadata["original"]["sha256"] == hashlib.sha256(b"original-xls-bytes").hexdigest()
+    assert (
+        metadata["original"]["sha256"]
+        == hashlib.sha256(b"original-xls-bytes").hexdigest()
+    )
     assert metadata["original"]["archivo"] == "Concrete_Data.xls"
     assert metadata["derivacion"]["posiciones_originales_eliminadas"] == [9, 44]
     assert metadata["derivacion"]["filas_eliminadas_duplicados"] == 2
     assert metadata["derivacion"]["base_posiciones"] == 0
     assert metadata["preset_regresion"]["feature_simple"] == "cement"
-    assert metadata["preset_regresion"]["features"] == list(concrete.PREDICTORAS_CONCRETE)
+    assert metadata["preset_regresion"]["features"] == list(
+        concrete.PREDICTORAS_CONCRETE
+    )
     assert metadata["unidades"]["strength"] == "MPa"
     assert metadata["unidades"]["age"] == "day"
     assert metadata["unidades"]["cement"] == "kg/m^3"
@@ -116,7 +124,9 @@ def test_rechaza_valores_no_reales_finitos(monkeypatch, originales, cambio):
 
 
 def test_cabeceras_documentadas_toleran_espacios_y_caso(lectura_xls):
-    lectura_xls.columns = [f"  {' '.join(nombre.split()).upper()}  " for nombre in lectura_xls.columns]
+    lectura_xls.columns = [
+        f"  {' '.join(nombre.split()).upper()}  " for nombre in lectura_xls.columns
+    ]
     archivos, metadata = concrete.preparar_concrete(b"original-xls-bytes")
     assert metadata["columnas"] == list(concrete.COLUMNAS_CONCRETE)
     assert metadata["original"]["columnas"] == lectura_xls.columns.tolist()
@@ -131,7 +141,9 @@ def test_entrada_vacia_no_invoca_lector():
         concrete.preparar_concrete(b"")
 
 
-def test_cli_idempotente_preserva_archivo_ajeno_y_valida_derivacion(tmp_path, lectura_xls):
+def test_cli_idempotente_preserva_archivo_ajeno_y_valida_derivacion(
+    tmp_path, lectura_xls
+):
     origen = tmp_path / "fuente.xls"
     origen.write_bytes(b"original-xls-bytes")
     destino = tmp_path / "concrete"
@@ -139,9 +151,15 @@ def test_cli_idempotente_preserva_archivo_ajeno_y_valida_derivacion(tmp_path, le
     (destino / "README.md").write_text("keep", encoding="utf-8")
     args = crear_parser().parse_args([str(origen), "--salida", str(destino)])
     assert ejecutar(args) == destino
-    antes = {ruta.name: (ruta.read_bytes(), ruta.stat().st_mtime_ns) for ruta in destino.iterdir()}
+    antes = {
+        ruta.name: (ruta.read_bytes(), ruta.stat().st_mtime_ns)
+        for ruta in destino.iterdir()
+    }
     assert ejecutar(args) == destino
-    assert antes == {ruta.name: (ruta.read_bytes(), ruta.stat().st_mtime_ns) for ruta in destino.iterdir()}
+    assert antes == {
+        ruta.name: (ruta.read_bytes(), ruta.stat().st_mtime_ns)
+        for ruta in destino.iterdir()
+    }
     assert origen.read_bytes() == b"original-xls-bytes"
     metadata = json.loads((destino / "procedencia.json").read_text(encoding="utf-8"))
     concrete.validar_preparacion_concrete(destino, metadata)
@@ -153,9 +171,13 @@ def test_cli_idempotente_preserva_archivo_ajeno_y_valida_derivacion(tmp_path, le
         concrete.validar_preparacion_concrete(destino, metadata)
 
 
-@pytest.mark.parametrize("nombre", ["Concrete_Data.xls", "concrete.csv", "procedencia.json"])
+@pytest.mark.parametrize(
+    "nombre", ["Concrete_Data.xls", "concrete.csv", "procedencia.json"]
+)
 @pytest.mark.parametrize("directorio", [False, True])
-def test_conflicto_en_cualquier_destino_no_crea_otros(tmp_path, lectura_xls, nombre, directorio):
+def test_conflicto_en_cualquier_destino_no_crea_otros(
+    tmp_path, lectura_xls, nombre, directorio
+):
     origen = tmp_path / "fuente.xls"
     origen.write_bytes(b"original-xls-bytes")
     destino = tmp_path / "salida"

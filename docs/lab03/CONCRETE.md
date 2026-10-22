@@ -98,4 +98,20 @@ comparación por familias, diagnósticos del ganador, límites y reproducción.
 Las tablas y figuras se generan desde la evidencia validada. Fundamentos y
 referencias proceden de `fundamentos.tex` y `referencias.tex`; seis de las once
 referencias son artículos arbitrados (54,5 %). La fuente se compiló correctamente
-con el compilador del editor integrado. No se creó un ZIP.
+con el compilador del editor integrado.
+
+
+## Verificación del software
+
+Las 82 pruebas nuevas cubren preparación: 21, integridad de evidencia: 41 e
+informe: 20. La suite completa local aprobó 334 pruebas y 152 subpruebas en 249,81 s,
+con permisos para los sockets locales de AppTest. El entorno restringido
+bloqueaba su socketpair de asyncio antes de ejecutar la interfaz; no se
+modificó el producto para eludirlo. Ruff y formato pasan en los siete archivos
+Python nuevos, y pip check no encuentra requisitos incompatibles.
+
+[CI de la implementación](https://github.com/RodrigoUC/framework_ia/actions/runs/39716522520)
+aprobó 334 pruebas y 152 subpruebas en Python 3.11 y 3.12, además de compatibilidad,
+ayudas CLI y reproducción offline de la referencia Diabetes. Una reproducción
+adicional desde una carpeta limpia reconstruyó bytes idénticos de datos y
+procedencia y resultados iguales, descontando sólo rutas de entrada/salida.

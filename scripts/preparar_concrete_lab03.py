@@ -13,8 +13,12 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("xls", type=Path, help="Concrete_Data.xls original de UCI (1030 filas).")
-    parser.add_argument("--salida", type=Path, default=RAIZ / "data" / "lab03" / "concrete")
+    parser.add_argument(
+        "xls", type=Path, help="Concrete_Data.xls original de UCI (1030 filas)."
+    )
+    parser.add_argument(
+        "--salida", type=Path, default=RAIZ / "data" / "lab03" / "concrete"
+    )
     return parser
 
 

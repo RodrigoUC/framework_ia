@@ -480,7 +480,7 @@ is the document deliverable. Dataset and generated evidence remain local.
   Reject partial or inconsistent evidence without training or writing files.
 - [x] T10 — Generate an autonomous academic LaTeX report from validated evidence;
   add sourced foundations, taxonomy, real experimental analysis and bibliography.
-- [ ] T11 — Reproduce Concrete twice, capture the environment, compile the report,
+- [x] T11 — Reproduce Concrete twice, capture the environment, compile the report,
   run focused/full checks and publish one draft PR with exact verification status.
 
 Baseline: 44 regression/algorithm/experiment/CLI tests and 93 subtests passed
@@ -524,3 +524,31 @@ validation with RMSE 5.522453 MPa (sample SD .319743); final test RMSE 5.380506
 MPa, MAE 3.650200, R2 .900070. 753 train/252 test rows. Receipt and generated
 report remain local; exported values, not historical Diabetes scores, support
 the report. Full framework regression and remote CI are pending at this point.
+
+T10 commit: `319591d`; 1159 additions/1 deletion, 1160 authored lines.
+Reproduction/documentation commit: `d8b8dbc`; 196 authored lines.
+
+T11 closure: local full suite outside the restricted socket sandbox passed
+334 tests and 152 subtests in 249.81 s. The initial sandbox run was interrupted
+after AppTest blocked in asyncio socketpair/accept; a bounded isolated probe
+confirmed that stack. No product-source change was required to resolve it.
+GitHub Actions run39716522520 verified code candidate `d8b8dbc` on Python3.11
+and3.12: 334 tests and152subtests on each, dependency compatibility, CLI helps
+and offline Diabetes benchmark all successful. Full-suite times:136.96s/116.52s.
+
+A third reproduction from a clean directory rebuilt identical XLS/CSV/provenance
+and all39 benchmark exports; only input/output path arguments differ. All seven
+new Python files pass Ruff check and format check; final preparation-only
+formatting changes were rechecked with21 passing tests. pip check and
+git diff--check passed. Final report manifest validates42 evidence/data hashes;
+LaTeX source SHA256 `e5c75747d552ee0a56ad55171cbf5084a691a057adc5b9bd4b9b1d816da96dc5`.
+The final source compiled successfully in the desktop editor. No exported PDF
+visual inspection is claimed; the deliverable is standalone LaTeX source.
+
+PR18: https://github.com/RodrigoUC/framework_ia/pull/18, opened via mari0610 into
+lab_03. Branch published with the selected university credential. No merge or
+ZIP. Native RDD remains unavailable; independent functional/scientific reviews
+are not represented as that approval. Draft state remains intentional. Rollback:
+revert the Concrete extension work units, preserving historical Lab02/Diabetes
+reference and the existing supervised/UI/export contracts. Final closure changes
+are formatting and verification documentation only.

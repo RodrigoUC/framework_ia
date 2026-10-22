@@ -11,7 +11,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-FUENTE_CONCRETE = "https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength"
+FUENTE_CONCRETE = (
+    "https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength"
+)
 ARCHIVO_ORIGINAL_CONCRETE = "Concrete_Data.xls"
 ARCHIVO_CONCRETE = "concrete.csv"
 FILAS_ORIGINALES_CONCRETE = 1030
@@ -66,7 +68,9 @@ def preparar_concrete(contenido: bytes) -> tuple[dict[str, bytes], dict]:
         raise ValueError("El archivo XLS original de Concrete está vacío.")
     originales = pd.read_excel(BytesIO(contenido), engine="xlrd", sheet_name=0)
     cabeceras = originales.columns.tolist()
-    esperadas = [_normalizar_cabecera(nombre) for nombre in CABECERAS_ORIGINALES_CONCRETE]
+    esperadas = [
+        _normalizar_cabecera(nombre) for nombre in CABECERAS_ORIGINALES_CONCRETE
+    ]
     recibidas = [_normalizar_cabecera(nombre) for nombre in cabeceras]
     if recibidas != esperadas:
         raise ValueError(
@@ -90,7 +94,9 @@ def preparar_concrete(contenido: bytes) -> tuple[dict[str, bytes], dict]:
             numerica = pd.to_numeric(serie, errors="raise")
         except (ValueError, TypeError) as exc:
             raise ValueError(f"La columna {columna} debe ser numérica.") from exc
-        if pd.api.types.is_bool_dtype(numerica) or pd.api.types.is_complex_dtype(numerica):
+        if pd.api.types.is_bool_dtype(numerica) or pd.api.types.is_complex_dtype(
+            numerica
+        ):
             raise ValueError(f"La columna {columna} debe contener números reales.")
         datos[columna] = numerica.astype("float64")
     if not np.isfinite(datos.to_numpy()).all():
