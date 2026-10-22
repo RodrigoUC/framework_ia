@@ -15,8 +15,10 @@ belong to model pages; Results is comparative only.
 User clarified that configuration is general/shared, while each model retains
 its own Train button. The proposed global training action was a misunderstanding
 and is explicitly withdrawn; do not implement it.
-Local implementation and Conventional Commits are authorized. No push, PR,
-merge, remote execution, final academic report or submission ZIP.
+Initial implementation authorized local Conventional Commits without an academic
+report or remote delivery. The 2026-10-21 Concrete extension below supersedes
+that initial scope: report, branch publication and one PR are authorized; merge
+and submission ZIP remain excluded.
 
 ## Contracts and acceptance
 
@@ -460,3 +462,40 @@ line count and rollback boundary here before considering the task closed.
   committed separately; push requested to configured origin lab_03, pending
   explicit authorization of credential/session under repository remote policy.
   No credential inspection or remote probe performed. No PR/merge requested.
+
+
+## Concrete academic extension (2026-10-21)
+
+Branch: `codex/lab03-entrega`, based on `lab_03` at `59abc33`.
+Delivery: work-unit Conventional Commits and one PR into `lab_03`, using the
+connected university account. No merge, ZIP or platform submission. The report
+uses the Lab02 format and the four existing authors; complete standalone LaTeX
+is the document deliverable. Dataset and generated evidence remain local.
+
+- [x] T08 — Prepare official Concrete XLS, deduplicate exact rows only, preserve
+  source and canonical hashes, expose a local idempotent CLI and provenance.
+  Dataset input/output is separate from generic supervised models and UI.
+- [ ] T09 — Validate all 39 regression exports against data, provenance, common
+  splits, the fourteen-candidate catalog, validation selection and predictions.
+  Reject partial or inconsistent evidence without training or writing files.
+- [ ] T10 — Generate an autonomous academic LaTeX report from validated evidence;
+  add sourced foundations, taxonomy, real experimental analysis and bibliography.
+- [ ] T11 — Reproduce Concrete twice, capture the environment, compile the report,
+  run focused/full checks and publish one draft PR with exact verification status.
+
+Baseline: 44 regression/algorithm/experiment/CLI tests and 93 subtests passed
+in 29.34 s. Runtime currently resolves Python 3.11.8; historical versions above
+are not assumed for this extension. Native RDD tools are absent from the current
+tool inventory. Independent review and CI are recorded separately and are not
+claimed as native RDD approval. The PR remains draft while that review is missing.
+
+T08 verification: original UCI XLS 1030 rows, zero missing, 25 exact duplicate
+rows removed; canonical CSV 1005 rows. Original SHA-256
+`710076c66b9ca3f8050e7942f3dcbdbe04013534daeb0077ffd3079a52d8e0c4`;
+CSV `1eee7ee2b111a352cbadd30e49cc6a4f28e09f6ccd09636926008cefe74493a9`.
+`python -m pytest -q -p no:cacheprovider tests/test_concrete_lab03.py`: 21 passed
+in 5.85 s; real preparation and derivation reconstruction passed. Changed-file
+Ruff and diff check passed; pip check reports no broken requirements. Rollback:
+Concrete adapter/preparation/tests/docs, xlrd requirement and generated-path
+ignore entries. Original classifier/regressor training behavior is unchanged.
+Native RDD unavailable; independent parent readback found no unresolved issue.

@@ -28,3 +28,7 @@ tmp/pdfs/
 /salida_lab03/
 /data/lab03/diabetes_regresion.csv
 /data/lab03/procedencia.json
+/data/lab03/concrete/*
+!/data/lab03/concrete/README.md
+/output/lab03/
+/tmp/lab03/
