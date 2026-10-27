@@ -8,10 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 from ..utils import ConfiguracionCSV
+from .dataframe import DataFrame
 
 
 class CargadorCSV:
-    """Adapta distintas fuentes CSV a un pandas.DataFrame."""
+    """Adapta distintas fuentes CSV a un pandas.DataFrame o DataFrame del framework."""
 
     @staticmethod
     def cargar_ruta(ruta: str | Path, configuracion: ConfiguracionCSV) -> pd.DataFrame:
@@ -29,6 +30,18 @@ class CargadorCSV:
         return CargadorCSV._leer(BytesIO(contenido), configuracion)
 
     @staticmethod
+    def cargar_dataframe(ruta: str | Path, configuracion: ConfiguracionCSV) -> DataFrame:
+        """Carga un CSV desde ruta y lo envuelve en la clase ``DataFrame`` del framework."""
+        return DataFrame(dataframe=CargadorCSV.cargar_ruta(ruta, configuracion))
+
+    @staticmethod
+    def cargar_bytes_dataframe(
+        contenido: bytes, configuracion: ConfiguracionCSV
+    ) -> DataFrame:
+        """Carga un CSV desde bytes y lo envuelve en la clase ``DataFrame`` del framework."""
+        return DataFrame(dataframe=CargadorCSV.cargar_bytes(contenido, configuracion))
+
+    @staticmethod
     def _leer(origen, configuracion: ConfiguracionCSV) -> pd.DataFrame:
         """Centraliza la llamada a pandas para mantener igual comportamiento."""
         indice = 0 if configuracion.usar_primera_columna_como_indice else None
@@ -42,4 +55,3 @@ class CargadorCSV:
         if datos.empty:
             raise ValueError("El CSV no contiene registros analizables.")
         return datos
-

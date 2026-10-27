@@ -23,13 +23,14 @@ class ParametroModelo:
 
 @dataclass(frozen=True)
 class ConfiguracionModelo:
-    """Identidad y parámetros configurables de un clasificador de LAB02."""
+    """Identidad y parámetros configurables de un clasificador supervisado."""
 
     etiqueta: str
     parametros: tuple[ParametroModelo, ...]
 
 
 ALGORITMOS_LAB2 = ("KNN", "DT", "RF", "XGBoost", "AdaBoost")
+ALGORITMOS_CLASIFICACION = ("KNN", "DT", "RF", "XGBoost", "AdaBoost", "NR", "RL")
 METRICAS_SELECCION = {
     "f1_macro": "F1 macro",
     "accuracy": "Accuracy",

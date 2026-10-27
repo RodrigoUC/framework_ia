@@ -9,8 +9,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
+from ...datos.particion import dividir_indices, huella_datos, validar_particion
+from ...datos.preprocesamiento import PreprocesadorSupervisado
 from ...resultados import ResultadoParticion, ResultadoRegresion
-from ...utils.configuracion_regresion import ALGORITMOS_LAB3
+from ...utils.configuracion_regresion import ALGORITMOS_REGRESION
 from .algoritmos_regresion import (
     crear_modelo,
     metadatos_regresion,
@@ -18,8 +20,6 @@ from .algoritmos_regresion import (
     parametros_regresion,
 )
 from .base import Supervisado
-from .particiones import dividir_indices, huella_datos, validar_particion
-from .preprocesamiento import PreprocesadorSupervisado
 
 
 def metricas_regresion(y_true, y_pred):
@@ -38,6 +38,8 @@ def metricas_regresion(y_true, y_pred):
 class Regresion(Supervisado):
     """Modelos numéricos que aprenden transformaciones sólo de entrenamiento."""
 
+    _mensaje_sin_entrenar = "Entrene primero un regresor."
+
     def __init__(
         self, dataframe=None, ruta_datos=None, *, target=None, features=None, **kwargs
     ):
@@ -51,35 +53,19 @@ class Regresion(Supervisado):
         self._reiniciar_resultados()
 
     def _reiniciar_resultados(self):
+        super()._reiniciar_resultados()
         self.resultado: ResultadoRegresion | None = None
-        self.experimento = None
-        self.modelo = None
-        self._preparados = None
         self.r2 = None
+        self.exactitud = None
 
     def _datos_regresion(self):
-        if self.datos.empty:
-            raise ValueError("No hay datos para entrenar.")
-        if not self.datos.index.is_unique:
-            raise ValueError("El dataset necesita índices únicos.")
-        if not self.datos.columns.is_unique:
-            raise ValueError("El dataset necesita nombres de columna únicos.")
-        self._definir_target()
-        if self.target not in self.datos:
-            raise KeyError(f"La variable objetivo '{self.target}' no existe.")
-        self.features = list(self._definir_features())
-        if not self.features:
-            raise ValueError("Debe seleccionar al menos una variable predictora.")
-        if len(set(self.features)) != len(self.features):
-            raise ValueError("Las variables predictoras no deben repetirse.")
-        if self.target in self.features:
-            raise ValueError("El target no debe incluirse entre las features.")
-        faltantes = [c for c in self.features if c not in self.datos]
-        if faltantes:
-            raise KeyError(f"Columnas inexistentes: {faltantes}")
-        base = self.datos.loc[:, self.features + [self.target]].copy()
+        base = self._validar_estructura_base(
+            mensaje_indices="El dataset necesita índices únicos."
+        )
         self._validar_objetivo(base[self.target])
         return base
+
+    _datos_supervisados = _datos_regresion
 
     @staticmethod
     def _validar_objetivo(y):
@@ -98,7 +84,7 @@ class Regresion(Supervisado):
                 "La variable objetivo debe tener variación; no ser constante."
             )
 
-    def _indices(self, base, *, particion, test_size, random_state):
+    def _indices(self, base, *, particion, test_size, random_state, stratify=False):
         if particion is not None:
             validar_particion(particion, self.datos)
             return tuple(
@@ -110,12 +96,12 @@ class Regresion(Supervisado):
             self.target,
             test_size=test_size,
             random_state=random_state,
-            stratify=False,
+            stratify=stratify,
         )
         return train, test, pd.Index([])
 
     def _validar_predictoras(self, base, algoritmo):
-        if algoritmo not in ALGORITMOS_LAB3:
+        if algoritmo not in ALGORITMOS_REGRESION:
             raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}")
         if algoritmo == "RLS":
             if len(self.features) != 1:
@@ -224,6 +210,21 @@ class Regresion(Supervisado):
         **kwargs,
     ):
         """Separa filas antes de ajustar; validación externa queda reservada."""
+        if str(algoritmo).strip().lower() in {
+            "rl",
+            "regresion_logistica",
+            "logistic_regression",
+            "logisticregression",
+        }:
+            return self.RL(
+                test_size=test_size,
+                random_state=random_state,
+                incluir_categoricas=incluir_categoricas,
+                imputar=imputar,
+                estandarizar=estandarizar,
+                particion=particion,
+                **kwargs,
+            )
         algoritmo = normalizar_algoritmo(algoritmo)
         base = self._datos_regresion()
         train, test, validacion = self._indices(
@@ -255,23 +256,6 @@ class Regresion(Supervisado):
         self.resultado, self.modelo, self._preparados = resultado, modelo, preparados
         self.r2 = resultado.metricas["r2"]
         return resultado
-
-    def predecir(self, X=None):
-        """Predice sin reajustar y conserva el orden e índice de las filas."""
-        resultado = self.evaluar()
-        if X is None:
-            return resultado.y_pred.copy()
-        if isinstance(X, pd.Series):
-            raise TypeError("X debe ser una tabla de características (DataFrame).")
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=resultado.features)
-        faltantes = [c for c in resultado.features if c not in X]
-        if faltantes:
-            raise ValueError(f"Faltan variables predictoras: {faltantes}")
-        transformados = resultado.datos_preparados.transformador.transform(X)
-        return pd.Series(
-            resultado.modelo.predict(transformados), index=X.index, name="prediccion"
-        )
 
     def experimentar(
         self,
@@ -323,12 +307,6 @@ class Regresion(Supervisado):
 
     benchmark = experimentar
 
-    def evaluar(self):
-        """Devuelve la última evaluación sin volver a entrenar."""
-        if self.resultado is None:
-            raise RuntimeError("Entrene primero un regresor.")
-        return self.resultado
-
     def lineal_simple(self, **kwargs):
         return self.entrenar(algoritmo="RLS", **kwargs)
 
@@ -367,12 +345,30 @@ class Regresion(Supervisado):
     DT = arbol_decision
     RF = random_forest
 
-    def RL(self, *args, **kwargs):
-        """Regresión Logística.
+    def RL(self, **kwargs):
+        """Regresión Logística (modelo lineal supervisado de clasificación).
 
-        TODO: implementar la regresión logística (modelo de clasificación).
+        Delega la ejecución en :class:`Clasificacion` conservando el contrato
+        del diagrama arquitectónico de ``EDA`` (``Regresion -> RLS, RLM, RL``).
         """
-        raise NotImplementedError("Debe implementar el método RL.")
+        from .clasificacion import Clasificacion
+
+        self._reiniciar_resultados()
+        clasificador = Clasificacion(
+            dataframe=self.datos,
+            target=self.target,
+            features=self.features,
+        )
+        resultado = clasificador.regresion_logistica(**kwargs)
+        self.target = clasificador.target
+        self.features = clasificador.features
+        self.resultado = resultado
+        self.modelo = clasificador.modelo
+        self._preparados = clasificador._preparados
+        self.exactitud = clasificador.exactitud
+        return resultado
+
+    regresion_logistica = logistic_regression = rl = RL
 
     def __str__(self) -> str:
         self._definir_target()
@@ -383,6 +379,8 @@ class Regresion(Supervisado):
         )
         if self.r2 is not None:
             base += f"\nR²: {self.r2:.4f}"
+        if self.exactitud is not None:
+            base += f"\nExactitud: {self.exactitud:.4f}"
         return base
 
 

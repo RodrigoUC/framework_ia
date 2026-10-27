@@ -2,6 +2,8 @@
 
 import streamlit as st
 
+from ..datos.eda import EDA
+
 TAREAS = {"clasificacion": "Clasificación", "regresion": "Regresión"}
 OPCIONES_COMUNES = (
     "target",
@@ -143,11 +145,12 @@ def configurar_supervisado(datos) -> None:
     with st.expander("Distribución del objetivo"):
         serie = datos[target]
         st.caption(f"Filas: {len(serie)} · Nulos: {int(serie.isna().sum())}")
-        resumen = (
-            serie.value_counts(dropna=False).rename("Cantidad").to_frame()
-            if tarea == "clasificacion"
-            else serie.describe().rename("Valor").to_frame()
-        )
+        if tarea == "clasificacion":
+            resumen, _ = EDA(dataframe=datos).balance_objetivo(target)
+            if resumen.empty:
+                resumen = serie.value_counts(dropna=False).rename("Cantidad").to_frame()
+        else:
+            resumen = serie.describe().rename("Valor").to_frame()
         st.dataframe(resumen, width="stretch")
     if tarea == "regresion":
         simples = datos[st.session_state["sup_features"]].select_dtypes(

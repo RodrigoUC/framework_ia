@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 from sklearn.manifold import trustworthiness
 
+from framework_ia.datos.eda import EDA
 from framework_ia.modelos.no_supervisado import Cluster, DependenciaOpcionalError
 
 
@@ -84,13 +85,18 @@ def _guardar_json(ruta: Path, contenido: dict[str, Any]) -> None:
 def ejecutar() -> None:
     args = _argumentos()
     datos = pd.read_csv(args.csv, sep=args.separador, decimal=args.decimal)
-    features = args.features or datos.select_dtypes(include="number").columns.tolist()
+    eda = EDA(dataframe=datos)
+    features = args.features or eda.seleccionar_variables().select_dtypes(include="number").columns.tolist()
+    if not features:
+        features = datos.select_dtypes(include="number").columns.tolist()
     if not features:
         raise ValueError("El CSV no contiene columnas numéricas; indique --features.")
 
+    filas_totales, columnas_totales = eda.dimensiones()
     configuracion = {
         "archivo": args.csv.name,
-        "filas": int(len(datos)),
+        "filas": int(filas_totales),
+        "columnas": int(columnas_totales),
         "features": features,
         "incluir_categoricas": args.incluir_categoricas,
         "estandarizar": not args.sin_escalar,
@@ -98,8 +104,14 @@ def ejecutar() -> None:
     }
     salida = args.salida
     salida.mkdir(parents=True, exist_ok=True)
+    eda.guardar_csv(str(salida / "dataset_analizado.csv"))
     _guardar_json(salida / "configuracion.json", configuracion)
-    resumen: dict[str, Any] = {"configuracion": configuracion}
+    resumen: dict[str, Any] = {
+        "configuracion": configuracion,
+        "calidad": eda.resumen_calidad(),
+        "primeras_filas": len(eda.primeras_filas(5)),
+        "ultimas_filas": len(eda.ultimas_filas(5)),
+    }
 
     reductor = _crear_reductor(datos, configuracion)
     componentes_maximos = min(5, len(datos), len(features))
@@ -138,6 +150,10 @@ def ejecutar() -> None:
         "comparacion": tabla_hac.to_dict(orient="records"),
         "seleccion_sugerida": mejor_hac.to_dict(),
     }
+
+    tabla_benchmark = cluster.benchmark(int(mejor_kmeans["k"]))
+    tabla_benchmark.to_csv(salida / "comparacion_algoritmos_cluster.csv", index=False)
+    resumen["benchmark_cluster"] = tabla_benchmark.to_dict(orient="records")
 
     matriz = reductor.preparar_matriz().matriz
     filas_tsne = []

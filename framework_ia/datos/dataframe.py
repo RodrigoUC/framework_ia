@@ -27,11 +27,12 @@ class DataFrame:
     # ==========================================================
 
     def __str__(self) -> str:
+        filas, columnas = self.dimensiones()
         return (
             "Clase DataFrame\n"
-            f"Filas: {len(self.datos)}\n"
-            f"Columnas: {self.datos.shape[1]}\n"
-            f"Nombres: {list(self.datos.columns)}"
+            f"Filas: {filas}\n"
+            f"Columnas: {columnas}\n"
+            f"Nombres: {self.nombres_columnas()}"
         )
 
     # ==========================================================
@@ -91,15 +92,17 @@ class DataFrame:
         Sirve de base para que la interfaz muestre qué columnas son
         numéricas o categóricas antes de preparar o modelar el dataset.
         """
-        total = len(self.datos)
+        total, _ = self.dimensiones()
+        tipos = self.tipos_datos()
+        nulos_por_columna = self.contar_nulos()
         filas = []
-        for columna in self.datos.columns:
+        for columna in self.nombres_columnas():
             serie = self.datos[columna]
-            nulos = int(serie.isna().sum())
+            nulos = int(nulos_por_columna[columna])
             filas.append(
                 {
                     "columna": columna,
-                    "dtype": str(serie.dtype),
+                    "dtype": str(tipos[columna]),
                     "tipo": (
                         "Numérica"
                         if pd.api.types.is_numeric_dtype(serie)
@@ -224,7 +227,6 @@ class DataFrame:
         if no_numericas:
             raise TypeError(f"Las columnas deben ser numéricas: {no_numericas}")
         return list(columnas)
-
 
     # ==========================================================
     # Análisis estadístico

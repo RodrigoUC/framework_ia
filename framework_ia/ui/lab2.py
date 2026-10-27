@@ -352,6 +352,21 @@ def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None
         alt="Valores de la matriz de confusión de prueba",
         width="stretch",
     )
+    with st.expander("Gráficos por clase y distribución estratificada"):
+        fig_metricas = VisualizadorSupervisado.metricas_barras(resultado)
+        if fig_metricas is not None:
+            mostrar_figura(
+                fig_metricas,
+                key=f"{prefijo}_metricas_barras",
+                alt="Comparación de precisión, recall y F1 por clase",
+            )
+        fig_dist = VisualizadorSupervisado.distribucion_estratificada(resultado)
+        if fig_dist is not None:
+            mostrar_figura(
+                fig_dist,
+                key=f"{prefijo}_distribucion_estratificada",
+                alt="Distribución de clases en entrenamiento, prueba real y predicción",
+            )
     with st.expander("Parámetros efectivos y detalles del modelo"):
         st.json(
             getattr(resultado, "parametros", resultado.modelo.get_params()),

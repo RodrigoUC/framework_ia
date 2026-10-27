@@ -12,10 +12,10 @@ from typing import Any
 
 import pandas as pd
 
+from ...datos.particion import comprobar_clases, dividir_indices
 from ...resultados import ResultadoExperimentoClasificacion
 from ...utils import METRICAS_SELECCION as ETIQUETAS_METRICAS
 from .clasificacion import ALGORITMOS_LAB2, configuraciones_lab2, normalizar_algoritmo
-from .particiones import comprobar_clases, dividir_indices
 
 METRICAS_SELECCION = tuple(ETIQUETAS_METRICAS)
 COLUMNAS_TABLA = (
@@ -46,6 +46,7 @@ def _candidatos(algoritmos, configuraciones):
         raise ValueError("Seleccione al menos un algoritmo para experimentar.")
     catalogo = configuraciones_lab2()
     catalogo["NR"] = [{"nombre": "estandar", "parametros": {}}]
+    catalogo["RL"] = [{"nombre": "estandar", "parametros": {}}]
     if configuraciones is not None:
         if not isinstance(configuraciones, dict):
             raise TypeError("configuraciones debe ser un diccionario por algoritmo.")
