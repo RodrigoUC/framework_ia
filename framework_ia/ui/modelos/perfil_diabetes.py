@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from framework_ia.datos.diabetes_lab02 import PREDICTORAS_DIABETES
+from framework_ia.datos.diabetes import PREDICTORAS_DIABETES
 from framework_ia.ui.modelos.catalogo_vistas import BASE_DIR
 
 RUTA_PROCEDENCIA = BASE_DIR / "data" / "lab02" / "procedencia.json"

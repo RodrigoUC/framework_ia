@@ -9,8 +9,10 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from framework_ia.datos.diabetes_lab02 import PREDICTORAS_DIABETES
-from framework_ia.datos.diabetes_lab03 import cargar_diabetes_regresion
+from framework_ia.datos.diabetes import (
+    PREDICTORAS_DIABETES,
+    cargar_diabetes_regresion,
+)
 from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
 from framework_ia.ui.modelos.estado_clasificacion import (
     limpiar_resultados_clasificacion,
