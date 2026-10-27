@@ -249,12 +249,15 @@ def _render_particional(
             etiquetas = (
                 resultado.etiquetas if resultado is not None else None
             )
-            _render_tsne(
-                datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
-            )
-            _render_umap(
-                datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
-            )
+            tab_tsne, tab_umap = st.tabs(["t-SNE", "UMAP"])
+            with tab_tsne:
+                _render_tsne(
+                    datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
+                )
+            with tab_umap:
+                _render_umap(
+                    datos, configuracion, etiquetas=etiquetas, firma_cluster=firma
+                )
 
 
 def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
@@ -332,7 +335,7 @@ def _render_tsne(
     perplexity = _seleccionar_entero(
         "Perplexity", 2, max_perplexity, 30, key="tsne_perplexity"
     )
-    iteraciones = st.slider("Iteraciones", 250, 2000, 1000, 250)
+    iteraciones = st.slider("Iteraciones", 250, 2000, 1000, 250, key="tsne_iteraciones")
     firma = _firma(configuracion, perplexity, iteraciones, filas, firma_cluster)
     clave = "resultado_kmeans_tsne"
     if st.button("Ejecutar t-SNE", type="primary"):
@@ -378,7 +381,7 @@ def _render_umap(
     vecinos = _seleccionar_entero(
         "Vecinos", 2, max_vecinos, 15, key="umap_vecinos"
     )
-    distancia = st.slider("Distancia mínima", 0.0, 0.99, 0.1, 0.05)
+    distancia = st.slider("Distancia mínima", 0.0, 0.99, 0.1, 0.05, key="umap_distancia")
     firma = _firma(configuracion, vecinos, distancia, filas, firma_cluster)
     clave = "resultado_kmeans_umap"
     if st.button("Ejecutar UMAP", type="primary"):
