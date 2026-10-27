@@ -59,11 +59,7 @@ def _normalizar_cabecera(cabecera: object) -> str:
 
 
 def preparar_concrete(contenido: bytes) -> tuple[dict[str, bytes], dict]:
-    """Valida el XLS íntegro y elimina sólo duplicados de las nueve columnas.
-
-    La posición original de una fila se cuenta desde cero, sin incluir la
-    cabecera de Excel. No se ajusta ninguna transformación estadística.
-    """
+    """Valida el XLS íntegro y elimina sólo duplicados de las nueve columnas."""
     if not contenido:
         raise ValueError("El archivo XLS original de Concrete está vacío.")
     originales = pd.read_excel(BytesIO(contenido), engine="xlrd", sheet_name=0)
@@ -136,7 +132,7 @@ def preparar_concrete(contenido: bytes) -> tuple[dict[str, bytes], dict]:
         },
         "mapeo_cabeceras": dict(zip(cabeceras, COLUMNAS_CONCRETE, strict=True)),
         "derivacion": {
-            "script": "scripts/preparar_concrete_lab03.py",
+            "script": "scripts/preparar_concrete.py",
             "criterio": "duplicados exactos sobre las nueve columnas; conservar primera fila",
             "filas_originales": len(datos),
             "filas_preparadas": len(preparado),

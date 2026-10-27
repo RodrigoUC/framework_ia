@@ -1,27 +1,66 @@
-"""Derivación reproducible de las etiquetas del dataset Diabetes de Lab02."""
+"""Preparación y referencia del dataset Diabetes para clasificación y regresión."""
 
 from __future__ import annotations
 
 import csv
 import hashlib
+import platform
 from io import BytesIO, StringIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sklearn
+from sklearn.datasets import load_diabetes
 
 FUENTE_DIABETES = "https://hbiostat.org/data/repo/diabetes"
 PREDICTORAS_DIABETES = (
-    "chol", "stab.glu", "hdl", "ratio", "location", "age", "gender", "height",
-    "weight", "frame", "bp.1s", "bp.1d", "bp.2s", "bp.2d", "waist", "hip",
+    "chol",
+    "stab.glu",
+    "hdl",
+    "ratio",
+    "location",
+    "age",
+    "gender",
+    "height",
+    "weight",
+    "frame",
+    "bp.1s",
+    "bp.1d",
+    "bp.2s",
+    "bp.2d",
+    "waist",
+    "hip",
     "time.ppn",
 )
 CATEGORICAS_DIABETES = ("location", "gender", "frame")
 COLUMNAS_ORIGINALES = (
-    "id", "chol", "stab.glu", "hdl", "ratio", "glyhb", "location", "age",
-    "gender", "height", "weight", "frame", "bp.1s", "bp.1d", "bp.2s", "bp.2d",
-    "waist", "hip", "time.ppn",
+    "id",
+    "chol",
+    "stab.glu",
+    "hdl",
+    "ratio",
+    "glyhb",
+    "location",
+    "age",
+    "gender",
+    "height",
+    "weight",
+    "frame",
+    "bp.1s",
+    "bp.1d",
+    "bp.2s",
+    "bp.2d",
+    "waist",
+    "hip",
+    "time.ppn",
 )
+
+FUENTE_DIABETES_REGRESION = (
+    "https://scikit-learn.org/stable/modules/generated/"
+    "sklearn.datasets.load_diabetes.html"
+)
+ARCHIVO_DIABETES_REGRESION = "diabetes_regresion.csv"
 
 
 def _sha(contenido: bytes) -> str:
@@ -29,15 +68,13 @@ def _sha(contenido: bytes) -> str:
 
 
 def preparar_diabetes(contenido: bytes) -> tuple[dict[str, bytes], dict]:
-    """Conserva el original y deriva clases sin ajustar estadísticas de predictoras.
-
-    Las filas se numeran desde cero. Las etiquetas ausentes se excluyen antes
-    de aplicar el umbral histórico de este conjunto; nunca se imputan.
-    """
+    """Conserva el original y deriva clases sin ajustar estadísticas de predictoras."""
     try:
         for fila in csv.reader(StringIO(contenido.decode("utf-8-sig")), strict=True):
             if fila and len(fila) != len(COLUMNAS_ORIGINALES):
-                raise ValueError("El original debe contener las 19 columnas de Diabetes sin campos extra.")
+                raise ValueError(
+                    "El original debe contener las 19 columnas de Diabetes sin campos extra."
+                )
     except csv.Error as exc:
         raise ValueError("El original no tiene una estructura CSV válida.") from exc
     datos = pd.read_csv(BytesIO(contenido), sep=",", decimal=".", encoding="utf-8")
@@ -47,7 +84,9 @@ def preparar_diabetes(contenido: bytes) -> tuple[dict[str, bytes], dict]:
         or len(datos.columns) != len(COLUMNAS_ORIGINALES)
         or set(datos.columns) != set(COLUMNAS_ORIGINALES)
     ):
-        raise ValueError("El original debe contener las 19 columnas de Diabetes sin campos extra.")
+        raise ValueError(
+            "El original debe contener las 19 columnas de Diabetes sin campos extra."
+        )
     ids = pd.to_numeric(datos["id"], errors="raise")
     if (
         ids.isna().any()
@@ -79,7 +118,9 @@ def preparar_diabetes(contenido: bytes) -> tuple[dict[str, bytes], dict]:
     )
     archivos = {
         "diabetes_original.csv": contenido,
-        "diabetes.csv": preparado.to_csv(index=False, lineterminator="\n").encode("utf-8"),
+        "diabetes.csv": preparado.to_csv(index=False, lineterminator="\n").encode(
+            "utf-8"
+        ),
         "trazabilidad_diabetes.csv": trazabilidad.to_csv(
             index=False, lineterminator="\n"
         ).encode("utf-8"),
@@ -95,10 +136,13 @@ def preparar_diabetes(contenido: bytes) -> tuple[dict[str, bytes], dict]:
             "columnas": list(datos.columns),
         },
         "derivacion": {
-            "script": "scripts/preparar_diabetes_lab02.py",
+            "script": "scripts/preparar_diabetes.py",
             "regla": {
-                "columna": "glyhb", "operador": ">", "umbral": 7.0,
-                "positiva": "Diabetes", "negativa": "No diabetes",
+                "columna": "glyhb",
+                "operador": ">",
+                "umbral": 7.0,
+                "positiva": "Diabetes",
+                "negativa": "No diabetes",
             },
             "filas_originales": len(datos),
             "filas_preparadas": len(preparado),
@@ -135,5 +179,45 @@ def validar_preparacion_diabetes(directorio: Path, metadata: dict) -> dict[str, 
         raise ValueError("La procedencia de Diabetes no coincide con su derivación.")
     for nombre, contenido in archivos.items():
         if (directorio / nombre).read_bytes() != contenido:
-            raise ValueError(f"Diabetes: el archivo {nombre} no coincide con el original y la regla.")
+            raise ValueError(
+                f"Diabetes: el archivo {nombre} no coincide con el original y la regla."
+            )
     return archivos
+
+
+def cargar_diabetes_regresion() -> tuple[pd.DataFrame, bytes, dict]:
+    """Devuelve datos crudos, CSV canónico y procedencia; no ajusta transformaciones."""
+    referencia = load_diabetes(as_frame=True, scaled=False)
+    datos = referencia.frame.copy(deep=True)
+    contenido = datos.to_csv(index=False, lineterminator="\n").encode("utf-8")
+    metadata = {
+        "dataset": "sklearn_diabetes_regression",
+        "archivo": ARCHIVO_DIABETES_REGRESION,
+        "fuente": FUENTE_DIABETES_REGRESION,
+        "sha256": _sha(contenido),
+        "hash_sobre": "csv_materializado",
+        "filas": len(datos),
+        "columnas": datos.columns.tolist(),
+        "carga": {"funcion": "load_diabetes", "as_frame": True, "scaled": False},
+        "lectura": {
+            "separador": ",",
+            "decimal": ".",
+            "encoding": "utf-8",
+            "usar_primera_columna_como_indice": False,
+        },
+        "materializacion": {"indice": False, "fin_linea": "LF"},
+        "preset_regresion": {
+            "target": "target",
+            "features": list(referencia.feature_names),
+            "feature_simple": "bmi",
+            "test_size": 0.25,
+            "random_state": 42,
+        },
+        "versiones_origen": {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "pandas": pd.__version__,
+            "scikit-learn": sklearn.__version__,
+        },
+    }
+    return datos, contenido, metadata

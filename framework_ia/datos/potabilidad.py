@@ -1,10 +1,4 @@
-"""Preparación reproducible del dataset Potabilidad (Water Quality) de Lab02.
-
-El archivo público contiene 3276 filas con ausencias en ``ph``, ``Sulfate`` y
-``Trihalomethanes``. La versión utilizada en clase tiene 2011 filas: son
-exactamente los casos completos del original. Esta preparación conserva el
-original intacto y deriva esos casos completos sin imputar ni escalar.
-"""
+"""Preparación reproducible del dataset Potabilidad (Water Quality)."""
 
 from __future__ import annotations
 
@@ -16,8 +10,15 @@ import pandas as pd
 
 FUENTE_POTABILIDAD = "https://www.kaggle.com/datasets/adityakadiwal/water-potability"
 PREDICTORAS_POTABILIDAD = (
-    "ph", "Hardness", "Solids", "Chloramines", "Sulfate", "Conductivity",
-    "Organic_carbon", "Trihalomethanes", "Turbidity",
+    "ph",
+    "Hardness",
+    "Solids",
+    "Chloramines",
+    "Sulfate",
+    "Conductivity",
+    "Organic_carbon",
+    "Trihalomethanes",
+    "Turbidity",
 )
 OBJETIVO_POTABILIDAD = "Potability"
 
@@ -53,7 +54,7 @@ def preparar_potabilidad(contenido: bytes) -> tuple[dict[str, bytes], dict]:
             },
         },
         "derivacion": {
-            "script": "scripts/preparar_potabilidad_lab02.py",
+            "script": "scripts/preparar_potabilidad.py",
             "criterio": "casos completos (filas sin valores ausentes)",
             "filas_originales": len(datos),
             "filas_preparadas": len(completos),
