@@ -64,15 +64,6 @@ class ClassificationPanelTests(unittest.TestCase):
                 for item in app.markdown
             )
         )
-        self.assertTrue(
-            any("no con test" in item.value for item in app.caption)
-        )
-        for descripcion in (
-            "Métricas de prueba y parámetros de los modelos entrenados individualmente",
-        ):
-            self.assertTrue(
-                any(descripcion in item.value for item in app.caption), descripcion
-            )
         tabla = next(
             item.value for item in app.dataframe if "Algoritmo" in item.value.columns
         )
@@ -80,19 +71,20 @@ class ClassificationPanelTests(unittest.TestCase):
             set(tabla["Algoritmo"]), {"Random Forest · gini", "Naive Bayes"}
         )
         for label in resultado_rf.labels:
-            self.assertIn(f"Recall actual {label} (%)", tabla.columns)
+            self.assertIn(f"Recall ({label}) (%)", tabla.columns)
         for nombre, resultado in (
             ("Random Forest · gini", resultado_rf),
             ("Naive Bayes", resultado_nr),
         ):
             fila = tabla.set_index("Algoritmo").loc[nombre]
             self.assertAlmostEqual(
-                fila["Accuracy general (%)"], 100 * resultado.metricas["accuracy"]
+                fila["Exactitud (%)"], 100 * resultado.metricas["accuracy"]
             )
             self.assertAlmostEqual(
-                fila["F1 macro prueba"], resultado.metricas["f1"]["macro"]
+                fila["F1-Score Macro"], resultado.metricas["f1"]["macro"]
             )
-            self.assertTrue(fila["Parámetros efectivos"])
+        self.assertNotIn("Parámetros efectivos", tabla.columns)
+        self.assertTrue(any("hiperparámetros" in item.label.lower() for item in app.expander))
         self.assertFalse(
             any("Comparación de modelos" in item.value for item in app.markdown)
         )
