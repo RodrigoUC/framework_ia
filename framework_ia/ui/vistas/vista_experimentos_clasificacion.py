@@ -48,9 +48,7 @@ def render_experimentos(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
     """Renderiza los controles y ejecuta el benchmark de clasificación."""
-    st.caption(
-        f"{TOTAL_CANDIDATOS} configuraciones · 5 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
-    )
+    st.caption(f"{TOTAL_CANDIDATOS} configuraciones · 5 algoritmos")
     contexto = _contexto_ejecucion(configuracion)
     st.caption(
         f"Dataset: {contexto['dataset']} · Objetivo: {configuracion['target']} · "
@@ -350,9 +348,6 @@ def render_resultado_experimento(
             f"**Mejor algoritmo por validación: {resultado.mejor_algoritmo}.**"
         )
     st.markdown("#### Prueba reservada · ganadores seleccionados")
-    st.caption(
-        "Estos resultados describen generalización; no intervienen en la selección ni sustituyen la validación."
-    )
     _mostrar_dataframe(
         pd.DataFrame(
             [

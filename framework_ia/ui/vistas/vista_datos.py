@@ -85,11 +85,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                 seleccion = None
                 archivo = None
                 if origen == "Diabetes · referencia Lab03":
-                    st.caption(
-                        "Referencia local de scikit-learn: 442 filas, diez predictoras crudas y "
-                        "target cuantitativo. No es Diabetes de HBiostat (Lab02). "
-                        "Aplicar configura target, predictor simple bmi y semilla 42; no entrena."
-                    )
+                    st.caption("Referencia de regresión scikit-learn (442 filas).")
                 else:
                     separador = st.text_input(
                         "Separador",
@@ -193,9 +189,6 @@ def _render_dataset() -> None:
         _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
 
     st.markdown("#### Preparación y limpieza")
-    st.caption(
-        "Puede limpiar filas, columnas y duplicados antes de Configuración. La imputación y el escalado supervisados se aprenden solo con train."
-    )
     columnas_eliminar = st.multiselect(
         "Columnas a eliminar",
         options=original.columns.tolist(),

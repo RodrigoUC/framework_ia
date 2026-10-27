@@ -340,8 +340,10 @@ def _mostrar_figura(
     """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
     _aplicar_tema_figura(figura, st.context.theme.type == "dark")
     opciones = {"width": "stretch"}
-    if key is not None:
-        opciones["key"] = key
     if alt is not None:
         st.caption(alt)
+    if key is not None:
+        opciones["key"] = key
+
+
     st.plotly_chart(figura, **opciones)

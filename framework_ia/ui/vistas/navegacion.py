@@ -267,18 +267,11 @@ def mostrar_guia(
             return
         if vista == "datos":
             st.markdown("**Etapa 1 · Fuente activa**")
-            st.caption(
-                "Cargue los datos y configure un modelo. Limpieza global y partición manual son opcionales."
-            )
             st.button(
                 "Configurar tarea",
                 key="flujo_configurar",
                 on_click=ir_a,
                 args=("configuracion",),
-            )
-        else:
-            st.caption(
-                "Exploración independiente: no requiere objetivo ni partición supervisada."
             )
         return
     nombre = "regresión" if familia == "regresion" else "clasificación"
@@ -313,20 +306,12 @@ def mostrar_guia(
                 f"Objetivo: {configuracion['target']} · Predictores: {len(configuracion['features'])} · "
                 f"Prueba: {configuracion['test_size']:.0%} · Semilla: {configuracion['random_state']} · Partición {particion}."
             )
-    if configurando and familia == "clasificacion":
-        st.caption(
-            "Use clases discretas para clasificar y regresión para cantidades continuas. No se convierten objetivos automáticamente."
-        )
     if disponibilidad is not None and not disponibilidad.lista:
         if configurando or consultando:
             mostrar_faltantes(disponibilidad)
     elif configurando:
         st.success(
             "Configuración utilizable. Continúe a un modelo o experimento."
-        )
-    elif not consultando:
-        st.caption(
-            "Ajuste los parámetros y ejecute. Editarlos no reemplaza la evidencia guardada."
         )
     destino = "configuracion"
     if consultando and not hay_evidencia(st.session_state, familia):

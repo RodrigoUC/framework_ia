@@ -243,9 +243,6 @@ def _render_particional(
 
     if algoritmo == "K-Means":
         with st.expander("Proyecciones para visualizar los clusters"):
-            st.caption(
-                "t-SNE y UMAP proyectan los datos; no son algoritmos de clustering."
-            )
             etiquetas = (
                 resultado.etiquetas if resultado is not None else None
             )
@@ -275,7 +272,6 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
     )
     filas_hac = min(configuracion["filas"], 800)
     firma = _firma(configuracion, metodo, clusters, filas_hac)
-    st.caption(f"El dendrograma utilizará como máximo {filas_hac} filas.")
     if st.button("Ejecutar HAC", type="primary"):
         try:
             resultado = ejecutar_hac(

@@ -269,58 +269,48 @@ def _diagnostico(
     resultado, mostrar_figura: MostrarFigura, prefijo: str
 ) -> None:
     """Presenta métricas, matriz de confusión y predicciones del modelo de clasificación."""
-    st.markdown(f"#### {resultado.algoritmo} · resultados de prueba")
+    st.markdown(f"#### {resultado.algoritmo}")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Accuracy general", f"{resultado.metricas['accuracy']:.1%}")
+    c1.metric("Accuracy", f"{resultado.metricas['accuracy']:.1%}")
     c2.metric("Precisión macro", f"{resultado.metricas['precision']['macro']:.4f}")
     c3.metric("Recall macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
     metricas_clase = _metricas_por_clase(resultado)
-    _mostrar_dataframe(
+    st.markdown("**Recall por clase**")
+    st.dataframe(
         pd.DataFrame(
             [
                 {"Clase real": etiqueta, "Recall (%)": recall}
                 for etiqueta, recall in metricas_clase.items()
             ]
         ),
-        alt="Recall porcentual por clase real; los valores se calculan entre los casos reales de cada clase",
         hide_index=True,
         width="stretch",
-    )
-    st.caption(
-        f"Entrenamiento: {resultado.muestra_train} filas · Prueba: {resultado.muestra_test} filas"
-    )
-    st.markdown("**Matriz de confusión**")
-    st.caption(
-        "Filas: clase real. Columnas: clase predicha. La diagonal indica aciertos."
     )
     mostrar_figura(
         VisualizadorSupervisado.matriz_confusion(resultado),
         key=f"{prefijo}_confusion",
-        alt="Matriz de confusión de prueba; filas de clases reales y columnas de predicciones",
     )
-
-    _mostrar_dataframe(
-        resultado.matriz_confusion,
-        alt="Valores de la matriz de confusión de prueba",
-        width="stretch",
-    )
-    with st.expander("Gráficos por clase y distribución estratificada"):
+    with st.expander("Valores de la matriz de confusión"):
+        st.caption("Valores de la matriz de confusión")
+        st.dataframe(
+            resultado.matriz_confusion,
+            width="stretch",
+        )
+    with st.expander("Métricas por clase"):
         fig_metricas = VisualizadorSupervisado.metricas_barras(resultado)
         if fig_metricas is not None:
             mostrar_figura(
                 fig_metricas,
                 key=f"{prefijo}_metricas_barras",
-                alt="Comparación de precisión, recall y F1 por clase",
             )
         fig_dist = VisualizadorSupervisado.distribucion_estratificada(resultado)
         if fig_dist is not None:
             mostrar_figura(
                 fig_dist,
                 key=f"{prefijo}_distribucion_estratificada",
-                alt="Distribución de clases en entrenamiento, prueba real y predicción",
             )
-    with st.expander("Parámetros efectivos y detalles del modelo"):
+    with st.expander("Parámetros y metadatos"):
         st.json(
             getattr(resultado, "parametros", resultado.modelo.get_params()),
             expanded=False,
@@ -331,13 +321,12 @@ def _diagnostico(
     )
     predicciones["acierto"] = predicciones["real"] == predicciones["prediccion"]
     with st.expander("Predicciones de prueba"):
-        _mostrar_dataframe(
+        st.dataframe(
             predicciones,
-            alt="Clases reales, predicciones y aciertos de cada fila de prueba",
             width="stretch",
         )
     st.download_button(
-        "Descargar predicciones de prueba",
+        "Descargar predicciones (CSV)",
         predicciones.to_csv(index=True).encode("utf-8"),
         f"predicciones_{resultado.algoritmo}.csv",
         "text/csv",

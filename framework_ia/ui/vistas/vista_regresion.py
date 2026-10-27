@@ -45,17 +45,11 @@ def mostrar_resultado_modelo(
     """Renderiza métricas, gráficos de ajuste y descargas del modelo de regresión."""
     resultado = snapshot["resultado"]
     st.markdown(
-        f"#### {NOMBRES_REGRESORES[resultado.algoritmo]} · ejecución guardada"
-    )
-    st.caption(
-        f"Target: {resultado.target} · Predictores: {', '.join(resultado.features)} · Train: {resultado.muestra_train} · Test: {resultado.muestra_test}"
+        f"#### {NOMBRES_REGRESORES[resultado.algoritmo]}"
     )
     columnas = st.columns(4)
     for columna, nombre in zip(columnas, ("rmse", "mae", "mse", "r2")):
         columna.metric(nombre.upper(), f"{resultado.metricas[nombre]:.4f}")
-    st.caption(
-        "Métricas de prueba en escala numérica, no porcentajes. R² puede ser negativo; los residuos son real menos predicción."
-    )
     st.dataframe(
         pd.DataFrame(
             {"Train": resultado.metricas_train, "Test": resultado.metricas}
@@ -188,9 +182,6 @@ def render_resultados_regresion(
     }
     if snapshots:
         st.markdown("### Modelos de regresión entrenados")
-        st.caption(
-            "Prueba · ejecuciones individuales. Seleccione hiperparámetros en Experimentos Lab03, no con test."
-        )
         st.dataframe(
             pd.DataFrame(
                 [

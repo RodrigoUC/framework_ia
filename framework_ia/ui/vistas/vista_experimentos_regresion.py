@@ -53,7 +53,7 @@ def mostrar_experimento_guardado(
     resultado = snapshot["resultado"]
     st.markdown("### Experimento guardado · selección por RMSE de validación")
     st.caption(
-        f"Estrategia: {resultado.metadatos['estrategia_seleccion']} · Ganador por validación: {resultado.mejor_algoritmo}. Prueba no participa en la selección."
+        f"Estrategia: {resultado.metadatos['estrategia_seleccion']} · Ganador por validación: {resultado.mejor_algoritmo}"
     )
     seleccion = resultado.tabla.loc[
         (resultado.tabla["algoritmo"] == resultado.mejor_algoritmo)
@@ -69,9 +69,6 @@ def mostrar_experimento_guardado(
         VisualizadorRegresion.comparacion_validacion(resultado.tabla),
         key="lab3_validacion",
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
-    )
-    st.caption(
-        "Evidencia completa de validación: configuraciones, métricas por pliegue y errores."
     )
     st.dataframe(resultado.tabla, hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
@@ -137,9 +134,7 @@ def mostrar_experimento_guardado(
 
 def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     """Renderiza los controles y ejecuta el benchmark de regresión."""
-    st.caption(
-        "14 configuraciones · 9 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
-    )
+    st.caption("14 configuraciones · 9 algoritmos")
     segura = preparacion_regresion_segura()
     algoritmos = st.multiselect(
         "Algoritmos del experimento",
