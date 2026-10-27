@@ -1,5 +1,16 @@
 """Carga, calidad, partición y preprocesamiento funcional de datos."""
 
+import sys
+from .. import datasets
+
+diabetes = datasets.diabetes
+concrete = datasets.concrete
+potabilidad = datasets.potabilidad
+
+sys.modules.setdefault("framework_ia.datos.diabetes", diabetes)
+sys.modules.setdefault("framework_ia.datos.concrete", concrete)
+sys.modules.setdefault("framework_ia.datos.potabilidad", potabilidad)
+
 from .dataframe import DataFrame
 from .eda import EDA
 from .fuentes import CargadorCSV, ConfiguracionCSV
