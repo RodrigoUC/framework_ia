@@ -8,18 +8,19 @@ Responsabilidades:
     datos/dataframe.py  -> operaciones tabulares y estadísticas
     datos/eda.py        -> clase EDA: pipeline de preparación y gráficos del EDA
     utils/              -> funciones y objetos de configuración
-    ui/streamlit_app.py -> interfaz gráfica (Streamlit) del EDA
+    ui/streamlit_app.py -> interfaz gráfica (Streamlit) del framework Nexo IA
 
 Hereda de :class:`DataFrame` (misma carpeta).
 
 Jerarquía del framework:
 
-    EDA               (este módulo · lógica y gráficos del EDA)
-    ├── NoSupervisado (modelos/no_supervisado/)
-    │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
-    └── Supervisado   (modelos/supervisado.py)
-           ├── Clasificacion  ->  RF, NR
-           └── Regresion      ->  RLS, RLM, RL
+    DataFrame         (datos/dataframe.py · operaciones tabulares y estadísticas)
+    └── EDA           (este módulo · lógica y gráficos del EDA)
+        ├── NoSupervisado (modelos/no_supervisado/)
+        │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
+        └── Supervisado   (modelos/supervisado/)
+               ├── Clasificacion  ->  KNN, DT, RF, XGBoost, AdaBoost, NR, RL
+               └── Regresion      ->  RLS, RLM, RL, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT, RF
 """
 
 from __future__ import annotations
@@ -40,9 +41,9 @@ class EDA(DataFrameBase):
     """Base del análisis exploratorio de datos.
 
     Hereda :class:`DataFrame` y agrega un pipeline de preparación que deja
-    el dataset ordenado para el análisis posterior (cluster, clasificación
-    o progresión). No contiene lógica de Streamlit; la interfaz gráfica se
-    encuentra en :mod:`vca`.
+    el dataset ordenado para el análisis posterior (clustering, clasificación
+    o regresión). No contiene lógica de Streamlit; la interfaz gráfica se
+    encuentra en :mod:`framework_ia.ui.streamlit_app`.
     """
 
     def __init__(
@@ -116,12 +117,14 @@ class EDA(DataFrameBase):
 
     def resumen_calidad(self) -> dict[str, int | float]:
         """Indicadores sintéticos de calidad del dataset actual."""
-        datos = self.datos
+        datos = self.mostrar()
+        filas, columnas = self.dimensiones()
+        nulos = int(self.contar_nulos().sum())
         return {
-            "filas": int(len(datos)),
-            "columnas": int(datos.shape[1]),
+            "filas": int(filas),
+            "columnas": int(columnas),
             "duplicados": int(datos.duplicated().sum()),
-            "nulos": int(datos.isna().sum().sum()),
+            "nulos": nulos,
             "porcentaje_nulos": round(float(datos.isna().mean().mean() * 100), 2),
             "numericas": int(datos.select_dtypes(include="number").shape[1]),
             "categoricas": int(datos.select_dtypes(exclude="number").shape[1]),

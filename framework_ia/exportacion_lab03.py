@@ -76,12 +76,7 @@ def construir_archivos_experimento(
     dataset: Mapping[str, Any],
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
-    """Serializa snapshots con rutas relativas y versiones del ajuste prioritarias.
-
-    ``dataset`` conserva la procedencia y SHA-256 de los bytes originales,
-    no una huella de un CSV reconstruido. La misma función produce los bytes
-    que la CLI escribe y la interfaz ofrece para descargar.
-    """
+    """Serializa snapshots con rutas relativas y versiones del ajuste prioritarias."""
     configuracion = _configuracion(resultado, argumentos, dataset, versiones)
     configuracion["experimento"] = resultado.metadatos
     archivos = {"configuracion.json": _bytes_json(configuracion)}

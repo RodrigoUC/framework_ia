@@ -4,6 +4,7 @@ from .cache_numba import configurar_cache_numba
 from .colores import color_texto_por_luminancia
 from .compatibilidad_sklearn import crear_codificador_denso, crear_tsne
 from .configuracion_clasificacion import (
+    ALGORITMOS_CLASIFICACION,
     ALGORITMOS_LAB2,
     CONFIGURACIONES_MODELO,
     METRICAS_SELECCION,
@@ -15,14 +16,21 @@ from .configuracion_particion import ConfiguracionParticion
 from .configuracion_preprocesamiento import ConfiguracionPreprocesamiento
 from .configuracion_regresion import (
     ALGORITMOS_LAB3,
+    ALGORITMOS_REGRESION,
+    ALPHAS_LAB3,
+    ALPHAS_REGRESION,
     CONFIGURACIONES_REGRESION,
     NOMBRES_REGRESORES,
     configuraciones_experimento_regresion,
 )
 
 __all__ = [
+    "ALGORITMOS_CLASIFICACION",
     "ALGORITMOS_LAB2",
     "ALGORITMOS_LAB3",
+    "ALGORITMOS_REGRESION",
+    "ALPHAS_LAB3",
+    "ALPHAS_REGRESION",
     "CONFIGURACIONES_MODELO",
     "CONFIGURACIONES_REGRESION",
     "METRICAS_SELECCION",

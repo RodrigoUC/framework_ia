@@ -67,8 +67,14 @@ class RegresionTests(unittest.TestCase):
                     Regresion(dataframe=self.data, features=["a"]), method
                 )()
                 self.assertEqual(result.algoritmo, "RLS")
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             Regresion(dataframe=self.data).RL()
+        datos_logisticos = self.data.assign(target=["clase_0", "clase_1"] * 20)
+        modelo_rl = Regresion(dataframe=datos_logisticos)
+        resultado_rl = modelo_rl.RL()
+        self.assertEqual(resultado_rl.algoritmo, "RL")
+        self.assertIn("accuracy", resultado_rl.metricas)
+        self.assertIs(modelo_rl.evaluar(), resultado_rl)
 
     def test_metrics_and_residuals_use_original_target_units(self):
         result = Regresion(dataframe=self.data, features=["a"]).RLS()

@@ -469,8 +469,8 @@ class VisualizadorNoSupervisado:
             raise ValueError("La visualización requiere al menos dos componentes.")
 
 
-class VisualizadorSupervisado:
-    """Visualizaciones Plotly para flujos supervisados."""
+class VisualizadorSupervisado(VisualizadorRegresion):
+    """Visualizaciones Plotly unificadas para flujos supervisados (clasificación y regresión)."""
 
     @staticmethod
     def matriz_confusion(resultado: ResultadoClasificacion) -> go.Figure:

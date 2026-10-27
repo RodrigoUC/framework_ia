@@ -1,4 +1,4 @@
-"""Archivos de evidencia LAB02 compartidos por la CLI y la interfaz.
+"""Archivos de evidencia de clasificación compartidos por la CLI y la interfaz.
 
 La construcción y el ZIP trabajan sólo en memoria. Los llamadores conservan
 la procedencia y la huella de los bytes originales del CSV en ``dataset``;
@@ -71,17 +71,7 @@ def construir_archivos_experimento(
     dataset: Mapping[str, Any],
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
-    """Serializa un experimento sin modificar sus tablas ni sus metadatos.
-
-    ``dataset`` contiene archivo, SHA-256 del CSV original, filas, columnas y
-    fuente. Puede incluir la configuración de lectura y más procedencia real.
-    ``argumentos`` conserva las opciones efectivamente usadas al ejecutar.
-    Las versiones guardadas en el resultado tienen prioridad; el parámetro
-    opcional permite proporcionar una instantánea completa del ambiente.
-
-    Las claves usan rutas relativas POSIX, aptas tanto para un ZIP como para
-    escritura a disco. Los CSV y JSON usan UTF-8 y saltos de línea uniformes.
-    """
+    """Serializa un experimento sin modificar sus tablas ni sus metadatos."""
     archivos = {
         "configuracion.json": _bytes_json(
             {
@@ -169,11 +159,7 @@ def _archivos_analisis(algoritmo: str, analisis: Mapping[str, Any] | None) -> di
 
 
 def construir_zip_experimento(archivos: Mapping[str, bytes]) -> bytes:
-    """Agrupa los mismos archivos sin escribir al disco ni volver a entrenar.
-
-    Orden y fechas fijos permiten repetir el ZIP cuando la evidencia no cambia.
-    Sólo admite nombres relativos; un ZIP no debe contener rutas de salida.
-    """
+    """Agrupa los mismos archivos sin escribir al disco ni volver a entrenar."""
     memoria = BytesIO()
     with ZipFile(memoria, "w", compression=ZIP_DEFLATED, compresslevel=9) as salida:
         for nombre in sorted(archivos):

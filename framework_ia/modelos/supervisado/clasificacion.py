@@ -1,4 +1,4 @@
-"""Clasificadores del LAB02, con evaluación reproducible y sin fuga de datos."""
+"""Clasificadores supervisados con evaluación reproducible y sin fuga de datos."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -23,16 +24,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.utils.multiclass import type_of_target
 
+from ...datos.particion import comprobar_clases, huella_datos
+from ...datos.preprocesamiento import PreprocesadorSupervisado
 from ...resultados import ResultadoClasificacion, ResultadoParticion
 from ...utils import ALGORITMOS_LAB2, configuraciones_experimento
 from .base import Supervisado
-from .particiones import (
-    comprobar_clases,
-    dividir_indices,
-    huella_datos,
-    validar_particion,
-)
-from .preprocesamiento import PreprocesadorSupervisado
 
 
 def normalizar_algoritmo(algoritmo: str) -> str:
@@ -56,12 +52,16 @@ def normalizar_algoritmo(algoritmo: str) -> str:
         "nb": "NR",
         "naive_bayes": "NR",
         "gaussian_nb": "NR",
+        "rl": "RL",
+        "regresion_logistica": "RL",
+        "logistic_regression": "RL",
+        "logisticregression": "RL",
     }
     try:
         return aliases[algoritmo.strip().lower()]
     except (KeyError, AttributeError) as exc:
         raise ValueError(
-            f"Algoritmo no soportado: {algoritmo}. Use {ALGORITMOS_LAB2} o NR."
+            f"Algoritmo no soportado: {algoritmo}. Use {ALGORITMOS_LAB2}, NR o RL."
         ) from exc
 
 
@@ -115,6 +115,10 @@ def _crear_modelo(algoritmo, random_state, parametros):
         return AdaBoostClassifier(**{"random_state": random_state, **parametros})
     if algoritmo == "NR":
         return GaussianNB(**parametros)
+    if algoritmo == "RL":
+        return LogisticRegression(
+            **{"random_state": random_state, "max_iter": 1000, **parametros}
+        )
     try:
         from xgboost import XGBClassifier
     except ImportError as exc:
@@ -133,7 +137,9 @@ def _crear_modelo(algoritmo, random_state, parametros):
 
 
 class Clasificacion(Supervisado):
-    """KNN, árbol, Random Forest, XGBoost, AdaBoost y Naive Bayes compatible."""
+    """KNN, árbol, Random Forest, XGBoost, AdaBoost, Naive Bayes y Regresión Logística."""
+
+    _mensaje_sin_entrenar = "Entrene primero un clasificador."
 
     def __init__(
         self, dataframe=None, ruta_datos=None, *, target=None, features=None, **kwargs
@@ -149,36 +155,14 @@ class Clasificacion(Supervisado):
 
     def _reiniciar_resultados(self):
         """No reutilizar resultados anteriores tras un intento nuevo fallido."""
+        super()._reiniciar_resultados()
         self.resultado: ResultadoClasificacion | None = None
-        self.experimento = None
-        self.modelo = None
-        self._preparados = None
         self.exactitud = None
 
     def _datos_clasificacion(self):
-        if self.datos.empty:
-            raise ValueError("No hay datos para entrenar.")
-        if not self.datos.index.is_unique:
-            raise ValueError(
-                "El dataset necesita índices únicos; restablezca su índice antes de partir."
-            )
-        if not self.datos.columns.is_unique:
-            raise ValueError("El dataset necesita nombres de columna únicos.")
-        self._definir_target()
-        self._definir_features()
-        if self.target not in self.datos:
-            raise KeyError(f"La variable objetivo '{self.target}' no existe.")
-        self.features = list(self.features)
-        if not self.features:
-            raise ValueError("Debe seleccionar al menos una variable predictora.")
-        if len(set(self.features)) != len(self.features):
-            raise ValueError("Las variables predictoras no deben repetirse.")
-        if self.target in self.features:
-            raise ValueError("El target no debe incluirse entre las features.")
-        faltantes = [c for c in self.features if c not in self.datos]
-        if faltantes:
-            raise KeyError(f"Columnas inexistentes: {faltantes}")
-        base = self.datos.loc[:, self.features + [self.target]].copy()
+        base = self._validar_estructura_base(
+            mensaje_indices="El dataset necesita índices únicos; restablezca su índice antes de partir."
+        )
         base = base.replace([np.inf, -np.inf], np.nan).dropna(subset=[self.target])
         if base.empty:
             raise ValueError("No hay filas válidas tras depurar objetivos nulos.")
@@ -196,28 +180,7 @@ class Clasificacion(Supervisado):
             raise ValueError("La variable objetivo debe contener al menos dos clases.")
         return base
 
-    def _indices(self, base, *, particion, test_size, random_state, stratify):
-        if particion is not None:
-            validar_particion(particion, self.datos)
-            indices = [
-                subset.index[subset.index.isin(base.index)]
-                if subset is not None
-                else pd.Index([])
-                for subset in (particion.train, particion.test, particion.validacion)
-            ]
-            if any(indice.empty for indice in indices[:2]):
-                raise ValueError("Train o test quedó vacío al quitar objetivos nulos.")
-            if particion.validacion is not None and indices[2].empty:
-                raise ValueError("Validación quedó vacía al quitar objetivos nulos.")
-            return tuple(indices)
-        train, test = dividir_indices(
-            base,
-            self.target,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=stratify,
-        )
-        return train, test, pd.Index([])
+    _datos_supervisados = _datos_clasificacion
 
     def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
         """Ajusta preprocesamiento y modelo sólo con las filas ``train``.
@@ -368,29 +331,6 @@ class Clasificacion(Supervisado):
 
     benchmark = experimentar
 
-    def predecir(self, X=None):
-        if self.modelo is None:
-            raise RuntimeError("No hay un modelo entrenado.")
-        if X is None:
-            return self.evaluar().y_pred.copy()
-        if isinstance(X, pd.Series):
-            raise TypeError("X debe ser una tabla de características (DataFrame).")
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=self.features)
-        return pd.Series(
-            self.modelo.predict(self._transformar(X)), index=X.index, name="prediccion"
-        )
-
-    def _transformar(self, X):
-        if self._preparados is None:
-            raise RuntimeError("No hay transformador disponible; entrene primero.")
-        return self._preparados.transformador.transform(X)
-
-    def evaluar(self):
-        if self.resultado is None:
-            raise RuntimeError("Entrene primero un clasificador.")
-        return self.resultado
-
     def knn(self, **kwargs):
         return self.entrenar(algoritmo="KNN", **kwargs)
 
@@ -409,12 +349,16 @@ class Clasificacion(Supervisado):
     def naive_bayes(self, **kwargs):
         return self.entrenar(algoritmo="NR", **kwargs)
 
+    def regresion_logistica(self, **kwargs):
+        return self.entrenar(algoritmo="RL", **kwargs)
+
     KNN = knn
     DT = dt = decision_tree = arbol_decision
     RF = rf = random_forest
     XGBoost = XGB = xgb = xgboost
     AdaBoost = ADA = ada = adaboost
     NR = nr = naive_bayes
+    RL = rl = logistic_regression = regresion_logistica
 
     def previsualizar_particion(
         self,
@@ -428,30 +372,15 @@ class Clasificacion(Supervisado):
         particion=None,
     ):
         """Describe exactamente los índices reutilizados después al entrenar."""
-        base = self._datos_clasificacion()
-        train, test, validacion = self._indices(
-            base,
-            particion=particion,
+        return super().previsualizar_particion(
             test_size=test_size,
             random_state=random_state,
             stratify=stratify,
+            incluir_categoricas=incluir_categoricas,
+            imputar=imputar,
+            estandarizar=estandarizar,
+            particion=particion,
         )
-        seleccion = base[self.features]
-        return {
-            "tam_train": len(train),
-            "tam_test": len(test),
-            "tam_validacion": len(validacion),
-            "duplicados": int(seleccion.duplicated().sum()),
-            "nulos": int(seleccion.isna().sum().sum()),
-            "nulos_porcentaje": float(base.isna().mean().mean() * 100),
-            "head": base.loc[train].head(5),
-            "tail": base.loc[test].tail(5),
-            "train_indices": train.tolist(),
-            "test_indices": test.tolist(),
-            "validacion_indices": validacion.tolist(),
-            "distribucion_train": base.loc[train, self.target].value_counts().to_dict(),
-            "distribucion_test": base.loc[test, self.target].value_counts().to_dict(),
-        }
 
     @staticmethod
     def _ordenar_labels(real, predicho):

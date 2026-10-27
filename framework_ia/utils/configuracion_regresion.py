@@ -16,7 +16,7 @@ class ConfiguracionRegresion:
     parametros: tuple[ParametroModelo, ...]
 
 
-ALGORITMOS_LAB3 = (
+ALGORITMOS_REGRESION = (
     "RLS",
     "RLM",
     "Lasso",
@@ -27,7 +27,9 @@ ALGORITMOS_LAB3 = (
     "DT",
     "RF",
 )
-ALPHAS_LAB3 = (0.01, 0.1, 1.0, 10.0)
+ALGORITMOS_LAB3 = ALGORITMOS_REGRESION
+ALPHAS_REGRESION = (0.01, 0.1, 1.0, 10.0)
+ALPHAS_LAB3 = ALPHAS_REGRESION
 PLIEGUES_INTERNOS = 5
 
 _INTERCEPTO = ParametroModelo(
@@ -46,7 +48,7 @@ _ALPHAS = ParametroModelo(
     "alphas",
     "Valores de alpha para validación interna",
     "alphas",
-    valor=ALPHAS_LAB3,
+    valor=ALPHAS_REGRESION,
 )
 _PROFUNDIDAD = ParametroModelo(
     "max_depth",
@@ -108,9 +110,9 @@ _CONFIGURACIONES_EXPERIMENTO = {
     "RLS": (("estandar", {}),),
     "RLM": (("estandar", {}),),
     "Lasso": (("alpha_0_1", {"alpha": 0.1}), ("alpha_1", {"alpha": 1.0})),
-    "LassoCV": (("alpha_cv", {"alphas": ALPHAS_LAB3}),),
+    "LassoCV": (("alpha_cv", {"alphas": ALPHAS_REGRESION}),),
     "Ridge": (("alpha_0_1", {"alpha": 0.1}), ("alpha_1", {"alpha": 1.0})),
-    "RidgeCV": (("alpha_cv", {"alphas": ALPHAS_LAB3}),),
+    "RidgeCV": (("alpha_cv", {"alphas": ALPHAS_REGRESION}),),
     "SVR": (
         ("C_1", {"C": 1.0, "kernel": "rbf"}),
         ("C_10", {"C": 10.0, "kernel": "rbf"}),
@@ -124,7 +126,7 @@ _CONFIGURACIONES_EXPERIMENTO = {
 
 
 def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
-    """Devuelve catorce candidatos independientes, con el formato de Lab02."""
+    """Devuelve catorce candidatos independientes, con formato reproducible."""
     return {
         algoritmo: [
             {"nombre": nombre, "parametros": dict(parametros)}

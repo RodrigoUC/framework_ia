@@ -226,7 +226,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertFalse(resultado.coordenadas.isna().any().any())
 
     def test_arquitectura_declara_clases_y_metodos(self) -> None:
-        """Las extensiones pendientes existen como contratos utilizables."""
+        """Las extensiones existen como contratos utilizables de punta a punta."""
         self.assertTrue(issubclass(NoSupervisado, EDA))
         self.assertTrue(issubclass(Supervisado, EDA))
         self.assertTrue(issubclass(Clasificacion, Supervisado))
@@ -234,7 +234,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertTrue(issubclass(Cluster, NoSupervisado))
 
         for clase, metodos in (
-            (Clasificacion, ("RF", "NR")),
+            (Clasificacion, ("RF", "NR", "RL")),
             (Regresion, ("RLS", "RLM", "RL")),
         ):
             for metodo in metodos:
@@ -264,8 +264,16 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         regresion = Regresion(dataframe=datos_regresion).RLS()
         self.assertEqual(regresion.algoritmo, "RLS")
         self.assertAlmostEqual(regresion.metricas["r2"], 1.0)
-        with self.assertRaises(NotImplementedError):
-            Regresion(dataframe=datos_regresion).RL()
+        resultado_rl = Regresion(
+            dataframe=datos_clasificacion, target="target"
+        ).RL(test_size=0.25, random_state=1)
+        self.assertEqual(resultado_rl.algoritmo, "RL")
+        self.assertIn("accuracy", resultado_rl.metricas)
+        base_sup = Supervisado(dataframe=datos_regresion)
+        res_base = base_sup.entrenar(algoritmo="RLS")
+        self.assertEqual(res_base.algoritmo, "RLS")
+        self.assertIs(base_sup.evaluar(), res_base)
+        self.assertEqual(len(base_sup.predecir()), len(res_base.y_pred))
 
     def test_alias_progresion_conserva_compatibilidad(self) -> None:
         """El nombre anterior sigue disponible, pero Regresion es el oficial."""
