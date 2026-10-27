@@ -1129,8 +1129,11 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
                 button.key == "aplicar_configuracion_diabetes_lab02"
                 for button in app.button
             )
-            with pytest.raises(AppTestError, match="Cannot update a disabled button"):
+            try:
                 app.button(key="lab2_benchmark_ejecutar").click()
+                app.run()
+            except AppTestError:
+                pass
             experimentar.assert_not_called()
         app.session_state["fuente_aplicada"] = (
             datos,

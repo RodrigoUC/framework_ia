@@ -10,7 +10,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from framework_ia.datos.particion import comprobar_clases, dividir_indices
 from framework_ia.modelos.supervisado import Clasificacion, Regresion
-from framework_ia.modelos.supervisado.experimentos_regresion import _particiones
+from framework_ia.utils.supervisado.experimentos import _particiones
 from framework_ia.utils.configuracion_regresion import ALGORITMOS_LAB3
 
 
