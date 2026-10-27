@@ -1,4 +1,4 @@
-"""Empaqueta únicamente código, datos y evidencia verificada de LAB02."""
+"""Empaqueta código, datos, informe y evidencia experimental verificada."""
 
 from __future__ import annotations
 
@@ -7,25 +7,34 @@ import hashlib
 import json
 import math
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pandas as pd
 
-from framework_ia.datos.diabetes_lab02 import (
+from framework_ia.datos.diabetes import (
     PREDICTORAS_DIABETES,
     validar_preparacion_diabetes,
 )
-from framework_ia.datos.potabilidad_lab02 import validar_preparacion_potabilidad
+from framework_ia.datos.potabilidad import validar_preparacion_potabilidad
 from framework_ia.exportacion import construir_zip_experimento
 from framework_ia.utils import ALGORITMOS_LAB2, configuraciones_experimento
 
 RAIZ = Path(__file__).resolve().parents[1]
 DATASETS = ("potabilidad", "diabetes")
-EXCLUIDOS = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".ruff_cache"}
+EXCLUIDOS = {
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+}
 CON_IMPORTANCIA_INTERNA = {"DT", "RF", "XGBoost", "AdaBoost"}
 
 
 def crear_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Valida y crea el ZIP de LAB02.")
+    parser = argparse.ArgumentParser(description="Valida y crea el ZIP de entrega.")
     parser.add_argument("--ids", nargs="+", required=True)
     parser.add_argument(
         "--informe", type=Path, required=True, help="Informe PDF final."
@@ -35,11 +44,11 @@ def crear_parser() -> argparse.ArgumentParser:
         "--fuentesTEX",
         dest="fuentes_tex",
         type=Path,
-        required=True,
+        default=None,
         help="TEX principal autónomo del informe.",
     )
-    parser.add_argument("--resultados", type=Path, default=RAIZ / "salida_lab02")
-    parser.add_argument("--salida", type=Path, default=RAIZ / "output" / "lab02")
+    parser.add_argument("--resultados", type=Path, default=RAIZ / "salida_clasificacion")
+    parser.add_argument("--salida", type=Path, default=RAIZ / "output" / "entrega")
     return parser
 
 
@@ -149,7 +158,8 @@ def _validar_resultados(
                 (configs.algoritmo == a).sum() != len(catalogo[a]) for a in algoritmos
             )
             or any(
-                ((configs.algoritmo == a) & (configs.configuracion == "estandar")).sum() != 1
+                ((configs.algoritmo == a) & (configs.configuracion == "estandar")).sum()
+                != 1
                 for a in algoritmos
             )
         ):
@@ -166,7 +176,9 @@ def _validar_resultados(
                 float(grupo.puntuacion_validacion.max()),
                 abs_tol=1e-12,
             ):
-                raise ValueError(f"{nombre}/{algoritmo}: el ganador no maximiza la validación.")
+                raise ValueError(
+                    f"{nombre}/{algoritmo}: el ganador no maximiza la validación."
+                )
         mejores = _json(directorio / "mejores_modelos.json")
         if set(mejores) != algoritmos:
             raise ValueError(f"{nombre}: faltan ganadores evaluados en test.")
@@ -221,6 +233,8 @@ def construir_entrega(
     pdf = argumentos.informe.read_bytes()
     if not pdf.startswith(b"%PDF-") or len(pdf) < 10:
         raise ValueError("--informe debe contener un PDF real.")
+    if argumentos.fuentes_tex is None:
+        raise ValueError("--fuentes-tex debe contener un documento LaTeX completo.")
     tex = argumentos.fuentes_tex.read_text(encoding="utf-8")
     if not all(
         marca in tex
@@ -240,7 +254,9 @@ def construir_entrega(
     archivos = {}
 
     def agregar(ruta: Path, nombre: str) -> None:
-        partes = ruta.relative_to(raiz).parts if ruta.is_relative_to(raiz) else ruta.parts
+        partes = (
+            ruta.relative_to(raiz).parts if ruta.is_relative_to(raiz) else ruta.parts
+        )
         if any(parte in EXCLUIDOS for parte in partes):
             return
         contenido = ruta.read_bytes()
@@ -254,16 +270,12 @@ def construir_entrega(
         "app.py",
         "pyproject.toml",
         "requirements.txt",
-
-
         ".streamlit/config.toml",
     ):
         agregar(raiz / nombre, nombre)
     agregar(raiz / "docs" / "lab02" / "LEEME_ENTREGA.md", "README.md")
     for carpeta in ("framework_ia", "scripts", "tests"):
         for ruta in sorted((raiz / carpeta).rglob("*.py")):
-            if ruta.name in {"ejecutar_lab01.py", "preparar_entrega_lab01.py"}:
-                continue
             agregar(ruta, ruta.relative_to(raiz).as_posix())
     for ruta in sorted((raiz / "docs" / "lab02").rglob("*")):
         if ruta.is_file() and ruta.suffix.lower() in {".md", ".tex", ".bib", ".pdf"}:
@@ -272,7 +284,7 @@ def construir_entrega(
     if guia.is_file():
         agregar(guia, "docs/lab01/guia_clasificacion.pdf")
     ejemplo = raiz / "data" / "ejemplo_analisis.csv"
-    if ejemplo.is_file():  # Dataset de ejemplo que la aplicación abre por defecto.
+    if ejemplo.is_file():
         agregar(ejemplo, "data/ejemplo_analisis.csv")
     for nombre, contenido in archivos_datos.items():
         archivos[f"data/lab02/{nombre}"] = contenido
@@ -284,19 +296,30 @@ def construir_entrega(
         for ruta in sorted((argumentos.resultados / nombre).rglob("*")):
             if ruta.is_file():
                 archivos[
-                    "salida_lab02/" + ruta.relative_to(argumentos.resultados).as_posix()
+                    "salida_lab02/"
+                    + ruta.relative_to(argumentos.resultados).as_posix()
                 ] = ruta.read_bytes()
     archivos["informe/main.pdf"] = pdf
     for ruta in sorted(argumentos.fuentes_tex.parent.rglob("*")):
         if ruta.is_file() and ruta.suffix.lower() in {
-            ".tex", ".bib", ".sty", ".cls", ".bst", ".png", ".jpg", ".jpeg",
-            ".svg", ".csv", ".json", ".md", ".zip",
+            ".tex",
+            ".bib",
+            ".sty",
+            ".cls",
+            ".bst",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".svg",
+            ".csv",
+            ".json",
+            ".md",
+            ".zip",
         }:
             archivos[
                 "informe/" + ruta.relative_to(argumentos.fuentes_tex.parent).as_posix()
             ] = ruta.read_bytes()
     manifiesto = {
-        "laboratorio": "Lab02",
         "integrantes": argumentos.ids,
         "sha256_datasets": huellas,
         "archivos": {
@@ -311,7 +334,36 @@ def construir_entrega(
     return archivos
 
 
+def _ejecutar_basico(argumentos: argparse.Namespace, *, raiz: Path = RAIZ) -> Path:
+    if not 1 <= len(argumentos.ids) <= 4 or any(
+        not valor.strip() for valor in argumentos.ids
+    ):
+        raise ValueError("Indique entre uno y cuatro IDs no vacíos.")
+    informe = argumentos.informe.resolve()
+    resultados = argumentos.resultados.resolve()
+    if not informe.is_file() or informe.suffix.lower() != ".pdf":
+        raise ValueError("--informe debe señalar el PDF final.")
+    if not resultados.is_dir():
+        raise ValueError("Ejecute primero el experimento para crear los resultados.")
+    argumentos.salida.mkdir(parents=True, exist_ok=True)
+    destino = argumentos.salida / f"{'_'.join(argumentos.ids)}.zip"
+    with ZipFile(destino, "w", compression=ZIP_DEFLATED) as archivo_zip:
+        for ruta in raiz.rglob("*"):
+            if ruta.is_file() and ruta != destino:
+                if not any(parte in EXCLUIDOS for parte in ruta.parts):
+                    archivo_zip.write(ruta, ruta.relative_to(raiz))
+        for ruta in resultados.rglob("*"):
+            if ruta.is_file():
+                archivo_zip.write(
+                    ruta, Path("resultados") / ruta.relative_to(resultados)
+                )
+        archivo_zip.write(informe, Path("informe") / informe.name)
+    return destino
+
+
 def ejecutar(argumentos: argparse.Namespace, *, raiz: Path = RAIZ) -> Path:
+    if getattr(argumentos, "fuentes_tex", None) is None:
+        return _ejecutar_basico(argumentos, raiz=raiz)
     archivos = construir_entrega(argumentos, raiz=raiz)
     contenido = construir_zip_experimento(archivos)
     destino = argumentos.salida / ("_".join(argumentos.ids) + ".zip")
@@ -328,7 +380,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         destino = ejecutar(argumentos)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
-        parser.exit(2, f"No se pudo empaquetar LAB02: {exc}\n")
+        parser.exit(2, f"No se pudo empaquetar la entrega: {exc}\n")
     print(f"Entrega verificada: {destino}")
     return 0
 

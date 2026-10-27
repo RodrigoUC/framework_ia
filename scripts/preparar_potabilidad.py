@@ -1,4 +1,4 @@
-"""Prepara Potabilidad de Lab02: casos completos del original, sin imputar."""
+"""Prepara Potabilidad: casos completos del original, sin imputar."""
 
 from __future__ import annotations
 
@@ -6,14 +6,16 @@ import argparse
 import json
 from pathlib import Path
 
-from framework_ia.datos.potabilidad_lab02 import preparar_potabilidad
+from framework_ia.datos.potabilidad import preparar_potabilidad
 
 RAIZ = Path(__file__).resolve().parents[1]
 
 
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("csv", type=Path, help="water_potability.csv original (3276 filas).")
+    parser.add_argument(
+        "csv", type=Path, help="water_potability.csv original (3276 filas)."
+    )
     parser.add_argument("--salida", type=Path, default=RAIZ / "data" / "lab02")
     return parser
 
@@ -36,9 +38,10 @@ def ejecutar(argumentos: argparse.Namespace) -> Path:
     for nombre, contenido in archivos.items():
         (destino / nombre).write_bytes(contenido)
     ruta_procedencia.write_bytes(
-        (json.dumps(procedencia, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode(
-            "utf-8"
-        )
+        (
+            json.dumps(procedencia, indent=2, ensure_ascii=False, allow_nan=False)
+            + "\n"
+        ).encode("utf-8")
     )
     return destino
 

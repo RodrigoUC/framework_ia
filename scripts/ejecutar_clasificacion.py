@@ -1,8 +1,4 @@
-"""Ejecuta clasificación reproducible sobre un CSV, sin acoplarse a Streamlit.
-
-Las salidas son evidencia experimental, no un informe ni una recomendación
-médica o de seguridad del agua. Nunca se descarga ni publica el dataset.
-"""
+"""Ejecuta clasificación reproducible sobre un CSV, sin acoplarse a Streamlit."""
 
 from __future__ import annotations
 
@@ -21,7 +17,7 @@ __all__ = ["_json_seguro", "crear_parser", "ejecutar", "main"]
 
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="LAB 02: comparar clasificadores con validación y test reservado."
+        description="Comparar clasificadores con validación y test reservado."
     )
     parser.add_argument(
         "csv", type=Path, help="CSV local: no se descarga ni transmite."
@@ -32,7 +28,7 @@ def crear_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--features", nargs="+", help="Predictoras; por defecto todas menos target."
     )
-    parser.add_argument("--salida", type=Path, default=Path("salida_lab02"))
+    parser.add_argument("--salida", type=Path, default=Path("salida_clasificacion"))
     parser.add_argument("--separador", default=",")
     parser.add_argument("--decimal", default=".")
     parser.add_argument("--encoding", default="utf-8")
@@ -53,7 +49,9 @@ def crear_parser() -> argparse.ArgumentParser:
         default="cv",
         help="cv: validación cruzada estratificada en train (predeterminada); holdout: una validación.",
     )
-    parser.add_argument("--folds", type=int, default=5, help="Pliegues de la validación cruzada.")
+    parser.add_argument(
+        "--folds", type=int, default=5, help="Pliegues de la validación cruzada."
+    )
     parser.add_argument(
         "--seleccion-k",
         default="auto",
@@ -136,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         salida = ejecutar(argumentos)
     except (ValueError, KeyError, TypeError, OSError, ImportError) as exc:
-        parser.exit(2, f"No se pudo ejecutar LAB 02: {exc}\n")
+        parser.exit(2, f"No se pudo ejecutar clasificación: {exc}\n")
     configuracion = json.loads(
         (salida / "configuracion.json").read_text(encoding="utf-8")
     )

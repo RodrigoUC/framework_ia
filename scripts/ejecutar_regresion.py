@@ -15,7 +15,7 @@ from framework_ia.utils import ALGORITMOS_LAB3, ConfiguracionCSV
 
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="LAB 03: comparar regresores por RMSE con prueba reservada."
+        description="Comparar regresores por RMSE con prueba reservada."
     )
     parser.add_argument(
         "csv", type=Path, help="CSV local: no se descarga ni transmite."
@@ -30,7 +30,7 @@ def crear_parser() -> argparse.ArgumentParser:
         "--feature-simple",
         help="Predictora de RLS; por defecto la primera numérica seleccionada.",
     )
-    parser.add_argument("--salida", type=Path, default=Path("salida_lab03"))
+    parser.add_argument("--salida", type=Path, default=Path("salida_regresion"))
     parser.add_argument("--separador", default=",")
     parser.add_argument("--decimal", default=".")
     parser.add_argument("--encoding", default="utf-8")
@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         salida = ejecutar(argumentos)
     except (ValueError, KeyError, TypeError, OSError, ImportError) as exc:
-        parser.exit(2, f"No se pudo ejecutar LAB 03: {exc}\n")
+        parser.exit(2, f"No se pudo ejecutar regresión: {exc}\n")
     metadata = json.loads((salida / "configuracion.json").read_text(encoding="utf-8"))[
         "experimento"
     ]

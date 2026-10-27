@@ -1,9 +1,4 @@
-"""Ejecuta un conjunto reproducible de experimentos para el Lab01.
-
-El script no sustituye el análisis escrito: genera las tablas, proyecciones y
-configuraciones que deben interpretarse y citarse en el informe.  No hay rutas
-ni columnas codificadas; por omisión se usan las columnas numéricas del CSV.
-"""
+"""Ejecuta un conjunto reproducible de experimentos de aprendizaje no supervisado."""
 
 from __future__ import annotations
 
@@ -25,7 +20,7 @@ def _argumentos() -> argparse.Namespace:
         description="Genera resultados reproducibles de PCA, HAC, K-Means, t-SNE y UMAP."
     )
     parser.add_argument("csv", type=Path, help="Archivo CSV que se analizará.")
-    parser.add_argument("--salida", type=Path, default=Path("salida_lab01"))
+    parser.add_argument("--salida", type=Path, default=Path("salida_no_supervisado"))
     parser.add_argument("--separador", default=",", help="Separador del CSV.")
     parser.add_argument("--decimal", default=".", help="Separador decimal del CSV.")
     parser.add_argument(
@@ -79,14 +74,20 @@ def _crear_cluster(datos: pd.DataFrame, configuracion: dict[str, Any]) -> Cluste
 
 
 def _guardar_json(ruta: Path, contenido: dict[str, Any]) -> None:
-    ruta.write_text(json.dumps(contenido, indent=2, ensure_ascii=False, default=_json) + "\n", encoding="utf-8")
+    ruta.write_text(
+        json.dumps(contenido, indent=2, ensure_ascii=False, default=_json) + "\n",
+        encoding="utf-8",
+    )
 
 
 def ejecutar() -> None:
     args = _argumentos()
     datos = pd.read_csv(args.csv, sep=args.separador, decimal=args.decimal)
     eda = EDA(dataframe=datos)
-    features = args.features or eda.seleccionar_variables().select_dtypes(include="number").columns.tolist()
+    features = (
+        args.features
+        or eda.seleccionar_variables().select_dtypes(include="number").columns.tolist()
+    )
     if not features:
         features = datos.select_dtypes(include="number").columns.tolist()
     if not features:
@@ -118,11 +119,15 @@ def ejecutar() -> None:
     acp_filas = []
     for componentes in range(2, componentes_maximos + 1):
         resultado = reductor.ACP(componentes)
-        resultado.coordenadas.to_csv(salida / f"acp_{componentes}_componentes.csv", index=True)
+        resultado.coordenadas.to_csv(
+            salida / f"acp_{componentes}_componentes.csv", index=True
+        )
         acp_filas.append(
             {
                 "componentes": componentes,
-                "varianza_acumulada_pct": float(resultado.varianza_acumulada.iloc[-1]),
+                "varianza_acumulada_pct": float(
+                    resultado.varianza_acumulada.iloc[-1]
+                ),
             }
         )
     tabla_acp = pd.DataFrame(acp_filas)
@@ -134,7 +139,9 @@ def ejecutar() -> None:
     tabla_kmeans = cluster.evaluar_kmeans(2, k_max, random_state=args.semilla)
     tabla_kmeans.to_csv(salida / "comparacion_kmeans.csv", index=False)
     mejor_kmeans = tabla_kmeans.loc[tabla_kmeans["silhouette"].idxmax()]
-    resultado_kmeans = cluster.K_means(int(mejor_kmeans["k"]), random_state=args.semilla)
+    resultado_kmeans = cluster.K_means(
+        int(mejor_kmeans["k"]), random_state=args.semilla
+    )
     resultado_kmeans.etiquetas.to_csv(salida / "kmeans_asignaciones.csv", header=True)
     resumen["kmeans"] = {
         "comparacion": tabla_kmeans.to_dict(orient="records"),
@@ -163,9 +170,14 @@ def ejecutar() -> None:
         resultado = reductor.TSNE(
             perplexity=perplexity, max_iter=1000, random_state=args.semilla
         )
-        resultado.coordenadas.to_csv(salida / f"tsne_perplexity_{perplexity}.csv", index=True)
+        resultado.coordenadas.to_csv(
+            salida / f"tsne_perplexity_{perplexity}.csv", index=True
+        )
         filas_tsne.append(
-            {"perplexity": perplexity, "trustworthiness": _confiabilidad(matriz, resultado.coordenadas)}
+            {
+                "perplexity": perplexity,
+                "trustworthiness": _confiabilidad(matriz, resultado.coordenadas),
+            }
         )
     tabla_tsne = pd.DataFrame(filas_tsne)
     tabla_tsne.to_csv(salida / "comparacion_tsne.csv", index=False)
@@ -179,9 +191,15 @@ def ejecutar() -> None:
             resultado = reductor.UMAP(
                 n_neighbors=vecinos, min_dist=0.1, random_state=args.semilla
             )
-            resultado.coordenadas.to_csv(salida / f"umap_vecinos_{vecinos}.csv", index=True)
+            resultado.coordenadas.to_csv(
+                salida / f"umap_vecinos_{vecinos}.csv", index=True
+            )
             filas_umap.append(
-                {"n_neighbors": vecinos, "min_dist": 0.1, "trustworthiness": _confiabilidad(matriz, resultado.coordenadas)}
+                {
+                    "n_neighbors": vecinos,
+                    "min_dist": 0.1,
+                    "trustworthiness": _confiabilidad(matriz, resultado.coordenadas),
+                }
             )
         tabla_umap = pd.DataFrame(filas_umap)
         tabla_umap.to_csv(salida / "comparacion_umap.csv", index=False)

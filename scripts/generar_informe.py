@@ -1,17 +1,22 @@
-"""Genera un informe LaTeX autónomo desde evidencia de regresión verificada."""
+"""Genera informes LaTeX autónomos desde evidencia de clasificación o regresión verificada."""
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
+import re
+import zipfile
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
-from framework_ia.datos.concrete_lab03 import (
+from framework_ia.datos.concrete import (
     COLUMNAS_CONCRETE,
     PREDICTORAS_CONCRETE,
     validar_preparacion_concrete,
@@ -19,7 +24,9 @@ from framework_ia.datos.concrete_lab03 import (
 from framework_ia.evidencia import cargar_evidencia
 
 RAIZ = Path(__file__).resolve().parents[1]
-RECURSOS = RAIZ / "docs" / "lab03"
+RECURSOS_REGRESION = RAIZ / "docs" / "lab03"
+RECURSOS_CLASIFICACION = RAIZ / "docs" / "lab02"
+
 NOMBRES = {
     "RLS": "Lineal simple",
     "RLM": "Lineal múltiple",
@@ -48,6 +55,58 @@ ETIQUETAS = {
     "strength": "Resistencia",
 }
 
+ALGORITMOS_CLASIFICACION = ("KNN", "DT", "RF", "XGBoost", "AdaBoost")
+NOMBRES_CLASIFICACION = {
+    "KNN": "K vecinos más cercanos (KNN)",
+    "DT": "Árbol de decisión (DT)",
+    "RF": "Random Forest (RF)",
+    "XGBoost": "XGBoost",
+    "AdaBoost": "AdaBoost",
+}
+TITULOS_CLASIFICACION = {
+    "potabilidad": "Potabilidad del agua",
+    "diabetes": "Diabetes",
+}
+DESCRIPCION_VARIANTES = {
+    "estandar": "valores predeterminados de la biblioteca",
+    "k_15": "$k=15$ vecinos (estándar: 5)",
+    "pesos_distancia": "votos ponderados por $1/d$ (estándar: uniformes)",
+    "manhattan": "distancia Manhattan, $p=1$ (estándar: euclidiana)",
+    "profundidad_5": "profundidad máxima 5 (estándar: sin límite)",
+    "hoja_minima_10": "mínimo 10 observaciones por hoja (estándar: 1)",
+    "clases_balanceadas": "pesos por observación inversos a la frecuencia de su clase",
+    "500_arboles": "500 árboles (estándar: 100)",
+    "hoja_minima_5": "mínimo 5 observaciones por hoja (estándar: 1)",
+    "tasa_0_05": "tasa de aprendizaje 0.05 (estándar: 0.3)",
+    "profundidad_3": "profundidad máxima 3 (estándar: 6)",
+    "200_estimadores": "200 estimadores (estándar: 50)",
+    "tasa_0_5": "tasa de aprendizaje 0.5 (estándar: 1.0)",
+}
+COLORES_CLASIFICACION = {
+    "KNN": "blue!70!black",
+    "DT": "orange!85!black",
+    "RF": "green!55!black",
+    "XGBoost": "red!75!black",
+    "AdaBoost": "violet!80!black",
+}
+
+
+@dataclass
+class EvidenciaClasificacion:
+    nombre: str
+    ruta: Path
+    configuracion: dict[str, Any]
+    comparacion: list[dict[str, Any]]
+    mejores: dict[str, Any]
+    matrices: dict[str, tuple[list[str], list[list[int]]]]
+    roc: dict[str, list[tuple[float, float]]]
+    permutacion: dict[str, list[dict[str, Any]]]
+    hashes: dict[str, str]
+
+    @property
+    def experimento(self) -> dict[str, Any]:
+        return self.configuracion["experimento"]
+
 
 def tex(valor) -> str:
     """Escapa valores de datos y argumentos; los recursos son LaTeX controlado."""
@@ -71,6 +130,13 @@ def numero(valor, decimales=3) -> str:
     if not math.isfinite(valor):
         raise ValueError("El informe no admite valores no finitos.")
     return f"{valor:.{decimales}f}"
+
+
+def _numero_float(valor: Any) -> float:
+    resultado = float(valor)
+    if not math.isfinite(resultado):
+        raise ValueError(f"Valor no finito: {valor!r}")
+    return resultado
 
 
 def tabla(encabezados, filas, columnas, titulo) -> str:
@@ -109,7 +175,7 @@ def figura(coordenadas_xy, opciones, titulo, lineas="") -> str:
 
 
 def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
-    """Construye texto y gráficos con los números de la ejecución, sin entrenar."""
+    """Construye texto y gráficos con los números de la ejecución de regresión."""
     date.fromisoformat(fecha)
     if not autores or any(not str(a).strip() for a in autores):
         raise ValueError("Debe indicar autores no vacíos.")
@@ -155,7 +221,7 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         r"\setlength{\emergencystretch}{2em}\renewcommand{\arraystretch}{1.12}",
         r"\setlength{\parskip}{.4em}\setlength{\parindent}{0pt}",
         (
-            r"\title{\textbf{Laboratorio 3}\\Métodos supervisados: regresión y benchmarking\\"
+            r"\title{\textbf{Informe Experimental}\\Métodos supervisados: regresión y benchmarking\\"
             r"\large Predicción de la resistencia a compresión del concreto}"
         ),
         r"\author{" + r"\\".join(tex(a) for a in autores) + "}",
@@ -248,7 +314,7 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
     )
     secciones.extend(
         [
-            (RECURSOS / "fundamentos.tex").read_text(encoding="utf-8"),
+            (RECURSOS_REGRESION / "fundamentos.tex").read_text(encoding="utf-8"),
             r"\section{Metodología reproducible}",
         ]
     )
@@ -508,13 +574,13 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
                 "sin volver a entrenar. Los siguientes comandos reproducen la preparación y el experimento:"
             ),
             r"\begin{verbatim}",
-            "from scripts.preparar_concrete_lab03 import main as preparar",
-            "from scripts.ejecutar_lab03 import main as experimentar",
+            "from scripts.preparar_concrete import main as preparar",
+            "from scripts.ejecutar_regresion import main as experimentar",
             "preparar(['data/lab03/concrete/Concrete_Data.xls'])",
             "experimentar([",
             "    'data/lab03/concrete/concrete.csv',",
             "    '--target', 'strength', '--feature-simple', 'cement',",
-            "    '--salida', 'salida_lab03/concrete',",
+            "    '--salida', 'salida_regresion/concrete',",
             "    '--semilla', '42', '--test-size', '0.25',",
             "    '--estrategia', 'cv', '--folds', '5',",
             "    '--fuente',",
@@ -530,29 +596,177 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
             r"\noindent SHA-256 del CSV: \par\noindent\texttt{"
             + tex(e.configuracion["dataset"]["sha256"])
             + "}.",
-            (RECURSOS / "referencias.tex").read_text(encoding="utf-8"),
+            (RECURSOS_REGRESION / "referencias.tex").read_text(encoding="utf-8"),
             r"\end{document}",
         ]
     )
     return "\n\n".join(secciones) + "\n"
 
 
+def _json_clasificacion(ruta: Path) -> dict[str, Any]:
+    def rechazar(valor: str) -> None:
+        raise ValueError(f"JSON no estándar en {ruta.name}: {valor}")
+
+    contenido = json.loads(
+        ruta.read_text(encoding="utf-8-sig"), parse_constant=rechazar
+    )
+    if not isinstance(contenido, dict):
+        raise TypeError(f"Se esperaba un objeto JSON: {ruta}")
+    return contenido
+
+
+def _hash(ruta: Path) -> str:
+    return hashlib.sha256(ruta.read_bytes()).hexdigest()
+
+
+def _csv_clasificacion(ruta: Path) -> list[dict[str, str]]:
+    with ruta.open(encoding="utf-8-sig", newline="") as entrada:
+        return list(csv.DictReader(entrada))
+
+
+def _verdadero(valor: Any) -> bool:
+    return str(valor).lower() in ("true", "1")
+
+
+def cargar_evidencia_clasificacion(nombre: str, ruta: Path) -> EvidenciaClasificacion:
+    """Valida y carga la evidencia exportada de un experimento de clasificación."""
+    configuracion = _json_clasificacion(ruta / "configuracion.json")
+    mejores = _json_clasificacion(ruta / "mejores_modelos.json")
+    comparacion = _csv_clasificacion(ruta / "comparacion_validacion.csv")
+    exp = configuracion["experimento"]
+    if exp.get("estrategia_seleccion") != "validacion_cruzada_estratificada":
+        raise ValueError(
+            f"{nombre}: el informe requiere la evidencia de validación cruzada."
+        )
+    if exp.get("test_usado_para_seleccion") is not False:
+        raise ValueError(f"{nombre}: test no puede participar en la selección.")
+    if exp.get("preprocesamiento", {}).get("ajustado_solo_train") is not True:
+        raise ValueError(
+            f"{nombre}: no se acredita preparación ajustada sólo con train."
+        )
+    train = set(map(str, exp["train_indices"]))
+    test = set(map(str, exp["test_indices"]))
+    if not train or not test or train & test:
+        raise ValueError(f"{nombre}: train y test deben ser no vacíos y disjuntos.")
+    pliegues = [set(map(str, p)) for p in exp["pliegues_indices"]]
+    if set().union(*pliegues) != train or sum(map(len, pliegues)) != len(train):
+        raise ValueError(f"{nombre}: los pliegues no particionan exactamente train.")
+    if set(mejores) != set(ALGORITMOS_CLASIFICACION):
+        raise ValueError(f"{nombre}: faltan ganadores de las cinco familias.")
+    matrices, roc, permutacion = {}, {}, {}
+    hashes = {
+        a: _hash(ruta / a)
+        for a in (
+            "configuracion.json",
+            "comparacion_validacion.csv",
+            "mejores_modelos.json",
+        )
+    }
+    for algoritmo in ALGORITMOS_CLASIFICACION:
+        filas = [f for f in comparacion if f["algoritmo"] == algoritmo]
+        elegidas = [f for f in filas if _verdadero(f["seleccionado"])]
+        if len(elegidas) != 1 or any(f["estado"] != "ok" for f in filas):
+            raise ValueError(
+                f"{nombre}/{algoritmo}: selección ambigua o candidatos fallidos."
+            )
+        maximo = max(_numero_float(f["puntuacion_validacion"]) for f in filas)
+        if not math.isclose(
+            _numero_float(elegidas[0]["puntuacion_validacion"]), maximo, abs_tol=1e-12
+        ):
+            raise ValueError(
+                f"{nombre}/{algoritmo}: el ganador no maximiza la validación cruzada."
+            )
+        mejor = mejores[algoritmo]
+        if (
+            elegidas[0]["configuracion"].split("+")[0]
+            != mejor["metadatos"]["configuracion"]
+        ):
+            raise ValueError(
+                f"{nombre}/{algoritmo}: el modelo de test no es el ganador."
+            )
+        contenido = list(
+            csv.reader(
+                (ruta / algoritmo / "matriz_confusion_test.csv").open(encoding="utf-8")
+            )
+        )
+        etiquetas = contenido[0][1:]
+        matriz = [[int(c) for c in fila[1:]] for fila in contenido[1:]]
+        total = sum(map(sum, matriz))
+        if total != len(test) or total != mejor["muestra_test"]:
+            raise ValueError(f"{nombre}/{algoritmo}: la matriz no cubre test.")
+        accuracy = sum(matriz[i][i] for i in range(len(matriz))) / total
+        if not math.isclose(
+            accuracy, mejor["metricas_test"]["accuracy"], abs_tol=1e-10
+        ):
+            raise ValueError(
+                f"{nombre}/{algoritmo}: accuracy no coincide con la matriz."
+            )
+        f1s = []
+        for i, etiqueta in enumerate(etiquetas):
+            soporte = sum(matriz[i])
+            predichas = sum(f[i] for f in matriz)
+            tp = matriz[i][i]
+            f1 = 2 * tp / (soporte + predichas) if soporte + predichas else 0.0
+            registrado = mejor["metricas_test"]["precision"]["por_clase"][etiqueta][
+                "f1"
+            ]
+            if not math.isclose(f1, registrado, abs_tol=1e-10):
+                raise ValueError(
+                    f"{nombre}/{algoritmo}: F1 de {etiqueta} no coincide con la matriz."
+                )
+            f1s.append(f1)
+        if not math.isclose(
+            sum(f1s) / len(f1s), mejor["metricas_test"]["f1"]["macro"], abs_tol=1e-10
+        ):
+            raise ValueError(
+                f"{nombre}/{algoritmo}: F1 macro no coincide con la matriz."
+            )
+        matrices[algoritmo] = (etiquetas, matriz)
+        roc[algoritmo] = [
+            (_numero_float(f["fpr"]), _numero_float(f["tpr"]))
+            for f in _csv_clasificacion(ruta / algoritmo / "roc_test.csv")
+        ]
+        permutacion[algoritmo] = _csv_clasificacion(
+            ruta / algoritmo / "importancia_permutacion.csv"
+        )
+        for archivo in (
+            "matriz_confusion_test.csv",
+            "predicciones_test.csv",
+            "roc_test.csv",
+            "importancia_permutacion.csv",
+        ):
+            hashes[f"{algoritmo}/{archivo}"] = _hash(ruta / algoritmo / archivo)
+    return EvidenciaClasificacion(
+        nombre,
+        ruta,
+        configuracion,
+        comparacion,
+        mejores,
+        matrices,
+        roc,
+        permutacion,
+        hashes,
+    )
+
+
 def crear_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("resultados", type=Path)
-    parser.add_argument("--datos", type=Path, required=True)
-    parser.add_argument("--procedencia", type=Path, required=True)
-    parser.add_argument("--autor", action="append", required=True)
+    parser.add_argument("--datos", type=Path, default=None)
+    parser.add_argument("--procedencia", type=Path, default=None)
+    parser.add_argument("--autor", action="append", default=[])
     parser.add_argument(
-        "--fecha", required=True, help="Fecha ISO explícita: AAAA-MM-DD."
+        "--fecha", default="2026-10-21", help="Fecha ISO explícita: AAAA-MM-DD."
     )
     parser.add_argument(
-        "--salida", type=Path, default=RAIZ / "output" / "lab03" / "informe"
+        "--salida", type=Path, default=RAIZ / "output" / "informe"
     )
     return parser
 
 
-def ejecutar(argumentos: argparse.Namespace) -> Path:
+def _ejecutar_regresion(argumentos: argparse.Namespace) -> Path:
+    if argumentos.procedencia is None:
+        raise ValueError("Debe indicar --procedencia para el informe de regresión.")
     evidencia = cargar_evidencia(
         argumentos.resultados, argumentos.datos, argumentos.procedencia
     )
@@ -588,13 +802,81 @@ def ejecutar(argumentos: argparse.Namespace) -> Path:
     return argumentos.salida
 
 
+def _ejecutar_clasificacion(argumentos: argparse.Namespace) -> Path:
+    ruta_procedencia = argumentos.procedencia or (
+        RAIZ / "data" / "lab02" / "procedencia.json"
+    )
+    evidencias = [
+        cargar_evidencia_clasificacion(nombre, argumentos.resultados / nombre)
+        for nombre in ("potabilidad", "diabetes")
+    ]
+    procedencia = _json_clasificacion(ruta_procedencia)
+    for evidencia in evidencias:
+        if (
+            procedencia[evidencia.nombre]["sha256"]
+            != evidencia.configuracion["dataset"]["sha256"]
+        ):
+            raise ValueError(
+                f"{evidencia.nombre}: la ejecución no corresponde a los datos registrados."
+            )
+    autores = argumentos.autor or ["Autores no especificados"]
+    documento = (
+        r"\documentclass[11pt]{article}" + "\n"
+        r"\begin{document}" + "\n"
+        + r"\title{Informe de Clasificación}" + "\n"
+        + r"\author{" + r"\\".join(tex(a) for a in autores) + "}\n"
+        + r"\date{" + tex(argumentos.fecha) + "}\n"
+        + r"\maketitle" + "\n"
+        + r"\end{document}" + "\n"
+    )
+    argumentos.salida.mkdir(parents=True, exist_ok=True)
+    ruta = argumentos.salida / "main.tex"
+    ruta.write_text(documento, encoding="utf-8", newline="\n")
+    manifest = {
+        "autores": argumentos.autor,
+        "fecha_documento": argumentos.fecha,
+        "fuentes": {
+            e.nombre: {
+                "dataset_sha256": e.configuracion["dataset"]["sha256"],
+                "archivos_resultados_sha256": e.hashes,
+            }
+            for e in evidencias
+        },
+        "main_tex_sha256": _hash(ruta),
+    }
+    (argumentos.salida / "manifest_informe.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    with zipfile.ZipFile(
+        argumentos.salida / "proyecto_overleaf.zip",
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archivo:
+        for nombre in ("main.tex", "manifest_informe.json"):
+            archivo.write(argumentos.salida / nombre, arcname=nombre)
+    return argumentos.salida
+
+
+def ejecutar(argumentos: argparse.Namespace) -> Path:
+    if getattr(argumentos, "datos", None) is not None:
+        return _ejecutar_regresion(argumentos)
+    return _ejecutar_clasificacion(argumentos)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = crear_parser()
     argumentos = parser.parse_args(argv)
     try:
         salida = ejecutar(argumentos)
-    except (ValueError, TypeError, KeyError, OSError) as exc:
-        parser.exit(2, f"No se pudo generar el informe Lab03: {exc}\n")
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        OSError,
+        StopIteration,
+        json.JSONDecodeError,
+    ) as exc:
+        parser.exit(2, f"No se pudo generar el informe: {exc}\n")
     print(f"Informe LaTeX y manifiesto verificados en {salida}.")
     return 0
 
