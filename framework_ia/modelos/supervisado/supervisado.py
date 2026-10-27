@@ -1,39 +1,25 @@
-"""
-SUPERVISADO — clase base del aprendizaje guiado.
-
-Conceptos:
-- Aprendizaje guiado con variable objetivo (``target``) y predictoras (``features``).
-- Normalmente la última columna es la ``target`` si no se especifica explícitamente.
-- Si el target es categórico/discreto → clasificación (:class:`Clasificacion`).
-- Si el target es numérico continuo → regresión (:class:`Regresion`).
-
-Jerarquía:
-    DataFrame
-    └── EDA
-        └── Supervisado
-               ├── Clasificacion
-               └── Regresion
-"""
+"""Clase base de aprendizaje supervisado con herencia y desacoplamiento de utilidades."""
 
 from __future__ import annotations
 
+import platform
+from importlib.metadata import version
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from ...datos.eda import EDA
-from ...datos.particion import dividir_indices, validar_particion
+from ...datos.particion import dividir_indices, huella_datos, validar_particion
 from ...resultados import ResultadoParticion
 
 
 class Supervisado(EDA):
     """Base común del aprendizaje supervisado.
 
-    Proporciona validación estructural de ``target`` y ``features``, manejo de
-    particiones sin fuga de datos, transformación de características y contrato
-    completo de ``entrenar``, ``predecir``, ``evaluar``, ``experimentar`` y
-    ``previsualizar_particion``.
+    Proporciona validación estructural de ``target`` y ``features``, particiones
+    sin fuga de datos, orquestación de entrenamiento y experimentación mediante
+    herencia, preprocesamiento y contratos pythónicos.
     """
 
     _mensaje_sin_entrenar = "Entrene primero un modelo supervisado."
@@ -48,19 +34,23 @@ class Supervisado(EDA):
         **kwargs,
     ) -> None:
         super().__init__(dataframe=dataframe, ruta_datos=ruta_datos, **kwargs)
-        self.target = target  # variable objetivo (None -> última columna)
-        self.features = features  # predictoras (None -> todas menos target)
-        self.modelo = None  # modelo entrenado
+        self.target = target
+        self.features = features
+        self.modelo = None
         self.resultado: Any = None
         self.experimento: Any = None
         self._preparados: Any = None
+        self.exactitud: float | None = None
+        self.r2: float | None = None
 
     def _reiniciar_resultados(self) -> None:
-        """Limpia artefactos previos antes de iniciar un nuevo entrenamiento."""
+        """Limpia artefactos previos."""
         self.resultado = None
         self.experimento = None
         self.modelo = None
         self._preparados = None
+        self.exactitud = None
+        self.r2 = None
 
     def _definir_target(self):
         """Devuelve el target, asumiendo la última columna si no se indicó."""
@@ -123,7 +113,7 @@ class Supervisado(EDA):
         random_state: int = 42,
         stratify: bool = False,
     ) -> tuple[pd.Index, pd.Index, pd.Index]:
-        """Obtiene los índices de train, test y validación opcional sin fuga de datos."""
+        """Obtiene los índices de train, test y validación sin fuga de datos."""
         if particion is not None:
             validar_particion(particion, self.datos)
             indices = [
@@ -150,8 +140,53 @@ class Supervisado(EDA):
         """Obtiene el DataFrame base validado según la tarea supervisada."""
         return self._validar_estructura_base()
 
+    def _stratify_defecto(self) -> bool:
+        return self._tipo_target() == "clasificacion"
+
+    def _metadatos(
+        self,
+        train: pd.Index,
+        test: pd.Index,
+        validacion: pd.Index,
+        *,
+        random_state: int,
+        particion: ResultadoParticion | None,
+        opciones: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Construye metadatos de trazabilidad comunes a todas las tareas supervisadas."""
+        versiones = {
+            "python": platform.python_version(),
+            **{
+                nombre: version(nombre)
+                for nombre in ("numpy", "pandas", "scikit-learn")
+            },
+        }
+        return {
+            "semilla": random_state,
+            "semilla_particion": particion.semilla
+            if particion is not None
+            else random_state,
+            "particion_externa": particion is not None,
+            "train_indices": train.tolist(),
+            "test_indices": test.tolist(),
+            "validacion_indices": validacion.tolist(),
+            "huella_datos": huella_datos(self.datos),
+            "target": self.target,
+            "features": list(self.features),
+            "filas_objetivo_nulo": int(
+                self.datos[self.target].replace([np.inf, -np.inf], np.nan).isna().sum()
+            ),
+            "conjunto_evaluacion": "test",
+            "preprocesamiento": {
+                "seleccion_k": None,
+                **opciones,
+                "ajustado_solo_train": True,
+            },
+            "versiones": versiones,
+        }
+
     def _delegado_supervisado(self, algoritmo: str | None = None) -> "Supervisado":
-        """Crea el especialista adecuado cuando se usa ``Supervisado`` directamente."""
+        """Instancia la subclase correspondiente si se invoca Supervisado directamente."""
         from .clasificacion import Clasificacion
         from .regresion import Regresion
 
@@ -159,8 +194,8 @@ class Supervisado(EDA):
             alg_norm = str(algoritmo).strip().lower()
             if alg_norm in {
                 "knn",
-                "XGBoost".lower(),
                 "xgb",
+                "xgboost",
                 "adaboost",
                 "ada",
                 "nr",
@@ -192,37 +227,124 @@ class Supervisado(EDA):
         clase = Regresion if self._tipo_target() == "regresion" else Clasificacion
         return clase(dataframe=self.datos, target=self.target, features=self.features)
 
-    def entrenar(self, *args, **kwargs):
-        """Entrena el modelo supervisado delegando según el tipo de tarea u objetivo."""
-        self._reiniciar_resultados()
-        algoritmo = kwargs.get("algoritmo")
-        delegado = self._delegado_supervisado(algoritmo)
-        if type(delegado) is type(self):
-            raise ValueError("Especifique una subclase o algoritmo supervisado válido.")
-        if algoritmo is None and delegado._tipo_target() == "clasificacion":
-            kwargs = {"algoritmo": "RF", **kwargs}
-        resultado = delegado.entrenar(*args, **kwargs)
-        self.target = delegado.target
-        self.features = delegado.features
-        self.modelo = delegado.modelo
-        self.resultado = delegado.resultado
-        self._preparados = delegado._preparados
+    def _normalizar_algoritmo(self, algoritmo: str) -> str:
+        return str(algoritmo)
+
+    def _validar_entrenamiento(self, base: pd.DataFrame, train: pd.Index, test: pd.Index, validacion: pd.Index) -> None:
+        pass
+
+    def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
+        raise NotImplementedError
+
+    def _resultado(self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos):
+        raise NotImplementedError
+
+    def _actualizar_metricas_resumen(self, resultado: Any) -> None:
+        pass
+
+    def _ejecutar_experimento(self, **kwargs) -> Any:
+        raise NotImplementedError
+
+    def entrenar(
+        self,
+        *,
+        algoritmo: str | None = None,
+        test_size: float = 0.25,
+        random_state: int = 42,
+        stratify: bool | None = None,
+        incluir_categoricas: bool = False,
+        imputar: bool = True,
+        estandarizar: bool = True,
+        particion: ResultadoParticion | None = None,
+        **kwargs,
+    ):
+        """Orquesta el flujo común de entrenamiento supervisado sin fuga de datos."""
+        if type(self) is Supervisado:
+            delegado = self._delegado_supervisado(algoritmo)
+            if type(delegado) is type(self):
+                raise ValueError("Especifique una subclase o algoritmo supervisado válido.")
+            if algoritmo is None and delegado._tipo_target() == "clasificacion":
+                algoritmo = "RF"
+            resultado = delegado.entrenar(
+                algoritmo=algoritmo,
+                test_size=test_size,
+                random_state=random_state,
+                stratify=stratify,
+                incluir_categoricas=incluir_categoricas,
+                imputar=imputar,
+                estandarizar=estandarizar,
+                particion=particion,
+                **kwargs,
+            )
+            self.target = delegado.target
+            self.features = delegado.features
+            self.modelo = delegado.modelo
+            self.resultado = delegado.resultado
+            self._preparados = delegado._preparados
+            self.exactitud = delegado.exactitud
+            self.r2 = delegado.r2
+            return resultado
+
+        alg_norm = self._normalizar_algoritmo(algoritmo)
+        base = self._datos_supervisados()
+        if stratify is None:
+            stratify = self._stratify_defecto()
+        train, test, validacion = self._indices(
+            base,
+            particion=particion,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=stratify,
+        )
+        self._validar_entrenamiento(base, train, test, validacion)
+        opciones = {
+            "incluir_categoricas": incluir_categoricas,
+            "imputar": imputar,
+            "estandarizar": estandarizar,
+        }
+        modelo, preparados = self._ajustar(
+            base, train, alg_norm, random_state, opciones, kwargs
+        )
+        metadatos = self._metadatos(
+            train,
+            test,
+            validacion,
+            random_state=random_state,
+            particion=particion,
+            opciones=opciones,
+        )
+        if alg_norm == "XGBoost":
+            try:
+                metadatos["versiones"]["xgboost"] = version("xgboost")
+            except Exception:
+                pass
+        resultado = self._resultado(
+            base, train, test, alg_norm, modelo, preparados, metadatos
+        )
+        self.resultado = resultado
+        self.modelo = modelo
+        self._preparados = preparados
+        self._actualizar_metricas_resumen(resultado)
         return resultado
 
     def experimentar(self, *args, **kwargs):
-        """Ejecuta un experimento comparativo supervisado sin usar test para decidir."""
-        self._reiniciar_resultados()
-        delegado = self._delegado_supervisado()
-        if type(delegado) is type(self):
-            raise ValueError("Especifique una subclase supervisada válida.")
-        experimento = delegado.experimentar(*args, **kwargs)
-        self.target = delegado.target
-        self.features = delegado.features
-        self.experimento = experimento
-        self.resultado = delegado.resultado
-        self.modelo = delegado.modelo
-        self._preparados = delegado._preparados
-        return experimento
+        """Ejecuta un experimento comparativo supervisado sin fuga de datos."""
+        if type(self) is Supervisado:
+            delegado = self._delegado_supervisado()
+            if type(delegado) is type(self):
+                raise ValueError("Especifique una subclase supervisada válida.")
+            experimento = delegado.experimentar(*args, **kwargs)
+            self.target = delegado.target
+            self.features = delegado.features
+            self.experimento = delegado.experimento
+            self.resultado = delegado.resultado
+            self.modelo = delegado.modelo
+            self._preparados = delegado._preparados
+            self.exactitud = delegado.exactitud
+            self.r2 = delegado.r2
+            return experimento
+
+        return self._ejecutar_experimento(*args, **kwargs)
 
     benchmark = experimentar
 
@@ -278,7 +400,7 @@ class Supervisado(EDA):
         """Describe exactamente los índices reutilizados después al entrenar."""
         base = self._datos_supervisados()
         if stratify is None:
-            stratify = self._tipo_target() == "clasificacion"
+            stratify = self._stratify_defecto()
         train, test, validacion = self._indices(
             base,
             particion=particion,

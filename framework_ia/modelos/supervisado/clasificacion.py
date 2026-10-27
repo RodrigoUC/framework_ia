@@ -1,143 +1,26 @@
-"""Clasificadores supervisados con evaluación reproducible y sin fuga de datos."""
+"""Clasificadores supervisados con evaluación reproducible y contratos pythónicos."""
 
 from __future__ import annotations
 
-from importlib.metadata import version
 from typing import Any
 
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    confusion_matrix,
-    f1_score,
-    precision_score,
-    recall_score,
+from ...datos.particion import comprobar_clases
+from ...utils.supervisado import (
+    ALGORITMOS_LAB2,
+    ajustar_clasificacion,
+    configuraciones_lab2,
+    crear_resultado_clasificacion,
+    ejecutar_experimento_clasificacion,
+    metricas_clasificacion,
+    normalizar_algoritmo_clasificacion,
+    ordenar_labels,
+    validar_datos_clasificacion,
 )
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.utils.class_weight import compute_sample_weight
-from sklearn.utils.multiclass import type_of_target
-
-from ...datos.particion import comprobar_clases, huella_datos
-from ...datos.preprocesamiento import PreprocesadorSupervisado
-from ...resultados import ResultadoClasificacion, ResultadoParticion
-from ...utils import ALGORITMOS_LAB2, configuraciones_experimento
-from .base import Supervisado
-
-
-def normalizar_algoritmo(algoritmo: str) -> str:
-    """Admite los nombres de clase y aliases de la interfaz pythónica."""
-    aliases = {
-        "knn": "KNN",
-        "k_nearest_neighbors": "KNN",
-        "vecinos_cercanos": "KNN",
-        "dt": "DT",
-        "decision_tree": "DT",
-        "arbol_decision": "DT",
-        "rf": "RF",
-        "random_forest": "RF",
-        "randomforest": "RF",
-        "xgb": "XGBoost",
-        "xgboost": "XGBoost",
-        "ada": "AdaBoost",
-        "adaboost": "AdaBoost",
-        "ada_boost": "AdaBoost",
-        "nr": "NR",
-        "nb": "NR",
-        "naive_bayes": "NR",
-        "gaussian_nb": "NR",
-        "rl": "RL",
-        "regresion_logistica": "RL",
-        "logistic_regression": "RL",
-        "logisticregression": "RL",
-    }
-    try:
-        return aliases[algoritmo.strip().lower()]
-    except (KeyError, AttributeError) as exc:
-        raise ValueError(
-            f"Algoritmo no soportado: {algoritmo}. Use {ALGORITMOS_LAB2}, NR o RL."
-        ) from exc
-
-
-def configuraciones_lab2() -> dict[str, list[dict[str, Any]]]:
-    """Compatibility API for the shared experiment configuration registry."""
-    return configuraciones_experimento()
-
-
-class _XGBoostEtiquetas:
-    """Codifica etiquetas desde train y devuelve sus valores originales.
-
-    XGBoost exige etiquetas enteras consecutivas; el contrato público conserva
-    etiquetas string, booleanas o numéricas no consecutivas, incluso multiclase.
-    """
-
-    def __init__(self, estimador):
-        self.estimador = estimador
-        self.codificador = LabelEncoder()
-
-    def fit(self, X, y, sample_weight=None):
-        codificadas = self.codificador.fit_transform(y)
-        self.classes_ = self.codificador.classes_
-        self.estimador.fit(X, codificadas, sample_weight=sample_weight)
-        return self
-
-    def predict(self, X):
-        return self.codificador.inverse_transform(self.estimador.predict(X).astype(int))
-
-    def predict_proba(self, X):
-        return self.estimador.predict_proba(X)
-
-    def get_params(self, deep=True):
-        return self.estimador.get_params(deep=deep)
-
-    @property
-    def feature_importances_(self):
-        return self.estimador.feature_importances_
-
-
-def _crear_modelo(algoritmo, random_state, parametros):
-    parametros = dict(parametros)
-    if algoritmo == "KNN":
-        return KNeighborsClassifier(**{"n_jobs": 1, **parametros})
-    if algoritmo == "DT":
-        return DecisionTreeClassifier(**{"random_state": random_state, **parametros})
-    if algoritmo == "RF":
-        return RandomForestClassifier(
-            **{"random_state": random_state, "n_jobs": 1, **parametros}
-        )
-    if algoritmo == "AdaBoost":
-        return AdaBoostClassifier(**{"random_state": random_state, **parametros})
-    if algoritmo == "NR":
-        return GaussianNB(**parametros)
-    if algoritmo == "RL":
-        return LogisticRegression(
-            **{"random_state": random_state, "max_iter": 1000, **parametros}
-        )
-    try:
-        from xgboost import XGBClassifier
-    except ImportError as exc:
-        raise ImportError(
-            "XGBoost no está instalado. Instale requirements.txt para ejecutar este algoritmo."
-        ) from exc
-    return _XGBoostEtiquetas(
-        XGBClassifier(
-            **{
-                "random_state": random_state,
-                "n_jobs": 1,
-                **parametros,
-            }
-        )
-    )
+from .supervisado import Supervisado
 
 
 class Clasificacion(Supervisado):
-    """KNN, árbol, Random Forest, XGBoost, AdaBoost, Naive Bayes y Regresión Logística."""
+    """Clasificación supervisada: KNN, árboles, ensambles, Naive Bayes y regresión logística."""
 
     _mensaje_sin_entrenar = "Entrene primero un clasificador."
 
@@ -151,185 +34,45 @@ class Clasificacion(Supervisado):
             features=features,
             **kwargs,
         )
-        self._reiniciar_resultados()
 
-    def _reiniciar_resultados(self):
-        """No reutilizar resultados anteriores tras un intento nuevo fallido."""
-        super()._reiniciar_resultados()
-        self.resultado: ResultadoClasificacion | None = None
-        self.exactitud = None
+    def _stratify_defecto(self) -> bool:
+        return True
+
+    def _normalizar_algoritmo(self, algoritmo: str | None) -> str:
+        return normalizar_algoritmo_clasificacion(algoritmo or "RF")
 
     def _datos_clasificacion(self):
         base = self._validar_estructura_base(
             mensaje_indices="El dataset necesita índices únicos; restablezca su índice antes de partir."
         )
-        base = base.replace([np.inf, -np.inf], np.nan).dropna(subset=[self.target])
-        if base.empty:
-            raise ValueError("No hay filas válidas tras depurar objetivos nulos.")
-        try:
-            tipo = type_of_target(base[self.target])
-        except (TypeError, ValueError) as exc:
-            raise TypeError(
-                "La variable objetivo debe tener etiquetas de clase homogéneas."
-            ) from exc
-        if tipo not in ("binary", "multiclass"):
-            raise TypeError(
-                "La variable objetivo debe contener clases discretas; no valores continuos de regresión."
-            )
-        if base[self.target].nunique() < 2:
-            raise ValueError("La variable objetivo debe contener al menos dos clases.")
-        return base
+        return validar_datos_clasificacion(base, self.target)
 
     _datos_supervisados = _datos_clasificacion
 
-    def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
-        """Ajusta preprocesamiento y modelo sólo con las filas ``train``.
-
-        ``balancear_clases`` no es un argumento del estimador: el framework lo
-        convierte en pesos por observación inversamente proporcionales a la
-        frecuencia de cada clase en train (``compute_sample_weight``).
-        """
-        parametros = dict(parametros)
-        balancear = bool(parametros.pop("balancear_clases", False))
-        y_train = base.loc[train, self.target]
-        preprocesador = PreprocesadorSupervisado(
-            **{"random_state": random_state, **opciones}
-        )
-        preparados = preprocesador.ajustar_transformar(
-            base.loc[train, self.features], y_train
-        )
-        modelo = _crear_modelo(algoritmo, random_state, parametros)
-        if balancear:
-            if algoritmo == "KNN":
-                raise ValueError("KNN no admite pesos por observación.")
-            modelo.fit(
-                preparados.matriz,
-                y_train,
-                sample_weight=compute_sample_weight("balanced", y_train),
-            )
-        else:
-            modelo.fit(preparados.matriz, y_train)
-        return modelo, preparados
-
-    def _resultado(
-        self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos
-    ):
-        y_train = base.loc[train, self.target]
-        y_test = base.loc[evaluacion, self.target]
-        X_test = preparados.transformador.transform(base.loc[evaluacion, self.features])
-        y_pred = pd.Series(
-            modelo.predict(X_test), name="prediccion", index=y_test.index
-        )
-        labels = self._ordenar_labels(y_train, y_test)
-        matriz = pd.DataFrame(
-            confusion_matrix(y_test, y_pred, labels=labels),
-            index=pd.Index(labels, name="real"),
-            columns=pd.Index(labels, name="prediccion"),
-        )
-        return ResultadoClasificacion(
-            algoritmo=algoritmo,
-            target=self.target,
-            features=tuple(self.features),
-            labels=tuple(labels),
-            y_true=pd.Series(y_test, name="real", copy=True),
-            y_pred=y_pred,
-            matriz_confusion=matriz,
-            metricas=self._metricas_supervisadas(
-                y_train, y_test, y_pred, matriz, labels
-            ),
-            muestra_train=len(train),
-            muestra_test=len(evaluacion),
-            modelo=modelo,
-            parametros=modelo.get_params(),
-            metadatos={
-                **metadatos,
-                "columnas_transformadas": list(preparados.matriz.columns),
-                "columnas_descartadas": list(preparados.columnas_descartadas),
-            },
-        )
-
-    def _metadatos(self, train, test, validacion, *, random_state, particion, opciones):
-        return {
-            "semilla": random_state,
-            "semilla_particion": particion.semilla
-            if particion is not None
-            else random_state,
-            "particion_externa": particion is not None,
-            "train_indices": train.tolist(),
-            "test_indices": test.tolist(),
-            "validacion_indices": validacion.tolist(),
-            "huella_datos": huella_datos(self.datos),
-            "target": self.target,
-            "features": list(self.features),
-            "filas_objetivo_nulo": int(
-                self.datos[self.target].replace([np.inf, -np.inf], np.nan).isna().sum()
-            ),
-            "preprocesamiento": {**opciones, "ajustado_solo_train": True},
-            "versiones": {
-                nombre: version(nombre)
-                for nombre in ("numpy", "pandas", "scikit-learn")
-            },
-        }
-
-    def entrenar(
-        self,
-        *,
-        algoritmo: str,
-        test_size: float = 0.25,
-        random_state: int = 42,
-        stratify: bool = True,
-        incluir_categoricas: bool = False,
-        imputar: bool = True,
-        estandarizar: bool = True,
-        particion: ResultadoParticion | None = None,
-        **kwargs,
-    ):
-        """Separa primero las filas y ajusta toda transformación solo con train."""
-        self._reiniciar_resultados()
-        algoritmo = normalizar_algoritmo(algoritmo)
-        base = self._datos_clasificacion()
-        train, test, validacion = self._indices(
-            base,
-            particion=particion,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=stratify,
-        )
+    def _validar_entrenamiento(self, base, train, test, validacion) -> None:
         comprobar_clases(base.loc[train, self.target], base.loc[test, self.target])
-        opciones = {
-            "incluir_categoricas": incluir_categoricas,
-            "imputar": imputar,
-            "estandarizar": estandarizar,
-        }
-        modelo, preparados = self._ajustar(
-            base, train, algoritmo, random_state, opciones, kwargs
+
+    def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
+        return ajustar_clasificacion(
+            base, train, self.features, self.target, algoritmo, random_state, opciones, parametros
         )
-        metadatos = self._metadatos(
-            train,
-            test,
-            validacion,
-            random_state=random_state,
-            particion=particion,
-            opciones=opciones,
+
+    def _resultado(self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos):
+        return crear_resultado_clasificacion(
+            base, train, evaluacion, self.features, self.target, algoritmo, modelo, preparados, metadatos
         )
-        if algoritmo == "XGBoost":
-            metadatos["versiones"]["xgboost"] = version("xgboost")
-        resultado = self._resultado(
-            base, train, test, algoritmo, modelo, preparados, metadatos
-        )
-        self.resultado, self.modelo, self._preparados = resultado, modelo, preparados
+
+    def _actualizar_metricas_resumen(self, resultado) -> None:
         self.exactitud = resultado.metricas["accuracy"]
-        return resultado
 
-    def experimentar(self, **kwargs):
-        """Compara estándar/variantes por validación y evalúa ganadores en test."""
+    def _ejecutar_experimento(self, **kwargs):
         self._reiniciar_resultados()
-        from .experimentos import ejecutar_experimento
+        intento = ejecutar_experimento_clasificacion(self, **kwargs)
+        self.experimento = intento
+        return intento
 
-        self.experimento = ejecutar_experimento(self, **kwargs)
-        return self.experimento
-
-    benchmark = experimentar
+    _ordenar_labels = staticmethod(ordenar_labels)
+    _metricas_supervisadas = staticmethod(metricas_clasificacion)
 
     def knn(self, **kwargs):
         return self.entrenar(algoritmo="KNN", **kwargs)
@@ -360,146 +103,9 @@ class Clasificacion(Supervisado):
     NR = nr = naive_bayes
     RL = rl = logistic_regression = regresion_logistica
 
-    def previsualizar_particion(
-        self,
-        *,
-        test_size=0.25,
-        random_state=42,
-        stratify=True,
-        incluir_categoricas=False,
-        imputar=True,
-        estandarizar=True,
-        particion=None,
-    ):
-        """Describe exactamente los índices reutilizados después al entrenar."""
-        return super().previsualizar_particion(
-            test_size=test_size,
-            random_state=random_state,
-            stratify=stratify,
-            incluir_categoricas=incluir_categoricas,
-            imputar=imputar,
-            estandarizar=estandarizar,
-            particion=particion,
-        )
-
-    @staticmethod
-    def _ordenar_labels(real, predicho):
-        etiquetas = list(
-            dict.fromkeys(pd.concat([pd.Series(real), pd.Series(predicho)]).tolist())
-        )
-        try:
-            return sorted(etiquetas)
-        except TypeError:
-            return etiquetas
-
-    @staticmethod
-    def _metricas_supervisadas(
-        y_train: pd.Series,
-        y_true: pd.Series,
-        y_pred: pd.Series,
-        matriz: pd.DataFrame,
-        labels,
-    ) -> dict[str, Any]:
-        """Resume métricas globales y por clase para clasificación binaria o múltiple."""
-        precision_por_clase = precision_score(
-            y_true,
-            y_pred,
-            labels=labels,
-            average=None,
-            zero_division=0,
-        )
-        recall_por_clase = recall_score(
-            y_true,
-            y_pred,
-            labels=labels,
-            average=None,
-            zero_division=0,
-        )
-        f1_por_clase = f1_score(
-            y_true,
-            y_pred,
-            labels=labels,
-            average=None,
-            zero_division=0,
-        )
-        reporte = classification_report(
-            y_true,
-            y_pred,
-            labels=labels,
-            output_dict=True,
-            zero_division=0,
-        )
-        return {
-            "accuracy": float(accuracy_score(y_true, y_pred)),
-            "precision": {
-                "global": float(
-                    precision_score(
-                        y_true,
-                        y_pred,
-                        average="weighted",
-                        zero_division=0,
-                    )
-                ),
-                "macro": float(
-                    precision_score(
-                        y_true,
-                        y_pred,
-                        labels=labels,
-                        average="macro",
-                        zero_division=0,
-                    )
-                ),
-                "por_clase": {
-                    str(etiqueta): {
-                        "precision": float(precision_por_clase[indice]),
-                        "recall": float(recall_por_clase[indice]),
-                        "f1": float(f1_por_clase[indice]),
-                    }
-                    for indice, etiqueta in enumerate(labels)
-                },
-            },
-            "recall": {
-                "global": float(
-                    recall_score(
-                        y_true,
-                        y_pred,
-                        average="weighted",
-                        zero_division=0,
-                    )
-                ),
-                "macro": float(
-                    recall_score(
-                        y_true,
-                        y_pred,
-                        labels=labels,
-                        average="macro",
-                        zero_division=0,
-                    )
-                ),
-            },
-            "f1": {
-                "global": float(
-                    f1_score(y_true, y_pred, average="weighted", zero_division=0)
-                ),
-                "macro": float(
-                    f1_score(
-                        y_true, y_pred, labels=labels, average="macro", zero_division=0
-                    )
-                ),
-            },
-            "reporte": reporte,
-            "distribucion": {
-                "train": y_train.value_counts(dropna=False).to_dict(),
-                "real": y_true.value_counts(dropna=False).to_dict(),
-                "predicho": y_pred.value_counts(dropna=False).to_dict(),
-            },
-            "matriz": matriz.to_dict(),
-            "muestra": len(y_true),
-        }
-
-    def __str__(self):
+    def __str__(self) -> str:
         self._definir_target()
         resumen = f"Clase Clasificacion\nTarget: {self.target}\nFeatures: {self._definir_features()}"
-        return resumen + (
-            f"\nExactitud: {self.exactitud:.4f}" if self.exactitud is not None else ""
-        )
+        if self.exactitud is not None:
+            resumen += f"\nExactitud: {self.exactitud:.4f}"
+        return resumen
