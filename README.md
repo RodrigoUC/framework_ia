@@ -30,7 +30,7 @@ DataFrame         (framework_ia/datos/dataframe.py · operaciones tabulares y es
 | `scripts/` | Ejecución reproducible por línea de comandos, informes y empaquetado |
 | `tests/` | Suite de pruebas unitarias e integrales del framework y la interfaz |
 
-## Abrir la aplicación
+## Ejecutar la aplicación y pruebas
 
 En PowerShell, dentro de la carpeta del proyecto (Python 3.11 o superior; verificado con Python 3.13):
 
@@ -38,38 +38,47 @@ En PowerShell, dentro de la carpeta del proyecto (Python 3.11 o superior; verifi
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m streamlit run app.py
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
 ---
 
-## Caso Regresión · Concrete (Lab03)
+## Ejecución por línea de comandos (`scripts/`)
 
-El caso Concrete utiliza el cargador CSV existente, los regresores y el benchmark del framework. La preparación conserva el XLS original, retira únicamente duplicados completos y registra procedencia verificable.
+### 1. Agrupamiento (No Supervisado)
+
+```powershell
+python -m scripts.ejecutar_no_supervisado data/ejemplo_analisis.csv --salida salida_no_supervisado --semilla 42
+```
+
+### 2. Clasificación (Potabilidad y Diabetes)
+
+Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero (402680547), Rodrigo Ureña Castillo (118910482) y Mariana Ureña Padilla (119180324).
+
+```powershell
+python -m scripts.preparar_potabilidad data/lab02/water_potability.csv
+python -m scripts.preparar_diabetes data/lab02/diabetes_original.csv
+python -m scripts.ejecutar_clasificacion data/lab02/potabilidad.csv --target Potability --salida salida_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+python -m scripts.ejecutar_clasificacion data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
+python -m scripts.generar_informe salida_reproducida
+```
+
+### 3. Regresión (Diabetes y Concrete)
+
+```powershell
+python -m scripts.preparar_diabetes
+python -m scripts.ejecutar_regresion data/lab03/diabetes_regresion.csv --target target --feature-simple bmi --salida salida_lab03
+python -m scripts.preparar_concrete Concrete_Data.xls
+python -m scripts.ejecutar_regresion data/lab03/concrete/concrete.csv --target strength --feature-simple cement --salida salida_lab03/concrete --fuente https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength
+python -m scripts.generar_informe salida_lab03/concrete --datos data/lab03/concrete/concrete.csv --procedencia data/lab03/concrete/procedencia.json --salida informe/main.tex
+```
+
+### 4. Empaquetado de entrega
+
+```powershell
+python -m scripts.preparar_entrega --ids ID-1 ID-2 --resultados salida_no_supervisado --informe informe.pdf
+```
 
 - [Preparación y variables de Concrete](data/lab03/concrete/README.md).
 - [Experimentos, informe y resultados verificados](docs/lab03/CONCRETE.md).
 - [API y flujos de regresión](docs/lab03/README.md).
-
----
-
-## Caso Clasificación · Potabilidad y Diabetes (Lab02)
-
-Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero (402680547), Rodrigo Ureña Castillo (118910482) y Mariana Ureña Padilla (119180324).
-
-### Protocolo experimental de clasificación
-
-1. Prueba reservada: 25 % estratificado, semilla 42. No participa en ninguna decisión.
-2. Validación cruzada estratificada de 5 pliegues sobre el 75 % restante.
-3. Cada familia (KNN, DT, RF, XGBoost, AdaBoost) tiene su configuración estándar y tres variantes que cambian un solo hiperparámetro (20 configuraciones).
-4. Gana en cada familia la de mayor F1 macro promedio. Esa ganadora se vuelve a evaluar conservando la mitad de los atributos con mayor información mutua y se queda la mejor de las dos.
-5. La elegida se reajusta con todo el entrenamiento y se evalúa una vez en prueba.
-
-### Reproducir experimentos y pruebas desde cero
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.preparar_potabilidad_lab02 data/lab02/water_potability.csv
-.\.venv\Scripts\python.exe -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv
-.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/potabilidad.csv --target Potability --salida salida_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
-.\.venv\Scripts\python.exe -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
-.\.venv\Scripts\python.exe -m pytest -q
-```
