@@ -14,19 +14,21 @@ import pandas as pd
 import pytest
 
 from framework_ia import Regresion
-from framework_ia.datos.concrete_lab03 import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
+from framework_ia.datos.concrete import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
 from framework_ia.evidencia import cargar_evidencia
-from scripts import ejecutar_lab03
-from scripts import generar_informe_lab03 as informe
+from scripts import ejecutar_regresion
+from scripts import generar_informe as informe
 
 
 @pytest.fixture(scope="module")
 def artefactos_informe(tmp_path_factory):
-    raiz = tmp_path_factory.mktemp("informe-lab03-sintetico")
+    raiz = tmp_path_factory.mktemp("informe-sintetico")
     datos_dir = raiz / "datos"
     datos_dir.mkdir()
     rng = np.random.default_rng(23)
-    datos = pd.DataFrame(rng.uniform(1, 40, size=(60, 8)), columns=PREDICTORAS_CONCRETE)
+    datos = pd.DataFrame(
+        rng.uniform(1, 40, size=(60, 8)), columns=PREDICTORAS_CONCRETE
+    )
     datos["strength"] = (
         12
         + 2 * datos.cement
@@ -59,7 +61,7 @@ def artefactos_informe(tmp_path_factory):
     (datos_dir / "procedencia.json").write_text(
         json.dumps(procedencia), encoding="utf-8"
     )
-    codigo = ejecutar_lab03.main(
+    codigo = ejecutar_regresion.main(
         [
             str(csv),
             "--target",
@@ -118,8 +120,6 @@ def archivos(raiz):
 
 
 def generar_fixture(args):
-
-
     with patch.object(informe, "validar_preparacion_concrete") as validar_original:
         salida = informe.ejecutar(args)
     validar_original.assert_called_once()
@@ -198,8 +198,6 @@ def test_la_seleccion_se_conserva_cuando_otro_modelo_tiene_mejor_test(caso_infor
     ganador = evidencia.configuracion["experimento"]["mejor_algoritmo_por_validacion"]
     alternativa = next(a for a in evidencia.mejores if a != ganador)
     mejores = deepcopy(evidencia.mejores)
-
-
     mejores[alternativa]["metricas_test"]["rmse"] = 0.0
     documento = informe.construir_informe(
         replace(evidencia, mejores=mejores), ["Estudiante"], "2026-10-21"

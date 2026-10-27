@@ -1,4 +1,4 @@
-"""LAB02 software checks; generated fixtures are not academic experiment results."""
+"""Verificación de modelos de clasificación y protocolo de validación cruzada."""
 
 from __future__ import annotations
 
@@ -18,9 +18,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from framework_ia.datos.particion import Particionador
+from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.modelos.supervisado import Clasificacion, Supervisado
 from framework_ia.modelos.supervisado.clasificacion import configuraciones_lab2
-from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.resultados import ResultadoParticion
 from framework_ia.utils import (
     CONFIGURACIONES_MODELO,
@@ -64,7 +64,7 @@ def partition(data, train, test, validation=None):
     )
 
 
-class ClasificacionLab2Tests(unittest.TestCase):
+class ClasificacionTests(unittest.TestCase):
     def setUp(self):
         self.data = synthetic()
 
@@ -205,8 +205,12 @@ class ClasificacionLab2Tests(unittest.TestCase):
         tabla = c.experimentar(
             algoritmos=["DT", "KNN"],
             configuraciones={
-                "DT": [{"nombre": "balanceado", "parametros": {"balancear_clases": True}}],
-                "KNN": [{"nombre": "balanceado", "parametros": {"balancear_clases": True}}],
+                "DT": [
+                    {"nombre": "balanceado", "parametros": {"balancear_clases": True}}
+                ],
+                "KNN": [
+                    {"nombre": "balanceado", "parametros": {"balancear_clases": True}}
+                ],
             },
         ).tabla.set_index("algoritmo")
         self.assertTrue(tabla.loc["DT", "parametros"]["balancear_clases"])
@@ -413,7 +417,9 @@ class ClasificacionLab2Tests(unittest.TestCase):
             calls.append(metadata["conjunto_evaluacion"])
             return original(*args, **kwargs)
 
-        candidatos = len(configuraciones_lab2()["KNN"]) + len(configuraciones_lab2()["DT"])
+        candidatos = len(configuraciones_lab2()["KNN"]) + len(
+            configuraciones_lab2()["DT"]
+        )
         with patch.object(c, "_resultado", side_effect=tracking):
             c.experimentar(algoritmos=["KNN", "DT"])
         self.assertEqual(calls, ["validacion"] * candidatos + ["test"] * 2)
@@ -504,19 +510,23 @@ class ValidacionCruzadaTests(unittest.TestCase):
         tabla = self.result.tabla
         configs = tabla[tabla.etapa == "configuracion"]
         self.assertEqual(
-            len(configs), len(configuraciones_lab2()["KNN"]) + len(configuraciones_lab2()["DT"])
+            len(configs),
+            len(configuraciones_lab2()["KNN"]) + len(configuraciones_lab2()["DT"]),
         )
         for _, fila in configs.iterrows():
             self.assertEqual(len(fila.puntuaciones_pliegues), 3)
             self.assertAlmostEqual(
                 fila.puntuacion_validacion, np.mean(fila.puntuaciones_pliegues)
             )
-        self.assertEqual(set(tabla[tabla.etapa == "seleccion_atributos"].algoritmo), {"KNN", "DT"})
+        self.assertEqual(
+            set(tabla[tabla.etapa == "seleccion_atributos"].algoritmo), {"KNN", "DT"}
+        )
         for algoritmo, grupo in tabla.groupby("algoritmo"):
             elegido = grupo[grupo.seleccionado]
             self.assertEqual(len(elegido), 1)
             self.assertAlmostEqual(
-                elegido.puntuacion_validacion.iloc[0], grupo.puntuacion_validacion.max()
+                elegido.puntuacion_validacion.iloc[0],
+                grupo.puntuacion_validacion.max(),
             )
 
     def test_test_labels_do_not_change_cv_table(self):
@@ -529,7 +539,9 @@ class ValidacionCruzadaTests(unittest.TestCase):
             estrategia="cv", algoritmos=["KNN", "DT"], folds=3, particion=split
         )
         changed = self.data.copy()
-        changed.loc[split.test.index, "target"] = 1 - changed.loc[split.test.index, "target"]
+        changed.loc[split.test.index, "target"] = (
+            1 - changed.loc[split.test.index, "target"]
+        )
         changed.loc[split.test.index, "a"] *= 1000
         second = Clasificacion(dataframe=changed, target="target").experimentar(
             estrategia="cv",
@@ -537,7 +549,12 @@ class ValidacionCruzadaTests(unittest.TestCase):
             folds=3,
             particion=replace(split, test=changed.loc[split.test.index].copy()),
         )
-        columnas = ["algoritmo", "configuracion", "puntuacion_validacion", "seleccionado"]
+        columnas = [
+            "algoritmo",
+            "configuracion",
+            "puntuacion_validacion",
+            "seleccionado",
+        ]
         assert_frame_equal(first.tabla[columnas], second.tabla[columnas])
         self.assertNotEqual(
             first.mejores["DT"].metricas["accuracy"],

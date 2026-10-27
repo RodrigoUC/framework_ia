@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datos import concrete_lab03 as concrete
-from scripts.preparar_concrete_lab03 import crear_parser, ejecutar, main
+from framework_ia.datos import concrete
+from scripts.preparar_concrete import crear_parser, ejecutar, main
 
 
 @pytest.fixture
@@ -24,7 +24,6 @@ def originales():
     )
     datos.iloc[9] = datos.iloc[1]
     datos.iloc[44] = datos.iloc[1]
-    # La misma X con distinta Y es una observación diferente y debe conservarse.
     datos.iloc[8, :-1] = datos.iloc[2, :-1]
     datos.iloc[8, -1] = datos.iloc[2, -1] + 100
     return datos

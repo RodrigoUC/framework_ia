@@ -7,17 +7,20 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datos.potabilidad_lab02 import (
+from framework_ia.datos.potabilidad import (
     PREDICTORAS_POTABILIDAD,
     preparar_potabilidad,
     validar_preparacion_potabilidad,
 )
-from scripts.preparar_potabilidad_lab02 import ejecutar
+from scripts.preparar_potabilidad import ejecutar
 
 
 def original_fixture():
     datos = pd.DataFrame(
-        {columna: np.arange(6, dtype=float) + i for i, columna in enumerate(PREDICTORAS_POTABILIDAD)}
+        {
+            columna: np.arange(6, dtype=float) + i
+            for i, columna in enumerate(PREDICTORAS_POTABILIDAD)
+        }
     )
     datos.loc[0, "ph"] = np.nan
     datos.loc[3, "Sulfate"] = np.nan
@@ -51,7 +54,9 @@ def test_cli_preserva_diabetes_en_procedencia_y_valida(tmp_path):
     origen.write_bytes(original_fixture())
     destino = tmp_path / "datos"
     destino.mkdir()
-    (destino / "procedencia.json").write_text(json.dumps({"diabetes": {"x": 1}}), encoding="utf-8")
+    (destino / "procedencia.json").write_text(
+        json.dumps({"diabetes": {"x": 1}}), encoding="utf-8"
+    )
     ejecutar(argparse.Namespace(csv=origen, salida=destino))
     procedencia = json.loads((destino / "procedencia.json").read_text(encoding="utf-8"))
     assert procedencia["diabetes"] == {"x": 1}

@@ -1,7 +1,4 @@
-"""Valida integridad y portabilidad del paquete con un experimento sintético real.
-
-Los datos son sintéticos: verifican el software, no son resultados académicos.
-"""
+"""Valida integridad y portabilidad del paquete con un experimento sintético real."""
 
 from __future__ import annotations
 
@@ -18,10 +15,10 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
-from framework_ia.datos.diabetes_lab02 import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
-from framework_ia.datos.potabilidad_lab02 import PREDICTORAS_POTABILIDAD
-from scripts import ejecutar_lab02, preparar_diabetes_lab02, preparar_potabilidad_lab02
-from scripts.preparar_entrega_lab02 import crear_parser, ejecutar
+from framework_ia.datos.diabetes import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
+from framework_ia.datos.potabilidad import PREDICTORAS_POTABILIDAD
+from scripts import ejecutar_clasificacion, preparar_diabetes, preparar_potabilidad
+from scripts.preparar_entrega import crear_parser, ejecutar
 
 RAIZ_REAL = Path(__file__).resolve().parents[1]
 
@@ -41,7 +38,10 @@ def _diabetes_sintetica() -> bytes:
     rng = np.random.default_rng(2)
     filas = 90
     datos = pd.DataFrame(
-        {columna: rng.normal(100, 10, filas).round(1) for columna in COLUMNAS_ORIGINALES}
+        {
+            columna: rng.normal(100, 10, filas).round(1)
+            for columna in COLUMNAS_ORIGINALES
+        }
     )
     datos["id"] = range(1000, 1000 + filas)
     datos["glyhb"] = np.where(datos["stab.glu"] > 105, 8.0, 5.0)
@@ -53,7 +53,7 @@ def _diabetes_sintetica() -> bytes:
     return datos.to_csv(index=False, lineterminator="\n").encode("utf-8")
 
 
-class Lab02PackagingTests(unittest.TestCase):
+class PackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temporal = tempfile.TemporaryDirectory()
@@ -62,8 +62,6 @@ class Lab02PackagingTests(unittest.TestCase):
             "app.py",
             "pyproject.toml",
             "requirements.txt",
-
-
         ):
             (cls.raiz / nombre).write_text("# fixture sintético\n", encoding="utf-8")
         (cls.raiz / ".streamlit").mkdir()
@@ -78,7 +76,9 @@ class Lab02PackagingTests(unittest.TestCase):
         )
         for carpeta in ("framework_ia", "scripts", "tests"):
             (cls.raiz / carpeta).mkdir()
-            (cls.raiz / carpeta / "fixture.py").write_text("# código\n", encoding="utf-8")
+            (cls.raiz / carpeta / "fixture.py").write_text(
+                "# código\n", encoding="utf-8"
+            )
         for carpeta in (".git", "env", "output"):
             (cls.raiz / carpeta).mkdir()
             (cls.raiz / carpeta / "excluir.txt").write_text("no", encoding="utf-8")
@@ -88,28 +88,46 @@ class Lab02PackagingTests(unittest.TestCase):
         entradas.mkdir()
         (entradas / "water_potability.csv").write_bytes(_potabilidad_sintetica())
         (entradas / "diabetes_original.csv").write_bytes(_diabetes_sintetica())
-        preparar_potabilidad_lab02.ejecutar(
-            argparse.Namespace(csv=entradas / "water_potability.csv", salida=cls.datos)
+        preparar_potabilidad.ejecutar(
+            argparse.Namespace(
+                csv=entradas / "water_potability.csv", salida=cls.datos
+            )
         )
-        preparar_diabetes_lab02.ejecutar(
-            argparse.Namespace(csv=entradas / "diabetes_original.csv", salida=cls.datos)
+        preparar_diabetes.ejecutar(
+            argparse.Namespace(
+                csv=entradas / "diabetes_original.csv", salida=cls.datos
+            )
         )
-        procedencia = json.loads((cls.datos / "procedencia.json").read_text(encoding="utf-8"))
+        procedencia = json.loads(
+            (cls.datos / "procedencia.json").read_text(encoding="utf-8")
+        )
         cls.resultados = cls.raiz / "resultados"
         comunes = ["--folds", "2", "--semilla", "3"]
-        ejecutar_lab02.main(
+        ejecutar_clasificacion.main(
             [
-                str(cls.datos / "potabilidad.csv"), "--target", "Potability",
-                "--salida", str(cls.resultados / "potabilidad"),
-                "--fuente", procedencia["potabilidad"]["fuente"], *comunes,
+                str(cls.datos / "potabilidad.csv"),
+                "--target",
+                "Potability",
+                "--salida",
+                str(cls.resultados / "potabilidad"),
+                "--fuente",
+                procedencia["potabilidad"]["fuente"],
+                *comunes,
             ]
         )
-        ejecutar_lab02.main(
+        ejecutar_clasificacion.main(
             [
-                str(cls.datos / "diabetes.csv"), "--target", "diabetes",
-                "--features", *PREDICTORAS_DIABETES, "--incluir-categoricas",
-                "--salida", str(cls.resultados / "diabetes"),
-                "--fuente", procedencia["diabetes"]["fuente"], *comunes,
+                str(cls.datos / "diabetes.csv"),
+                "--target",
+                "diabetes",
+                "--features",
+                *PREDICTORAS_DIABETES,
+                "--incluir-categoricas",
+                "--salida",
+                str(cls.resultados / "diabetes"),
+                "--fuente",
+                procedencia["diabetes"]["fuente"],
+                *comunes,
             ]
         )
         informe = cls.raiz / "fuentes"
@@ -127,11 +145,19 @@ class Lab02PackagingTests(unittest.TestCase):
     def argumentos(self, salida="entrega", resultados=None):
         return crear_parser().parse_args(
             [
-                "--ids", "1", "2", "3", "4",
-                "--informe", str(self.raiz / "fuentes" / "main.pdf"),
-                "--fuentes-tex", str(self.raiz / "fuentes" / "main.tex"),
-                "--resultados", str(resultados or self.resultados),
-                "--salida", str(self.raiz / salida),
+                "--ids",
+                "1",
+                "2",
+                "3",
+                "4",
+                "--informe",
+                str(self.raiz / "fuentes" / "main.pdf"),
+                "--fuentes-tex",
+                str(self.raiz / "fuentes" / "main.tex"),
+                "--resultados",
+                str(resultados or self.resultados),
+                "--salida",
+                str(self.raiz / salida),
             ]
         )
 
@@ -152,7 +178,8 @@ class Lab02PackagingTests(unittest.TestCase):
             ):
                 self.assertIn(requerido, nombres)
             csv_datos = {
-                nombre for nombre in nombres
+                nombre
+                for nombre in nombres
                 if nombre.startswith("data/lab02/") and nombre.endswith(".csv")
             }
             self.assertEqual(
@@ -166,15 +193,25 @@ class Lab02PackagingTests(unittest.TestCase):
                 },
             )
             self.assertIn(b"streamlit run app.py", paquete.read("README.md"))
-            for excluido in ("env/excluir.txt", ".git/excluir.txt", "output/excluir.txt"):
+            for excluido in (
+                "env/excluir.txt",
+                ".git/excluir.txt",
+                "output/excluir.txt",
+            ):
                 self.assertNotIn(excluido, nombres)
             manifiesto = json.loads(paquete.read("MANIFIESTO.json"))
-            self.assertEqual(set(manifiesto["archivos"]), nombres - {"MANIFIESTO.json"})
-            self.assertNotIn(str(self.raiz), paquete.read("MANIFIESTO.json").decode("utf-8"))
+            self.assertEqual(
+                set(manifiesto["archivos"]), nombres - {"MANIFIESTO.json"}
+            )
+            self.assertNotIn(
+                str(self.raiz), paquete.read("MANIFIESTO.json").decode("utf-8")
+            )
             for nombre, registro in manifiesto["archivos"].items():
                 contenido = paquete.read(nombre)
                 self.assertEqual(registro["bytes"], len(contenido))
-                self.assertEqual(registro["sha256"], hashlib.sha256(contenido).hexdigest())
+                self.assertEqual(
+                    registro["sha256"], hashlib.sha256(contenido).hexdigest()
+                )
 
     def _copia_resultados(self):
         destino = Path(tempfile.mkdtemp(dir=self.raiz))
