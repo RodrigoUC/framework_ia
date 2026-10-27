@@ -179,7 +179,7 @@ def render_modelo_individual(
                 "Modelo entrenado. Las métricas siguientes corresponden a prueba."
             )
             st.rerun()
-        except Exception as exc:  # noqa: BLE001 - isolate model failures at the UI boundary.
+        except Exception as exc:
             if algoritmo == "RF":
                 errores = dict(st.session_state.get(intentos_rf, {}))
                 errores[criterio_rf] = str(exc)
@@ -309,7 +309,7 @@ def render_resultados(
             "Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación."
         )
     if hay_experimento:
-        # Imported lazily: the experiment view reuses the diagnostic renderer above.
+
         from .experimentos_lab2 import render_resultado_experimento
 
         render_resultado_experimento(mostrar_figura, solo_comparacion=True)
@@ -346,7 +346,7 @@ def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None
         key=f"{prefijo}_confusion",
         alt="Matriz de confusión de prueba; filas de clases reales y columnas de predicciones",
     )
-    # Numeric table is a keyboard and screen-reader alternative to the heatmap.
+
     _mostrar_dataframe(
         resultado.matriz_confusion,
         alt="Valores de la matriz de confusión de prueba",

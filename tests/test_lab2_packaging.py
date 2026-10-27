@@ -62,8 +62,8 @@ class Lab02PackagingTests(unittest.TestCase):
             "app.py",
             "pyproject.toml",
             "requirements.txt",
-            "requirements-dev.txt",
-            "requirements-lab02-lock.txt",
+
+
         ):
             (cls.raiz / nombre).write_text("# fixture sintético\n", encoding="utf-8")
         (cls.raiz / ".streamlit").mkdir()
@@ -146,7 +146,7 @@ class Lab02PackagingTests(unittest.TestCase):
                 "informe/main.pdf",
                 "informe/main.tex",
                 ".streamlit/config.toml",
-                "requirements-lab02-lock.txt",
+                "requirements.txt",
                 "salida_lab02/diabetes/DT/arbol.txt",
                 "salida_lab02/potabilidad/ranking_atributos.csv",
             ):

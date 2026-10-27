@@ -276,7 +276,6 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(len(base_sup.predecir()), len(res_base.y_pred))
 
     def test_alias_progresion_conserva_compatibilidad(self) -> None:
-        """El nombre anterior sigue disponible, pero Regresion es el oficial."""
         self.assertIs(Progresion, Regresion)
 
     def test_aliases_pythonicos_conservan_la_interfaz_existente(self) -> None:

@@ -296,7 +296,7 @@ def ejecutar_experimento_cv(
         stratify=stratify,
     )
     if not validacion.empty:
-        # Una validación externa se integra a train: la CV la reemplaza.
+
         train = train.append(validacion)
     target = clasificador.target
     y_train = base.loc[train, target]
@@ -427,7 +427,7 @@ def ejecutar_experimento_cv(
                 fila.update(estado="error", error=f"{type(exc).__name__}: {exc}")
             filas.append(fila)
 
-    # Todas las decisiones se cierran antes de tocar test.
+
     mejor_algoritmo = max(ganadores, key=lambda a: ganadores[a]["score"], default=None)
     metadatos["selecciones"] = {a: g["config"]["nombre"] for a, g in ganadores.items()}
     metadatos["seleccion_atributos_elegida"] = {a: g["seleccion"] for a, g in ganadores.items()}

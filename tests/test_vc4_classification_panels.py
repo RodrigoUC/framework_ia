@@ -110,7 +110,7 @@ class ClassificationPanelTests(unittest.TestCase):
         app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
         self.assertTrue(app.sidebar.button(key="nav_lab2_resultados").disabled)
         app.session_state["vista_activa"] = "lab2_resultados"
-        app.run()  # Direct routes still explain the missing execution without training.
+        app.run()
         self.assertFalse(app.exception)
         self.assertTrue(
             any("Todavía no hay ejecuciones individuales" in item.value for item in app.info)

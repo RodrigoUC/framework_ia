@@ -118,8 +118,8 @@ def archivos(raiz):
 
 
 def generar_fixture(args):
-    # La evidencia y sus métricas se validan realmente. Sólo se sustituye el
-    # validador del XLS oficial: estos 60 casos no representan sus 1.030 filas.
+
+
     with patch.object(informe, "validar_preparacion_concrete") as validar_original:
         salida = informe.ejecutar(args)
     validar_original.assert_called_once()
@@ -198,8 +198,8 @@ def test_la_seleccion_se_conserva_cuando_otro_modelo_tiene_mejor_test(caso_infor
     ganador = evidencia.configuracion["experimento"]["mejor_algoritmo_por_validacion"]
     alternativa = next(a for a in evidencia.mejores if a != ganador)
     mejores = deepcopy(evidencia.mejores)
-    # Aísla la presentación del ranking: se cambia un DTO en memoria, sin
-    # alterar artefactos de entrada ni fabricar evidencia aceptada por el lector.
+
+
     mejores[alternativa]["metricas_test"]["rmse"] = 0.0
     documento = informe.construir_informe(
         replace(evidencia, mejores=mejores), ["Estudiante"], "2026-10-21"

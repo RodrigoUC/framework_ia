@@ -26,7 +26,7 @@ resultados se generaron con 3.13):
 
 ```powershell
 py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-lab02-lock.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
@@ -62,7 +62,7 @@ Las carpetas de salida deben estar vacías: los scripts no sobrescriben evidenci
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Con las versiones de `requirements-lab02-lock.txt`, las tablas de
+Con las dependencias de `requirements.txt`, las tablas de
 `salida_reproducida/` deben coincidir con las de `salida_lab02/`. Otras versiones
 de las bibliotecas pueden cambiar decimales.
 

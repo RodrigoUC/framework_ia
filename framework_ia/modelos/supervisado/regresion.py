@@ -346,11 +346,7 @@ class Regresion(Supervisado):
     RF = random_forest
 
     def RL(self, **kwargs):
-        """Regresión Logística (modelo lineal supervisado de clasificación).
-
-        Delega la ejecución en :class:`Clasificacion` conservando el contrato
-        del diagrama arquitectónico de ``EDA`` (``Regresion -> RLS, RLM, RL``).
-        """
+        """Ajusta y evalúa un modelo de regresión logística."""
         from .clasificacion import Clasificacion
 
         self._reiniciar_resultados()

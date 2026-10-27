@@ -254,8 +254,8 @@ def construir_entrega(
         "app.py",
         "pyproject.toml",
         "requirements.txt",
-        "requirements-dev.txt",
-        "requirements-lab02-lock.txt",
+
+
         ".streamlit/config.toml",
     ):
         agregar(raiz / nombre, nombre)

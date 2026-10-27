@@ -1,4 +1,4 @@
-"""Objetos de resultado compartidos por los análisis no supervisados.
+"""Objetos de resultado compartidos por los análisis no supervisados y supervisados.
 
 Las clases de este módulo transportan datos entre la lógica de modelos y la
 capa de visualización. No conocen Streamlit ni generan efectos secundarios.

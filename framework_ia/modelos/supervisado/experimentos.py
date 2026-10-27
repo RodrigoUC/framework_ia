@@ -82,7 +82,6 @@ def _candidatos(algoritmos, configuraciones):
                 raise ValueError(
                     "parametros debe ser un diccionario de argumentos del estimador."
                 )
-            # Validation is the sole selection set; never allow injected early-stop data.
             if {"eval_set", "callbacks", "early_stopping_rounds"} & set(parametros):
                 raise ValueError(
                     "El benchmark no admite eval_set, callbacks ni early_stopping_rounds externos."
@@ -282,7 +281,6 @@ def ejecutar_experimento(
                 fila.update(estado="error", error=f"{type(exc).__name__}: {exc}")
             filas.append(fila)
 
-    # Finalize every selection BEFORE accessing test predictions/metrics.
     mejor_algoritmo = max(ganadores, key=lambda a: ganadores[a]["score"], default=None)
     metadatos["selecciones"] = {a: g["config"]["nombre"] for a, g in ganadores.items()}
     metadatos["mejor_algoritmo_por_validacion"] = mejor_algoritmo

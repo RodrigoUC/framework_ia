@@ -134,8 +134,6 @@ class Particionador:
             stratify=estrato,
         )
 
-        # Split positions: pandas 3 Arrow-backed text indices cannot be indexed
-        # by sklearn's ndarray[...,] path. Keep original row identities with take.
         indice_train = datos.index.take(posiciones_train)
         indice_resto = datos.index.take(posiciones_resto)
         indice_test = indice_resto

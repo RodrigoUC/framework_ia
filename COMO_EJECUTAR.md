@@ -21,7 +21,7 @@ python -m streamlit run app.py
 Para validar el framework sin abrir la interfaz:
 
 ```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 

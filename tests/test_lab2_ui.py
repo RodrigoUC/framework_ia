@@ -70,7 +70,7 @@ def test_saved_metrics_use_accuracy_and_recall_by_actual_class_percent():
     assert metrics["Accuracy general (%)"] == 50.0
     assert metrics["Recall Y (%)"] == pytest.approx(100 / 3)
     assert metrics["Recall N (%)"] == pytest.approx(200 / 3)
-    assert metrics["Recall Y (%)"] != 50.0  # This is recall, not precision.
+    assert metrics["Recall Y (%)"] != 50.0
 
 
 def test_numeric_and_multiclass_labels_are_literal_and_zero_support_is_unavailable():
@@ -339,7 +339,7 @@ def test_global_imputation_blocks_lab2_until_source_is_restored():
     assert app.button(key="lab2_entrenar_KNN").disabled
     assert any("fuga de información" in e.value for e in app.error)
     assert app.sidebar.button(key="nav_clasificacion_knn").disabled
-    app.run()  # Direct/current routes remain guarded even when navigation is disabled.
+    app.run()
     assert app.button(key="lab2_entrenar_KNN").disabled
     app.sidebar.button(key="nav_datos").click().run()
     next(b for b in app.button if b.label == "Restaurar dataset original").click().run()
@@ -713,7 +713,7 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
         assert any("Accuracy prueba" in frame.value.columns for frame in app.dataframe)
         assert "nav_lab2_experimentos" not in {button.key for button in app.sidebar.button}
         app.session_state["vista_activa"] = "lab2_experimentos"
-        app.run()  # No individual snapshots: direct consultation must remain read-only.
+        app.run()
         assert not app.exception
         assert app.session_state["vista_activa"] == "lab2_resultados"
         assert any(

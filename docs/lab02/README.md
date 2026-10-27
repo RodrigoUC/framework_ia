@@ -72,7 +72,7 @@ casos completos del archivo de Kaggle; Diabetes usa 390 pacientes con la clase
 ## Verificación
 
 ```bash
-python -m pip install -r requirements-lab02-lock.txt
+python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 

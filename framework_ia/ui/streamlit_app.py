@@ -196,7 +196,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     "No fue posible cargar el CSV inicial. Elija otra fuente y "
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
-            # Source type changes only the controls, never the applied dataset.
+        
             origen = st.radio("Origen", ["CSV local", "Subir CSV", "Diabetes · referencia Lab03"], key="fuente_origen")
             with st.form("form_fuente_datos"):
                 seleccion = None
@@ -649,7 +649,7 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
             st.session_state["sup_particion_firma"] = firma_preparacion(st.session_state)
             st.session_state.pop("sup_aviso_particion", None)
             limpiar_resultados_regresion(st.session_state)
-            # A new applied split invalidates even the read-only results route.
+            
             for clave in ("resultado_modelos_clasificacion", "resultado_lab2_experimento",
                           "resultado_lab2_intento_experimento", "error_lab2_experimento",
                           "resultado_lab2_modelo", "preview_clasificacion", "clasificacion_contexto"):

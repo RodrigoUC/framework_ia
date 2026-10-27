@@ -197,7 +197,7 @@ def test_cleanup_configuration_explicit_regression_failure_and_restore():
     assert app.session_state["resultado_lab3_modelo_Ridge"] is snapshot
     assert app.session_state["dataset_preparacion"] == politica
     pd.testing.assert_frame_equal(app.session_state["dataset_preparado"], preparado)
-    # Removing a selected column removes that filter, not other columns' null rows.
+
     app.multiselect(key="dataset_columnas_eliminar").set_value(["descartar"]).run()
     assert app.multiselect(key="dataset_columnas_sin_nulos").value == []
     app.multiselect(key="dataset_columnas_sin_nulos").set_value(["target"]).run()

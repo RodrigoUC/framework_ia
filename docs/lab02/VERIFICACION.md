@@ -1,7 +1,7 @@
 # Verificación Lab02
 
 Estado al 15 de octubre de 2026 (Python 3.13.16, versiones de
-`requirements-lab02-lock.txt`).
+`requirements.txt`).
 
 ## Cumplimiento del enunciado
 

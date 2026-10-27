@@ -93,8 +93,8 @@ class PrimaryThemeContrastTests(unittest.TestCase):
                     self.assertNotIn("background", rule)
                     self.assertNotIn("color:", rule)
 
-        # The stylesheet no longer overrides Streamlit's native button colors;
-        # both configured primary tokens contrast with white text.
+
+
         for theme_name, primary in (
             ("light", self.theme["primaryColor"]),
             ("dark", self.theme["dark"]["primaryColor"]),

@@ -237,7 +237,7 @@ def render_experimentos(
                 st.session_state["resultado_lab2_intento_experimento"] = snapshot
             st.session_state.pop("error_lab2_experimento", None)
             st.rerun()
-        except Exception as exc:  # noqa: BLE001 - keep successful evidence on failure.
+        except Exception as exc:
             st.session_state["error_lab2_experimento"] = str(exc)
             st.session_state.pop("resultado_lab2_intento_experimento", None)
     guardado = st.session_state.get("resultado_lab2_experimento")

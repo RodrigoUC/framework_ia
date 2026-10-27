@@ -259,7 +259,6 @@ class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
 
     def get_feature_names_out(self, input_features=None):
         check_is_fitted(self, "transformador_")
-        # Preserve prefixes to prevent collisions between original/dummy names.
         nombres = self.transformador_.get_feature_names_out()
         if getattr(self, "selector_", None) is not None:
             return nombres[self.selector_.get_support()]

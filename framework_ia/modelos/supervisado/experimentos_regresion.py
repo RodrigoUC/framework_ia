@@ -317,7 +317,7 @@ def ejecutar_experimento(
                 fila.update(estado="error", error=f"{type(exc).__name__}: {exc}")
             filas.append(fila)
 
-    # Todas las decisiones quedan cerradas antes de ajustar/evaluar ganadores en prueba.
+
     mejor_algoritmo = min(ganadores, key=lambda a: ganadores[a]["score"], default=None)
     metadatos.update(
         {
