@@ -14,7 +14,7 @@ from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
 from framework_ia import Regresion
-from framework_ia.modelos.supervisado.algoritmos_regresion import (
+from framework_ia.utils.supervisado.algoritmos_regresion import (
     crear_modelo,
     normalizar_algoritmo,
 )

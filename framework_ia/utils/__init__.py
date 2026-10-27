@@ -31,6 +31,13 @@ from .evaluacion_cluster import (
     validar_numero_clusters,
 )
 from .k_medoids import ModeloKMedoids
+from .supervisado import (
+    algoritmos_regresion,
+    clasificacion as utils_clasificacion,
+    experimentos as utils_experimentos,
+    regresion as utils_regresion,
+    validacion_cruzada as utils_validacion_cruzada,
+)
 
 __all__ = [
     "ALGORITMOS_CLASIFICACION",
