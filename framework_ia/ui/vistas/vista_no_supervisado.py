@@ -9,9 +9,14 @@ from framework_ia.datos.eda import EDA
 from framework_ia.modelos.no_supervisado import DependenciaOpcionalError
 from framework_ia.ui.controladores.controlador_no_supervisado import (
     _columnas_numericas,
-    _crear_cluster,
-    _crear_reductor,
-    _muestrear,
+    comparar_metodos_hac,
+    ejecutar_acp,
+    ejecutar_hac,
+    ejecutar_kmeans,
+    ejecutar_kmedoids,
+    ejecutar_tsne,
+    ejecutar_umap,
+    evaluar_kmeans_k,
 )
 from framework_ia.ui.modelos.estado_sesion import (
     _firma,
@@ -142,8 +147,7 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
     firma = _firma(configuracion, componentes)
     if st.button("Ejecutar ACP", type="primary"):
         try:
-            muestra = _muestrear(datos, configuracion["filas"])
-            resultado = _crear_reductor(muestra, configuracion).ACP(componentes)
+            resultado = ejecutar_acp(datos, configuracion, n_componentes=componentes)
             _guardar_resultado("resultado_acp", firma, resultado)
         except Exception as exc:
             st.error(f"No fue posible ejecutar el ACP: {exc}")
@@ -187,12 +191,10 @@ def _render_particional(
     clave_resultado = f"resultado_{algoritmo.lower().replace('-', '_')}"
     if st.button(f"Ejecutar {algoritmo}", type="primary"):
         try:
-            muestra = _muestrear(datos, configuracion["filas"])
-            modelo = _crear_cluster(muestra, configuracion)
             if algoritmo == "K-Means":
-                resultado = modelo.K_means(clusters)
+                resultado = ejecutar_kmeans(datos, configuracion, clusters)
             else:
-                resultado = modelo.K_medoids(clusters)
+                resultado = ejecutar_kmedoids(datos, configuracion, clusters)
             _guardar_resultado(clave_resultado, firma, resultado)
         except Exception as exc:
             st.error(f"No fue posible agrupar el dataset: {exc}")
@@ -223,21 +225,21 @@ def _render_particional(
             mime="text/csv",
         )
 
-    if algoritmo == "K-Means" and st.button("Evaluar valores de k"):
-        try:
-            muestra = _muestrear(datos, configuracion["filas"])
-            tabla = _crear_cluster(muestra, configuracion).evaluar_kmeans(
-                2, min(10, len(muestra) - 1)
+    if algoritmo == "K-Means":
+        firma_benchmark = _firma(configuracion, "benchmark_kmeans")
+        if st.button("Evaluar valores de k", key="btn_evaluar_kmeans"):
+            try:
+                limite_k = min(10, len(datos) - 1)
+                tabla = evaluar_kmeans_k(datos, configuracion, k_min=2, k_max=limite_k)
+                _guardar_resultado("benchmark_kmeans", firma_benchmark, tabla)
+            except Exception as exc:
+                st.error(f"No fue posible evaluar k: {exc}")
+        tabla = _recuperar_resultado("benchmark_kmeans", firma_benchmark)
+        if tabla is not None:
+            st.dataframe(tabla, width="stretch")
+            _mostrar_figura(
+                VisualizadorNoSupervisado.curva_evaluacion(tabla, "K-Means")
             )
-            st.session_state["benchmark_kmeans"] = tabla
-        except Exception as exc:
-            st.error(f"No fue posible evaluar k: {exc}")
-    tabla = st.session_state.get("benchmark_kmeans")
-    if tabla is not None:
-        st.dataframe(tabla, width="stretch")
-        _mostrar_figura(
-            VisualizadorNoSupervisado.curva_evaluacion(tabla, "K-Means")
-        )
 
     if algoritmo == "K-Means":
         with st.expander("Proyecciones para visualizar los clusters"):
@@ -273,9 +275,12 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
     st.caption(f"El dendrograma utilizará como máximo {filas_hac} filas.")
     if st.button("Ejecutar HAC", type="primary"):
         try:
-            muestra = _muestrear(datos, filas_hac)
-            resultado = _crear_cluster(muestra, configuracion).HAC(
-                clusters, metodo=metodo
+            resultado = ejecutar_hac(
+                datos,
+                configuracion,
+                clusters=clusters,
+                metodo=metodo,
+                filas_hac=filas_hac,
             )
             _guardar_resultado("resultado_hac", firma, resultado)
         except Exception as exc:
@@ -293,16 +298,18 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(VisualizadorNoSupervisado.clusters(resultado))
         _mostrar_figura(VisualizadorNoSupervisado.perfiles_cluster(resultado))
 
-    if st.button("Comparar métodos HAC"):
+    firma_benchmark = _firma(configuracion, "benchmark_hac", filas_hac)
+    if st.button("Comparar métodos HAC", key="btn_comparar_hac"):
         try:
-            muestra = _muestrear(datos, filas_hac)
-            tabla = _crear_cluster(muestra, configuracion).evaluar_hac(
-                2, min(8, len(muestra) - 1)
+            limite_k = min(8, len(datos) - 1)
+            tabla = comparar_metodos_hac(
+                datos, configuracion, filas_hac=filas_hac, k_min=2, k_max=limite_k
             )
-            st.session_state["benchmark_hac"] = tabla
+            _guardar_resultado("benchmark_hac", firma_benchmark, tabla)
         except Exception as exc:
             st.error(f"No fue posible comparar HAC: {exc}")
-    tabla = st.session_state.get("benchmark_hac")
+
+    tabla = _recuperar_resultado("benchmark_hac", firma_benchmark)
     if tabla is not None:
         st.dataframe(tabla, width="stretch")
         _mostrar_figura(VisualizadorNoSupervisado.curva_evaluacion(tabla, "HAC"))
@@ -330,13 +337,13 @@ def _render_tsne(
     clave = "resultado_kmeans_tsne"
     if st.button("Ejecutar t-SNE", type="primary"):
         try:
-            muestra = (
-                datos.loc[etiquetas.index[:filas]]
-                if etiquetas is not None
-                else _muestrear(datos, filas)
-            )
-            resultado = _crear_reductor(muestra, configuracion).TSNE(
-                perplexity=perplexity, max_iter=iteraciones
+            resultado = ejecutar_tsne(
+                datos,
+                configuracion,
+                filas=filas,
+                perplexity=perplexity,
+                iteraciones=iteraciones,
+                etiquetas=etiquetas,
             )
             _guardar_resultado(clave, firma, resultado)
         except Exception as exc:
@@ -376,13 +383,13 @@ def _render_umap(
     clave = "resultado_kmeans_umap"
     if st.button("Ejecutar UMAP", type="primary"):
         try:
-            muestra = (
-                datos.loc[etiquetas.index[:filas]]
-                if etiquetas is not None
-                else _muestrear(datos, filas)
-            )
-            resultado = _crear_reductor(muestra, configuracion).UMAP(
-                n_neighbors=vecinos, min_dist=distancia
+            resultado = ejecutar_umap(
+                datos,
+                configuracion,
+                filas=filas,
+                vecinos=vecinos,
+                distancia=distancia,
+                etiquetas=etiquetas,
             )
             _guardar_resultado(clave, firma, resultado)
         except DependenciaOpcionalError as exc:

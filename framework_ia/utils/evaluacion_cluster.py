@@ -66,6 +66,8 @@ def evaluar_hac(
 ) -> pd.DataFrame:
     """Compara coeficiente de silhouette para métodos jerárquicos y cantidades de k."""
     limite = min(k_max, len(matriz) - 1)
+    if k_min > limite:
+        raise ValueError("No hay suficientes filas para evaluar el rango de clusters en HAC.")
     filas = []
     for metodo in metodos:
         vinculacion = linkage(matriz.to_numpy(), method=metodo, metric="euclidean")
