@@ -1,0 +1,110 @@
+\section{Fundamentos teóricos}
+
+La resistencia a compresión del concreto es una respuesta cuantitativa que
+depende de la composición de la mezcla y de su edad. El conjunto Concrete
+Compressive Strength reúne ocho predictoras: cemento, escoria de alto horno,
+ceniza volante, agua, superplastificante, agregado grueso, agregado fino y edad.
+Los componentes se expresan en kg/m$^3$, la edad en días y la resistencia en MPa.
+Esta estructura define un problema de regresión supervisada: aprender una
+función que estime una cantidad a partir de variables observadas. La relación
+entre ingredientes y resistencia puede ser no lineal, lo que fundamenta la
+comparación de modelos con distintas capacidades de representación
+\cite{uci_concrete,yeh1998}.
+
+La regresión lineal representa la respuesta mediante
+$\hat y=\beta_0+\sum_{j=1}^{p}\beta_jx_j$. El modelo simple utiliza una
+predictora y el múltiple incorpora varias. Los coeficientes de mínimos
+cuadrados minimizan la suma de residuos al cuadrado y proporcionan una
+referencia interpretable. Cuando las predictoras están relacionadas, las
+estimaciones pueden ser sensibles a variaciones de los datos. Ridge introduce
+una penalización $\ell_2$ que contrae los coeficientes; Lasso utiliza una
+penalización $\ell_1$ capaz de producir coeficientes exactamente nulos
+\cite{sklearn_lineales,hoerl1970,tibshirani1996}.
+
+El parámetro $\alpha$ controla la intensidad de regularización. LassoCV y
+RidgeCV seleccionan este parámetro mediante validación cruzada y pertenecen a
+las mismas familias que Lasso y Ridge, respectivamente. Comparar estas
+variantes permite examinar el efecto de la regularización y de su selección
+automática. Los nueve identificadores evaluados representan algoritmos o
+variantes; no constituyen nueve familias conceptuales independientes. El
+benchmarking distingue la comparación dentro de una familia de la comparación
+entre representaciones lineales, vectores de soporte y árboles
+\cite{sklearn_lineales,cawley2010}.
+
+La regresión por vectores de soporte combina control de complejidad con una
+pérdida que tolera desviaciones dentro de un margen $\epsilon$. El parámetro
+$C$ regula el compromiso entre penalizar errores y controlar la complejidad
+del ajuste. Los kernels permiten representar relaciones que no son lineales
+en las variables originales. Por ello, el desempeño de SVR depende del kernel,
+de los hiperparámetros y de la escala de las predictoras. Su comparación
+requiere las mismas particiones y un protocolo de evaluación común
+\cite{smola2004}.
+
+Un árbol de regresión divide el espacio de entrada mediante reglas y produce
+una aproximación constante por regiones. Su profundidad controla parte de su
+flexibilidad: un árbol muy complejo puede ajustar particularidades del
+entrenamiento y generalizar peor. Random Forest agrega predicciones de
+árboles aleatorizados; el promedio busca reducir la variabilidad del estimador
+individual. Comparar ambos permite estudiar el efecto del ensamble y
+contrastar estas representaciones con los modelos lineales y basados en kernels
+\cite{sklearn_arboles,breiman2001}.
+
+La evaluación utiliza MAE, MSE, RMSE y $R^2$. Para $n$ observaciones con
+respuestas $y_i$, predicciones $\hat y_i$ y media observada $\bar y$, se definen
+\cite{sklearn_metricas}:
+\begin{align*}
+\mathrm{MAE} &= \frac{1}{n}\sum_{i=1}^{n}|y_i-\hat y_i|,\\
+\mathrm{MSE} &= \frac{1}{n}\sum_{i=1}^{n}(y_i-\hat y_i)^2,\\
+\mathrm{RMSE} &= \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat y_i)^2},\\
+R^2 &= 1-\frac{\sum_{i=1}^{n}(y_i-\hat y_i)^2}
+{\sum_{i=1}^{n}(y_i-\bar y)^2}.
+\end{align*}
+El MAE resume la magnitud absoluta del error; el MSE aumenta la influencia de
+desviaciones grandes al elevarlas al cuadrado. MAE y RMSE conservan la unidad
+de la respuesta, MPa, mientras MSE se expresa en MPa$^2$. $R^2$ puede ser
+negativo y no representa un porcentaje de aciertos; su expresión requiere
+variación en la respuesta del conjunto evaluado. La selección utiliza RMSE
+de validación y la prueba se reserva para evaluar los modelos seleccionados.
+El preprocesamiento aprendido debe ajustarse con entrenamiento para evitar
+que información de evaluación influya en el modelo. Incluso con esta
+separación, diferencias pequeñas en una muestra no acreditan superioridad
+general entre algoritmos \cite{sklearn_fuga,cawley2010}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  caja/.style={draw=black!55,rounded corners=2pt,align=center,
+    inner sep=6pt,font=\small},
+  flecha/.style={-{Stealth[length=2mm]},thick,draw=black!65}
+]
+\node[caja,fill=gray!10,text width=6.2cm] (datos) at (0,0)
+  {\textbf{Regresión supervisada}\\Predictoras cuantitativas
+  $\longrightarrow$ resistencia a compresión};
+\node[caja,fill=gray!10,text width=10.7cm,below=0.55cm of datos] (preparacion)
+  {\textbf{Protocolo común}\\Partición de datos y preprocesamiento
+  ajustado con entrenamiento};
+\node[caja,fill=blue!8,text width=3.1cm] (lineales) at (-4.2,-3.3)
+  {\textbf{Modelos lineales}\\Simple y múltiple\\Lasso y LassoCV\\Ridge y RidgeCV};
+\node[caja,fill=green!9,text width=3.1cm] (soporte) at (0,-3.3)
+  {\textbf{Vectores de soporte}\\SVR\\Kernel, $C$ y $\epsilon$};
+\node[caja,fill=orange!12,text width=3.1cm] (arboles) at (4.2,-3.3)
+  {\textbf{Árboles y ensambles}\\Árbol de decisión\\Random Forest};
+\node[caja,fill=gray!10,text width=10.7cm] (validacion) at (0,-5.3)
+  {\textbf{Comparación por RMSE de validación}\\Dentro de familias y
+  entre familias; selección de configuraciones};
+\node[caja,fill=gray!10,text width=7.1cm,below=0.55cm of validacion] (prueba)
+  {\textbf{Evaluación en prueba reservada}\\MAE, MSE, RMSE y $R^2$;
+  residuos, interpretación y límites};
+\draw[flecha] (datos) -- (preparacion);
+\draw[flecha] (preparacion.south) -- (lineales.north);
+\draw[flecha] (preparacion.south) -- (soporte.north);
+\draw[flecha] (preparacion.south) -- (arboles.north);
+\draw[flecha] (lineales.south) -- (validacion.north);
+\draw[flecha] (soporte.south) -- (validacion.north);
+\draw[flecha] (arboles.south) -- (validacion.north);
+\draw[flecha] (validacion) -- (prueba);
+\end{tikzpicture}
+\caption{Mapa conceptual del benchmarking de regresión: familias,
+preparación, selección por validación y evaluación en prueba.}
+\label{fig:mapa-regresion}
+\end{figure}

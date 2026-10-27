@@ -3,6 +3,14 @@
 El núcleo de regresión conserva la jerarquía `Supervisado → Regresion` y separa
 los modelos de la interfaz. `Progresion` sigue siendo un alias compatible.
 
+## Caso académico Concrete
+
+Concrete utiliza un CSV local preparado a partir del XLS original de UCI;
+no añade una fuente especial a la interfaz ni modifica los modelos. Consulte
+[datos y preparación](../../data/lab03/concrete/README.md) y
+[experimentos e informe](CONCRETE.md). Diabetes permanece como referencia
+independiente.
+
 ## Referencia local sin descargas
 
 En **Fuente de datos → Diabetes · referencia Lab03 → Aplicar fuente** se carga

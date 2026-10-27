@@ -15,8 +15,10 @@ belong to model pages; Results is comparative only.
 User clarified that configuration is general/shared, while each model retains
 its own Train button. The proposed global training action was a misunderstanding
 and is explicitly withdrawn; do not implement it.
-Local implementation and Conventional Commits are authorized. No push, PR,
-merge, remote execution, final academic report or submission ZIP.
+Initial implementation authorized local Conventional Commits without an academic
+report or remote delivery. The 2026-10-21 Concrete extension below supersedes
+that initial scope: report, branch publication and one PR are authorized; merge
+and submission ZIP remain excluded.
 
 ## Contracts and acceptance
 
@@ -460,3 +462,93 @@ line count and rollback boundary here before considering the task closed.
   committed separately; push requested to configured origin lab_03, pending
   explicit authorization of credential/session under repository remote policy.
   No credential inspection or remote probe performed. No PR/merge requested.
+
+
+## Concrete academic extension (2026-10-21)
+
+Branch: `codex/lab03-entrega`, based on `lab_03` at `59abc33`.
+Delivery: work-unit Conventional Commits and one PR into `lab_03`, using the
+connected university account. No merge, ZIP or platform submission. The report
+uses the Lab02 format and the four existing authors; complete standalone LaTeX
+is the document deliverable. Dataset and generated evidence remain local.
+
+- [x] T08 — Prepare official Concrete XLS, deduplicate exact rows only, preserve
+  source and canonical hashes, expose a local idempotent CLI and provenance.
+  Dataset input/output is separate from generic supervised models and UI.
+- [x] T09 — Validate all 39 regression exports against data, provenance, common
+  splits, the fourteen-candidate catalog, validation selection and predictions.
+  Reject partial or inconsistent evidence without training or writing files.
+- [x] T10 — Generate an autonomous academic LaTeX report from validated evidence;
+  add sourced foundations, taxonomy, real experimental analysis and bibliography.
+- [x] T11 — Reproduce Concrete twice, capture the environment, compile the report,
+  run focused/full checks and publish one draft PR with exact verification status.
+
+Baseline: 44 regression/algorithm/experiment/CLI tests and 93 subtests passed
+in 29.34 s. Runtime currently resolves Python 3.11.8; historical versions above
+are not assumed for this extension. Native RDD tools are absent from the current
+tool inventory. Independent review and CI are recorded separately and are not
+claimed as native RDD approval. The PR remains draft while that review is missing.
+
+T08 verification: original UCI XLS 1030 rows, zero missing, 25 exact duplicate
+rows removed; canonical CSV 1005 rows. Original SHA-256
+`710076c66b9ca3f8050e7942f3dcbdbe04013534daeb0077ffd3079a52d8e0c4`;
+CSV `1eee7ee2b111a352cbadd30e49cc6a4f28e09f6ccd09636926008cefe74493a9`.
+`python -m pytest -q -p no:cacheprovider tests/test_concrete_lab03.py`: 21 passed
+in 5.85 s; real preparation and derivation reconstruction passed. Changed-file
+Ruff and diff check passed; pip check reports no broken requirements. Rollback:
+Concrete adapter/preparation/tests/docs, xlrd requirement and generated-path
+ignore entries. Original classifier/regressor training behavior is unchanged.
+Native RDD unavailable; independent parent readback found no unresolved issue.
+
+T08 commit: `daa8dcc`; 529 additions/2 deletions, 531 authored lines.
+T09 verification: 41 focused evidence tests passed in 19.62 s, including malformed
+JSON/CSV, altered hashes, splits, catalog, selections, snapshot metrics and
+recalculated predictions. Real Concrete exports loaded successfully with all
+42 evidence/data hashes. Ruff and format passed. Independent read-only review
+found no functional/scientific issue. Native RDD remains unavailable. Rollback:
+remove evidencia_lab03.py and its isolated tests; existing export schema remains
+unchanged. No model is trained during evidence validation.
+
+T09 commit: `af71989`; 833 additions/1 deletion, 834 authored lines.
+T10 verification: 20 report tests passed in 17.91 s after final narrative and
+reproduction corrections. Generated Concrete LaTeX compiled successfully with
+the desktop editor compiler. Tables/figures derive from validated evidence;
+original-source derivation is rechecked before report output. Six of eleven
+references are peer-reviewed papers. Independent read-only reviews found no
+remaining functional/scientific issue. Native RDD unavailable. Rollback: report
+generator/tests and foundations/references; training and existing UI unchanged.
+
+Concrete reproduction: both full runs exit 0; 39 exported files each, 29 byte
+identical and ten configurations differing only in argumentos.salida. RF wins
+validation with RMSE 5.522453 MPa (sample SD .319743); final test RMSE 5.380506
+MPa, MAE 3.650200, R2 .900070. 753 train/252 test rows. Receipt and generated
+report remain local; exported values, not historical Diabetes scores, support
+the report. Full framework regression and remote CI are pending at this point.
+
+T10 commit: `319591d`; 1159 additions/1 deletion, 1160 authored lines.
+Reproduction/documentation commit: `d8b8dbc`; 196 authored lines.
+
+T11 closure: local full suite outside the restricted socket sandbox passed
+334 tests and 152 subtests in 249.81 s. The initial sandbox run was interrupted
+after AppTest blocked in asyncio socketpair/accept; a bounded isolated probe
+confirmed that stack. No product-source change was required to resolve it.
+GitHub Actions run39716522520 verified code candidate `d8b8dbc` on Python3.11
+and3.12: 334 tests and152subtests on each, dependency compatibility, CLI helps
+and offline Diabetes benchmark all successful. Full-suite times:136.96s/116.52s.
+
+A third reproduction from a clean directory rebuilt identical XLS/CSV/provenance
+and all39 benchmark exports; only input/output path arguments differ. All seven
+new Python files pass Ruff check and format check; final preparation-only
+formatting changes were rechecked with21 passing tests. pip check and
+git diff--check passed. Final report manifest validates42 evidence/data hashes;
+LaTeX source SHA256 `e5c75747d552ee0a56ad55171cbf5084a691a057adc5b9bd4b9b1d816da96dc5`.
+The final source compiled successfully in the desktop editor. No exported PDF
+visual inspection is claimed; the deliverable is standalone LaTeX source.
+
+PR18: https://github.com/RodrigoUC/framework_ia/pull/18, opened via mari0610 into
+lab_03. Branch published with the selected university credential. No merge or
+ZIP. Native RDD remains unavailable; independent functional/scientific reviews
+are not represented as that approval. Draft state remains intentional. Rollback:
+revert the Concrete extension work units, preserving historical Lab02/Diabetes
+reference and the existing supervised/UI/export contracts. Final closure changes
+are formatting and verification documentation only.
