@@ -11,6 +11,7 @@ from .datos import (
     PreprocesadorNoSupervisado,
     PreprocesadorSupervisado,
 )
+from . import datasets
 from .modelos import (
     Clasificacion,
     Cluster,
@@ -56,4 +57,5 @@ __all__ = [
     "ResultadoProyeccion",
     "ResultadoRegresion",
     "Supervisado",
+    "datasets",
 ]
