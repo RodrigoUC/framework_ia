@@ -1,4 +1,4 @@
-"""Implementaciones de agrupamiento no provistas por sklearn base."""
+"""Estimador de K-Medoids mediante actualización alternante de medoides."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from sklearn.metrics import pairwise_distances
 class ModeloKMedoids:
     """Implementa K-Medoids mediante actualización alternante de medoides.
 
-    La clase expone una interfaz compatible con los atributos principales de
-    sklearn para que el orquestador no dependa de una biblioteca adicional.
+    Expone una interfaz compatible con estimadores de scikit-learn
+    (fit, fit_predict, predict, cluster_centers_, labels_, inertia_).
     """
 
     def __init__(
