@@ -12,7 +12,7 @@ from sklearn.datasets import make_regression
 from framework_ia import Regresion
 from framework_ia.datos.particion import Particionador
 from framework_ia.modelos.supervisado import experimentos_regresion as experimentos
-from framework_ia.modelos.supervisado.preprocesamiento import PreprocesadorSupervisado
+from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.resultados import ResultadoExperimentoRegresion
 from framework_ia.utils import ALGORITMOS_LAB3, ConfiguracionParticion
 

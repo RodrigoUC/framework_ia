@@ -14,7 +14,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 
 from framework_ia import Regresion
 from framework_ia.datos.fuentes import CargadorCSV
-from framework_ia.exportacion_lab03 import (
+from framework_ia.exportacion import (
     construir_archivos_experimento,
     construir_archivos_modelo,
     construir_zip_experimento,

@@ -35,8 +35,8 @@ from sklearn.model_selection import StratifiedKFold
 
 from ...resultados import ResultadoExperimentoClasificacion
 from .experimentos import METRICAS_SELECCION, _candidatos, _parametros_registrados
-from .particiones import comprobar_clases
-from .preprocesamiento import PreprocesadorSupervisado
+from ...datos.particion import comprobar_clases
+from ...datos.preprocesamiento import PreprocesadorSupervisado
 
 COLUMNAS_CV = (
     "etapa",

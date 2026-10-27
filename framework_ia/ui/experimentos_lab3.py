@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from ..exportacion_lab03 import (
+from ..exportacion import (
     construir_archivos_experimento,
     construir_zip_experimento,
 )

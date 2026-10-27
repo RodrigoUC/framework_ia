@@ -13,7 +13,7 @@ from sklearn.datasets import make_regression
 from streamlit.testing.v1 import AppTest
 
 from framework_ia.datos.particion import ConfiguracionParticion, Particionador
-from framework_ia.exportacion_lab03 import construir_archivos_modelo
+from framework_ia.exportacion import construir_archivos_modelo
 from framework_ia.modelos.supervisado import Regresion
 from framework_ia.ui import streamlit_app
 from framework_ia.ui.configuracion_regresion import configuracion_regresion_actual

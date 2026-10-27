@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from ..exportacion_lab02 import (
+from ..exportacion import (
     construir_archivos_experimento,
     construir_zip_experimento,
 )

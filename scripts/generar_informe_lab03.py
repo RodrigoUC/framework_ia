@@ -16,7 +16,7 @@ from framework_ia.datos.concrete_lab03 import (
     PREDICTORAS_CONCRETE,
     validar_preparacion_concrete,
 )
-from framework_ia.evidencia_lab03 import cargar_evidencia
+from framework_ia.evidencia import cargar_evidencia
 
 RAIZ = Path(__file__).resolve().parents[1]
 RECURSOS = RAIZ / "docs" / "lab03"

@@ -12,8 +12,8 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from framework_ia import Regresion
-from framework_ia.evidencia_lab03 import EvidenciaLab03, cargar_evidencia
-from framework_ia.exportacion_lab03 import construir_archivos_experimento
+from framework_ia.evidencia import EvidenciaLab03, cargar_evidencia
+from framework_ia.exportacion import construir_archivos_experimento
 from framework_ia.utils.configuracion_regresion import ALGORITMOS_LAB3
 
 

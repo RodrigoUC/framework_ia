@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 from framework_ia.datos.particion import Particionador
 from framework_ia.modelos.supervisado import Clasificacion, Supervisado
 from framework_ia.modelos.supervisado.clasificacion import configuraciones_lab2
-from framework_ia.modelos.supervisado.preprocesamiento import PreprocesadorSupervisado
+from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.resultados import ResultadoParticion
 from framework_ia.utils import (
     CONFIGURACIONES_MODELO,

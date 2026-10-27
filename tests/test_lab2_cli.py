@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from sklearn.datasets import make_classification
 
-from framework_ia.exportacion_lab02 import (
+from framework_ia.exportacion import (
     construir_archivos_experimento,
     construir_zip_experimento,
 )
@@ -177,7 +177,7 @@ class Lab02CLITests(unittest.TestCase):
             "lectura": {"separador": ",", "decimal": ".", "usar_indice": False},
         }
         with patch(
-            "framework_ia.exportacion_lab02.version", return_value="otra-version"
+            "framework_ia.exportacion.version", return_value="otra-version"
         ):
             archivos = construir_archivos_experimento(
                 resultado, argumentos={"semilla": 42}, dataset=dataset

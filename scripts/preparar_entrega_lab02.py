@@ -15,7 +15,7 @@ from framework_ia.datos.diabetes_lab02 import (
     validar_preparacion_diabetes,
 )
 from framework_ia.datos.potabilidad_lab02 import validar_preparacion_potabilidad
-from framework_ia.exportacion_lab02 import construir_zip_experimento
+from framework_ia.exportacion import construir_zip_experimento
 from framework_ia.utils import ALGORITMOS_LAB2, configuraciones_experimento
 
 RAIZ = Path(__file__).resolve().parents[1]

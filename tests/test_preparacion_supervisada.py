@@ -11,7 +11,7 @@ from streamlit.testing.v1 import AppTest
 from framework_ia.datos.eda import EDA
 from framework_ia.datos.particion import ConfiguracionParticion, Particionador
 from framework_ia.modelos.supervisado import Clasificacion, Regresion
-from framework_ia.modelos.supervisado.preprocesamiento import PreprocesadorSupervisado
+from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.ui.configuracion_clasificacion import (
     configuracion_clasificacion_actual,
 )

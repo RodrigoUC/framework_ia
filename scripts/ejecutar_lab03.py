@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from framework_ia.datos.fuentes import CargadorCSV
-from framework_ia.exportacion_lab03 import construir_archivos_experimento
+from framework_ia.exportacion import construir_archivos_experimento
 from framework_ia.modelos.supervisado import Regresion
 from framework_ia.utils import ALGORITMOS_LAB3, ConfiguracionCSV
 

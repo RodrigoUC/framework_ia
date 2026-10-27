@@ -29,7 +29,7 @@ from framework_ia.modelos.no_supervisado import (
     Cluster,
     NoSupervisado,
 )
-from framework_ia.modelos.progresion import Progresion
+from framework_ia.modelos import Progresion
 from framework_ia.modelos.supervisado import (
     Clasificacion,
     Regresion,

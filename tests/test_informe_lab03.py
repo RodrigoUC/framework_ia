@@ -15,7 +15,7 @@ import pytest
 
 from framework_ia import Regresion
 from framework_ia.datos.concrete_lab03 import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
-from framework_ia.evidencia_lab03 import cargar_evidencia
+from framework_ia.evidencia import cargar_evidencia
 from scripts import ejecutar_lab03
 from scripts import generar_informe_lab03 as informe
 

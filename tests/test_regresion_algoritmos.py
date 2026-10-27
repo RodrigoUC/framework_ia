@@ -18,7 +18,7 @@ from framework_ia.modelos.supervisado.algoritmos_regresion import (
     crear_modelo,
     normalizar_algoritmo,
 )
-from framework_ia.modelos.supervisado.preprocesamiento import PreprocesadorSupervisado
+from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
 from framework_ia.utils import (
     ALGORITMOS_LAB3,
     CONFIGURACIONES_REGRESION,

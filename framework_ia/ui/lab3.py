@@ -5,7 +5,7 @@ from copy import deepcopy
 import pandas as pd
 import streamlit as st
 
-from ..exportacion_lab03 import construir_archivos_modelo, construir_zip_experimento
+from ..exportacion import construir_archivos_modelo, construir_zip_experimento
 from ..modelos.supervisado import Regresion
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
 from ..visualizacion import VisualizadorRegresion

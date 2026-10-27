@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from framework_ia.datos.fuentes import CargadorCSV
-from framework_ia.exportacion_lab02 import _json_seguro, construir_archivos_experimento
+from framework_ia.exportacion import _json_seguro, construir_archivos_experimento
 from framework_ia.modelos.supervisado import Clasificacion
 from framework_ia.utils import ConfiguracionCSV
 

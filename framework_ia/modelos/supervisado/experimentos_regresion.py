@@ -18,7 +18,7 @@ from .algoritmos_regresion import (
     normalizar_algoritmo,
     parametros_regresion,
 )
-from .particiones import dividir_indices
+from ...datos.particion import dividir_indices
 from .regresion import metricas_regresion
 
 COLUMNAS_TABLA = (

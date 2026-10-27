@@ -12,7 +12,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from ..modelos.supervisado import Clasificacion, Regresion
 from ..modelos.supervisado.experimentos_regresion import _particiones
-from ..modelos.supervisado.particiones import comprobar_clases, dividir_indices
+from ..datos.particion import comprobar_clases, dividir_indices
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3
 
 
