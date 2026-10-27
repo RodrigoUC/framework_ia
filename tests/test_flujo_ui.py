@@ -12,11 +12,11 @@ from streamlit.testing.v1 import AppTest
 from framework_ia.datos.particion import ConfiguracionParticion, Particionador
 from framework_ia.modelos.supervisado import Clasificacion, Regresion
 from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
-from framework_ia.ui.configuracion_clasificacion import (
+from framework_ia.ui.modelos.estado_clasificacion import (
     configuracion_clasificacion_actual,
 )
-from framework_ia.ui.configuracion_regresion import configuracion_regresion_actual
-from framework_ia.ui.flujo import disponibilidad_supervisada, hay_evidencia
+from framework_ia.ui.modelos.estado_regresion import configuracion_regresion_actual
+from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada, hay_evidencia
 
 
 @pytest.fixture

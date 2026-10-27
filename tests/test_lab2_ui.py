@@ -20,8 +20,8 @@ from streamlit.testing.v1 import AppTest
 from streamlit.testing.v1.errors import AppTestError
 
 from framework_ia.modelos.supervisado import Clasificacion
-from framework_ia.ui.estado_clasificacion import huella_datos, sincronizar_contexto
-from framework_ia.ui.lab2 import _metricas_porcentuales
+from framework_ia.ui.modelos.estado_clasificacion import huella_datos, sincronizar_contexto
+from framework_ia.ui.controladores.controlador_clasificacion import _metricas_porcentuales
 from framework_ia.utils import configuraciones_experimento
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
@@ -112,7 +112,7 @@ def test_navigation_comparison_is_read_only_and_never_experiments():
     app.button(key="lab2_entrenar_KNN").click().run()
     with (
         patch(
-            "framework_ia.ui.lab2._diagnostico",
+            "framework_ia.ui.vistas.vista_clasificacion._diagnostico",
             side_effect=AssertionError("individual diagnostic in results"),
         ),
         patch.object(
@@ -1048,7 +1048,7 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
 ):
     from framework_ia.datos.diabetes_lab02 import PREDICTORAS_DIABETES
     from framework_ia.datos.particion import Particionador
-    from framework_ia.ui import perfil_diabetes
+    from framework_ia.ui.modelos import perfil_diabetes
     from framework_ia.utils import ConfiguracionParticion
 
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
@@ -1107,7 +1107,7 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
 
 
 def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_path):
-    from framework_ia.ui import perfil_diabetes
+    from framework_ia.ui.modelos import perfil_diabetes
 
     datos, original, preparado_sha, original_sha, procedencia = (
         _fuentes_diabetes_sinteticas(tmp_path)
@@ -1153,7 +1153,7 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
 
 
 def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
-    from framework_ia.ui import perfil_diabetes
+    from framework_ia.ui.modelos import perfil_diabetes
 
     datos, _, _, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
@@ -1174,7 +1174,7 @@ def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
 def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(
     tmp_path,
 ):
-    from framework_ia.ui import perfil_diabetes
+    from framework_ia.ui.modelos import perfil_diabetes
 
     datos, _, preparado_sha, original_sha, procedencia = _fuentes_diabetes_sinteticas(
         tmp_path
@@ -1230,7 +1230,7 @@ def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(
 def test_diabetes_profile_malformed_nested_json_keeps_generic_data_operable(
     tmp_path, seccion
 ):
-    from framework_ia.ui import perfil_diabetes
+    from framework_ia.ui.modelos import perfil_diabetes
 
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     contenido = json.loads(procedencia.read_text(encoding="utf-8"))

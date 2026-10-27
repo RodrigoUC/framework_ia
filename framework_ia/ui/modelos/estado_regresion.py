@@ -1,19 +1,18 @@
-"""Configuración compartida de regresión, sin ajustar modelos al navegar."""
+"""Estado y firmas de regresión supervisada independientes de los widgets."""
 
 from __future__ import annotations
 
 import pandas as pd
-import streamlit as st
 
-from .configuracion_supervisada import (
-    configurar_supervisado,
+from framework_ia.ui.modelos.estado_sesion import (
     estado_para_familia,
-    inicializar_configuracion,
+    firma_parametros,
+    huella_datos,
 )
 
 
 def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
-    """Lee los controles guardados con los mismos valores que la interfaz."""
+    """Construye la configuración efectiva de regresión desde los controles guardados."""
     estado = estado_para_familia(estado, "regresion")
     if len(datos.columns) < 2:
         return None
@@ -53,7 +52,7 @@ def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
 
 
 def firma_regresion(configuracion: dict) -> tuple:
-    """Incluye índices reales, además de la identidad declarada de la partición."""
+    """Construye la firma de regresión incluyendo los índices reales de partición."""
     particion = configuracion.get("particion_global")
     indices = None
     if particion is not None:
@@ -77,8 +76,25 @@ def firma_regresion(configuracion: dict) -> tuple:
     )
 
 
-def configurar_regresion(datos: pd.DataFrame) -> dict | None:
-    """Compatibilidad: muestra la configuracion unica, sin entrenar."""
-    inicializar_configuracion(datos, st.session_state)
-    configurar_supervisado(datos)
-    return configuracion_regresion_actual(datos, st.session_state)
+def limpiar_resultados_regresion(estado) -> None:
+    """Limpia snapshots, intentos y errores sin alterar controles ni particiones."""
+    for clave in tuple(estado):
+        if clave.startswith(
+            ("resultado_lab3_", "contexto_lab3_", "error_lab3_", "lab3_firma_")
+        ):
+            estado.pop(clave, None)
+    estado.pop("regresion_contexto", None)
+
+
+def sincronizar_contexto_regresion(estado, datos, configuracion: dict) -> tuple:
+    """Sincroniza el contexto de regresión e invalida ejecuciones obsoletas."""
+    firma = (
+        estado.get("dataset_identidad"),
+        huella_datos(datos),
+        firma_parametros(estado.get("dataset_preparacion", {})),
+        *firma_regresion(configuracion),
+    )
+    if estado.get("regresion_contexto") != firma:
+        limpiar_resultados_regresion(estado)
+        estado["regresion_contexto"] = firma
+    return firma

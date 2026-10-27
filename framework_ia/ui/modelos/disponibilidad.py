@@ -1,8 +1,6 @@
-"""Prerrequisitos derivados de datos y configuración, sin ajustar estimadores.
+"""Prerrequisitos derivados de datos y configuración para flujos supervisados."""
 
-La preparación global y la partición manual son opcionales. Los adaptadores
-reutilizan validadores de dominio sobre instancias nuevas; nunca publican estado.
-"""
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -10,22 +8,26 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
-from ..modelos.supervisado import Clasificacion, Regresion
-from ..modelos.supervisado.experimentos_regresion import _particiones
-from ..datos.particion import comprobar_clases, dividir_indices
-from ..utils.configuracion_regresion import ALGORITMOS_LAB3
+from framework_ia.datos.particion import comprobar_clases, dividir_indices
+from framework_ia.modelos.supervisado import Clasificacion, Regresion
+from framework_ia.modelos.supervisado.experimentos_regresion import _particiones
+from framework_ia.utils.configuracion_regresion import ALGORITMOS_LAB3
 
 
 @dataclass(frozen=True)
 class Disponibilidad:
+    """Resultado de verificar si una vista o ejecución está lista para usarse."""
+
     faltantes: tuple[str, ...] = ()
 
     @property
     def lista(self) -> bool:
+        """Indica si todos los prerrequisitos se cumplen."""
         return not self.faltantes
 
 
-def _predictoras(base, features, train, evaluaciones, configuracion):
+def _predictoras(base, features, train, evaluaciones, configuracion) -> None:
+    """Valida variación, codificación y nulos en las variables predictoras."""
     datos = base[features].replace([np.inf, -np.inf], np.nan)
     retenidas = [
         col for col in features if datos.loc[train, col].nunique(dropna=True) > 1
@@ -55,6 +57,7 @@ def _predictoras(base, features, train, evaluaciones, configuracion):
 
 
 def _pliegues_clasificacion(modelo, base, config, opciones):
+    """Construye los índices de entrenamiento, prueba y pliegues de validación."""
     train, test, validacion = modelo._indices(
         base,
         particion=config.get("particion_global"),
@@ -92,8 +95,8 @@ def _pliegues_clasificacion(modelo, base, config, opciones):
     return train, test, pliegues
 
 
-def _candidato_regresion_disponible(datos, base, config, pliegues, test, opciones):
-    """Un candidato inviable no bloquea otros candidatos válidos del benchmark."""
+def _candidato_regresion_disponible(datos, base, config, pliegues, test, opciones) -> None:
+    """Verifica que al menos un candidato del benchmark de regresión sea viable."""
     errores = []
     algoritmos = opciones.get("algoritmos", ALGORITMOS_LAB3)
     if not algoritmos:
@@ -106,7 +109,7 @@ def _candidato_regresion_disponible(datos, base, config, pliegues, test, opcione
             if None in features:
                 raise ValueError("RLS necesita un predictor numérico seleccionado.")
             candidato = Regresion(
-                dataframe=datos, target=config["target"], features=features
+                dataframe=datos, target=configuracion_target(config), features=features
             )
             candidato._validar_predictoras(base, algoritmo)
             for train, evaluacion in pliegues:
@@ -121,6 +124,11 @@ def _candidato_regresion_disponible(datos, base, config, pliegues, test, opcione
     raise ValueError("Ningún candidato está preparado. " + " ".join(errores))
 
 
+def configuracion_target(config: dict) -> str:
+    """Obtiene el nombre de la columna objetivo configurada."""
+    return config["target"]
+
+
 def disponibilidad_supervisada(
     datos,
     configuracion,
@@ -131,11 +139,7 @@ def disponibilidad_supervisada(
     parametros=None,
     experimento=None,
 ) -> Disponibilidad:
-    """Detecta bloqueos deterministas; no garantiza que un estimador converja.
-
-    ``experimento=None`` verifica un ajuste individual. Un diccionario verifica
-    el protocolo de validación, sin prohibir fallos parciales de candidatos.
-    """
+    """Detecta bloqueos deterministas de datos y configuración supervisada."""
     faltantes = []
     preparacion = preparacion or {}
     if (
@@ -247,6 +251,7 @@ def disponibilidad_supervisada(
 
 
 def hay_evidencia(estado, familia, *, solo_modelos=False) -> bool:
+    """Indica si existen resultados individuales o de experimentación para la familia."""
     lab = "lab3" if familia == "regresion" else "lab2"
     modelos = any(
         clave.startswith(f"resultado_{lab}_modelo_") and estado[clave] is not None

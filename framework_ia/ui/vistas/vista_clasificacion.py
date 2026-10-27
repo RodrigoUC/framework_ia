@@ -1,62 +1,32 @@
-"""Vistas de clasificación individual, comparación y análisis de resultados.
-
-La UI conserva evidencia de la ejecución. Toda selección, partición y métrica
-se calcula en Clasificacion, nunca al abrir la vista de resultados.
-"""
+"""Vistas de clasificación individual, diagnóstico y comparación de resultados."""
 
 from __future__ import annotations
-
-import json
-from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
 
-from ..modelos.supervisado import Clasificacion
-from ..visualizacion import VisualizadorSupervisado
-from .estado_clasificacion import firma_parametros
-from .flujo import disponibilidad_supervisada
-from .guia_flujo import mostrar_faltantes
-from .parametros_clasificacion import (
+from framework_ia.ui.controladores.controlador_clasificacion import (
+    _argumentos_comunes,
+    _contexto_ejecucion,
+    _json,
+    _metricas_por_clase,
+    _metricas_porcentuales,
+    _modelo,
+)
+from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
+from framework_ia.ui.modelos.estado_sesion import firma_parametros
+from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.tema import MostrarFigura
+from framework_ia.ui.vistas.vista_controles import (
     NOMBRES_MODELOS,
+    _mostrar_dataframe,
     parametros_individuales,
 )
-
-MostrarFigura = Callable[..., None]
-
-
-def _argumentos_comunes(configuracion: dict) -> dict:
-    return {
-        "test_size": configuracion["test_size"],
-        "random_state": configuracion["random_state"],
-        "stratify": configuracion["estratificar"],
-        "incluir_categoricas": configuracion["incluir_categoricas"],
-        "imputar": configuracion["imputar"],
-        "estandarizar": configuracion["estandarizar"],
-        "particion": configuracion.get("particion_global"),
-    }
-
-
-def _modelo(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
-    return Clasificacion(
-        dataframe=datos,
-        target=configuracion["target"],
-        features=configuracion["features"],
-    )
-
-
-def _contexto_ejecucion(configuracion: dict) -> dict:
-    return {
-        "dataset": st.session_state.get("fuente_aplicada", (None, "", ""))[1],
-        **{
-            clave: valor
-            for clave, valor in configuracion.items()
-            if clave != "particion_global"
-        },
-    }
+from framework_ia.visualizacion import VisualizadorSupervisado
 
 
 def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
+    """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -78,50 +48,6 @@ def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
     return True
 
 
-def _json(datos) -> str:
-    return json.dumps(datos, ensure_ascii=False, indent=2, default=str)
-
-
-def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
-    """Show an accessible text description beside the table across Streamlit APIs."""
-    st.caption(alt)
-    st.dataframe(data, **opciones)
-
-
-def _metricas_por_clase(resultado) -> dict[str, float | str]:
-    """Return actual-class recall percentages using saved truth/predictions."""
-    y_true = resultado.y_true
-    y_pred = resultado.y_pred
-    etiquetas = list(resultado.labels)
-    binarias_yn = (
-        len(etiquetas) == 2
-        and {str(etiqueta).casefold() for etiqueta in etiquetas} == {"y", "n"}
-        and all(isinstance(etiqueta, str) for etiqueta in etiquetas)
-    )
-    recalls = {}
-    for etiqueta in etiquetas:
-        nombre = (
-            f"Recall {str(etiqueta).upper()} (%)"
-            if binarias_yn
-            else f"Recall actual {etiqueta!s} (%)"
-        )
-        reales = y_true == etiqueta
-        soporte = int(reales.sum())
-        recalls[nombre] = (
-            100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte
-            if soporte
-            else "Sin casos evaluados"
-        )
-    return recalls
-
-
-def _metricas_porcentuales(resultado) -> dict[str, float | str]:
-    return {
-        "Accuracy general (%)": 100.0 * float(resultado.metricas["accuracy"]),
-        **_metricas_por_clase(resultado),
-    }
-
-
 def render_modelo_individual(
     datos: pd.DataFrame,
     configuracion: dict,
@@ -134,22 +60,33 @@ def render_modelo_individual(
     segura = preparacion_segura()
     parametros = parametros_individuales(algoritmo)
     disponibilidad = disponibilidad_supervisada(
-        datos, configuracion, "clasificacion", algoritmo=algoritmo, parametros=parametros,
+        datos,
+        configuracion,
+        "clasificacion",
+        algoritmo=algoritmo,
+        parametros=parametros,
         preparacion=st.session_state.get("dataset_preparacion"),
     )
     mostrar_faltantes(disponibilidad)
     firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
     estado_modelo = f"modelo_{algoritmo}"
     resultado_modelo = f"resultado_lab2_{estado_modelo}"
-    criterio_rf = parametros.get("criterion", "gini") if algoritmo == "RF" else None
+    criterio_rf = (
+        parametros.get("criterion", "gini") if algoritmo == "RF" else None
+    )
     clave_criterios_rf = "resultado_lab2_modelo_RF_criterios"
     intentos_rf = "errores_lab2_modelo_RF"
-    if st.button(
-        "Entrenar modelo",
-        key=f"lab2_entrenar_{algoritmo}",
-        type="primary",
-        disabled=not configuracion["features"] or not segura or not disponibilidad.lista,
-    ) and disponibilidad.lista:
+    if (
+        st.button(
+            "Entrenar modelo",
+            key=f"lab2_entrenar_{algoritmo}",
+            type="primary",
+            disabled=not configuracion["features"]
+            or not segura
+            or not disponibilidad.lista,
+        )
+        and disponibilidad.lista
+    ):
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
                 resultado = _modelo(datos, configuracion).entrenar(
@@ -199,7 +136,9 @@ def render_modelo_individual(
     else:
         resultado = st.session_state.get(resultado_modelo)
     if resultado is None:
-        st.info("Configure el modelo y pulse Entrenar modelo para ver sus resultados.")
+        st.info(
+            "Configure el modelo y pulse Entrenar modelo para ver sus resultados."
+        )
         return
     _diagnostico(
         resultado,
@@ -211,7 +150,7 @@ def render_modelo_individual(
 def render_resultados(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
-    """Vista de lectura; nunca ajusta ni selecciona modelos al abrirse."""
+    """Vista de lectura de modelos entrenados y resultados experimentales."""
     hay_experimento = incluir_experimentos and any(
         st.session_state.get(clave)
         for clave in (
@@ -231,14 +170,17 @@ def render_resultados(
                 if legacy is not None:
                     parametros = getattr(legacy, "parametros", {})
                     criterio = parametros.get(
-                        "criterion", legacy.modelo.get_params().get("criterion", "gini")
+                        "criterion",
+                        legacy.modelo.get_params().get("criterion", "gini"),
                     )
                     individuales.append(
                         (
                             codigo,
                             criterio,
                             legacy,
-                            st.session_state.get("contexto_lab2_modelo_RF", {}),
+                            st.session_state.get(
+                                "contexto_lab2_modelo_RF", {}
+                            ),
                             parametros,
                         )
                     )
@@ -255,7 +197,9 @@ def render_resultados(
         else:
             resultado = st.session_state.get(f"resultado_lab2_modelo_{codigo}")
             if resultado is not None:
-                contexto = st.session_state.get(f"contexto_lab2_modelo_{codigo}", {})
+                contexto = st.session_state.get(
+                    f"contexto_lab2_modelo_{codigo}", {}
+                )
                 individuales.append(
                     (
                         codigo,
@@ -281,19 +225,24 @@ def render_resultados(
                     {
                         "Algoritmo": (
                             NOMBRES_MODELOS.get(
-                                codigo, "Naive Bayes" if codigo == "NR" else codigo
+                                codigo,
+                                "Naive Bayes" if codigo == "NR" else codigo,
                             )
                             + (f" · {criterio}" if criterio else "")
                         ),
                         **_metricas_porcentuales(resultado),
-                        "Precisión macro prueba": resultado.metricas["precision"][
+                        "Precisión macro prueba": resultado.metricas[
+                            "precision"
+                        ]["macro"],
+                        "Recall macro prueba": resultado.metricas["recall"][
                             "macro"
                         ],
-                        "Recall macro prueba": resultado.metricas["recall"]["macro"],
                         "F1 macro prueba": resultado.metricas["f1"]["macro"],
                         "Parámetros efectivos": _json(
                             getattr(
-                                resultado, "parametros", resultado.modelo.get_params()
+                                resultado,
+                                "parametros",
+                                resultado.modelo.get_params(),
                             )
                         ),
                     }
@@ -309,13 +258,17 @@ def render_resultados(
             "Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación."
         )
     if hay_experimento:
-
-        from .experimentos_lab2 import render_resultado_experimento
+        from framework_ia.ui.vistas.vista_experimentos_clasificacion import (
+            render_resultado_experimento,
+        )
 
         render_resultado_experimento(mostrar_figura, solo_comparacion=True)
 
 
-def _diagnostico(resultado, mostrar_figura: MostrarFigura, prefijo: str) -> None:
+def _diagnostico(
+    resultado, mostrar_figura: MostrarFigura, prefijo: str
+) -> None:
+    """Presenta métricas, matriz de confusión y predicciones del modelo de clasificación."""
     st.markdown(f"#### {resultado.algoritmo} · resultados de prueba")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Accuracy general", f"{resultado.metricas['accuracy']:.1%}")

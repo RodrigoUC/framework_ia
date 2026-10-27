@@ -1,4 +1,4 @@
-"""Ejecución explícita y lectura de evidencia experimental del Lab02."""
+"""Vista de ejecución y evidencia experimental de clasificación."""
 
 from __future__ import annotations
 
@@ -9,79 +9,45 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from ..exportacion import (
+from framework_ia.exportacion import (
     construir_archivos_experimento,
     construir_zip_experimento,
 )
-from ..utils import ALGORITMOS_LAB2, METRICAS_SELECCION, configuraciones_experimento
-from ..visualizacion import VisualizadorSupervisado
-from .estado_clasificacion import firma_parametros
-from .flujo import disponibilidad_supervisada
-from .guia_flujo import mostrar_faltantes
-from .lab2 import (
-    MostrarFigura,
+from framework_ia.ui.controladores.controlador_clasificacion import (
     _argumentos_comunes,
+    _argumentos_exportacion,
     _contexto_ejecucion,
-    _diagnostico,
+    _fuente_ejecutada,
     _json,
     _modelo,
-    _mostrar_dataframe,
+)
+from framework_ia.ui.modelos.catalogo_vistas import (
+    ESTRATEGIAS,
+    FOLDS_LAB2,
+    TOTAL_CANDIDATOS,
+)
+from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
+from framework_ia.ui.modelos.estado_sesion import firma_parametros
+from framework_ia.ui.modelos.perfil_diabetes import estado_fuente_diabetes
+from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.tema import MostrarFigura
+from framework_ia.ui.vistas.vista_clasificacion import (
+    _diagnostico,
     preparacion_segura,
 )
-from .perfil_diabetes import estado_fuente_diabetes
-
-FOLDS_LAB2 = 5
-ESTRATEGIAS = {
-    "cv": f"Validación cruzada estratificada ({FOLDS_LAB2} pliegues)",
-    "holdout": "Validación simple (una partición)",
-}
-TOTAL_CANDIDATOS = sum(len(lista) for lista in configuraciones_experimento().values())
-
-
-def _fuente_ejecutada(datos: pd.DataFrame) -> dict:
-    fuente = st.session_state.get("fuente_aplicada", (None, "", ""))
-    metadata = st.session_state.get("fuente_metadata", {})
-    if metadata.get("identidad") != fuente[2]:
-        metadata = {}
-    return {
-        "archivo": fuente[1],
-        "sha256": metadata.get("sha256"),
-        "fuente": metadata.get("fuente"),
-        "filas": len(datos),
-        "columnas": list(datos.columns),
-        "filas_archivo": metadata.get("filas"),
-        "columnas_archivo": metadata.get("columnas"),
-        "lectura": deepcopy(metadata.get("lectura", {})),
-        "preparacion_previa": deepcopy(st.session_state.get("dataset_preparacion", {})),
-    }
-
-
-def _argumentos_exportacion(configuracion: dict, opciones: dict, fuente: dict) -> dict:
-    return {
-        "csv": fuente["archivo"],
-        "target": configuracion["target"],
-        "features": list(configuracion["features"]),
-        "semilla": configuracion["random_state"],
-        "test_size": configuracion["test_size"],
-        "validation_size": opciones["validation_size"],
-        "estrategia": opciones.get("estrategia", "holdout"),
-        "folds": FOLDS_LAB2 if opciones.get("estrategia") == "cv" else None,
-        "metrica": opciones["metrica"],
-        "algoritmos": list(ALGORITMOS_LAB2),
-        "incluir_categoricas": configuracion["incluir_categoricas"],
-        "sin_imputar": not configuracion["imputar"],
-        "sin_escalar": not configuracion["estandarizar"],
-        "estratificar": configuracion["estratificar"],
-        "particion_externa": configuracion.get("particion_global") is not None,
-        **fuente["lectura"],
-        "fuente": fuente["fuente"],
-    }
+from framework_ia.ui.vistas.vista_controles import _mostrar_dataframe
+from framework_ia.utils import (
+    ALGORITMOS_LAB2,
+    METRICAS_SELECCION,
+    configuraciones_experimento,
+)
+from framework_ia.visualizacion import VisualizadorSupervisado
 
 
 def render_experimentos(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
-    """La navegación y los controles no entrenan; el botón realiza un benchmark."""
+    """Renderiza los controles y ejecuta el benchmark de clasificación."""
     st.caption(
         f"{TOTAL_CANDIDATOS} configuraciones · 5 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
     )
@@ -91,9 +57,13 @@ def render_experimentos(
         f"Semilla: {configuracion['random_state']}"
     )
     segura = preparacion_segura(mostrar_guia=True)
-    original_diabetes = estado_fuente_diabetes(datos, st.session_state) == "original"
+    original_diabetes = (
+        estado_fuente_diabetes(datos, st.session_state) == "original"
+    )
     catalogo = configuraciones_experimento()
-    with st.expander(f"Catálogo · 5 algoritmos / {TOTAL_CANDIDATOS} configuraciones"):
+    with st.expander(
+        f"Catálogo · 5 algoritmos / {TOTAL_CANDIDATOS} configuraciones"
+    ):
         _mostrar_dataframe(
             pd.DataFrame(
                 [
@@ -141,7 +111,9 @@ def render_experimentos(
         validation_size = None
         if particion is not None:
             filas_train = len(particion.train) + (
-                0 if particion.validacion is None else len(particion.validacion)
+                0
+                if particion.validacion is None
+                else len(particion.validacion)
             )
             st.caption(
                 f"Entrenamiento: {filas_train} filas divididas en {FOLDS_LAB2} pliegues "
@@ -189,10 +161,17 @@ def render_experimentos(
                 f"train {(1 - test_size) * (1 - validation_size):.0%} · "
                 f"validación {(1 - test_size) * validation_size:.0%} · prueba {test_size:.0%}"
             )
-    opciones = {"metrica": metrica, "validation_size": validation_size, "estrategia": estrategia}
+    opciones = {
+        "metrica": metrica,
+        "validation_size": validation_size,
+        "estrategia": estrategia,
+    }
     firma = firma_parametros(opciones)
     disponibilidad = disponibilidad_supervisada(
-        datos, configuracion, "clasificacion", experimento={**opciones, "folds": FOLDS_LAB2},
+        datos,
+        configuracion,
+        "clasificacion",
+        experimento={**opciones, "folds": FOLDS_LAB2},
         preparacion=st.session_state.get("dataset_preparacion"),
     )
     mostrar_faltantes(disponibilidad)
@@ -200,14 +179,20 @@ def render_experimentos(
         f"Ejecutar experimentos Lab02 · {TOTAL_CANDIDATOS} configuraciones",
         key="lab2_benchmark_ejecutar",
         type="primary",
-        disabled=not segura or not configuracion["features"] or original_diabetes or not disponibilidad.lista,
+        disabled=not segura
+        or not configuracion["features"]
+        or original_diabetes
+        or not disponibilidad.lista,
     )
     if ejecutar and segura and not original_diabetes and disponibilidad.lista:
         try:
             with st.spinner(
                 f"Entrenando {TOTAL_CANDIDATOS} configuraciones y seleccionando en validación…"
             ):
-                argumentos = {**_argumentos_comunes(configuracion), "metrica": metrica}
+                argumentos = {
+                    **_argumentos_comunes(configuracion),
+                    "metrica": metrica,
+                }
                 if estrategia == "cv":
                     argumentos.update(estrategia="cv", folds=FOLDS_LAB2)
                 elif validation_size is not None:
@@ -224,7 +209,9 @@ def render_experimentos(
                 "firma": firma,
                 "opciones": opciones,
                 "fuente": fuente,
-                "argumentos": _argumentos_exportacion(configuracion, opciones, fuente),
+                "argumentos": _argumentos_exportacion(
+                    configuracion, opciones, fuente
+                ),
                 "versiones": {
                     **resultado.metadatos.get("versiones", {}),
                     "python": platform.python_version(),
@@ -234,7 +221,9 @@ def render_experimentos(
                 st.session_state["resultado_lab2_experimento"] = snapshot
                 st.session_state.pop("resultado_lab2_intento_experimento", None)
             else:
-                st.session_state["resultado_lab2_intento_experimento"] = snapshot
+                st.session_state["resultado_lab2_intento_experimento"] = (
+                    snapshot
+                )
             st.session_state.pop("error_lab2_experimento", None)
             st.rerun()
         except Exception as exc:
@@ -250,19 +239,25 @@ def render_experimentos(
 
 
 def render_resultado_experimento(
-    mostrar_figura: MostrarFigura, *, prefijo: str = "lab2_resultados_experimento",
+    mostrar_figura: MostrarFigura,
+    *,
+    prefijo: str = "lab2_resultados_experimento",
     solo_comparacion: bool = False,
 ) -> None:
-    """Renderiza el snapshot sin entrenar ni seleccionar de nuevo."""
+    """Renderiza el snapshot experimental de clasificación sin reentrenar modelos."""
     guardado = st.session_state.get("resultado_lab2_experimento")
     intento = st.session_state.get("resultado_lab2_intento_experimento")
     error = st.session_state.get("error_lab2_experimento")
     if error:
         st.error(f"Falló el último intento de experimentación: {error}")
         if guardado is not None:
-            st.caption("Se conserva la última ejecución exitosa del contexto actual.")
+            st.caption(
+                "Se conserva la última ejecución exitosa del contexto actual."
+            )
     if intento is not None:
-        st.warning("El último intento no produjo ganadores evaluados en prueba.")
+        st.warning(
+            "El último intento no produjo ganadores evaluados en prueba."
+        )
         _tabla_validacion(intento["resultado"].tabla)
         for algoritmo, detalle in (
             intento["resultado"].metadatos.get("errores_prueba", {}).items()
@@ -286,7 +281,10 @@ def render_resultado_experimento(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
     )
-    if metadatos.get("estrategia_seleccion") == "validacion_cruzada_estratificada":
+    if (
+        metadatos.get("estrategia_seleccion")
+        == "validacion_cruzada_estratificada"
+    ):
         st.caption(
             f"Filas efectivas: train {metadatos['muestra_train']} · validación cruzada de "
             f"{metadatos['folds']} pliegues "
@@ -325,7 +323,9 @@ def render_resultado_experimento(
                     "#1a3c2b" if elegido else "#ff8c69"
                     for elegido in validos["seleccionado"]
                 ],
-                text=validos["puntuacion_validacion"].map(lambda valor: f"{valor:.3f}"),
+                text=validos["puntuacion_validacion"].map(
+                    lambda valor: f"{valor:.3f}"
+                ),
                 textposition="outside",
                 cliponaxis=False,
                 hovertemplate="%{y}<br>Puntuación de validación: %{x:.4f}<extra></extra>",
@@ -346,7 +346,9 @@ def render_resultado_experimento(
             alt="Puntuación de cada candidato en validación; verde identifica los ganadores por familia. Los valores están también en la tabla",
         )
     if resultado.mejor_algoritmo:
-        st.markdown(f"**Mejor algoritmo por validación: {resultado.mejor_algoritmo}.**")
+        st.markdown(
+            f"**Mejor algoritmo por validación: {resultado.mejor_algoritmo}.**"
+        )
     st.markdown("#### Prueba reservada · ganadores seleccionados")
     st.caption(
         "Estos resultados describen generalización; no intervienen en la selección ni sustituyen la validación."
@@ -359,9 +361,13 @@ def render_resultado_experimento(
                     "Configuración elegida en validación": ganador.metadatos[
                         "configuracion"
                     ],
-                    "Puntuación validación": ganador.metadatos["puntuacion_validacion"],
+                    "Puntuación validación": ganador.metadatos[
+                        "puntuacion_validacion"
+                    ],
                     "Accuracy prueba": ganador.metricas["accuracy"],
-                    "Precisión macro prueba": ganador.metricas["precision"]["macro"],
+                    "Precisión macro prueba": ganador.metricas["precision"][
+                        "macro"
+                    ],
                     "Recall macro prueba": ganador.metricas["recall"]["macro"],
                     "F1 macro prueba": ganador.metricas["f1"]["macro"],
                 }
@@ -373,14 +379,20 @@ def render_resultado_experimento(
         width="stretch",
     )
     if not solo_comparacion:
-        with st.expander("Diagnóstico del ganador · matriz de confusión y predicciones"):
+        with st.expander(
+            "Diagnóstico del ganador · matriz de confusión y predicciones"
+        ):
             algoritmos = list(resultado.mejores)
             clave_ganador = f"{prefijo}_ganador"
             if st.session_state.get(clave_ganador) not in algoritmos:
                 st.session_state.pop(clave_ganador, None)
-            algoritmo = st.selectbox("Ganador a analizar", algoritmos, key=clave_ganador)
+            algoritmo = st.selectbox(
+                "Ganador a analizar", algoritmos, key=clave_ganador
+            )
             _diagnostico(
-                resultado.mejores[algoritmo], mostrar_figura, f"{prefijo}_{algoritmo}"
+                resultado.mejores[algoritmo],
+                mostrar_figura,
+                f"{prefijo}_{algoritmo}",
             )
             figura_clases = VisualizadorSupervisado.metricas_barras(
                 resultado.mejores[algoritmo]
@@ -395,6 +407,7 @@ def render_resultado_experimento(
 
 
 def _tabla_validacion(tabla: pd.DataFrame) -> None:
+    """Muestra la tabla de candidatos evaluados en validación con parámetros serializados."""
     vista = tabla.copy()
     vista["parametros"] = vista["parametros"].map(_json)
     _mostrar_dataframe(
@@ -405,7 +418,10 @@ def _tabla_validacion(tabla: pd.DataFrame) -> None:
     )
 
 
-def _descargas(guardado: dict, prefijo: str, *, es_intento: bool = False) -> None:
+def _descargas(
+    guardado: dict, prefijo: str, *, es_intento: bool = False
+) -> None:
+    """Genera los botones de descarga del paquete ZIP, CSV y JSON del experimento."""
     st.markdown(
         "#### Descargar evidencia de este intento"
         if es_intento

@@ -14,7 +14,7 @@ from streamlit.testing.v1 import AppTest
 from framework_ia.datos.diabetes_lab03 import cargar_diabetes_regresion
 from framework_ia.modelos.supervisado import Regresion
 from framework_ia.ui import streamlit_app
-from framework_ia.ui.lab3 import snapshot_ejecucion
+from framework_ia.ui.controladores.controlador_regresion import snapshot_ejecucion
 from scripts.preparar_diabetes_lab03 import crear_parser, ejecutar, main
 
 REFERENCIA = "Diabetes · referencia Lab03"

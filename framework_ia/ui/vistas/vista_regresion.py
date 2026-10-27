@@ -1,46 +1,32 @@
-"""Entrenamiento explícito y consulta de snapshots de regresión."""
+"""Vistas de entrenamiento individual y consulta de resultados de regresión."""
 
-from copy import deepcopy
+from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
 
-from ..exportacion import construir_archivos_modelo, construir_zip_experimento
-from ..modelos.supervisado import Regresion
-from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
-from ..visualizacion import VisualizadorRegresion
-from .estado_clasificacion import firma_parametros, huella_datos
-from .flujo import disponibilidad_supervisada
-from .guia_flujo import mostrar_faltantes
-from .parametros_regresion import parametros_regresion
-
-
-def argumentos_comunes(configuracion: dict) -> dict:
-    return {
-        **{
-            clave: configuracion[clave]
-            for clave in (
-                "test_size",
-                "random_state",
-                "incluir_categoricas",
-                "imputar",
-                "estandarizar",
-            )
-        },
-        "particion": configuracion.get("particion_global"),
-    }
-
-
-def crear_regresor(datos, configuracion, *, algoritmo=None) -> Regresion:
-    features = (
-        [configuracion["feature_simple"]]
-        if algoritmo == "RLS"
-        else configuracion["features"]
-    )
-    return Regresion(dataframe=datos, target=configuracion["target"], features=features)
+from framework_ia.exportacion import (
+    construir_archivos_modelo,
+    construir_zip_experimento,
+)
+from framework_ia.ui.controladores.controlador_regresion import (
+    argumentos_comunes,
+    crear_regresor,
+    snapshot_ejecucion,
+)
+from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
+from framework_ia.ui.modelos.estado_sesion import firma_parametros
+from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.vista_controles import parametros_regresion
+from framework_ia.utils.configuracion_regresion import (
+    ALGORITMOS_LAB3,
+    NOMBRES_REGRESORES,
+)
+from framework_ia.visualizacion import VisualizadorRegresion
 
 
 def preparacion_regresion_segura() -> bool:
+    """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -53,33 +39,14 @@ def preparacion_regresion_segura() -> bool:
     return True
 
 
-def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
-    """Congela contexto y procedencia; las exportaciones no leen controles actuales."""
-    argumentos = {
-        clave: deepcopy(valor)
-        for clave, valor in configuracion.items()
-        if clave != "particion_global"
-    }
-    argumentos["parametros_solicitados"] = deepcopy(parametros)
-    fuente = deepcopy(st.session_state.get("fuente_metadata", {}))
-    fuente["preparacion_previa"] = deepcopy(
-        st.session_state.get("dataset_preparacion", {})
-    )
-    fuente["huella_datos_efectivos"] = huella_datos(datos)
-    fuente.setdefault(
-        "etiqueta", st.session_state.get("fuente_aplicada", (None, "Dataset activo"))[1]
-    )
-    return {
-        "resultado": resultado,
-        "argumentos": argumentos,
-        "dataset": fuente,
-        "firma_parametros": firma_parametros(parametros),
-    }
-
-
-def mostrar_resultado_modelo(snapshot, mostrar_figura, *, clave: str) -> None:
+def mostrar_resultado_modelo(
+    snapshot, mostrar_figura, *, clave: str
+) -> None:
+    """Renderiza métricas, gráficos de ajuste y descargas del modelo de regresión."""
     resultado = snapshot["resultado"]
-    st.markdown(f"#### {NOMBRES_REGRESORES[resultado.algoritmo]} · ejecución guardada")
+    st.markdown(
+        f"#### {NOMBRES_REGRESORES[resultado.algoritmo]} · ejecución guardada"
+    )
     st.caption(
         f"Target: {resultado.target} · Predictores: {', '.join(resultado.features)} · Train: {resultado.muestra_train} · Test: {resultado.muestra_test}"
     )
@@ -90,7 +57,9 @@ def mostrar_resultado_modelo(snapshot, mostrar_figura, *, clave: str) -> None:
         "Métricas de prueba en escala numérica, no porcentajes. R² puede ser negativo; los residuos son real menos predicción."
     )
     st.dataframe(
-        pd.DataFrame({"Train": resultado.metricas_train, "Test": resultado.metricas}),
+        pd.DataFrame(
+            {"Train": resultado.metricas_train, "Test": resultado.metricas}
+        ),
         width="stretch",
     )
     mostrar_figura(
@@ -113,7 +82,9 @@ def mostrar_resultado_modelo(snapshot, mostrar_figura, *, clave: str) -> None:
             }
         )
     archivos = construir_archivos_modelo(
-        resultado, argumentos=snapshot["argumentos"], dataset=snapshot["dataset"]
+        resultado,
+        argumentos=snapshot["argumentos"],
+        dataset=snapshot["dataset"],
     )
     st.download_button(
         "Descargar evidencia del modelo (ZIP)",
@@ -134,6 +105,7 @@ def mostrar_resultado_modelo(snapshot, mostrar_figura, *, clave: str) -> None:
 def render_modelo_regresion(
     datos, configuracion, mostrar_figura, *, algoritmo: str
 ) -> None:
+    """Renderiza los controles y ejecuta el entrenamiento de un regresor individual."""
     segura = preparacion_regresion_segura()
     parametros = parametros_regresion(algoritmo)
     disponibilidad = disponibilidad_supervisada(
@@ -149,9 +121,7 @@ def render_modelo_regresion(
     error = f"error_lab3_modelo_{algoritmo}"
     sin_simple = algoritmo == "RLS" and configuracion["feature_simple"] is None
     if sin_simple:
-        st.warning(
-            "Seleccione un predictor numérico para RLS en Configuración."
-        )
+        st.warning("Seleccione un predictor numérico para RLS en Configuración.")
     if (
         st.button(
             "Entrenar modelo",
@@ -190,14 +160,19 @@ def render_modelo_regresion(
             st.info(
                 "Parámetros modificados sin ejecutar. Se muestra la última ejecución exitosa, no estos ajustes pendientes."
             )
-        mostrar_resultado_modelo(snapshot, mostrar_figura, clave=f"lab3_{algoritmo}")
+        mostrar_resultado_modelo(
+            snapshot, mostrar_figura, clave=f"lab3_{algoritmo}"
+        )
     else:
         st.info(
             "Sin resultados para este contexto. Configure el modelo y pulse Entrenar modelo."
         )
 
 
-def render_resultados_regresion(mostrar_figura, *, incluir_experimentos=False) -> None:
+def render_resultados_regresion(
+    mostrar_figura, *, incluir_experimentos=False
+) -> None:
+    """Muestra la comparación de regresores entrenados y evidencia experimental."""
     hay_experimento = incluir_experimentos and any(
         st.session_state.get(clave)
         for clave in (
@@ -229,6 +204,8 @@ def render_resultados_regresion(mostrar_figura, *, incluir_experimentos=False) -
     elif not hay_experimento:
         st.info("Todavía no hay modelos entrenados en este contexto.")
     if hay_experimento:
-        from .experimentos_lab3 import mostrar_experimento_guardado
+        from framework_ia.ui.vistas.vista_experimentos_regresion import (
+            mostrar_experimento_guardado,
+        )
 
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)

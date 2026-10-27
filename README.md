@@ -23,7 +23,10 @@ DataFrame         (framework_ia/datos/dataframe.py · operaciones tabulares y es
 | `framework_ia/modelos/supervisado/` | `Supervisado`, `Clasificacion` y `Regresion` (`Progresion`) con preprocesamiento ajustado solo en train |
 | `framework_ia/visualizacion.py` | `VisualizadorDatos`, `VisualizadorNoSupervisado`, `VisualizadorSupervisado` y `VisualizadorRegresion` |
 | `framework_ia/exportacion.py` y `framework_ia/evidencia.py` | Exportación y verificación de evidencia reproducible de experimentos supervisados |
-| `framework_ia/ui/` | Interfaz interactiva **Nexo IA** en Streamlit (`streamlit_app.py`) |
+| `framework_ia/ui/modelos/` | Capa de modelos de estado, catálogo de vistas, disponibilidad y validación de procedencia |
+| `framework_ia/ui/controladores/` | Capa de casos de uso y controladores de fuentes, no supervisado, clasificación y regresión |
+| `framework_ia/ui/vistas/` | Capa de presentación en Streamlit (tema, navegación, controles y vistas por dominio) |
+| `framework_ia/ui/streamlit_app.py` | Punto de entrada y enrutador principal de la interfaz **Nexo IA** |
 | `scripts/` | Ejecución reproducible por línea de comandos, informes y empaquetado |
 | `tests/` | Suite de pruebas unitarias e integrales del framework y la interfaz |
 

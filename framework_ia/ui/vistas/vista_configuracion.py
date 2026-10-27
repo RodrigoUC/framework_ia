@@ -1,0 +1,214 @@
+"""Vistas de configuración para flujos supervisados y no supervisados."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
+import pandas as pd
+import streamlit as st
+
+from framework_ia.datos.eda import EDA
+from framework_ia.ui.controladores.controlador_fuentes import _usar_particion
+from framework_ia.ui.controladores.controlador_no_supervisado import (
+    _columnas_numericas,
+)
+from framework_ia.ui.modelos.catalogo_vistas import TAREAS
+from framework_ia.ui.modelos.estado_clasificacion import (
+    configuracion_clasificacion_actual,
+)
+from framework_ia.ui.modelos.estado_regresion import (
+    configuracion_regresion_actual,
+)
+from framework_ia.ui.modelos.estado_sesion import inicializar_configuracion
+
+
+def configurar_supervisado(datos: pd.DataFrame) -> None:
+    """Renderiza los controles de preparación y protocolo para tareas supervisadas."""
+    tarea = st.radio(
+        "Tarea",
+        list(TAREAS),
+        index=None,
+        format_func=TAREAS.get,
+        key="sup_tarea",
+        persist_state="session",
+        horizontal=True,
+    )
+    if len(datos.columns) < 2:
+        st.warning("Se necesita un objetivo y al menos una variable predictora.")
+        return
+    if tarea is None:
+        st.info(
+            "Seleccione Clasificación para clases o Regresión para cantidades."
+        )
+        return
+    target = st.selectbox(
+        "Variable objetivo (target)",
+        datos.columns.tolist(),
+        key="sup_target",
+        persist_state="session",
+    )
+    st.multiselect(
+        "Variables predictoras",
+        [col for col in datos if col != target],
+        key="sup_features",
+        persist_state="session",
+    )
+    with st.expander("Distribución del objetivo"):
+        serie = datos[target]
+        st.caption(f"Filas: {len(serie)} · Nulos: {int(serie.isna().sum())}")
+        if tarea == "clasificacion":
+            resumen, _ = EDA(dataframe=datos).balance_objetivo(target)
+            if resumen.empty:
+                resumen = (
+                    serie.value_counts(dropna=False)
+                    .rename("Cantidad")
+                    .to_frame()
+                )
+        else:
+            resumen = serie.describe().rename("Valor").to_frame()
+        st.dataframe(resumen, width="stretch")
+    if tarea == "regresion":
+        simples = datos[st.session_state["sup_features"]].select_dtypes(
+            include="number"
+        )
+        st.selectbox(
+            "Predictor de regresión lineal simple",
+            simples.columns.tolist(),
+            key="sup_feature_simple",
+            persist_state="session",
+        )
+    st.markdown("#### Partición y reproducibilidad")
+    if st.session_state.get("sup_aviso_particion"):
+        st.info(st.session_state["sup_aviso_particion"])
+    externa = bool(
+        st.session_state.get("particion_global") is not None
+        and st.session_state.get("sup_usar_particion_global")
+    )
+    st.slider(
+        "Tamaño de prueba (%)",
+        10,
+        60,
+        step=5,
+        key="sup_test_size",
+        persist_state="session",
+        disabled=externa,
+    )
+    st.number_input(
+        "Semilla",
+        min_value=0,
+        max_value=10_000,
+        step=1,
+        key="sup_random_state",
+        persist_state="session",
+        disabled=externa,
+    )
+    if tarea == "clasificacion":
+        st.checkbox(
+            "Estratificar por target",
+            key="sup_strat",
+            persist_state="session",
+            disabled=externa,
+        )
+    if st.session_state.get("particion_global") is not None:
+        st.checkbox(
+            "Usar partición calculada",
+            key="sup_usar_particion_global",
+            persist_state="session",
+            on_change=_usar_particion,
+        )
+    st.markdown("#### Preparación aprendida solo con entrenamiento")
+    for etiqueta, clave in (
+        ("Codificar categóricas", "incluir_categoricas"),
+        ("Imputar nulos de predictores", "imputar"),
+        ("Escalar predictores numéricos", "escalar"),
+    ):
+        st.checkbox(etiqueta, key=f"sup_{clave}", persist_state="session")
+
+
+def configurar_clasificacion(
+    datos: pd.DataFrame, mostrar_figura: Callable | None = None
+) -> dict | None:
+    """Muestra la configuración supervisada compartida y retorna la configuración de clasificación."""
+    del mostrar_figura
+    inicializar_configuracion(datos, st.session_state)
+    configurar_supervisado(datos)
+    return configuracion_clasificacion_actual(datos, st.session_state)
+
+
+def configurar_regresion(datos: pd.DataFrame) -> dict | None:
+    """Muestra la configuración supervisada compartida y retorna la configuración de regresión."""
+    inicializar_configuracion(datos, st.session_state)
+    configurar_supervisado(datos)
+    return configuracion_regresion_actual(datos, st.session_state)
+
+
+def _configurar_modelos(datos: pd.DataFrame) -> dict:
+    """Recopila una configuración común para todos los modelos no supervisados."""
+    st.markdown("### Configuración del análisis")
+    incluir_categoricas = st.checkbox(
+        "Codificar variables categóricas",
+        value=False,
+        key="modelo_categoricas",
+    )
+    if incluir_categoricas:
+        opciones = datos.columns.tolist()
+        predeterminadas = datos.columns.tolist()
+    else:
+        opciones = _columnas_numericas(datos)
+        predeterminadas = opciones
+    guardadas = st.session_state.get("modelo_features", [])
+    if any(columna not in opciones for columna in guardadas):
+        del st.session_state["modelo_features"]
+    features = st.multiselect(
+        "Variables de análisis",
+        options=opciones,
+        default=predeterminadas,
+        key="modelo_features",
+    )
+    estandarizar = st.checkbox(
+        "Estandarizar para modelado",
+        value=True,
+        key="modelo_estandarizar",
+    )
+    maximo = min(len(datos), 3000)
+    if maximo > 20:
+        filas = st.slider(
+            "Máximo de filas por modelo",
+            min_value=20,
+            max_value=maximo,
+            value=maximo,
+            step=max(1, maximo // 20),
+            key="modelo_filas",
+        )
+    else:
+        filas = maximo
+    return {
+        "features": features,
+        "incluir_categoricas": incluir_categoricas,
+        "estandarizar": estandarizar,
+        "filas": filas,
+    }
+
+
+def _render_regresion() -> None:
+    """Orienta hacia las vistas de configuración y modelos de regresión."""
+    st.info(
+        "Abra Configuración para elegir target y predictores; "
+        "después seleccione un modelo o Experimentos Lab03 en la navegación."
+    )
+
+
+def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
+    """Ofrece un acceso directo cuando falta configurar variables de clasificación."""
+    st.info(
+        "Seleccione al menos una variable predictora en Configuración."
+        if sin_features
+        else "La clasificación necesita al menos una variable objetivo y una "
+        "variable predictora. Revise la configuración compartida antes de continuar."
+    )
+    if st.button(
+        "Abrir configuración de clasificación",
+        key="abrir_configuracion_clasificacion",
+    ):
+        st.session_state["vista_activa"] = "clasificacion_configuracion"
+        st.rerun()

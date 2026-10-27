@@ -1,30 +1,37 @@
-"""Benchmark explícito: selección por validación y prueba final separada."""
+"""Vista de ejecución y evidencia experimental de regresión."""
+
+from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
 
-from ..exportacion import (
+from framework_ia.exportacion import (
     construir_archivos_experimento,
     construir_zip_experimento,
 )
-from ..utils.configuracion_regresion import (
+from framework_ia.ui.controladores.controlador_regresion import (
+    argumentos_comunes,
+    crear_regresor,
+    snapshot_ejecucion,
+)
+from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
+from framework_ia.ui.modelos.estado_sesion import firma_parametros
+from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.vista_regresion import (
+    mostrar_resultado_modelo,
+    preparacion_regresion_segura,
+)
+from framework_ia.utils.configuracion_regresion import (
     ALGORITMOS_LAB3,
     configuraciones_experimento_regresion,
 )
-from ..visualizacion import VisualizadorRegresion
-from .estado_clasificacion import firma_parametros
-from .flujo import disponibilidad_supervisada
-from .guia_flujo import mostrar_faltantes
-from .lab3 import (
-    argumentos_comunes,
-    crear_regresor,
-    mostrar_resultado_modelo,
-    preparacion_regresion_segura,
-    snapshot_ejecucion,
-)
+from framework_ia.visualizacion import VisualizadorRegresion
 
 
-def mostrar_experimento_guardado(mostrar_figura, *, solo_comparacion=False) -> None:
+def mostrar_experimento_guardado(
+    mostrar_figura, *, solo_comparacion=False
+) -> None:
+    """Presenta los resultados de validación, el ganador y los paquetes de descarga."""
     intento = st.session_state.get("resultado_lab3_intento_experimento")
     if intento:
         st.warning(
@@ -96,10 +103,14 @@ def mostrar_experimento_guardado(mostrar_figura, *, solo_comparacion=False) -> N
         )
     if ganador is not None and not solo_comparacion:
         mostrar_resultado_modelo(
-            {**snapshot, "resultado": ganador}, mostrar_figura, clave="lab3_ganador"
+            {**snapshot, "resultado": ganador},
+            mostrar_figura,
+            clave="lab3_ganador",
         )
     archivos = construir_archivos_experimento(
-        resultado, argumentos=snapshot["argumentos"], dataset=snapshot["dataset"]
+        resultado,
+        argumentos=snapshot["argumentos"],
+        dataset=snapshot["dataset"],
     )
     st.download_button(
         "Descargar evidencia del experimento (ZIP)",
@@ -125,6 +136,7 @@ def mostrar_experimento_guardado(mostrar_figura, *, solo_comparacion=False) -> N
 
 
 def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
+    """Renderiza los controles y ejecuta el benchmark de regresión."""
     st.caption(
         "14 configuraciones · 9 algoritmos. Validación selecciona; prueba evalúa a los ganadores."
     )
@@ -203,12 +215,16 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
                 resultado = crear_regresor(datos, configuracion).experimentar(
                     **argumentos_comunes(configuracion), **opciones
                 )
-            snapshot = snapshot_ejecucion(resultado, datos, configuracion, opciones)
+            snapshot = snapshot_ejecucion(
+                resultado, datos, configuracion, opciones
+            )
             if resultado.mejor_algoritmo in resultado.mejores:
                 st.session_state["resultado_lab3_experimento"] = snapshot
                 st.session_state.pop("resultado_lab3_intento_experimento", None)
             else:
-                st.session_state["resultado_lab3_intento_experimento"] = snapshot
+                st.session_state["resultado_lab3_intento_experimento"] = (
+                    snapshot
+                )
             st.session_state.pop("error_lab3_experimento", None)
             st.rerun()
         except (ValueError, TypeError, RuntimeError) as exc:

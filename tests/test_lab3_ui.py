@@ -16,8 +16,8 @@ from framework_ia.datos.particion import ConfiguracionParticion, Particionador
 from framework_ia.exportacion import construir_archivos_modelo
 from framework_ia.modelos.supervisado import Regresion
 from framework_ia.ui import streamlit_app
-from framework_ia.ui.configuracion_regresion import configuracion_regresion_actual
-from framework_ia.ui.estado_regresion import (
+from framework_ia.ui.modelos.estado_regresion import configuracion_regresion_actual
+from framework_ia.ui.modelos.estado_regresion import (
     limpiar_resultados_regresion,
     sincronizar_contexto_regresion,
 )
@@ -80,7 +80,7 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
     with (
         patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
         patch(
-            "framework_ia.ui.lab3.mostrar_resultado_modelo",
+            "framework_ia.ui.vistas.vista_regresion.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in comparison"),
         ),
         patch.object(
@@ -235,7 +235,7 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     with (
         patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
         patch(
-            "framework_ia.ui.experimentos_lab3.mostrar_resultado_modelo",
+            "framework_ia.ui.vistas.vista_experimentos_regresion.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in results"),
         ),
     ):
@@ -338,7 +338,7 @@ def test_branding_page_title_no_data_and_header_share_app_name():
 
 
 def test_experiment_summary_precedes_chart_then_evidence_table_and_downloads():
-    from framework_ia.ui import experimentos_lab3
+    from framework_ia.ui.vistas import vista_experimentos_regresion as experimentos_lab3
 
     tabla = pd.DataFrame(
         [
