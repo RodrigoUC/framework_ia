@@ -14,7 +14,11 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
-from sklearn.feature_selection import SelectKBest, mutual_info_classif
+from sklearn.feature_selection import (
+    SelectKBest,
+    mutual_info_classif,
+    mutual_info_regression,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -239,10 +243,15 @@ class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
             k = int(self.seleccion_k)
             if k < 1:
                 raise ValueError("seleccion_k debe ser un entero positivo.")
+            y_arr = np.asarray(y)
+            if pd.api.types.is_float_dtype(y_arr):
+                scorer = partial(mutual_info_regression, random_state=self.random_state)
+            else:
+                scorer = partial(mutual_info_classif, random_state=self.random_state)
             self.selector_ = SelectKBest(
-                partial(mutual_info_classif, random_state=self.random_state),
+                scorer,
                 k=min(k, completas.shape[1]),
-            ).fit(completas, np.asarray(y))
+            ).fit(completas, y_arr)
         return self
 
     def transform(self, X):

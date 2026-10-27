@@ -117,7 +117,9 @@ class Particionador:
             raise ValueError("El porcentaje de prueba debe estar entre 0 y 1.")
         if not 0 <= configuracion.porcentaje_validacion < 1:
             raise ValueError("El porcentaje de validación debe estar entre 0 y 1.")
-        porcentaje_resto = configuracion.porcentaje_test + configuracion.porcentaje_validacion
+        porcentaje_resto = round(
+            configuracion.porcentaje_test + configuracion.porcentaje_validacion, 8
+        )
         if not 0 < porcentaje_resto < 1:
             raise ValueError("La suma de prueba y validación debe estar entre 0 y 1.")
 
@@ -140,7 +142,9 @@ class Particionador:
         validacion = None
         distribucion_validacion = None
         if configuracion.porcentaje_validacion > 0:
-            proporcion_validacion = configuracion.porcentaje_validacion / porcentaje_resto
+            proporcion_validacion = round(
+                configuracion.porcentaje_validacion / porcentaje_resto, 8
+            )
             estrato_resto, advertencia_resto = self._resolver_estrato(
                 datos.loc[indice_resto], columna
             )
@@ -164,7 +168,7 @@ class Particionador:
             train=train,
             test=test,
             validacion=validacion,
-            porcentaje_train=1 - porcentaje_resto,
+            porcentaje_train=round(1 - porcentaje_resto, 8),
             porcentaje_test=configuracion.porcentaje_test,
             porcentaje_validacion=configuracion.porcentaje_validacion,
             columna_estratificacion=columna,
