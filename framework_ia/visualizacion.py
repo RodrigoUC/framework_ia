@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -95,38 +97,6 @@ class VisualizadorRegresion:
         )
 
 
-def _posiciones_etiquetas_acp(
-    cargas: pd.DataFrame,
-) -> dict[object, tuple[float, float, int]]:
-    """Distributes labels in paper coordinates with pixel-based vertical spacing."""
-    grupos: dict[int, list[tuple[object, float]]] = {-1: [], 1: []}
-    for variable, fila in cargas.iterrows():
-        x, y = float(fila.iloc[0]), float(fila.iloc[1])
-        lado = 1 if x >= 0 else -1
-        grupos[lado].append((variable, y))
-
-    posiciones: dict[object, tuple[float, float, int]] = {}
-    bandas = {-1: (0.54, 0.91), 1: (0.09, 0.46)}
-    for lado, elementos in grupos.items():
-        ordenados = sorted(
-            elementos, key=lambda elemento: (elemento[1], str(elemento[0]))
-        )
-        if not ordenados:
-            continue
-        minimo_y, limite_y = bandas[lado]
-        separacion = (
-            (limite_y - minimo_y) / (len(ordenados) - 1) if len(ordenados) > 1 else 0
-        )
-        ys = [minimo_y + indice * separacion for indice in range(len(ordenados))]
-        posiciones.update(
-            {
-                variable: (0.42 if lado < 0 else 0.58, y, lado)
-                for (variable, _), y in zip(ordenados, ys, strict=True)
-            }
-        )
-    return posiciones
-
-
 class VisualizadorNoSupervisado:
     """Fábrica de figuras Plotly para los resultados no supervisados."""
 
@@ -205,7 +175,7 @@ class VisualizadorNoSupervisado:
     def sobreposicion_acp(
         resultado: ResultadoACP, max_variables: int = 20
     ) -> go.Figure:
-        """Superpone observaciones y cargas en un biplot comparable."""
+        """Superpone observaciones y vectores de variables sobre el círculo de correlación (Biplot)."""
         VisualizadorNoSupervisado._validar_acp_2d(resultado)
         coordenadas = resultado.coordenadas.iloc[:, :2].copy()
         cargas = resultado.cargas.iloc[:, :2].copy()
@@ -215,19 +185,35 @@ class VisualizadorNoSupervisado:
 
         escala = coordenadas.abs().max(axis=0).replace(0, 1)
         puntos = coordenadas.divide(escala, axis="columns")
-        posiciones = _posiciones_etiquetas_acp(cargas)
-        figura = go.Figure(
+
+        figura = go.Figure()
+
+        figura.add_shape(
+            type="circle",
+            x0=-1,
+            y0=-1,
+            x1=1,
+            y1=1,
+            line=dict(color=COLOR_SECUNDARIO, width=1.5, dash="dash"),
+        )
+
+        figura.add_trace(
             go.Scatter(
                 x=puntos.iloc[:, 0],
                 y=puntos.iloc[:, 1],
                 mode="markers",
-                marker=dict(color="gray", size=7, opacity=0.55),
-                showlegend=False,
+                marker=dict(color="rgba(150, 160, 175, 0.6)", size=6),
+                name="Observaciones",
+                showlegend=True,
             )
         )
+
         for variable, fila in cargas.iterrows():
             x, y = float(fila.iloc[0]), float(fila.iloc[1])
-            etiqueta_x, etiqueta_y, lado = posiciones[variable]
+            norma = np.hypot(x, y) or 1.0
+            dx = (x / norma) * 0.08
+            dy = (y / norma) * 0.08
+
             figura.add_annotation(
                 x=x,
                 y=y,
@@ -239,55 +225,39 @@ class VisualizadorNoSupervisado:
                 ayref="y",
                 showarrow=True,
                 arrowhead=2,
+                arrowsize=1.2,
                 arrowcolor=COLOR_PRIMARIO,
-                arrowwidth=1.4,
-            )
-            figura.add_shape(
-                type="line",
-                x0=0.2 + (x + 1.9) / 3.8 * 0.6,
-                y0=0.08 + (y + 1.9) / 3.8 * 0.84,
-                x1=0.4 if lado < 0 else 0.6,
-                y1=etiqueta_y,
-                xref="paper",
-                yref="paper",
-                line=dict(color="gray", width=0.8),
-                layer="below",
+                arrowwidth=1.6,
             )
             figura.add_annotation(
-                x=etiqueta_x,
-                y=etiqueta_y,
-                xref="paper",
-                yref="paper",
+                x=x + dx,
+                y=y + dy,
                 text=str(variable),
                 showarrow=False,
-                xanchor="left" if lado > 0 else "right",
+                xanchor="left" if x >= 0 else "right",
                 yanchor="middle",
-                font=dict(size=10),
+                font=dict(size=11),
             )
-        figura.add_hline(y=0, line_dash="dash", line_color="gray")
-        figura.add_vline(x=0, line_dash="dash", line_color="gray")
+
+        figura.add_hline(y=0, line_dash="dash", line_color="gray", line_width=1)
+        figura.add_vline(x=0, line_dash="dash", line_color="gray", line_width=1)
+
         figura.update_xaxes(
-            range=[-1.9, 1.9],
+            range=[-1.25, 1.25],
             title=coordenadas.columns[0],
-            domain=[0.2, 0.8],
-            constrain="domain",
+            zeroline=False,
         )
         figura.update_yaxes(
-            range=[-1.9, 1.9],
+            range=[-1.25, 1.25],
             title=coordenadas.columns[1],
             scaleanchor="x",
             scaleratio=1,
-            domain=[0.08, 0.92],
-            constrain="domain",
-        )
-        max_etiquetas_lado = max(
-            sum(lado == lado_etiqueta for _, _, lado_etiqueta in posiciones.values())
-            for lado in (-1, 1)
+            zeroline=False,
         )
         figura.update_layout(
-            title="Sobreposición de observaciones y variables",
-            height=max(440, 260 + 26 * max_etiquetas_lado),
-            margin=dict(l=70, r=70, t=60, b=60),
+            title="Sobreposición de observaciones y variables (Biplot ACP)",
+            height=560,
+            margin=dict(l=60, r=60, t=60, b=60),
         )
         return figura
 
