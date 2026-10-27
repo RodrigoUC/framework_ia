@@ -337,35 +337,6 @@ class Regresion(Supervisado):
     def random_forest(self, **kwargs):
         return self.entrenar(algoritmo="RF", **kwargs)
 
-    Lasso = lasso
-    LassoCV = lasso_cv
-    Ridge = ridge
-    RidgeCV = ridge_cv
-    SVR = svr
-    DT = arbol_decision
-    RF = random_forest
-
-    def RL(self, **kwargs):
-        """Ajusta y evalúa un modelo de regresión logística."""
-        from .clasificacion import Clasificacion
-
-        self._reiniciar_resultados()
-        clasificador = Clasificacion(
-            dataframe=self.datos,
-            target=self.target,
-            features=self.features,
-        )
-        resultado = clasificador.regresion_logistica(**kwargs)
-        self.target = clasificador.target
-        self.features = clasificador.features
-        self.resultado = resultado
-        self.modelo = clasificador.modelo
-        self._preparados = clasificador._preparados
-        self.exactitud = clasificador.exactitud
-        return resultado
-
-    regresion_logistica = logistic_regression = rl = RL
-
     def __str__(self) -> str:
         self._definir_target()
         base = (
@@ -380,4 +351,3 @@ class Regresion(Supervisado):
         return base
 
 
-Progresion = Regresion

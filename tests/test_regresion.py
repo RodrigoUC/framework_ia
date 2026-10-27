@@ -9,7 +9,7 @@ from pandas.testing import assert_series_equal
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from framework_ia import Regresion
-from framework_ia.modelos.supervisado import Progresion, Supervisado
+from framework_ia.modelos.supervisado import Supervisado
 from framework_ia.resultados import ResultadoParticion, ResultadoRegresion
 
 
@@ -44,7 +44,6 @@ class RegresionTests(unittest.TestCase):
 
     def test_inheritance_aliases_default_target_and_frozen_result(self):
         self.assertTrue(issubclass(Regresion, Supervisado))
-        self.assertIs(Progresion, Regresion)
         for method in ("lineal_multiple", "RLM", "entrenar"):
             with self.subTest(method=method):
                 model = Regresion(dataframe=self.data)
@@ -67,14 +66,6 @@ class RegresionTests(unittest.TestCase):
                     Regresion(dataframe=self.data, features=["a"]), method
                 )()
                 self.assertEqual(result.algoritmo, "RLS")
-        with self.assertRaises(TypeError):
-            Regresion(dataframe=self.data).RL()
-        datos_logisticos = self.data.assign(target=["clase_0", "clase_1"] * 20)
-        modelo_rl = Regresion(dataframe=datos_logisticos)
-        resultado_rl = modelo_rl.RL()
-        self.assertEqual(resultado_rl.algoritmo, "RL")
-        self.assertIn("accuracy", resultado_rl.metricas)
-        self.assertIs(modelo_rl.evaluar(), resultado_rl)
 
     def test_metrics_and_residuals_use_original_target_units(self):
         result = Regresion(dataframe=self.data, features=["a"]).RLS()

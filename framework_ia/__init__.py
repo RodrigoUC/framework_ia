@@ -1,5 +1,6 @@
 """Framework modular de análisis exploratorio y aprendizaje automático (Nexo IA)."""
 
+from . import datasets
 from .datos import (
     CargadorCSV,
     ConfiguracionCSV,
@@ -11,12 +12,10 @@ from .datos import (
     PreprocesadorNoSupervisado,
     PreprocesadorSupervisado,
 )
-from . import datasets
 from .modelos import (
     Clasificacion,
     Cluster,
     NoSupervisado,
-    Progresion,
     Regresion,
     Supervisado,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "Particionador",
     "PreprocesadorNoSupervisado",
     "PreprocesadorSupervisado",
-    "Progresion",
     "Regresion",
     "ResultadoACP",
     "ResultadoClasificacion",

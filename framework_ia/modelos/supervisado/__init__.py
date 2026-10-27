@@ -2,6 +2,6 @@
 
 from .base import Supervisado
 from .clasificacion import Clasificacion
-from .regresion import Progresion, Regresion
+from .regresion import Regresion
 
-__all__ = ["Supervisado", "Clasificacion", "Regresion", "Progresion"]
+__all__ = ["Supervisado", "Clasificacion", "Regresion"]
