@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from framework_ia import Regresion
-from framework_ia.datos.concrete import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
+from framework_ia.datasets.concrete import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
 from framework_ia.evidencia import cargar_evidencia
 from scripts import ejecutar_regresion
 from scripts import generar_informe as informe

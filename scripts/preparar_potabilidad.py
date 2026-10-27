@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from framework_ia.datos.potabilidad import preparar_potabilidad
+from framework_ia.datasets.potabilidad import preparar_potabilidad
 
 RAIZ = Path(__file__).resolve().parents[1]
 

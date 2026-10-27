@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from framework_ia.datos.concrete import preparar_concrete
+from framework_ia.datasets.concrete import preparar_concrete
 
 RAIZ = Path(__file__).resolve().parents[1]
 

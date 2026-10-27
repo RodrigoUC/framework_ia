@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from framework_ia.datos.diabetes import cargar_diabetes_regresion, preparar_diabetes
+from framework_ia.datasets.diabetes import cargar_diabetes_regresion, preparar_diabetes
 
 RAIZ = Path(__file__).resolve().parents[1]
 

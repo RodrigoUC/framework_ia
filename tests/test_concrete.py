@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datos import concrete
+from framework_ia.datasets import concrete
 from scripts.preparar_concrete import crear_parser, ejecutar, main
 
 

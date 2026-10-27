@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.datos.diabetes import (
+from framework_ia.datasets.diabetes import (
     COLUMNAS_ORIGINALES,
     PREDICTORAS_DIABETES,
     cargar_diabetes_regresion,

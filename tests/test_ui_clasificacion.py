@@ -996,7 +996,7 @@ def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
 
 
 def _fuentes_diabetes_sinteticas(tmp_path):
-    from framework_ia.datos.diabetes import PREDICTORAS_DIABETES
+    from framework_ia.datasets.diabetes import PREDICTORAS_DIABETES
 
     filas = 60
     datos = pd.DataFrame(
@@ -1049,7 +1049,7 @@ def _app_fuente_diabetes(datos, sha, *, identidad="diabetes-fixture"):
 def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains(
     tmp_path,
 ):
-    from framework_ia.datos.diabetes import PREDICTORAS_DIABETES
+    from framework_ia.datasets.diabetes import PREDICTORAS_DIABETES
     from framework_ia.datos.particion import Particionador
     from framework_ia.ui.modelos import perfil_diabetes
     from framework_ia.utils import ConfiguracionParticion

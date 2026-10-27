@@ -16,7 +16,7 @@ from typing import Any
 
 import numpy as np
 
-from framework_ia.datos.concrete import (
+from framework_ia.datasets.concrete import (
     COLUMNAS_CONCRETE,
     PREDICTORAS_CONCRETE,
     validar_preparacion_concrete,

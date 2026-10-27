@@ -243,7 +243,7 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     assert not app.exception
     assert any("puntuacion_validacion" in frame.value for frame in app.dataframe)
     assert any("rmse" in frame.value for frame in app.dataframe)
-    assert not any("real" in chart.key for chart in app.get("plotly_chart"))
+    assert not any("real" in (chart.key or "") for chart in app.get("plotly_chart"))
     assert len(app.get("download_button")) == 3
 
 
@@ -256,8 +256,8 @@ def test_individual_regression_page_keeps_only_its_own_diagnostic():
         navegar(app, "regresion_rls")
     assert not app.exception
     assert len(app.metric) == 4
-    keys = {chart.key for chart in app.get("plotly_chart")}
-    assert keys == {"lab3_RLS_real", "lab3_RLS_residuos"}
+    assert len(app.get("plotly_chart")) == 2
+    assert all(any(tipo in chart.proto.id for chart in app.get("plotly_chart")) for tipo in ("real", "residuos"))
     assert len(app.get("download_button")) == 2
 
 

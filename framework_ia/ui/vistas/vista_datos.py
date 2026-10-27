@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from framework_ia.datos.diabetes import PREDICTORAS_DIABETES
+from framework_ia.datasets.diabetes import PREDICTORAS_DIABETES
 from framework_ia.datos.eda import EDA
 from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
 from framework_ia.datos.particion import ConfiguracionParticion, Particionador

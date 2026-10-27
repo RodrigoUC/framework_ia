@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from framework_ia.datos.diabetes import (
+from framework_ia.datasets.diabetes import (
     PREDICTORAS_DIABETES,
     cargar_diabetes_regresion,
 )

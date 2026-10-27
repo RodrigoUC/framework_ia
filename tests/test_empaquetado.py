@@ -15,8 +15,8 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
-from framework_ia.datos.diabetes import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
-from framework_ia.datos.potabilidad import PREDICTORAS_POTABILIDAD
+from framework_ia.datasets.diabetes import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
+from framework_ia.datasets.potabilidad import PREDICTORAS_POTABILIDAD
 from scripts import ejecutar_clasificacion, preparar_diabetes, preparar_potabilidad
 from scripts.preparar_entrega import crear_parser, ejecutar
 

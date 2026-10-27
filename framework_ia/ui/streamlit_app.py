@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from framework_ia.datos.diabetes import cargar_diabetes_regresion
+from framework_ia.datasets.diabetes import cargar_diabetes_regresion
 from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
 from framework_ia.ui.controladores.controlador_fuentes import (
     _aplicar_preset_regresion,
