@@ -88,7 +88,7 @@ def mostrar_experimento_guardado(
     columnas[1].metric(
         t("sup_rmse_val", "RMSE de validación"), f"{seleccion['puntuacion_validacion']:.4f}"
     )
-    columnas[2].metric("Candidatos comparados", len(resultado.tabla))
+    columnas[2].metric(t("sup_candidatos_comparados", "Candidatos comparados"), len(resultado.tabla))
     mostrar_figura(
         VisualizadorRegresion.comparacion_validacion(resultado.tabla),
         key="lab3_validacion",
@@ -106,12 +106,12 @@ def mostrar_experimento_guardado(
             columna_clave="Familia / Algoritmo",
             columna_valor="Detalle del error",
         )
-    with st.expander("Selecciones por familia y contexto ejecutado"):
+    with st.expander(t("sup_selecciones_contexto_expander", "Selecciones por familia y contexto ejecutado")):
         tab_meta, tab_args, tab_data = _obtener_pestanas(
             [
-                "Metadatos del experimento",
-                "Argumentos de ejecución",
-                "Información del dataset",
+                t("tab_meta_exp", "Metadatos del experimento"),
+                t("tab_args_exp", "Argumentos de ejecución"),
+                t("tab_data_exp", "Información del dataset"),
             ]
         )
         with tab_meta:
@@ -181,10 +181,10 @@ def mostrar_experimento_guardado(
 
 def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     """Renderiza los controles y ejecuta el benchmark de regresión."""
-    st.caption("14 configuraciones · 9 algoritmos")
+    st.caption(t("sup_14_configs_9_algs", "14 configuraciones · 9 algoritmos"))
     segura = preparacion_regresion_segura()
     algoritmos = st.multiselect(
-        "Modelos a evaluar",
+        t("sup_modelos_a_evaluar", "Modelos a evaluar"),
         ALGORITMOS_LAB3,
         default=list(ALGORITMOS_LAB3),
         key="lab3_algoritmos",
@@ -193,13 +193,21 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     estrategia = st.selectbox(
         t("sup_estrategia_val", "Estrategia de validación"),
         ["Automática", "CV", "Holdout"],
+        format_func=lambda x: {
+            "Automática": t("estrategia_auto", "Automática"),
+            "CV": t("estrategia_cv_corta", "CV"),
+            "Holdout": t("estrategia_holdout_corta", "Holdout"),
+        }.get(x, x),
         key="lab3_estrategia",
         persist_state="session",
-        help="Automática usa holdout si la partición aplicada tiene validación; en otro caso usa CV de 5 pliegues. CV explícita reserva la validación externa sin usarla.",
+        help=t(
+            "sup_estrategia_reg_help",
+            "Automática usa holdout si la partición aplicada tiene validación; en otro caso usa CV de 5 pliegues. CV explícita reserva la validación externa sin usarla.",
+        ),
     )
     validation_size = (
         st.slider(
-            "Validación holdout dentro de train (%)",
+            t("sup_val_holdout_train", "Validación holdout dentro de train (%)"),
             10,
             40,
             20,
@@ -227,14 +235,14 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         preparacion=st.session_state.get("dataset_preparacion"),
     )
     mostrar_faltantes(disponibilidad)
-    with st.expander("Modelos y configuraciones que se evaluarán"):
+    with st.expander(t("sup_modelos_configs_eval_expander", "Modelos y configuraciones que se evaluarán")):
         st.dataframe(
             pd.DataFrame(
                 [
                     {
-                        "Algoritmo": alg,
-                        "Configuración": candidato["nombre"],
-                        "Parámetros": str(candidato["parametros"]),
+                        t("col_algoritmo", "Algoritmo"): alg,
+                        t("col_configuracion", "Configuración"): candidato["nombre"],
+                        t("col_parametros", "Parámetros"): str(candidato["parametros"]),
                     }
                     for alg in algoritmos
                     for candidato in catalogo[alg]
@@ -253,7 +261,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         and disponibilidad.lista
     ):
         try:
-            with st.spinner("Evaluando y comparando modelos por validación…"):
+            with st.spinner(t("sup_evaluando_comparando_spinner", "Evaluando y comparando modelos por validación…")):
                 resultado = crear_regresor(datos, configuracion).experimentar(
                     **argumentos_comunes(configuracion), **opciones
                 )
@@ -275,22 +283,22 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     snapshot = st.session_state.get("resultado_lab3_experimento")
     if snapshot and snapshot["firma_parametros"] != firma_parametros(opciones):
         st.info(
-            "Opciones modificadas sin ejecutar. La evidencia corresponde al último experimento exitoso."
+            t("opciones_modificadas_sin_ejecutar", "Opciones modificadas sin ejecutar. La evidencia corresponde al último experimento exitoso.")
         )
     if snapshot:
         st.success(
-            "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados."
+            t("eval_comp_completada", "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados.")
         )
         col_btn, _ = st.columns([1, 1])
         with col_btn:
             st.button(
-                "Ir a Resultados de regresión",
+                t("btn_ir_a_res_reg", "Ir a Resultados de regresión"),
                 key="btn_ir_a_resultados_regresion",
                 type="primary",
                 on_click=ir_a,
                 args=("lab3_resultados",),
             )
-        with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
+        with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
             mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
     else:
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)

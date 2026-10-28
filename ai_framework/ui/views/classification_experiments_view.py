@@ -56,17 +56,22 @@ def render_experimentos(
     )
     catalogo = configuraciones_experimento()
     with st.expander(
-        f"Catálogo de modelos ({TOTAL_CANDIDATOS} configuraciones en 5 familias)"
+        t(
+            "cat_modelos_expander",
+            f"Catálogo de modelos ({TOTAL_CANDIDATOS} configuraciones en 5 familias)",
+            total=TOTAL_CANDIDATOS,
+            familias=5,
+        )
     ):
         _mostrar_dataframe(
             pd.DataFrame(
                 [
                     {
-                        "Algoritmo": algoritmo,
-                        "Configuración": candidato["nombre"],
-                        "Parámetros solicitados": _json(candidato["parametros"])
+                        t("col_algoritmo", "Algoritmo"): algoritmo,
+                        t("col_configuracion", "Configuración"): candidato["nombre"],
+                        t("col_parametros_solicitados", "Parámetros solicitados"): _json(candidato["parametros"])
                         if candidato["parametros"]
-                        else "Estándar del estimador",
+                        else t("param_estandar_estimador", "Estándar del estimador"),
                     }
                     for algoritmo, candidatos in catalogo.items()
                     for candidato in candidatos
@@ -88,11 +93,14 @@ def render_experimentos(
     estrategia = st.radio(
         t("sup_estrategia_val", "Estrategia de validación"),
         list(ESTRATEGIAS),
-        format_func=ESTRATEGIAS.get,
+        format_func=lambda k: t(f"estrategia_{k}", ESTRATEGIAS.get(k, k)),
         key="lab2_benchmark_estrategia",
         horizontal=True,
-        help="La validación cruzada es la usada en el informe: cada configuración se "
-        "entrena 5 veces sobre train y se promedia el F1 macro.",
+        help=t(
+            "estrategia_cv_help",
+            "La validación cruzada es la usada en el informe: cada configuración se "
+            "entrena 5 veces sobre train y se promedia el F1 macro.",
+        ),
     )
     particion = configuracion.get("particion_global")
     validacion_externa = (
@@ -110,50 +118,86 @@ def render_experimentos(
                 else len(particion.validacion)
             )
             st.caption(
-                f"Entrenamiento: {filas_train} filas divididas en {FOLDS_LAB2} pliegues "
-                f"estratificados · Prueba reservada: {len(particion.test)} filas"
+                t(
+                    "cap_cv_part",
+                    f"Entrenamiento: {filas_train} filas divididas en {FOLDS_LAB2} pliegues "
+                    f"estratificados · Prueba reservada: {len(particion.test)} filas",
+                    train=filas_train,
+                    folds=FOLDS_LAB2,
+                    test=len(particion.test),
+                )
             )
         else:
             st.caption(
-                f"Train ({1 - configuracion['test_size']:.0%}) se divide en {FOLDS_LAB2} pliegues "
-                f"estratificados; prueba ({configuracion['test_size']:.0%}) se usa una vez al final."
+                t(
+                    "cap_cv_nopart",
+                    f"Train ({1 - configuracion['test_size']:.0%}) se divide en {FOLDS_LAB2} pliegues "
+                    f"estratificados; prueba ({configuracion['test_size']:.0%}) se usa una vez al final.",
+                    train_pct=1 - configuracion["test_size"],
+                    folds=FOLDS_LAB2,
+                    test_pct=configuracion["test_size"],
+                )
             )
     elif validacion_externa:
         validation_size = None
         derecha.caption(
-            f"Validación reutilizada: {len(particion.validacion)} filas. "
-            "Se conservan los índices de la partición compartida."
+            t(
+                "cap_holdout_ext_der",
+                f"Validación reutilizada: {len(particion.validacion)} filas. "
+                "Se conservan los índices de la partición compartida.",
+                val=len(particion.validacion),
+            )
         )
         st.caption(
-            f"Entrenamiento: {len(particion.train)} filas · "
-            f"Validación: {len(particion.validacion)} filas · "
-            f"Prueba reservada: {len(particion.test)} filas"
+            t(
+                "cap_holdout_ext",
+                f"Entrenamiento: {len(particion.train)} filas · "
+                f"Validación: {len(particion.validacion)} filas · "
+                f"Prueba reservada: {len(particion.test)} filas",
+                train=len(particion.train),
+                val=len(particion.validacion),
+                test=len(particion.test),
+            )
         )
     else:
         validation_size = (
             derecha.slider(
-                "Validación sobre entrenamiento (%)",
+                t("slider_val_sobre_train", "Validación sobre entrenamiento (%)"),
                 10,
                 30,
                 20,
                 5,
                 key="lab2_benchmark_validacion",
                 persist_state="session",
-                help="Fracción del train restante tras separar prueba. No es una fracción del dataset completo.",
+                help=t(
+                    "slider_val_sobre_train_help",
+                    "Fracción del train restante tras separar prueba. No es una fracción del dataset completo.",
+                ),
             )
             / 100
         )
         if particion is not None:
             st.caption(
-                f"Validación se extrae del train compartido ({len(particion.train)} filas). "
-                f"Prueba conserva sus {len(particion.test)} filas e índices."
+                t(
+                    "cap_holdout_part",
+                    f"Validación se extrae del train compartido ({len(particion.train)} filas). "
+                    f"Prueba conserva sus {len(particion.test)} filas e índices.",
+                    train=len(particion.train),
+                    test=len(particion.test),
+                )
             )
         else:
             test_size = configuracion["test_size"]
             st.caption(
-                "Proporciones previstas antes de redondear y excluir objetivos nulos: "
-                f"train {(1 - test_size) * (1 - validation_size):.0%} · "
-                f"validación {(1 - test_size) * validation_size:.0%} · prueba {test_size:.0%}"
+                t(
+                    "cap_holdout_nopart",
+                    "Proporciones previstas antes de redondear y excluir objetivos nulos: "
+                    f"train {(1 - test_size) * (1 - validation_size):.0%} · "
+                    f"validación {(1 - test_size) * validation_size:.0%} · prueba {test_size:.0%}",
+                    train=(1 - test_size) * (1 - validation_size),
+                    val=(1 - test_size) * validation_size,
+                    test=test_size,
+                )
             )
     opciones = {
         "metrica": metrica,
@@ -231,18 +275,18 @@ def render_experimentos(
         )
     if guardado is not None:
         st.success(
-            "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados."
+            t("eval_comp_completada", "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados.")
         )
         col_btn, _ = st.columns([1, 1])
         with col_btn:
             st.button(
-                "Ir a Resultados de clasificación",
+                t("btn_ir_a_res_clasif", "Ir a Resultados de clasificación"),
                 key="btn_ir_a_resultados_clasificacion",
                 type="primary",
                 on_click=ir_a,
                 args=("lab2_resultados",),
             )
-        with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
+        with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
             render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
     else:
         render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
@@ -289,7 +333,7 @@ def render_resultado_experimento(
     st.markdown(f"#### {t('sup_eval_comp_val', 'Evaluación comparativa · selección en validación')}")
     st.caption(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
-        f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
+        f"Semilla: {contexto['random_state']} · {t('lbl_metrica_ejecutada', 'Métrica ejecutada')}: {METRICAS_SELECCION[metrica]}"
     )
     if (
         metadatos.get("estrategia_seleccion")
@@ -316,7 +360,7 @@ def render_resultado_experimento(
         )
     else:
         st.success(
-            f"{TOTAL_CANDIDATOS} configuraciones evaluadas; 5 ganadores seleccionados por validación."
+            t("sup_evaluadas_ganadores", f"{TOTAL_CANDIDATOS} configuraciones evaluadas; 5 ganadores seleccionados por validación.", total=TOTAL_CANDIDATOS, ganadores=5)
         )
     for algoritmo, detalle in errores_test.items():
         st.error(f"Prueba de {algoritmo}: {detalle}")
@@ -397,7 +441,7 @@ def render_resultado_experimento(
             if st.session_state.get(clave_ganador) not in algoritmos:
                 st.session_state.pop(clave_ganador, None)
             algoritmo = st.selectbox(
-                "Ganador a analizar", algoritmos, key=clave_ganador
+                t("sup_ganador_a_analizar", "Ganador a analizar"), algoritmos, key=clave_ganador
             )
             _diagnostico(
                 resultado.mejores[algoritmo],

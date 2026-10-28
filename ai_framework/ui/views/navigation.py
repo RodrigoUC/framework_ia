@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from html import escape
+import re
 
 import pandas as pd
 import streamlit as st
@@ -326,10 +327,41 @@ def _render_encabezado_atlas(
         _resumen_calidad(datos)
 
 
+def _traducir_mensaje_faltante(mensaje: str) -> str:
+    if obtener_idioma() != "en":
+        return mensaje
+    msg = mensaje
+    prefijo = ""
+    if msg.startswith("Revise Configuración de clasificación:"):
+        prefijo = "Check Classification Configuration:"
+        msg = msg[len("Revise Configuración de clasificación:"):].strip()
+    elif msg.startswith("Revise Configuración de regresión:"):
+        prefijo = "Check Regression Configuration:"
+        msg = msg[len("Revise Configuración de regresión:"):].strip()
+
+    m_cv = re.match(r"CV necesita al menos (\d+) filas por clase en entrenamiento\. Use holdout o aporte más ejemplos\.", msg)
+    if m_cv:
+        msg = f"CV requires at least {m_cv.group(1)} rows per class in training. Use holdout or provide more examples."
+    elif "Se necesitan una columna objetivo y al menos una predictora" in msg:
+        msg = "A target column and at least one predictor are required. Check the source in Data and preparation."
+    elif "Prueba necesita al menos dos filas para R²" in msg:
+        msg = "Test requires at least two rows for R². Increase test size or provide more data."
+    elif msg == "Entrenamiento necesita al menos dos filas.":
+        msg = "Training requires at least two rows."
+    else:
+        m_alg = re.match(r"(.+) necesita al menos cinco filas de entrenamiento para su validación interna\.", msg)
+        if m_alg:
+            msg = f"{m_alg.group(1)} requires at least five training rows for its internal validation."
+
+    if prefijo:
+        return f"{prefijo} {msg}"
+    return msg
+
+
 def mostrar_faltantes(disponibilidad: Disponibilidad) -> None:
     """Presenta advertencias para cada prerrequisito faltante en la vista."""
     for mensaje in disponibilidad.faltantes:
-        st.warning(mensaje)
+        st.warning(_traducir_mensaje_faltante(mensaje))
 
 
 def ir_a(destino: str) -> None:
