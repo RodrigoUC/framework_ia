@@ -1,5 +1,7 @@
 """Modular framework for exploratory data analysis and machine learning (Nexo AI / AI Framework)."""
 
+from __future__ import annotations
+
 import sys
 
 from . import data, datasets, models, ui, utils
@@ -61,13 +63,29 @@ from .utils import (
     VisualizadorNoSupervisado,
     VisualizadorRegresion,
     VisualizadorSupervisado,
+    evidence,
+    evidencia,
+    export,
+    exportacion,
+    resultados,
     results,
+    visualizacion,
     visualization,
 )
 
 # Compatibility aliases
 sys.modules.setdefault("ai_framework.results", results)
+sys.modules.setdefault("ai_framework.resultados", results)
 sys.modules.setdefault("ai_framework.visualization", visualization)
+sys.modules.setdefault("ai_framework.visualizacion", visualization)
+sys.modules.setdefault("ai_framework.export", export)
+sys.modules.setdefault("ai_framework.exportacion", export)
+sys.modules.setdefault("ai_framework.evidence", evidence)
+sys.modules.setdefault("ai_framework.evidencia", evidence)
+
+# Also expose ai_framework.datos and ai_framework.modelos aliases if imported as submodules
+sys.modules.setdefault("ai_framework.datos", data)
+sys.modules.setdefault("ai_framework.modelos", models)
 
 __all__ = [
     # English Primary API
@@ -131,4 +149,12 @@ __all__ = [
     "VisualizadorDatos",
     "VisualizadorNoSupervisado",
     "VisualizadorRegresion",
+    "resultados",
+    "results",
+    "visualizacion",
+    "visualization",
+    "exportacion",
+    "export",
+    "evidencia",
+    "evidence",
 ]

@@ -7,12 +7,23 @@ from pathlib import Path
 import unittest
 
 
-APP_SOURCE = (
+_CANDIDATE = (
     Path(__file__).resolve().parents[1]
-    / "framework_ia"
+    / "ai_framework"
     / "ui"
-    / "vistas"
-    / "navegacion.py"
+    / "views"
+    / "navigation.py"
+)
+APP_SOURCE = (
+    _CANDIDATE
+    if _CANDIDATE.exists()
+    else (
+        Path(__file__).resolve().parents[1]
+        / "framework_ia"
+        / "ui"
+        / "vistas"
+        / "navegacion.py"
+    )
 )
 
 

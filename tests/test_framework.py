@@ -18,24 +18,24 @@ RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from framework_ia.datos.eda import EDA
-from framework_ia.datos.fuentes import CargadorCSV, ConfiguracionCSV
-from framework_ia.datos.particion import ConfiguracionParticion, Particionador
-from framework_ia.datos.preprocesamiento import (
+from ai_framework.data.eda import EDA
+from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
+from ai_framework.data.splitting import ConfiguracionParticion, Particionador
+from ai_framework.data.preprocessing import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
 )
-from framework_ia.modelos.no_supervisado import (
+from ai_framework.models.unsupervised import (
     Cluster,
     NoSupervisado,
 )
 
-from framework_ia.modelos.supervisado import (
+from ai_framework.models.supervised import (
     Clasificacion,
     Regresion,
     Supervisado,
 )
-from framework_ia.visualizacion import VisualizadorNoSupervisado
+from ai_framework.utils.visualization import VisualizadorNoSupervisado
 
 
 class FrameworkNoSupervisadoTests(unittest.TestCase):

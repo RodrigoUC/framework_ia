@@ -1,11 +1,15 @@
-"""Unsupervised learning models."""
+"""Unsupervised learning models: clustering and dimensionality reduction."""
+
+from __future__ import annotations
 
 from .clustering import Cluster, Clustering
-from .unsupervised import NoSupervisado, Unsupervised
+from .unsupervised import DependenciaOpcionalError, NoSupervisado, OptionalDependencyError, Unsupervised
 
 __all__ = [
-    "Clustering",
     "Unsupervised",
-    "Cluster",
+    "Clustering",
+    "OptionalDependencyError",
     "NoSupervisado",
+    "Cluster",
+    "DependenciaOpcionalError",
 ]

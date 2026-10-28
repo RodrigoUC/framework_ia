@@ -1,11 +1,27 @@
 """Data partitioning and splitting module."""
 
-from framework_ia.datos.particion import (
+from __future__ import annotations
+
+from .partition import (
     ConfiguracionParticion,
+    DataSplitter,
     Particionador,
+    PartitionConfig,
+    ResultadoParticion,
+    comprobar_clases,
+    dividir_indices,
+    huella_datos,
+    validar_particion,
 )
 
-DataSplitter = Particionador
-PartitionConfig = ConfiguracionParticion
-
-__all__ = ["DataSplitter", "PartitionConfig", "Particionador", "ConfiguracionParticion"]
+__all__ = [
+    "ConfiguracionParticion",
+    "DataSplitter",
+    "Particionador",
+    "PartitionConfig",
+    "ResultadoParticion",
+    "comprobar_clases",
+    "dividir_indices",
+    "huella_datos",
+    "validar_particion",
+]
