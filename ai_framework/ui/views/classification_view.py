@@ -279,6 +279,7 @@ def render_resultados(
         render_individuales_fn=lambda: _render_modelos_individuales(individuales),
         render_comparativa_fn=lambda: render_resultado_experimento(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación.",
+        clave_contexto="clasificacion",
     )
 
 

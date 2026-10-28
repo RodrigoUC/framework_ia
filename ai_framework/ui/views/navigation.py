@@ -83,8 +83,10 @@ def _seleccionar_vista(disponibilidades=None) -> str:
     vista = st.session_state.setdefault("vista_activa", "datos")
     if vista in {"comparacion", "lab2_experimentos"}:
         vista = "lab2_resultados"
+        st.session_state["res_subvista_clasificacion"] = "comparativa"
     elif vista == "lab3_comparacion":
         vista = "lab3_resultados"
+        st.session_state["res_subvista_regresion"] = "comparativa"
     elif vista in {
         "clasificacion_configuracion",
         "regresion_configuracion",

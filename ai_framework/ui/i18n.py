@@ -94,7 +94,7 @@ TEXTOS = {
         
         # Supervised Configuration
         "cfg_tarea": "Tarea supervisada",
-        "cfg_target": "Variable objetivo (Target)",
+        "cfg_target": "Variable objetivo (target)",
         "cfg_features": "Variables predictoras (Features)",
         "cfg_test_size": "Proporción del conjunto de prueba",
         "cfg_random_state": "Semilla aleatoria (Random State)",

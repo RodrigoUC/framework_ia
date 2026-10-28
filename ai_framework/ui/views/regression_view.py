@@ -246,4 +246,5 @@ def render_resultados_regresion(
         render_individuales_fn=_render_tabla_regresion,
         render_comparativa_fn=lambda: mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay modelos entrenados en este contexto.",
+        clave_contexto="regresion",
     )

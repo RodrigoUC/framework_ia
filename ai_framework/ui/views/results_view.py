@@ -50,20 +50,56 @@ def render_layout_resultados(
     render_individuales_fn: Callable[[], None],
     render_comparativa_fn: Callable[[], None],
     mensaje_sin_datos: str | None = None,
+    clave_contexto: str = "general",
 ) -> None:
-    """Organiza simétricamente la página de resultados en dos columnas verticales cuando coexisten datos."""
+    """Organiza la página de resultados con dos botones para conmutar entre modelos individuales y evaluación comparativa."""
     if not hay_individuales and not hay_comparativa:
         msg = mensaje_sin_datos or t("res_sin_datos", "Todavía no hay modelos entrenados ni evaluaciones guardadas en este contexto.")
         st.info(msg)
         return
 
-    if hay_individuales and hay_comparativa:
-        col_ind, col_exp = st.columns(2, gap="large")
-        with col_ind:
-            render_individuales_fn()
-        with col_exp:
-            render_comparativa_fn()
-    elif hay_individuales:
+    clave_estado = f"res_subvista_{clave_contexto}"
+    
+    if clave_estado not in st.session_state:
+        st.session_state[clave_estado] = "individuales" if hay_individuales else "comparativa"
+
+    activo = st.session_state[clave_estado]
+    if activo == "individuales" and not hay_individuales and hay_comparativa:
+        activo = "comparativa"
+        st.session_state[clave_estado] = "comparativa"
+    elif activo == "comparativa" and not hay_comparativa and hay_individuales:
+        activo = "individuales"
+        st.session_state[clave_estado] = "individuales"
+
+    # Mostrar dos botones para alternar entre una u otra vista
+    col1, col2, _ = st.columns([1, 1, 2])
+    with col1:
+        if st.button(
+            t("res_modelos_ind", "Modelos individuales"),
+            key=f"{clave_contexto}_btn_subvista_ind",
+            type="primary" if activo == "individuales" else "secondary",
+            use_container_width=True,
+            disabled=not hay_individuales,
+            help=None if hay_individuales else t("res_sin_modelos_ind", "No se han entrenado modelos individuales."),
+        ):
+            st.session_state[clave_estado] = "individuales"
+            st.rerun()
+    with col2:
+        if st.button(
+            t("res_eval_comp", "Evaluación comparativa"),
+            key=f"{clave_contexto}_btn_subvista_comp",
+            type="primary" if activo == "comparativa" else "secondary",
+            use_container_width=True,
+            disabled=not hay_comparativa,
+            help=None if hay_comparativa else t("res_sin_benchmark", "No se ha ejecutado la evaluación comparativa."),
+        ):
+            st.session_state[clave_estado] = "comparativa"
+            st.rerun()
+
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+
+    # Mostrar ÚNICAMENTE la subvista activa a la vez
+    if activo == "individuales":
         render_individuales_fn()
-    elif hay_comparativa:
+    else:
         render_comparativa_fn()
