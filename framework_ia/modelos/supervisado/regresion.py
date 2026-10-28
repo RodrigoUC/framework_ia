@@ -1,38 +1,17 @@
-"""
-REGRESIÓN — Aprendizaje supervisado con target numérico (plantilla).
-
-Cuando el target es numérico (continuo o discreto), la investigación es de
-regresión/progresión: se busca calcular un valor exacto.
-Hereda de :class:`Supervisado`.
-
-Métodos a desarrollar (vacíos por ahora):
-- RLS → Regresión Lineal Simple
-- RLM → Regresión Lineal Múltiple
-- RL  → Regresión Logística
-
-Jerarquía:
-    EDA
-    └── Supervisado
-           └── Regresion
-"""
+"""Regresión supervisada con particiones reproducibles y evaluación numérica."""
 
 from __future__ import annotations
 
-from .base import Supervisado
+from ...utils.supervisado.regresion import metricas_regresion
+from .supervisado import Supervisado
 
 
 class Regresion(Supervisado):
-    """Regresión supervisada con métodos pendientes de implementar."""
+    """Modelos numéricos de regresión que aprenden transformaciones sólo de train."""
 
     def __init__(
-        self,
-        dataframe=None,
-        ruta_datos=None,
-        *,
-        target=None,
-        features=None,
-        **kwargs,
-    ) -> None:
+        self, dataframe=None, ruta_datos=None, *, target=None, features=None, **kwargs
+    ):
         super().__init__(
             dataframe=dataframe,
             ruta_datos=ruta_datos,
@@ -40,28 +19,53 @@ class Regresion(Supervisado):
             features=features,
             **kwargs,
         )
-        self.r2 = None  # coeficiente de determinación (evaluación)
 
-    def RLS(self, *args, **kwargs):
-        """Regresión Lineal Simple.
+    def lineal_simple(self, **kwargs):
+        """Ajusta un modelo de regresión lineal simple."""
+        return self.entrenar(algoritmo="RLS", **kwargs)
 
-        TODO: implementar la regresión con una única variable predictora.
-        """
-        raise NotImplementedError("Debe implementar el método RLS.")
+    def lineal_multiple(self, **kwargs):
+        """Ajusta un modelo de regresión lineal múltiple."""
+        return self.entrenar(algoritmo="RLM", **kwargs)
 
-    def RLM(self, *args, **kwargs):
-        """Regresión Lineal Múltiple.
+    def lasso(self, **kwargs):
+        """Ajusta un modelo regularizado Lasso."""
+        return self.entrenar(algoritmo="Lasso", **kwargs)
 
-        TODO: implementar la regresión con varias variables predictoras.
-        """
-        raise NotImplementedError("Debe implementar el método RLM.")
+    def lasso_cv(self, **kwargs):
+        """Ajusta un modelo Lasso con validación cruzada interna."""
+        return self.entrenar(algoritmo="LassoCV", **kwargs)
 
-    def RL(self, *args, **kwargs):
-        """Regresión Logística.
+    def ridge(self, **kwargs):
+        """Ajusta un modelo regularizado Ridge."""
+        return self.entrenar(algoritmo="Ridge", **kwargs)
 
-        TODO: implementar la regresión logística (modelo de clasificación).
-        """
-        raise NotImplementedError("Debe implementar el método RL.")
+    def ridge_cv(self, **kwargs):
+        """Ajusta un modelo Ridge con validación cruzada interna."""
+        return self.entrenar(algoritmo="RidgeCV", **kwargs)
+
+    def svr(self, **kwargs):
+        """Ajusta una máquina de vectores de soporte para regresión (SVR)."""
+        return self.entrenar(algoritmo="SVR", **kwargs)
+
+    def arbol_decision(self, **kwargs):
+        """Ajusta un árbol de decisión para regresión."""
+        return self.entrenar(algoritmo="DT", **kwargs)
+
+    def random_forest(self, **kwargs):
+        """Ajusta un ensamble de bosques aleatorios para regresión."""
+        return self.entrenar(algoritmo="RF", **kwargs)
+
+    # Alias pythonicos
+    RLS = lineal_simple
+    RLM = lineal_multiple
+    Lasso = lasso
+    LassoCV = lasso_cv
+    Ridge = ridge
+    RidgeCV = ridge_cv
+    SVR = svr
+    DT = dt = decision_tree = arbol_decision
+    RF = rf = random_forest
 
     def __str__(self) -> str:
         self._definir_target()
@@ -72,8 +76,6 @@ class Regresion(Supervisado):
         )
         if self.r2 is not None:
             base += f"\nR²: {self.r2:.4f}"
+        if self.exactitud is not None:
+            base += f"\nExactitud: {self.exactitud:.4f}"
         return base
-
-
-# Alias de compatibilidad para notebooks o scripts anteriores.
-Progresion = Regresion

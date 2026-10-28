@@ -1,0 +1,78 @@
+\section{Discusión comparativa}
+
+\subsection{Qué variantes ganaron y por qué}
+La Tabla~\ref{tab:variantes} resume la configuración elegida en cada caso. Hay dos
+patrones que se repiten en ambos datasets. Para el árbol de decisión, exigir un mínimo
+de 10 observaciones por hoja fue siempre la mejor variante: un árbol sin límites
+memoriza el entrenamiento, y limitar el tamaño de las hojas reduce esa varianza sin
+eliminar las reglas útiles. Para KNN, aumentar $k$ a 15 no fue la mejor variante en
+ningún dataset: en Diabetes bajó el F1 macro de 0.719 a 0.681, porque con 45 diabéticos
+en train un vecindario de 15 casos queda casi siempre dominado por la clase mayoritaria;
+en Potabilidad subió apenas 0.011, menos que el cambio a distancia Manhattan.
+
+En cambio, otras decisiones dependen del dataset. Ponderar las clases fue la mejor
+variante de XGBoost y AdaBoost en Potabilidad, donde los modelos tienden a predecir
+``no potable''. En Diabetes no fue la mejor variante en ninguna familia y bajó el F1 de
+DT (0.783 a 0.751) y RF (0.836 a 0.816): dar más peso a 45 diabéticos lleva a los
+árboles a crear reglas para casos aislados. La selección de atributos mejoró cuatro
+de cinco familias en Diabetes (en RF sólo 0.003, una diferencia despreciable) y empeoró las cinco en Potabilidad. La explicación es la
+forma de la relación entre variables y clase: en Diabetes la señal está casi toda en la
+glucosa y es monótona (más glucosa, más riesgo), así que un filtro univariado la
+encuentra; en Potabilidad la señal está en los extremos y en la combinación de sulfato
+y \texttt{ph}, y el filtro descarta el \texttt{ph} aunque sea la segunda variable más
+importante para el mejor modelo.
+
+\begin{table}[H]\centering\small
+\caption{Configuración elegida por validación cruzada en cada familia y dataset.}
+\label{tab:variantes}
+\begin{tabular}{lll}\toprule
+Familia & Potabilidad & Diabetes \\ \midrule
+KNN & Manhattan ($p=1$) & estándar + selección de 11 atributos \\
+DT & mínimo 10 por hoja & mínimo 10 por hoja + selección \\
+RF & 500 árboles & estándar + selección \\
+XGBoost & clases balanceadas & tasa de aprendizaje 0.05 \\
+AdaBoost & clases balanceadas & tasa 0.5 + selección \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sobreajuste y estabilidad}
+Las Figuras~\ref{fig:resumen-potabilidad} y~\ref{fig:resumen-diabetes} comparan el F1 de
+entrenamiento, validación cruzada y prueba. Random Forest y XGBoost llegan a F1 de
+entrenamiento de 1.0 o casi 1.0 en ambos datasets: memorizan el entrenamiento. Aun así,
+RF es el que mejor generaliza en Potabilidad, porque el promedio de cientos de árboles
+cancela buena parte de sus errores individuales. AdaBoost con stumps es el extremo
+opuesto en Potabilidad: casi no sobreajusta (0.575 en entrenamiento y 0.582 en prueba),
+pero subajusta. KNN y DT quedan en medio.
+
+La validación cruzada también muestra cuánto se puede confiar en cada diferencia. En
+Potabilidad (unos 300 casos por pliegue) las desviaciones de los ganadores están entre
+0.02 y 0.05, y la ventaja de RF sobre KNN, DT y AdaBoost es clara; frente a XGBoost
+(0.639) la diferencia es menor que la desviación. En Diabetes (unos 58 casos y 9
+diabéticos por pliegue) las desviaciones llegan a 0.12 y las cuatro familias de árboles
+son estadísticamente indistinguibles. Una sola partición de validación, como la que se
+usaba antes en el framework, habría dado un ganador sin advertir esa incertidumbre.
+
+\subsection{Exactitud frente a F1 macro}
+En Diabetes la exactitud de prueba (88.8--89.8\,\%) parece alta, pero la referencia que
+siempre predice ``no diabetes'' ya obtiene 84.7\,\%. El F1 macro (0.75--0.78 frente a
+0.459) y el recall de diabetes (0.47--0.53) muestran mejor lo que hace el modelo: detecta
+la mitad de los diabéticos. En Potabilidad, AdaBoost estándar tiene una exactitud de
+validación de 59.7\,\%, igual a la proporción de la clase mayoritaria: sin el F1 macro
+se habría pasado por alto que el modelo casi no aprendió nada.
+
+\subsection{Limitaciones}
+\begin{itemize}
+\item Se usó una única partición de prueba (503 y 98 casos). Con 15 diabéticos en
+prueba, un solo paciente cambia el recall en 6.7 puntos. No se calcularon intervalos de
+confianza ni pruebas de significancia.
+\item El catálogo tiene tres variantes por familia y cada una cambia un solo
+hiperparámetro. Es deliberado, para poder atribuir los efectos, pero no explora
+combinaciones (por ejemplo, más árboles y hojas mínimas a la vez).
+\item Todos los modelos usan el umbral de probabilidad 0.5. Ajustarlo con validación
+cruzada podría aumentar el recall de la clase minoritaria.
+\item La clase de Diabetes se construyó con el criterio histórico $\text{glyhb}>7$, y la
+versión de Potabilidad usada son los casos completos del archivo público. Los resultados
+son educativos: no constituyen un diagnóstico médico ni una certificación de potabilidad.
+\item La importancia por permutación mide de qué depende el modelo, no relaciones
+causales.
+\end{itemize}

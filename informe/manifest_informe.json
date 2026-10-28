@@ -1,0 +1,68 @@
+{
+  "autores": [
+    "Dylan Elizondo Alvarado (504610652)",
+    "Joseph Garcia Montero (402680547)",
+    "Rodrigo Ureña Castillo (118910482)",
+    "Mariana Ureña Padilla (119180324)"
+  ],
+  "fecha_documento": "15 de octubre de 2026",
+  "fuentes": {
+    "potabilidad": {
+      "dataset_sha256": "d2569bece50025b9dbf21cfd720ecbedcdaa838ca082db29ef853c5fb9da8e12",
+      "archivos_resultados_sha256": {
+        "configuracion.json": "6dad07a45c59444456280e92ce414cdee1dc152422d1da9c36120cf7bccb65bb",
+        "comparacion_validacion.csv": "e396c6659836305e841470018c2100c4342cff0a802ff6f4c6befe565dc39b76",
+        "mejores_modelos.json": "1e3c89c4ede619eeb044ece72a1944644d8a6f1ff5d7ebc9448a1acbe39711b2",
+        "KNN/matriz_confusion_test.csv": "5c12f28541cd47934c3002f2153c83cf59630aaa31ae410ccc22105aa0182d45",
+        "KNN/predicciones_test.csv": "9cdbdde28bd30b384cfd0ed667f5aa172f2b085dc9f7b9ce33ba8245c37bd961",
+        "KNN/roc_test.csv": "542a398519acac5b0cdeead7a1847ef22b6d9b731eac61f9fd970509f073ce6c",
+        "KNN/importancia_permutacion.csv": "8fa211a4cf6faf57e9f8c89b8ebdbf9d705985f9fdb4967fb9045e4ef352af41",
+        "DT/matriz_confusion_test.csv": "623301fbc8e3ddf8224e0a50d70f339d5f16ace7f180f157843e486c323a4952",
+        "DT/predicciones_test.csv": "6d12522aa9a7f158009f32cedae2a9e1d6de06d393d9a167fad63561aa877a41",
+        "DT/roc_test.csv": "f6e40421b615c1343c2498a47acb8bc043ae6fe345c97f489985ebd4274ba8e1",
+        "DT/importancia_permutacion.csv": "234d4d7d1f08da59e9c58b54bf82f70f3f815fd658e158780cd5759421e14d90",
+        "RF/matriz_confusion_test.csv": "bbf54e6b12bc9e7fd9709ccf251610332078d334ae04835072dc84e84ac22d85",
+        "RF/predicciones_test.csv": "a2c1490ec024d61488017ed262e438af518d4732781d1c3b8de913354c0c2c56",
+        "RF/roc_test.csv": "57689b36f807f3b3cb24fd07b923a69d1b36a351c8fa509ff9bb0fbb4cc628a6",
+        "RF/importancia_permutacion.csv": "d17c899a2ab3dd5e936ee67272604416a224cf2b5ae098e186504ce08e9e9b4b",
+        "XGBoost/matriz_confusion_test.csv": "d9d5d4e3627666699ff065a2fe419a9b1de7e8b97133d5c262b38b68f5203ed9",
+        "XGBoost/predicciones_test.csv": "a8ccd9e1fbb3280ae439f9bd3485c6986b27747760c4f2e4783fe5177df8a7a0",
+        "XGBoost/roc_test.csv": "904fed2b767ef764ccc06a288ede4b9c464588bddcdf4ba9dda82f559ffddde1",
+        "XGBoost/importancia_permutacion.csv": "562e229019d97784091e66f7a10f970ccec7ee0629a395c891dd13fa51ff22a0",
+        "AdaBoost/matriz_confusion_test.csv": "7766d3977b43ef9f58f3d2c4934e4212f43a3d14c9cc452852e1f8e3d5363164",
+        "AdaBoost/predicciones_test.csv": "03a00a96347f4f07c3b4578fac37f559d5f655134e2fba9573d2ea4304a53f36",
+        "AdaBoost/roc_test.csv": "0127b13183d42703b100ef31dbb1c792f8d4b0598ca9a6eeedbf3f5a47cbdba2",
+        "AdaBoost/importancia_permutacion.csv": "43b1f5670fae8f4527d37b3691141c3d2ff6023fc48eceae909039b356322cb3"
+      }
+    },
+    "diabetes": {
+      "dataset_sha256": "47b48720dd246d95528d251c31c27a76f44c958a24faf1273b873658f4979e85",
+      "archivos_resultados_sha256": {
+        "configuracion.json": "3fa8a9f615a64ee94202bdf49ba58f7d1c496382aa40765924a875a4a142aea6",
+        "comparacion_validacion.csv": "430829550b25bcc1adca8f4004180d06383dbbbe162a8e0bc3c4957f63990cf1",
+        "mejores_modelos.json": "c89ab13c4d55e3b4aa6ff4caf5fd23b3a9d38bcb5efc7dac8c8e2a7a0a99b7e7",
+        "KNN/matriz_confusion_test.csv": "031e67ecff9f1f09e189f7fa2d03cf2da3c056f0f628a1b1d2557e46aea71f59",
+        "KNN/predicciones_test.csv": "14979bab760e3164adc886bfca350272fb8072511225b8cab36204d7f0ec1111",
+        "KNN/roc_test.csv": "5c4f909a8e50af44ad2841efc3cc03d86e3d021520bac92202d2f300bcacfaa0",
+        "KNN/importancia_permutacion.csv": "ef136e7eb6aa71a8ae83f27156dd707ffa3ebbce920b62bfe25da8634409b881",
+        "DT/matriz_confusion_test.csv": "4f24de2f4689562e0a6dcc2082420b66ca523560a034d6e1f9ccaddcbabe7b17",
+        "DT/predicciones_test.csv": "c3bd11cb7d26df4bcbea9f555a6dec85cf90641cfc2d7e977670d411d1b31d38",
+        "DT/roc_test.csv": "683d7089300a5e149ca56eacf3c86cfee44a0dec83a7b29c4eeb6863953eeac4",
+        "DT/importancia_permutacion.csv": "05c664c8a4756bcd5393c92269c9ea2c0985ebaf825a0b531c1c1b9c87f735d2",
+        "RF/matriz_confusion_test.csv": "2ed528b4e83286bd4b4f69ae2142b5098a375eb161f6d0e8e9d9b2668bae2419",
+        "RF/predicciones_test.csv": "bef7419cd6aaa0f43cc0bb66faee1cd186c12d04a31f7bf5238c9577207e5f52",
+        "RF/roc_test.csv": "2491396ddbce21f61fe540e1acc2829cc375c5d494e6a060af38a2775314dbdc",
+        "RF/importancia_permutacion.csv": "dbc423ddedc5a8b5754f34b6d8df460f9d59173ea245b0136a95d8d08ad35ab3",
+        "XGBoost/matriz_confusion_test.csv": "4f24de2f4689562e0a6dcc2082420b66ca523560a034d6e1f9ccaddcbabe7b17",
+        "XGBoost/predicciones_test.csv": "c3bd11cb7d26df4bcbea9f555a6dec85cf90641cfc2d7e977670d411d1b31d38",
+        "XGBoost/roc_test.csv": "0d89046f01ef82722fe2ea50c50a71d2fa88be2e9450e759fbc3d87ef76c89e3",
+        "XGBoost/importancia_permutacion.csv": "8596a8c4f7aeb704f0d930980911368f408ccc531244b31b792366cccb281362",
+        "AdaBoost/matriz_confusion_test.csv": "4f24de2f4689562e0a6dcc2082420b66ca523560a034d6e1f9ccaddcbabe7b17",
+        "AdaBoost/predicciones_test.csv": "c3bd11cb7d26df4bcbea9f555a6dec85cf90641cfc2d7e977670d411d1b31d38",
+        "AdaBoost/roc_test.csv": "02e1f955225c4dfaae98ec439f99ecafcee122496f50d73aec1f33150e069b49",
+        "AdaBoost/importancia_permutacion.csv": "c085dd7f488fca257c1fb4a822134d02b29107885e48ef340d414ed020db91ad"
+      }
+    }
+  },
+  "main_tex_sha256": "3b3c9b436756faf72ed9c65ed9ce944c5c5f6ee22c47a80961ef79de18f444bb"
+}

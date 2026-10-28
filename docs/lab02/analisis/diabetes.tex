@@ -1,0 +1,104 @@
+%% BLOQUE: datos
+Se analizan 390 pacientes con 17 variables: colesterol (\texttt{chol}), glucosa
+estabilizada (\texttt{stab.glu}), HDL, razón colesterol/HDL (\texttt{ratio}), edad,
+sexo, localidad, talla, peso, complexión (\texttt{frame}), dos mediciones de presión
+arterial, cintura, cadera y tiempo desde la última comida (\texttt{time.ppn}). Sólo el
+15.4\,\% son diabéticos (60 casos): en prueba hay 15 diabéticos, por lo que cada
+diabético mal clasificado cambia el recall en 6.7 puntos, y en cada pliegue de
+validación hay unos 9, lo que explica desviaciones de 0.06 a 0.12 en el F1 macro. La
+glucosa estabilizada separa mucho mejor las clases que cualquier variable de
+Potabilidad: su mediana es 186\,mg/dL en diabéticos y 86.5\,mg/dL en no diabéticos.
+Tras la codificación one-hot hay 21 atributos; la información mutua de la glucosa
+(0.228) es tres veces la del siguiente, \texttt{ratio} (0.063).
+
+%% BLOQUE: KNN
+Con todos los atributos, KNN es la familia más débil (F1 macro 0.719 en el estándar).
+Aumentar a $k=15$ empeora (0.681): con sólo unos 36 diabéticos en cada ajuste, en un
+vecindario de 15 suele haber mayoría de no diabéticos y el voto favorece la clase
+mayoritaria. La distancia Manhattan también empeora (0.636) y ponderar por distancia dio
+exactamente las mismas métricas que el estándar en los cinco pliegues. El cambio que sí
+importa es la selección de atributos: con los 11 de mayor información mutua el F1 macro
+sube a 0.797 (+0.078), la mayor mejora de este dataset. Al eliminar variables poco
+informativas como la talla, la localidad, el sexo o las segundas mediciones de presión
+(ausentes en el 65\,\% de los pacientes e imputadas con la mediana), la distancia pasa
+a reflejar sobre todo la glucosa. En prueba detecta 7 de 15 diabéticos (recall 0.467)
+con precisión 0.70. Su AUC (0.754) es la más baja porque, con 5 vecinos, la
+probabilidad sólo puede tomar seis valores (0, 0.2, \dots, 1), lo que produce una curva
+ROC escalonada.
+
+%% BLOQUE: DT
+Exigir al menos 10 observaciones por hoja es de nuevo la mejor variante (0.806, +0.024),
+igual que en Potabilidad. Limitar la profundidad a 5 da un resultado parecido (0.799)
+pero con una variación entre pliegues mucho mayor (0.117 frente a 0.070). Ponderar las clases empeora (0.751): con
+tan pocos diabéticos, darles más peso hace que el árbol cree hojas para casos
+aislados. La selección de atributos mejora un poco (0.816) y es la versión final. El
+árbol resultante es pequeño (profundidad 5, 11 hojas) y fácil de leer: su primera regla
+es \texttt{stab.glu} $>158$\,mg/dL $\Rightarrow$ diabetes, y en el rango de 107.5 a
+158\,mg/dL marca como diabéticos a los pacientes con colesterol mayor que 243.5\,mg/dL. La importancia por
+permutación confirma que en prueba el árbol depende exclusivamente de la glucosa (caída
+de 0.252 en F1 macro; el resto, cero). En prueba detecta 8 de 15 diabéticos (recall
+0.533, precisión 0.727) con exactitud 89.8\,\% y AUC 0.907. El umbral de 158\,mg/dL lo
+aprendió el árbol de estos datos; no es un criterio diagnóstico. Como referencia, el
+criterio clínico para una glucosa casual es 200\,mg/dL con síntomas \cite{ada}.
+
+%% BLOQUE: RF
+En validación cruzada, Random Forest es el mejor algoritmo del dataset. Su
+configuración estándar (0.836) supera a las tres variantes: 500 árboles no mejora
+(0.818), la ponderación de clases tampoco (0.816) y exigir 5 observaciones por hoja
+empeora claramente (0.763), porque impide aislar a los pocos diabéticos en hojas
+propias. Con selección de atributos alcanza 0.840 y una desviación menor (0.066 frente
+a 0.087), así que esa es la versión final. En prueba tiene exactitud 88.8\,\%, F1
+macro 0.764 y AUC 0.892; detecta 8 de 15 diabéticos y tiene un falso positivo más que
+DT, XGBoost y AdaBoost (4 en lugar de 3). Por eso su F1 de prueba es ligeramente menor,
+aunque fue el elegido por validación. Esa diferencia de un paciente está muy por debajo
+de la incertidumbre del experimento. La importancia interna muestra que, además de la
+glucosa (0.454), el bosque reparte peso entre \texttt{ratio}, HDL y edad, pero en
+prueba sólo la glucosa produce una caída grande al permutarse.
+
+%% BLOQUE: XGBoost
+Bajar la tasa de aprendizaje a 0.05 es la mejor variante (0.821, +0.029): con sólo 292
+pacientes de entrenamiento, que cada árbol aporte menos funciona como regularización.
+Reducir la profundidad a 3 ayuda algo menos (0.804) y ponderar las clases no ayuda
+(0.789). A diferencia de las otras familias, la selección de atributos empeora a XGBoost
+(0.803): el algoritmo ya elige en cada división la variable más útil y quitarle
+variables secundarias le resta poco ruido y algo de información. En prueba obtiene la
+mejor AUC del estudio (0.929), exactitud 89.8\,\% y F1 macro 0.778, con la misma matriz
+de confusión que DT y AdaBoost. Su F1 de entrenamiento (0.993) indica que aun con tasa
+baja casi memoriza el entrenamiento.
+
+%% BLOQUE: AdaBoost
+Las variantes de AdaBoost quedan todas entre 0.790 y 0.799, sin diferencias claras. La
+tasa 0.5 es la de mayor media (0.799), pero también la de mayor desviación (0.122). La
+ponderación de clases logra el mayor recall macro de validación (0.801), aunque no el
+mayor F1. Con selección de atributos sube a 0.803 y esa es la versión final. En prueba
+coincide con DT y XGBoost (exactitud 89.8\,\%, F1 macro 0.778, 8 de 15 diabéticos) y
+tiene AUC 0.922. Es el ensamble con menor sobreajuste (F1 0.887 en entrenamiento frente
+a 0.778 en prueba). En este dataset los stumps sí funcionan, a diferencia de
+Potabilidad: un único corte en la glucosa ya separa bien las clases, y los siguientes
+stumps afinan con el colesterol (importancia interna 0.120) y el peso (0.106).
+
+%% BLOQUE: sintesis
+Los cuatro métodos basados en árboles quedan entre 0.80 y 0.84 de F1 macro en
+validación cruzada, con desviaciones de 0.07 a 0.12. Las diferencias entre ellos son
+menores que esa variación, así que el orden no es concluyente; RF se eligió por tener
+la mayor media. En prueba todos superan claramente la referencia (F1 macro 0.459) y DT,
+XGBoost y AdaBoost producen la misma matriz de confusión: 8 diabéticos detectados, 7 no
+detectados y 3 falsos positivos.
+
+Los 7 diabéticos que no detectan DT, RF, XGBoost y AdaBoost son exactamente los mismos
+(KNN falla esos 7 y uno más), y todos tienen glucosa estabilizada entre 90 y 130\,mg/dL, mientras que los 8 detectados
+tienen 196\,mg/dL o más. La etiqueta se definió con la hemoglobina glicosilada, que
+refleja la glucosa promedio de los últimos dos o tres meses, y puede estar elevada
+aunque una medición puntual de glucosa sea normal. Como \texttt{glyhb} se excluyó para
+evitar fuga, esos pacientes no se distinguen de los no diabéticos con las variables
+disponibles. Es un límite de la información, no de los algoritmos: ningún ajuste de
+hiperparámetros los recuperaría sin aumentar mucho los falsos positivos.
+
+Las AUC de 0.89 a 0.93 indican que los modelos ordenan bien a los pacientes por riesgo.
+Bajar el umbral de decisión de 0.5 aumentaría el recall de diabetes a cambio de más
+falsos positivos. Ese umbral debería elegirse con validación cruzada y no con el
+conjunto de prueba, por lo que se deja como trabajo futuro. A diferencia de
+Potabilidad, aquí la selección de atributos ayudó a cuatro de cinco familias
+(Figura~\ref{fig:seleccion-diabetes}): la información relevante se concentra en una
+variable con relación monótona con la clase, y la información mutua la detecta sin
+problema.

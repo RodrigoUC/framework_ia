@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from framework_ia.datos.dataframe import DataFrame
+from framework_ia.datos.eda import EDA
 from framework_ia.ui import streamlit_app
 from framework_ia.visualizacion import (
     VisualizadorDatos,
@@ -205,7 +205,7 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
         self.assertEqual(colores[1], "#172019")
 
     def test_fabricas_reales_de_heatmap_reciben_etiquetas_tematicas(self):
-        datos = DataFrame(pd.DataFrame({"A": [1, 2, 3], "B": [3, 2, 1]}))
+        datos = EDA(dataframe=pd.DataFrame({"A": [1, 2, 3], "B": [3, 2, 1]}))
         figura_correlacion, _ = datos.mapa_calor(mostrar=False)
         perfiles = SimpleNamespace(
             centroides=pd.DataFrame([[0.1, -0.9], [0.8, 0.2]], columns=["A", "B"]),
@@ -230,7 +230,7 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                 )
 
     def test_heatmap_real_redondeado_json_conserva_etiquetas_y_datos(self):
-        datos = DataFrame(pd.DataFrame({"A": [1, 2, 3], "B": [3, 2, 1]}))
+        datos = EDA(dataframe=pd.DataFrame({"A": [1, 2, 3], "B": [3, 2, 1]}))
         figura, matriz = datos.mapa_calor(mostrar=False)
         serializada = pio.from_json(pio.to_json(figura))
         z_original = serializada.data[0].z.copy()

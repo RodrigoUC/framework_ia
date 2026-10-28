@@ -5,13 +5,14 @@ from __future__ import annotations
 import os
 import sys
 import unittest
-from unittest.mock import patch
+from dataclasses import replace
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-
 
 RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ) not in sys.path:
@@ -27,9 +28,8 @@ from framework_ia.datos.preprocesamiento import (
 from framework_ia.modelos.no_supervisado import (
     Cluster,
     NoSupervisado,
-    ReduccionDimensional,
 )
-from framework_ia.modelos.progresion import Progresion
+
 from framework_ia.modelos.supervisado import (
     Clasificacion,
     Regresion,
@@ -80,7 +80,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertEqual(int(resultado.isna().sum().sum()), 0)
 
     def test_acp_retorna_componentes_y_figuras(self) -> None:
-        resultado = ReduccionDimensional(
+        resultado = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         ).ACP(n_componentes=2)
@@ -90,6 +90,78 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertIsInstance(figura, go.Figure)
         biplot = VisualizadorNoSupervisado.sobreposicion_acp(resultado)
         self.assertIsInstance(biplot, go.Figure)
+
+    def test_acp_overlay_preserves_scores_and_spreads_left_right_labels(self) -> None:
+        resultado = Cluster(
+            dataframe=self.datos,
+            features=["x", "y", "z"],
+        ).ACP(n_componentes=2)
+        coordenadas = resultado.coordenadas.copy()
+        cargas_originales = resultado.cargas.copy()
+
+        for cantidad in (4, 12, 20):
+            variables = [f"variable_{indice:02}" for indice in range(cantidad)]
+            lados = [1 if indice % 2 == 0 else -1 for indice in range(cantidad)]
+            cargas = pd.DataFrame(
+                {
+                    resultado.cargas.columns[0]: [
+                        lado * (0.88 + indice / (cantidad * 20))
+                        for indice, lado in enumerate(lados)
+                    ],
+                    resultado.cargas.columns[1]: np.linspace(-0.015, 0.015, cantidad),
+                },
+                index=variables,
+            )
+            figura = VisualizadorNoSupervisado.sobreposicion_acp(
+                replace(resultado, cargas=cargas)
+            )
+
+            escala = coordenadas.abs().max(axis=0).replace(0, 1)
+            puntos = coordenadas.iloc[:, :2].divide(escala.iloc[:2], axis="columns")
+            np.testing.assert_allclose(figura.data[0].x, puntos.iloc[:, 0])
+            np.testing.assert_allclose(figura.data[0].y, puntos.iloc[:, 1])
+
+            flechas = [
+                anotacion
+                for anotacion in figura.layout.annotations
+                if anotacion.showarrow
+            ]
+            self.assertEqual(
+                [(anotacion.x, anotacion.y) for anotacion in flechas],
+                list(zip(cargas.iloc[:, 0], cargas.iloc[:, 1], strict=True)),
+            )
+            etiquetas = {
+                anotacion.text: anotacion
+                for anotacion in figura.layout.annotations
+                if not anotacion.showarrow
+            }
+            self.assertEqual(set(etiquetas), set(variables))
+            self.assertTrue(any(shape.type == "circle" for shape in figura.layout.shapes))
+            self.assertEqual(figura.layout.yaxis.scaleanchor, "x")
+            self.assertEqual(figura.layout.yaxis.scaleratio, 1)
+
+            for lado in (-1, 1):
+                grupo = [
+                    etiquetas[variable]
+                    for indice, variable in enumerate(variables)
+                    if lados[indice] == lado
+                ]
+                self.assertTrue(
+                    all(
+                        anotacion.xanchor == ("left" if lado > 0 else "right")
+                        for anotacion in grupo
+                    )
+                )
+
+            circulo = VisualizadorNoSupervisado.circulo_correlacion(resultado)
+            geometria = next(
+                shape for shape in circulo.layout.shapes if shape.type == "circle"
+            )
+            self.assertEqual(
+                (geometria.x0, geometria.y0, geometria.x1, geometria.y1), (-1, -1, 1, 1)
+            )
+            pd.testing.assert_frame_equal(coordenadas, resultado.coordenadas)
+            pd.testing.assert_frame_equal(cargas_originales, resultado.cargas)
 
     def test_kmeans_kmedoids_y_hac_generan_clusters(self) -> None:
         modelo = Cluster(
@@ -107,35 +179,38 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         self.assertIsNotNone(hac.matriz_vinculacion)
 
     def test_tsne_produce_dos_dimensiones(self) -> None:
-        resultado = ReduccionDimensional(
+        resultado = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         ).TSNE(perplexity=5, max_iter=250)
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
 
     def test_umap_produce_dos_dimensiones(self) -> None:
-        """UMAP sustituye una caché de Numba configurada pero no escribible."""
-        with patch.dict("os.environ", {"NUMBA_CACHE_DIR": "/proc/numba_cache"}):
-            resultado = ReduccionDimensional(
-                dataframe=self.datos,
-                features=["x", "y", "z"],
-            ).UMAP(n_neighbors=5, min_dist=0.1)
-            self.assertNotEqual(os.environ["NUMBA_CACHE_DIR"], "/proc/numba_cache")
+        """UMAP sustituye una ruta de caché inutilizable en cualquier sistema."""
+        with TemporaryDirectory(prefix="framework_numba_test_") as temporal:
+            # Un archivo no puede usarse como carpeta; /proc sólo funciona en Unix.
+            ruta_invalida = Path(temporal) / "cache_como_archivo"
+            ruta_invalida.write_text("fixture", encoding="utf-8")
+            with patch.dict("os.environ", {"NUMBA_CACHE_DIR": str(ruta_invalida)}):
+                resultado = Cluster(
+                    dataframe=self.datos,
+                    features=["x", "y", "z"],
+                ).UMAP(n_neighbors=5, min_dist=0.1)
+                self.assertNotEqual(os.environ["NUMBA_CACHE_DIR"], str(ruta_invalida))
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
         self.assertFalse(resultado.coordenadas.isna().any().any())
 
     def test_arquitectura_declara_clases_y_metodos(self) -> None:
-        """Las extensiones pendientes existen como contratos utilizables."""
+        """Las extensiones existen como contratos utilizables de punta a punta."""
         self.assertTrue(issubclass(NoSupervisado, EDA))
         self.assertTrue(issubclass(Supervisado, EDA))
         self.assertTrue(issubclass(Clasificacion, Supervisado))
         self.assertTrue(issubclass(Regresion, Supervisado))
         self.assertTrue(issubclass(Cluster, NoSupervisado))
-        self.assertTrue(issubclass(ReduccionDimensional, NoSupervisado))
 
         for clase, metodos in (
-            (Clasificacion, ("RF", "NR")),
-            (Regresion, ("RLS", "RLM", "RL")),
+            (Clasificacion, ("RF", "NR", "RL")),
+            (Regresion, ("RLS", "RLM")),
         ):
             for metodo in metodos:
                 self.assertTrue(callable(getattr(clase, metodo, None)))
@@ -160,21 +235,27 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         )
         self.assertEqual(previsualizacion["tam_train"], 30)
         self.assertEqual(previsualizacion["tam_test"], 10)
-        with self.assertRaises(NotImplementedError):
-            Regresion(dataframe=self.datos, target="x").RLS()
+        datos_regresion = pd.DataFrame({"x": range(20), "target": np.arange(20) * 2})
+        regresion = Regresion(dataframe=datos_regresion).RLS()
+        self.assertEqual(regresion.algoritmo, "RLS")
+        self.assertAlmostEqual(regresion.metricas["r2"], 1.0)
+        resultado_rl = clasif.regresion_logistica(test_size=0.25, random_state=1)
+        self.assertEqual(resultado_rl.algoritmo, "RL")
+        self.assertIn("accuracy", resultado_rl.metricas)
+        base_sup = Supervisado(dataframe=datos_regresion)
+        res_base = base_sup.entrenar(algoritmo="RLS")
+        self.assertEqual(res_base.algoritmo, "RLS")
+        self.assertIs(base_sup.evaluar(), res_base)
+        self.assertEqual(len(base_sup.predecir()), len(res_base.y_pred))
 
-    def test_alias_progresion_conserva_compatibilidad(self) -> None:
-        """El nombre anterior sigue disponible, pero Regresion es el oficial."""
-        self.assertIs(Progresion, Regresion)
-
-    def test_aliases_pythonicos_conservan_la_interfaz_existente(self) -> None:
+    def test_agrupamiento_y_reduccion_no_supervisada(self) -> None:
         cluster = Cluster(dataframe=self.datos, features=["x", "y", "z"])
-        self.assertEqual(cluster.k_means(n_clusters=2).etiquetas.nunique(), 2)
-        reduccion = ReduccionDimensional(
+        self.assertEqual(cluster.K_means(n_clusters=2).etiquetas.nunique(), 2)
+        reduccion = Cluster(
             dataframe=self.datos,
             features=["x", "y", "z"],
         )
-        self.assertEqual(reduccion.acp(n_componentes=2).coordenadas.shape, (30, 2))
+        self.assertEqual(reduccion.ACP(n_componentes=2).coordenadas.shape, (30, 2))
 
     def test_resumen_columnas_identifica_tipos_numerica_y_categorica(self) -> None:
         tabla = EDA(dataframe=self.datos).resumen_columnas()

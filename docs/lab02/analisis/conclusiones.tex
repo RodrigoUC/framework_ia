@@ -1,0 +1,40 @@
+\section{Conclusiones}
+
+\begin{enumerate}
+\item Los cinco algoritmos quedaron integrados en la clase \texttt{Clasificacion} del
+framework, con un protocolo reproducible: preparación aprendida sólo con
+entrenamiento, validación cruzada estratificada de 5 pliegues para elegir y una única
+evaluación en prueba. Cada experimento se repite con un comando y deja toda la evidencia.
+
+\item En Potabilidad, el mejor modelo es Random Forest con 500 árboles (F1 macro de
+validación $0.644\pm0.022$; en prueba, F1 macro 0.659, exactitud 70.2\,\% y AUC 0.727).
+Supera con claridad la referencia (59.6\,\% de exactitud) y a las demás familias, pero
+detecta sólo el 43\,\% de las muestras potables. Las variables apenas difieren en
+promedio entre clases y la señal aparece en los extremos y en la combinación de sulfato
+y \texttt{ph}, algo que los ensambles de árboles profundos captan mejor que KNN o
+AdaBoost con stumps.
+
+\item En Diabetes, DT, RF, XGBoost y AdaBoost obtienen resultados equivalentes dentro de
+la variación de la validación cruzada (F1 macro 0.80--0.84). RF fue el elegido por
+validación; en prueba los cuatro detectan 8 de 15 diabéticos con AUC entre 0.89 y 0.93.
+La glucosa estabilizada explica casi todo el poder predictivo, y los siete diabéticos
+que ningún modelo detecta tienen glucosa normal en la medición, lo que marca un límite
+de la información disponible.
+
+\item Las variantes que mejoraron dependen del algoritmo y del dataset. Exigir hojas de al menos
+10 observaciones mejoró el árbol de decisión en ambos datasets, pero limitar las hojas
+de Random Forest empeoró el bosque, porque el promedio ya controla la varianza. Ponderar
+las clases ayudó a los métodos de boosting cuando tendían a ignorar la clase minoritaria
+(Potabilidad). Seleccionar atributos por información mutua ayudó
+cuando la señal estaba en pocas variables con relación monótona (Diabetes) y perjudicó
+cuando dependía de interacciones (Potabilidad).
+
+\item La exactitud sola es engañosa con clases desbalanceadas. El F1 macro, el recall
+por clase y la comparación con una referencia trivial fueron necesarios para interpretar
+los resultados.
+\end{enumerate}
+
+Como trabajo futuro se propone elegir el umbral de decisión con validación cruzada para
+aumentar el recall de la clase minoritaria, explorar combinaciones de hiperparámetros con
+búsqueda en rejilla dentro de la validación cruzada y repetir el experimento con varias
+semillas para estimar la estabilidad de las conclusiones.

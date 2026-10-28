@@ -2,11 +2,8 @@
 
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
-from framework_ia.ui import streamlit_app
-
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -17,7 +14,11 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertFalse(self.app.exception)
 
     def test_source_is_collapsed_and_changes_apply_only_on_submit(self):
-        source = next(item for item in self.app.sidebar.expander if item.label == "Fuente de datos")
+        source = next(
+            item
+            for item in self.app.sidebar.expander
+            if item.label == "Fuente de datos"
+        )
         self.assertFalse(source.proto.expanded)
         active_identity = self.app.session_state["dataset_identidad"]
 
@@ -25,9 +26,15 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertEqual(active_identity, self.app.session_state["dataset_identidad"])
         self.assertFalse(self.app.exception)
 
-        self.app.button(key="FormSubmitter:form_fuente_datos-Aplicar fuente").click().run()
+
+        self.app.sidebar.text_input(key="fuente_separador").set_value(";")
+        self.app.button(
+            key="FormSubmitter:form_fuente_datos-Aplicar fuente"
+        ).click().run()
         self.assertFalse(self.app.exception)
-        self.assertNotEqual(active_identity, self.app.session_state["dataset_identidad"])
+        self.assertNotEqual(
+            active_identity, self.app.session_state["dataset_identidad"]
+        )
         self.assertEqual(len(self.app.session_state["dataset_preparado"].columns), 1)
         applied_identity = self.app.session_state["dataset_identidad"]
         self.app.sidebar.button(key="nav_datos").click().run()
@@ -52,9 +59,23 @@ class VisualContrastFlowTests(unittest.TestCase):
     def test_navigation_follows_analysis_to_results_and_uses_section_label(self):
         labels = [item.label for item in self.app.sidebar.button]
         self.assertLess(labels.index("Datos y preparación"), labels.index("EDA"))
-        self.assertLess(labels.index("EDA"), labels.index("K-Means y K-Medoids"))
-        self.assertLess(labels.index("K-Means y K-Medoids"), labels.index("Random Forest y Naive Bayes"))
-        self.assertLess(labels.index("Random Forest y Naive Bayes"), labels.index("Comparar modelos"))
+        self.assertLess(labels.index("EDA"), labels.index("ACP"))
+        self.assertLess(labels.index("ACP"), labels.index("K-Means"))
+        self.assertLess(labels.index("K-Means"), labels.index("K-Medoids"))
+        self.assertLess(labels.index("K-Medoids"), labels.index("HAC"))
+        self.assertLess(labels.index("HAC"), labels.index("KNN"))
+        self.assertLess(labels.index("KNN"), labels.index("Árbol de decisión"))
+        self.assertLess(
+            labels.index("Árbol de decisión"), labels.index("Random Forest")
+        )
+        self.assertLess(labels.index("Random Forest"), labels.index("Naive Bayes"))
+        self.assertLess(
+            labels.index("Naive Bayes"),
+            labels.index("Resultados de clasificación"),
+        )
+        self.assertEqual(labels.count("Resultados de clasificación"), 1)
+        self.assertEqual(labels.count("Resultados de regresión"), 1)
+        self.assertFalse(any(label.startswith("Comparar") for label in labels))
         markdown = " ".join(item.value for item in self.app.sidebar.markdown)
         self.assertIn("Análisis y modelos", markdown)
         self.assertNotIn("Pilares del framework", markdown)
@@ -64,18 +85,25 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertFalse(self.app.exception)
         main_markdown = " ".join(item.value for item in self.app.markdown)
         sidebar_markdown = " ".join(item.value for item in self.app.sidebar.markdown)
-        self.assertIn("Configuración de agrupamiento y reducción", main_markdown)
-        self.assertNotIn("Configuración de agrupamiento y reducción", sidebar_markdown)
+        self.assertIn("Configuración del análisis", main_markdown)
+        self.assertNotIn("Configuración del análisis", sidebar_markdown)
+        next(
+            button for button in self.app.button if button.label == "Ejecutar ACP"
+        ).click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any(tab.label == "Sobreposición" for tab in self.app.tabs))
         self.assertIn("atlas-title", main_markdown)
 
     def test_invalid_default_csv_keeps_app_available_for_source_recovery(self):
         def run_with_broken_csv():
+    
             from unittest.mock import patch
+
             from framework_ia.ui import streamlit_app
 
             with patch.object(
                 streamlit_app.CargadorCSV,
-                "cargar_ruta",
+                "cargar_bytes",
                 side_effect=ValueError("invalid CSV fixture"),
             ):
                 streamlit_app.main()

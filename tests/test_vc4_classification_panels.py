@@ -5,76 +5,117 @@ from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
-
-from framework_ia.modelos.supervisado import Clasificacion
-
+from framework_ia.ui.controladores.controlador_clasificacion import nombre_tasa_verdaderos
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
 
 class ClassificationPanelTests(unittest.TestCase):
-    def test_training_models_separately_keeps_results_and_comparison_never_trains(self):
+    def test_random_forest_and_naive_bayes_have_independent_routes(self):
         app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
         self.assertFalse(app.exception)
+        app.sidebar.button(key="nav_configuracion").click().run()
+        app.radio(key="sup_tarea").set_value("clasificacion").run()
         app.sidebar.button(key="nav_clasificacion").click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any("Random Forest" in item.value for item in app.markdown))
-        self.assertTrue(any("Naive Bayes" in item.value for item in app.markdown))
+        self.assertFalse(any(item.value == "### Random Forest" for item in app.markdown))
 
-        rf_calls = []
-        nr_calls = []
-        original_rf, original_nr = Clasificacion.RF, Clasificacion.NR
-
-        def tracked_rf(model, *args, **kwargs):
-            rf_calls.append(kwargs.copy())
-            return original_rf(model, *args, **kwargs)
-
-        def tracked_nr(model, *args, **kwargs):
-            nr_calls.append(kwargs.copy())
-            return original_nr(model, *args, **kwargs)
-
-        with patch.object(Clasificacion, "RF", tracked_rf), patch.object(Clasificacion, "NR", tracked_nr):
-            app.button(key="entrenar_clasificacion_rf").click().run()
-            self.assertFalse(app.exception)
-            self.assertEqual(len(rf_calls), 1)
-            self.assertEqual(nr_calls, [])
-            app.button(key="entrenar_clasificacion_nr").click().run()
-            self.assertFalse(app.exception)
-            self.assertEqual(len(rf_calls), 1)
-            self.assertEqual(len(nr_calls), 1)
-
-            trained = app.session_state["resultado_modelos_clasificacion"]
-            context_signature, entries = next(iter(trained.items()))
-            self.assertEqual(set(entries), {"RF", "NR"})
-            self.assertIn(app.session_state["dataset_identidad"], context_signature)
-            app.sidebar.button(key="nav_comparacion").click().run()
-            self.assertFalse(app.exception)
-            self.assertEqual(len(rf_calls), 1)
-            self.assertEqual(len(nr_calls), 1)
-
-        comparison = app.dataframe[-1].value
-        self.assertEqual(set(comparison["algoritmo"]), {"Random Forest", "Naive Bayes"})
-        self.assertTrue(comparison["hiperparámetros efectivos"].str.contains("n_estimators").any())
-        self.assertTrue(comparison["hiperparámetros efectivos"].str.contains("var_smoothing").any())
-        self.assertTrue(comparison["accuracy"].between(0, 1).all())
-        self.assertTrue(comparison["precision"].between(0, 1).all())
-
-        app.sidebar.button(key="nav_clasificacion").click().run()
+        app.button(key="lab2_entrenar_RF").click().run()
         self.assertFalse(app.exception)
-        current_estimators = app.session_state["clasif_rf_n"]
-        app.slider(key="clasif_rf_n").set_value(current_estimators - 10).run()
+        self.assertIn("resultado_lab2_modelo_RF", app.session_state)
+        app.sidebar.button(key="nav_clasificacion_nb").click().run()
+        app.button(key="lab2_entrenar_NR").click().run()
         self.assertFalse(app.exception)
-        app.sidebar.button(key="nav_comparacion").click().run()
+
+        self.assertIn("resultado_lab2_modelo_NR", app.session_state)
+        self.assertIsNot(
+            app.session_state["resultado_lab2_modelo_RF"],
+            app.session_state["resultado_lab2_modelo_NR"],
+        )
+        resultado_rf = app.session_state["resultado_lab2_modelo_RF"]
+        resultado_nr = app.session_state["resultado_lab2_modelo_NR"]
+        with (
+            patch(
+                "framework_ia.ui.controladores.controlador_clasificacion.Clasificacion.entrenar",
+                side_effect=AssertionError("Results navigation must not train"),
+            ) as entrenar,
+            patch(
+                "framework_ia.ui.controladores.controlador_clasificacion.Clasificacion.experimentar",
+                side_effect=AssertionError("Results navigation must not compare"),
+            ) as experimentar,
+        ):
+            app.sidebar.button(key="nav_lab2_resultados").click().run()
+            entrenar.assert_not_called()
+            experimentar.assert_not_called()
         self.assertFalse(app.exception)
-        filtered_comparison = app.dataframe[-1].value
-        self.assertEqual(filtered_comparison["algoritmo"].tolist(), ["Naive Bayes"])
+        self.assertTrue(
+            any("Resultados de clasificación" in item.value for item in app.markdown)
+        )
+        self.assertEqual(
+            sum('<h1 class="atlas-title">Resultados de clasificación</h1>' in item.value for item in app.markdown), 1
+        )
+        self.assertFalse(any(item.value == "### Resultados de clasificación" for item in app.markdown))
+        self.assertFalse(any("Compare ejecuciones guardadas" in item.value for item in app.caption))
+        self.assertFalse(app.metric)
+        self.assertFalse(app.get("plotly_chart"))
+        self.assertTrue(
+            any(
+                "Modelos entrenados individualmente" in item.value
+                for item in app.markdown
+            )
+        )
+        tabla = next(
+            item.value for item in app.dataframe if "Algoritmo" in item.value.columns
+        )
+        self.assertEqual(
+            set(tabla["Algoritmo"]), {"Random Forest · gini", "Naive Bayes"}
+        )
+        for label in resultado_rf.labels:
+            col = nombre_tasa_verdaderos(label, resultado_rf.labels)
+            self.assertIn(col, tabla.columns)
+        for nombre, resultado in (
+            ("Random Forest · gini", resultado_rf),
+            ("Naive Bayes", resultado_nr),
+        ):
+            fila = tabla.set_index("Algoritmo").loc[nombre]
+            self.assertAlmostEqual(
+                fila["Exactitud (%)"], 100 * resultado.metricas["accuracy"]
+            )
+            self.assertAlmostEqual(
+                fila["F1-Score Macro"], resultado.metricas["f1"]["macro"]
+            )
+        self.assertNotIn("Parámetros efectivos", tabla.columns)
+        self.assertTrue(any("hiperparámetros" in item.label.lower() for item in app.expander))
+        self.assertFalse(
+            any("Comparación de modelos" in item.value for item in app.markdown)
+        )
+        app.sidebar.button(key="nav_clasificacion_nb").click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(len(app.metric), 4)
+        self.assertTrue(
+            any("Valores de la matriz de confusión" in item.value for item in app.caption)
+        )
+        self.assertFalse(
+            any("Modelos entrenados individualmente" in item.value for item in app.markdown)
+        )
 
     def test_comparison_is_empty_until_a_model_is_trained(self):
         app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
-        app.sidebar.button(key="nav_comparacion").click().run()
+        self.assertTrue(app.sidebar.button(key="nav_lab2_resultados").disabled)
+        app.session_state["vista_activa"] = "lab2_resultados"
+        app.run()
         self.assertFalse(app.exception)
-        self.assertTrue(any("Entrene al menos un modelo" in item.value for item in app.info))
-        self.assertFalse(app.dataframe)
+        self.assertTrue(
+            any("Todavía no hay ejecuciones individuales" in item.value for item in app.info)
+        )
+
+    def test_legacy_comparison_route_migrates_to_read_only_results(self):
+        app = AppTest.from_file(ENTRYPOINT, default_timeout=30).run()
+        app.session_state["vista_activa"] = "comparacion"
+        app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state["vista_activa"], "lab2_resultados")
 
 
 if __name__ == "__main__":

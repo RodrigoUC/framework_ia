@@ -11,3 +11,24 @@ salida_lab01/
 .agents/skills/developing-with-streamlit
 .claude/skills/developing-with-streamlit
 .venv/*
+
+salida_lab02/
+
+# Datos y entregables locales de Lab02; no se publican automáticamente.
+data/lab02/*.csv
+data/lab02/procedencia.json
+entrega_lab02/
+output/lab02/
+output/pdf/
+tmp/lab02/
+tmp/pdfs/
+
+# Referencia y resultados locales de Lab03; conservar documentación versionada.
+/.codegraph/
+/salida_lab03/
+/data/lab03/diabetes_regresion.csv
+/data/lab03/procedencia.json
+/data/lab03/concrete/*
+!/data/lab03/concrete/README.md
+/output/lab03/
+/tmp/lab03/

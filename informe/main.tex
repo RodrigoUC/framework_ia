@@ -1,0 +1,1418 @@
+\documentclass[11pt]{article}
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage{booktabs,longtable,tabularx,amsmath,amssymb,float,xurl,placeins,xcolor}
+\usepackage{pgfplots}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc,babel}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\pgfplotsset{compat=1.18}
+\setlength{\emergencystretch}{2em}
+\renewcommand{\arraystretch}{1.12}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+
+\title{\textbf{Laboratorio 2}\\[2pt] Métodos supervisados: clasificación\\[2pt]\large KNN, árboles de decisión, Random Forest, XGBoost y AdaBoost}
+\author{Dylan Elizondo Alvarado (504610652)\\Joseph Garcia Montero (402680547)\\Rodrigo Ureña Castillo (118910482)\\Mariana Ureña Padilla (119180324)}
+\date{EIF420O -- Inteligencia Artificial, I Ciclo 2026\\Universidad Nacional de Costa Rica\\Profesor: Dr. Juan Murillo-Morera\\15 de octubre de 2026}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+Se compararon cinco familias de clasificadores (KNN, árbol de decisión, Random
+Forest, XGBoost y AdaBoost) en dos problemas: potabilidad del agua (2011 muestras,
+9 variables fisicoquímicas) y diabetes (390 pacientes, 17 variables clínicas). Para
+cada familia se evaluó la configuración estándar y tres variantes que cambian un
+único hiperparámetro, con validación cruzada estratificada de 5 pliegues sobre el
+75\,\% de los datos, y se probó además la selección de atributos por información
+mutua. El modelo elegido en cada familia se evaluó una sola vez en un 25\,\% de
+prueba reservado. En Potabilidad, Random Forest con 500 árboles obtuvo el mejor
+resultado (F1 macro 0.659, exactitud 70.2\,\%, AUC 0.727), pero ningún modelo
+detectó más de la mitad de las muestras potables: la señal de los datos es débil y
+no lineal. En Diabetes, todos los modelos basados en árboles alcanzaron F1 macro
+entre 0.76 y 0.78 y AUC cercanas a 0.9, dominados por la glucosa estabilizada; los
+siete diabéticos que ningún modelo detecta tienen glucosa en rango normal, lo que
+muestra un límite de la información disponible y no de los algoritmos. Todo el
+trabajo se integró en la clase \texttt{Clasificacion} del framework del curso y es
+reproducible con un solo comando por dataset.
+
+
+\end{abstract}
+
+\tableofcontents
+
+\clearpage
+
+\section{Introducción y objetivos}
+
+El objetivo general del laboratorio es realizar experimentos de clasificación
+supervisada con los conjuntos de datos del curso, Potabilidad y Diabetes, usando el
+framework de Python construido durante el semestre. Los objetivos específicos son:
+
+\begin{enumerate}
+\item Explicar el funcionamiento de KNN, árboles de decisión, Random Forest,
+XGBoost y AdaBoost (Sección~2).
+\item Definir modelos que combinen preprocesamiento, selección de atributos y cada
+algoritmo; para cada uno, comparar la configuración estándar con variaciones,
+seleccionar el mejor modelo y analizarlo (Secciones~3 a~5).
+\end{enumerate}
+
+Para que las comparaciones sean justas y repetibles se fijaron tres reglas. Primero,
+cada variante cambia un solo hiperparámetro respecto del estándar, de modo que
+cualquier diferencia se pueda atribuir a ese cambio. Segundo, la elección se hace
+con validación cruzada sobre el conjunto de entrenamiento, y el conjunto de prueba
+se usa una única vez al final. Tercero, todo el preprocesamiento se aprende sólo
+con datos de entrenamiento, para evitar fuga de información.
+
+El documento se organiza así: la Sección~2 presenta los fundamentos teóricos y un
+mapa conceptual; la Sección~3, la metodología y su implementación en el framework;
+las Secciones~4 y~5, los resultados y el análisis de cada dataset; la Sección~6
+compara ambos casos y discute limitaciones, y la Sección~7 resume las conclusiones.
+El anexo contiene los comandos para reproducir todo.
+
+
+\section{Fundamentos teóricos}
+
+\subsection{Aprendizaje supervisado y generalización}
+En clasificación, cada observación contiene predictoras $x_i\in\mathbb{R}^d$ y una
+etiqueta discreta $y_i$. El modelo aprende una regla $\hat y=f(x)$ a partir de
+datos de entrenamiento, y su utilidad se mide en observaciones que no participaron
+en ese aprendizaje \cite{hastie}. Los \emph{hiperparámetros} (por ejemplo, el número
+de vecinos o la profundidad de un árbol) controlan el procedimiento de ajuste; los
+\emph{parámetros} se estiman con los datos. Más complejidad reduce el error de
+entrenamiento, pero puede aumentar la varianza ante muestras nuevas: el modelo
+memoriza ruido (sobreajuste). Si el modelo es demasiado simple, no captura la
+estructura (subajuste). Por eso hay que separar ajuste, selección y evaluación final
+\cite{sklearnleakage,sklearnmetrics}.
+
+\subsection{KNN: vecinos más cercanos}
+KNN no construye un modelo explícito: guarda las observaciones de entrenamiento y
+clasifica un punto nuevo según las etiquetas de sus $k$ vecinos más próximos
+\cite{coverhart,sklearnknn}. Con la distancia de Minkowski,
+\[
+ d_p(x,z)=\Bigl(\sum_{j=1}^{d}|x_j-z_j|^p\Bigr)^{1/p},
+ \qquad
+ \hat y=\arg\max_c\sum_{i\in N_k(x)}w_i\,\mathbf{1}(y_i=c),
+\]
+donde $p=2$ es la distancia euclidiana, $p=1$ la Manhattan, y los pesos $w_i$ son
+uniformes o inversamente proporcionales a la distancia. Un $k$ pequeño conserva
+detalles locales y es sensible al ruido; uno grande suaviza la frontera y puede
+diluir una clase poco frecuente, porque la mayoría de los vecinos pertenecerá a la
+clase dominante. Como todas las variables entran en la distancia con el mismo peso,
+el escalado es obligatorio y los atributos irrelevantes empeoran el método: con
+muchas dimensiones las distancias tienden a parecerse entre sí.
+
+\subsection{Árbol de decisión (DT)}
+Un árbol divide recursivamente el espacio de atributos con reglas de la forma
+$x_j\le t$. Cada hoja es una región y predice la clase más frecuente de las
+observaciones de train que caen en ella. La implementación utilizada,
+\texttt{DecisionTreeClassifier}, sigue el algoritmo CART \cite{sklearntree}. Para las
+proporciones $p_c$ de cada clase en un nodo, las impurezas habituales son
+\[
+ G=1-\sum_c p_c^2 \quad\text{(Gini)}, \qquad H=-\sum_c p_c\log p_c \quad\text{(entropía)},
+\]
+y en cada nodo se elige la división que más reduce la impureza ponderada de los
+hijos. Sin restricciones, el árbol crece hasta que cada hoja es pura y memoriza el
+entrenamiento. La profundidad máxima y el mínimo de observaciones por hoja limitan
+esa complejidad. Sus reglas se pueden leer directamente, pero cambios pequeños en la
+muestra producen árboles distintos: es un método de alta varianza.
+
+\subsection{Random Forest (RF)}
+Random Forest promedia muchos árboles profundos, cada uno entrenado con una muestra
+\emph{bootstrap} de las filas y con un subconjunto aleatorio de atributos candidatos
+en cada división \cite{breiman,sklearnensemble}. Cada árbol individual sobreajusta,
+pero sus errores están poco correlacionados y el promedio reduce la varianza sin
+aumentar mucho el sesgo. \texttt{n\_estimators} fija cuántos árboles se promedian
+(más árboles estabilizan la predicción pero no cambian el sesgo), y
+\texttt{max\_depth} o \texttt{min\_samples\_leaf} limitan cada árbol. Es habitual que
+un bosque alcance exactitud casi perfecta en train sin que eso implique la misma
+calidad en datos nuevos.
+
+\subsection{XGBoost}
+XGBoost construye un ensamble \emph{aditivo}: cada árbol nuevo corrige los errores
+del conjunto anterior siguiendo el gradiente de una función de pérdida, con una
+penalización explícita de complejidad \cite{chen,xgboostmodel}:
+\[
+ F_T(x)=\sum_{t=1}^{T}\eta f_t(x),\qquad
+ \mathcal L=\sum_i\ell\bigl(y_i,F_T(x_i)\bigr)+\sum_t\Omega(f_t),
+ \qquad \Omega(f)=\gamma L+\tfrac{\lambda}{2}\sum_{j=1}^{L}w_j^2,
+\]
+donde $L$ es el número de hojas, $w_j$ el valor de cada hoja y $\eta$ la tasa de
+aprendizaje. Una $\eta$ menor hace que cada árbol aporte menos y actúa como
+regularización; una profundidad menor limita las interacciones que cada árbol
+puede representar. Se usa la biblioteca \texttt{xgboost.XGBClassifier}, no el
+\texttt{GradientBoostingClassifier} de scikit-learn.
+
+\subsection{AdaBoost}
+AdaBoost combina en secuencia aprendices débiles, por defecto árboles de un solo
+nivel (\emph{stumps}), y aumenta el peso de las observaciones mal clasificadas para
+que el siguiente aprendiz se concentre en ellas \cite{freund,sklearnada}. En la
+versión binaria, con error ponderado $\epsilon_t$,
+\[
+ \alpha_t=\tfrac12\log\frac{1-\epsilon_t}{\epsilon_t},\qquad
+ D_{t+1}(i)\propto D_t(i)\,e^{-\alpha_t y_i h_t(x_i)},\qquad
+ \hat y=\operatorname{sign}\Bigl(\sum_t\alpha_t h_t(x)\Bigr).
+\]
+El número de estimadores y la tasa de aprendizaje regulan el ensamble. Si cada stump
+apenas supera el azar ($\epsilon_t\approx0.5$), su peso $\alpha_t$ es casi nulo y el
+ensamble aprende muy poco; además, concentrar peso en casos difíciles puede
+amplificar el ruido de las etiquetas.
+
+\subsection{Evaluación: matriz de confusión y métricas}
+La matriz de confusión cuenta $C_{ij}=\#\{y=i,\hat y=j\}$ (filas reales, columnas
+predichas). Para cada clase $c$, tratada como positiva frente al resto,
+\[
+ P_c=\frac{TP_c}{TP_c+FP_c},\qquad
+ R_c=\frac{TP_c}{TP_c+FN_c},\qquad
+ F1_c=\frac{2P_cR_c}{P_c+R_c},\qquad
+ \text{F1 macro}=\frac1{|C|}\sum_c F1_c .
+\]
+La exactitud $\sum_c C_{cc}/n$ puede ser alta aunque una clase poco frecuente no se
+detecte nunca. El F1 macro da el mismo peso a cada clase y por eso es la métrica de
+selección de este trabajo: los dos conjuntos están desbalanceados (60/40 y 85/15)
+\cite{sklearnmetrics,hegarcia}.
+
+La \textbf{curva ROC} grafica la tasa de verdaderos positivos contra la de falsos
+positivos al mover el umbral de decisión sobre la probabilidad estimada. El área
+bajo la curva (AUC) es la probabilidad de que el modelo asigne mayor puntuación a un
+positivo que a un negativo elegidos al azar: 0.5 equivale al azar y 1 a una
+separación perfecta. No depende del umbral 0.5 que se usa para producir la matriz
+de confusión \cite{fawcett}.
+
+\subsection{Validación cruzada estratificada}
+Una única partición de validación es muy sensible a qué filas caen en ella,
+sobre todo con pocos casos de la clase minoritaria. En la validación cruzada de $K$
+pliegues, el entrenamiento se divide en $K$ partes; cada configuración se entrena $K$
+veces con $K-1$ partes y se evalúa en la restante, y se reporta la media y la
+desviación de la métrica \cite{kohavi,sklearncv}. La versión \emph{estratificada}
+conserva la proporción de clases en cada pliegue. Todo preprocesamiento (imputación,
+codificación, escalado y selección de atributos) se ajusta dentro de cada pliegue,
+para que el pliegue de evaluación nunca influya en el modelo. El conjunto de prueba
+se separa antes y sólo se usa una vez, con el modelo ya elegido.
+
+\subsection{Selección de atributos por información mutua}
+La información mutua $I(X_j;Y)$ mide cuánto se reduce la incertidumbre sobre la clase
+al conocer una variable; es cero si son independientes y, a diferencia de la
+correlación, también detecta relaciones no lineales \cite{kraskov,ross}. Un método de
+filtro como \texttt{SelectKBest} conserva las $k$ variables con mayor $I(X_j;Y)$
+\cite{guyon}. Su limitación es que evalúa cada variable por separado: una variable que
+sólo es útil en combinación con otra puede recibir una puntuación cercana a cero.
+
+\subsection{Desbalance de clases y ponderación}
+Con clases desbalanceadas, un algoritmo que minimiza el error total tiende a favorecer
+la clase mayoritaria. Una corrección simple es ponderar cada observación de train con
+$w_i=\frac{n}{|C|\,n_{y_i}}$, inversamente proporcional a la frecuencia de su clase,
+de modo que ambas clases pesen lo mismo en el ajuste \cite{hegarcia}. Se aplica a DT, RF,
+XGBoost y AdaBoost; KNN no admite pesos por observación.
+
+\subsection{Importancia por permutación}
+Para interpretar un modelo ya entrenado se permuta al azar una variable en el conjunto
+de prueba y se mide cuánto empeora la métrica. Si la caída es grande, el modelo
+depende de esa variable; si es nula, la ignora. Al ser independiente del algoritmo,
+permite comparar KNN con los métodos basados en árboles \cite{breiman,sklearnperm}.
+No demuestra causalidad.
+
+\subsection{Mapa conceptual}
+La Figura~\ref{fig:mapa} resume cómo se relacionan los conceptos anteriores dentro del
+flujo experimental.
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  caja/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, anchor=north, fill=#1},
+  caja/.default=white,
+  flecha/.style={-{Stealth[length=2mm]}, thick, gray!70!black}]
+\node[caja=gray!12, text width=13.2cm] (sup) at (0.5,0) {\textbf{Aprendizaje supervisado: clasificación}\\ datos etiquetados $(x_i,y_i)$ $\rightarrow$ regla $\hat y=f(x)$ que generalice a datos nuevos};
+\node[caja=blue!8, text width=5.0cm] (inst) at (-3.6,-1.6) {\textbf{Basado en instancias}\\ KNN: vota con los $k$ vecinos;\\ depende de la distancia\\ y del escalado};
+\node[caja=green!10, text width=5.6cm] (arb) at (3.7,-1.6) {\textbf{Basado en árboles}\\ DT: reglas $x_j\le t$ elegidas por impureza (Gini, entropía)};
+\node[caja=yellow!15, text width=5.0cm] (pre) at (-3.6,-3.75) {\textbf{Preparación (sólo con train)}\\ imputación, one-hot, escalado,\\ selección por información mutua,\\ ponderación de clases};
+\node[caja=green!18, text width=3.3cm] (bag) at (1.9,-3.75) {\textbf{Bagging}\\ RF: promedia árboles independientes\\ $\rightarrow$ menos varianza};
+\node[caja=orange!15, text width=3.3cm] (boost) at (5.5,-3.75) {\textbf{Boosting}\\ secuencial, corrige errores: AdaBoost (pesos), XGBoost (gradiente)};
+\node[caja=purple!10, text width=13.2cm] (val) at (0.5,-6.2) {\textbf{Selección del modelo}: estándar y variantes de un solo cambio $\rightarrow$ validación cruzada estratificada de 5 pliegues $\rightarrow$ ganador por familia con mayor F1 macro};
+\node[caja=red!8, text width=13.2cm] (eval) at (0.5,-7.5) {\textbf{Evaluación final en test reservado}: matriz de confusión, precisión, recall y F1 por clase, ROC/AUC\\ \textbf{Interpretación}: importancia por permutación, reglas del árbol, sobreajuste (train vs.\ CV vs.\ test)};
+\draw[flecha] (sup.south -| inst.north) -- (inst.north);
+\draw[flecha] (sup.south -| arb.north) -- (arb.north);
+\draw[flecha] (arb.south -| bag.north) -- (bag.north);
+\draw[flecha] (arb.south -| boost.north) -- (boost.north);
+\draw[flecha] (inst) -- (pre);
+\draw[flecha] (pre.south) -- (pre.south |- val.north);
+\draw[flecha] (bag.south) -- (bag.south |- val.north);
+\draw[flecha] (boost.south) -- (boost.south |- val.north);
+\draw[flecha] (val) -- (eval);
+\end{tikzpicture}
+\caption{Mapa conceptual: familias de clasificadores, preparación sin fuga de información, selección por validación cruzada y evaluación final.}
+\label{fig:mapa}
+\end{figure}
+
+
+\clearpage
+
+\section{Metodología}
+
+\subsection{Integración en el framework}
+Los algoritmos se implementaron en la jerarquía de clases del framework del curso:
+\texttt{EDA} $\rightarrow$ \texttt{Supervisado} $\rightarrow$ \texttt{Clasificacion}
+(módulo \texttt{framework\_ia/modelos/supervisado}). \texttt{Clasificacion} expone un
+método por algoritmo (\texttt{knn}, \texttt{arbol\_decision}, \texttt{random\_forest},
+\texttt{xgboost}, \texttt{adaboost}, con los alias \texttt{KNN}, \texttt{DT},
+\texttt{RF}, \texttt{XGBoost}, \texttt{AdaBoost}) para entrenar una configuración, y el
+método \texttt{experimentar} para el protocolo completo de este informe:
+
+\begin{verbatim}
+from framework_ia.modelos import Clasificacion
+modelo = Clasificacion(dataframe=datos, target="diabetes", features=predictoras)
+resultado = modelo.experimentar(estrategia="cv", folds=5, random_state=42,
+                                incluir_categoricas=True)
+resultado.tabla            # todas las configuraciones evaluadas
+resultado.mejores["RF"]    # ganador de Random Forest evaluado en test
+\end{verbatim}
+
+El preprocesamiento vive en \texttt{PreprocesadorSupervisado}: imputación por mediana
+(numéricas) y moda (categóricas), codificación one-hot, estandarización y, de forma
+opcional, selección de los $k$ atributos con mayor información mutua. Es un
+transformador de scikit-learn \cite{pedregosa} que se ajusta en cada pliegue sólo con
+las filas de entrenamiento. La validación cruzada está en
+\texttt{validacion\_cruzada.py}, y el script \texttt{scripts/ejecutar\_lab02.py} ejecuta
+el mismo flujo desde la terminal y exporta toda la evidencia (tablas, matrices,
+predicciones, curvas ROC, importancias y reglas del árbol). La interfaz Streamlit del
+framework permite entrenar cada algoritmo de forma individual y, en la vista
+\emph{Experimentos Lab02}, ejecutar este mismo protocolo con validación cruzada.
+
+\subsection{Preparación de los datos}
+\textbf{Potabilidad.} El archivo público de Water Quality \cite{datospotabilidad} tiene
+3276 filas, pero \texttt{ph}, \texttt{Sulfate} y \texttt{Trihalomethanes} tienen 491,
+781 y 162 valores ausentes. La versión usada en clase contiene 2011 filas, que son
+exactamente los casos completos del archivo; por eso se trabajó con esos 2011 casos,
+sin imputar. El objetivo \texttt{Potability} vale 1 para agua potable y 0 para no potable.
+
+\textbf{Diabetes.} El archivo original \cite{datosdiabetes} tiene 403 pacientes y 19
+columnas, sin una columna de clase. La clase se construyó con el criterio histórico del
+propio conjunto: hemoglobina glicosilada \texttt{glyhb} $>7$ indica diabetes. Se
+excluyeron las 13 filas sin \texttt{glyhb} (no se imputa la etiqueta), y se retiraron
+\texttt{id} (identificador) y \texttt{glyhb} (define la clase: usarla sería fuga
+directa). Quedan 390 pacientes y 17 predictoras: 14 numéricas y 3 categóricas
+(\texttt{location}, \texttt{gender}, \texttt{frame}). Los valores ausentes de las
+predictoras (por ejemplo, 252 en \texttt{bp.2s} y \texttt{bp.2d}) se imputan dentro de
+cada ajuste.
+
+Ambas preparaciones son deterministas, se ejecutan con un script cada una (Anexo) y
+registran el SHA-256 de cada archivo.
+
+\subsection{Protocolo experimental}
+\begin{enumerate}
+\item \textbf{Prueba reservada.} Se separa un 25\,\% estratificado (semilla 42) que no
+interviene en ninguna decisión.
+\item \textbf{Validación cruzada.} El 75\,\% restante se divide en 5 pliegues
+estratificados. Cada configuración del catálogo (Tabla~\ref{tab:catalogo}) se entrena
+5 veces y se registra la media y la desviación estándar del F1 macro en los pliegues
+de validación. Se elige F1 macro porque ambos datasets están desbalanceados.
+\item \textbf{Variantes de un solo cambio.} Cada familia tiene su configuración estándar
+(valores predeterminados de la biblioteca) y tres variantes. Para DT, RF, XGBoost y
+AdaBoost una de ellas pondera las clases de forma inversa a su frecuencia.
+\item \textbf{Selección de atributos.} La mejor configuración de cada familia se vuelve a
+evaluar con los mismos pliegues conservando sólo la mitad de los atributos con mayor
+información mutua. Se adopta la versión con mejor F1 macro medio.
+\item \textbf{Modelo final.} El ganador de cada familia se reajusta con todo el
+entrenamiento y se evalúa una vez en prueba: matriz de confusión, métricas por clase,
+exactitud, F1 macro y AUC.
+\item \textbf{Interpretación.} Para el ganador se calcula la importancia por permutación
+en prueba, las importancias internas de los árboles y, en DT, sus reglas. Estas
+herramientas no se usan para seleccionar.
+\end{enumerate}
+
+
+\begin{table}[H]\centering\footnotesize
+\caption{Catálogo de configuraciones. Cada variante cambia un único aspecto respecto del estándar, para poder atribuirle su efecto.}
+\label{tab:catalogo}
+\begin{tabular}{llp{0.27\linewidth}p{0.36\linewidth}}\toprule
+Familia & Nombre & Parámetros solicitados & Qué cambia \\ \midrule
+KNN & \texttt{estandar} & \texttt{--} & valores predeterminados de la biblioteca \\
+KNN & \texttt{k\_\allowbreak{}15} & \texttt{n\_\allowbreak{}neighbors=15} & $k=15$ vecinos (estándar: 5) \\
+KNN & \texttt{pesos\_\allowbreak{}distancia} & \texttt{weights=distance} & votos ponderados por $1/d$ (estándar: uniformes) \\
+KNN & \texttt{manhattan} & \texttt{p=1} & distancia Manhattan, $p=1$ (estándar: euclidiana) \\
+DT & \texttt{estandar} & \texttt{--} & valores predeterminados de la biblioteca \\
+DT & \texttt{profundidad\_\allowbreak{}5} & \texttt{max\_\allowbreak{}depth=5} & profundidad máxima 5 (estándar: sin límite) \\
+DT & \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} & \texttt{min\_\allowbreak{}samples\_\allowbreak{}leaf=10} & mínimo 10 observaciones por hoja (estándar: 1) \\
+DT & \texttt{clases\_\allowbreak{}balanceadas} & \texttt{balancear\_\allowbreak{}clases=True} & pesos por observación inversos a la frecuencia de su clase \\
+RF & \texttt{estandar} & \texttt{--} & valores predeterminados de la biblioteca \\
+RF & \texttt{500\_\allowbreak{}arboles} & \texttt{n\_\allowbreak{}estimators=500} & 500 árboles (estándar: 100) \\
+RF & \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}5} & \texttt{min\_\allowbreak{}samples\_\allowbreak{}leaf=5} & mínimo 5 observaciones por hoja (estándar: 1) \\
+RF & \texttt{clases\_\allowbreak{}balanceadas} & \texttt{balancear\_\allowbreak{}clases=True} & pesos por observación inversos a la frecuencia de su clase \\
+XGBoost & \texttt{estandar} & \texttt{--} & valores predeterminados de la biblioteca \\
+XGBoost & \texttt{tasa\_\allowbreak{}0\_\allowbreak{}05} & \texttt{learning\_\allowbreak{}rate=0.05} & tasa de aprendizaje 0.05 (estándar: 0.3) \\
+XGBoost & \texttt{profundidad\_\allowbreak{}3} & \texttt{max\_\allowbreak{}depth=3} & profundidad máxima 3 (estándar: 6) \\
+XGBoost & \texttt{clases\_\allowbreak{}balanceadas} & \texttt{balancear\_\allowbreak{}clases=True} & pesos por observación inversos a la frecuencia de su clase \\
+AdaBoost & \texttt{estandar} & \texttt{--} & valores predeterminados de la biblioteca \\
+AdaBoost & \texttt{200\_\allowbreak{}estimadores} & \texttt{n\_\allowbreak{}estimators=200} & 200 estimadores (estándar: 50) \\
+AdaBoost & \texttt{tasa\_\allowbreak{}0\_\allowbreak{}5} & \texttt{learning\_\allowbreak{}rate=0.5} & tasa de aprendizaje 0.5 (estándar: 1.0) \\
+AdaBoost & \texttt{clases\_\allowbreak{}balanceadas} & \texttt{balancear\_\allowbreak{}clases=True} & pesos por observación inversos a la frecuencia de su clase \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Tamaños efectivos del protocolo (semilla 42).}
+\begin{tabular}{lrrrcrrr}\toprule
+Dataset & Filas & Train & Test & Validación por pliegue & Predictoras & Atributos transf. & $k$ sel. \\ \midrule
+Potabilidad del agua & 2011 & 1508 & 503 & 302/302/302/301/301 & 9 & 9 & 5 \\
+Diabetes & 390 & 292 & 98 & 59/59/58/58/58 & 17 & 21 & 11 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\clearpage
+
+\section{Resultados: Potabilidad del agua}
+
+\subsection{Datos y partición}
+
+Se analizan 2011 muestras de agua con nueve mediciones fisicoquímicas (\texttt{ph},
+dureza, sólidos disueltos, cloraminas, sulfato, conductividad, carbono orgánico,
+trihalometanos y turbidez). El 59.7\,\% de las muestras es no potable. Un rasgo
+central de este conjunto es que las medias de cada variable son casi idénticas en las
+dos clases (por ejemplo, \texttt{ph} 7.07 frente a 7.11 y sulfato 333.7 frente a
+332.5\,mg/L): ninguna variable separa las clases por sí sola. Lo que cambia es la
+dispersión y los extremos. El 73\,\% de las muestras con sulfato menor que 260\,mg/L
+y el 62\,\% de las que superan 420\,mg/L son potables, frente al 35\,\% entre 300 y
+340\,mg/L. Con el \texttt{ph} ocurre algo parecido: la proporción de potables es mayor
+cerca de la neutralidad (43--45\,\% entre 6 y 8) que en los extremos (30\,\% con
+\texttt{ph} $\le 5$). Son relaciones en forma de U, no lineales, y eso condiciona qué
+algoritmos funcionan mejor.
+
+\begin{table}[H]\centering\small
+\caption{Procedencia de Potabilidad del agua.}
+\begin{tabular}{lp{0.62\linewidth}}\toprule
+Elemento & Valor \\ \midrule
+Archivo analizado & \texttt{potabilidad.csv} \\
+Original & \texttt{water\_\allowbreak{}potability.csv}, 3276 filas \\
+Filas analizadas & 2011 \\
+Objetivo & \texttt{Potability} \\
+Predictoras & 9 \\
+Fuente & \url{https://www.kaggle.com/datasets/adityakadiwal/water-potability} \\
+SHA-256 analizado & {\footnotesize\texttt{d2569bece50025b9dbf21cfd720ecbed}\newline\texttt{cdaa838ca082db29ef853c5fb9da8e12}} \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Distribución de clases en Potabilidad del agua (partición estratificada 75/25, semilla 42).}
+\begin{tabular}{lrrr}\toprule
+Clase & Train & Test & Total \\ \midrule
+No potable (0) & 900 & 300 & 1200 \\
+Potable (1) & 608 & 203 & 811 \\
+\textbf{Total} & 1508 & 503 & 2011 \\
+\bottomrule\end{tabular}
+\end{table}
+
+Una referencia trivial que siempre predice la clase mayoritaria de train (No potable (0)) obtendría en test una exactitud de 59.6\% y un F1 macro de 0.374. Cualquier modelo útil debe superar con claridad ese F1 macro, no sólo la exactitud.
+
+\subsection{K vecinos más cercanos (KNN)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{K vecinos más cercanos (KNN) en Potabilidad del agua: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.5892 $\pm$ 0.029 & -- & 62.6\% & 0.5901 \\
+\texttt{k\_\allowbreak{}15} & $k=15$ vecinos (estándar: 5) & 0.6000 $\pm$ 0.030 & +0.011 & 65.6\% & 0.6066 \\
+\texttt{pesos\_\allowbreak{}distancia} & votos ponderados por $1/d$ (estándar: uniformes) & 0.5877 $\pm$ 0.030 & -0.001 & 62.5\% & 0.5887 \\
+\texttt{manhattan} $\star$ & distancia Manhattan, $p=1$ (estándar: euclidiana) & 0.6036 $\pm$ 0.030 & +0.014 & 64.1\% & 0.6042 \\
+\texttt{manhattan+\allowbreak{}seleccion\_\allowbreak{}k5} & mejor anterior + 5 atributos por información mutua & 0.5364 $\pm$ 0.033 & -0.053 & 57.7\% & 0.5399 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{manhattan} con todos los atributos, reajustada con las 1508 filas de train. F1 macro: 0.7472 en entrenamiento, 0.6036 en validación cruzada y 0.5969 en test (exactitud 63.4\%, AUC 0.668).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{K vecinos más cercanos (KNN): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & No potable (0) & Potable (1) \\ \midrule
+No potable (0) & 236 & 64 \\
+Potable (1) & 120 & 83 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{K vecinos más cercanos (KNN): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+No potable (0) & 300 & 0.6629 & 0.7867 & 0.7195 \\
+Potable (1) & 203 & 0.5646 & 0.4089 & 0.4743 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Las cuatro configuraciones quedan dentro de una desviación estándar entre sí
+(0.588--0.604, con desviaciones cercanas a 0.03), así que la elección de la distancia
+Manhattan (+0.014 sobre el estándar) es una mejora pequeña y poco segura. Aumentar a
+$k=15$ sube la exactitud de validación de 62.6\,\% a 65.7\,\% pero apenas el F1 macro:
+promediar más vecinos suaviza la frontera hacia la clase mayoritaria. Ponderar por
+distancia no cambia nada relevante. La selección de cinco atributos empeoró el F1 macro
+a 0.536, por la razón que se discute en la síntesis. En prueba, KNN reconoce bien el
+agua no potable (recall 0.787) pero sólo 83 de 203 muestras potables (recall 0.409).
+La importancia por permutación reparte el efecto entre \texttt{ph}, sulfato y sólidos,
+sin una variable dominante. Esto es coherente con el método: KNN usa las nueve
+variables con el mismo peso, aunque la mayoría aporta poca información, y esas
+dimensiones irrelevantes vuelven las distancias menos informativas. La diferencia entre
+F1 de entrenamiento (0.747) y de prueba (0.597) muestra además que, con $k=5$, el
+modelo depende mucho de los vecinos concretos.
+
+\FloatBarrier
+
+\subsection{Árbol de decisión (DT)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Árbol de decisión (DT) en Potabilidad del agua: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.5654 $\pm$ 0.048 & -- & 57.5\% & 0.5681 \\
+\texttt{profundidad\_\allowbreak{}5} & profundidad máxima 5 (estándar: sin límite) & 0.5346 $\pm$ 0.071 & -0.031 & 62.5\% & 0.5667 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} $\star$ & mínimo 10 observaciones por hoja (estándar: 1) & 0.5908 $\pm$ 0.047 & +0.025 & 61.0\% & 0.5906 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.5633 $\pm$ 0.049 & -0.002 & 58.4\% & 0.5633 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10+\allowbreak{}seleccion\_\allowbreak{}k5} & mejor anterior + 5 atributos por información mutua & 0.5487 $\pm$ 0.050 & -0.017 & 57.6\% & 0.5499 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} con todos los atributos, reajustada con las 1508 filas de train. F1 macro: 0.7935 en entrenamiento, 0.5908 en validación cruzada y 0.5777 en test (exactitud 61.2\%, AUC 0.657).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{Árbol de decisión (DT): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & No potable (0) & Potable (1) \\ \midrule
+No potable (0) & 226 & 74 \\
+Potable (1) & 121 & 82 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{Árbol de decisión (DT): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+No potable (0) & 300 & 0.6513 & 0.7533 & 0.6986 \\
+Potable (1) & 203 & 0.5256 & 0.4039 & 0.4568 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\begin{figure}[H]\centering\begin{minipage}{0.92\linewidth}\scriptsize\begin{verbatim}
+|--- Sulfate <= 261.02
+|   |--- Solids <= 18346.62
+|   |   |--- clase: 0 [n=13]
+|   |--- Solids > 18346.62
+|   |   |--- ph <= 6.23
+|   |   |   |--- clase: 0 [n=10]
+|   |   |--- ph > 6.23
+|   |   |   |--- clase: 1 [n=39] (rama truncada)
+|--- Sulfate > 261.02
+|   |--- Sulfate <= 387.27
+|   |   |--- ph <= 6.27
+|   |   |   |--- clase: 0 [n=374] (rama truncada)
+|   |   |--- ph > 6.27
+|   |   |   |--- clase: 0 [n=939] (rama truncada)
+|   |--- Sulfate > 387.27
+|   |   |--- ph <= 7.91
+|   |   |   |--- clase: 1 [n=93] (rama truncada)
+|   |   |--- ph > 7.91
+|   |   |   |--- clase: 0 [n=40] (rama truncada)
+\end{verbatim}\end{minipage}\caption{Primeros tres niveles del árbol final (profundidad total 14, 107 hojas). Los umbrales están en las unidades originales: la estandarización se invirtió con la media y desviación de train. $n$ es la cantidad de observaciones de train en el nodo.}\end{figure}
+
+\paragraph{Análisis.} El árbol sin restricciones (estándar) obtiene F1 macro 0.565 con una exactitud de
+apenas 57.5\,\%, menor que la de predecir siempre ``no potable'': crece hasta
+memorizar el entrenamiento. Limitar la profundidad a 5 sube la exactitud (62.5\,\%)
+pero baja el F1 macro (0.535), porque un árbol tan corto termina prediciendo casi
+siempre la clase mayoritaria. La mejor opción es exigir al menos 10 observaciones por
+hoja (0.591, +0.025): regulariza sin impedir que el árbol aprenda las reglas en U. El
+árbol final sigue siendo grande (profundidad 14, 107 hojas) y el F1 cae de 0.794 en
+entrenamiento a 0.578 en prueba, lo que confirma su alta varianza. Sus primeras reglas
+son interpretables y coinciden con lo observado en los datos: con sulfato
+$\le 261$\,mg/L, sólidos mayores que 18\,347\,mg/L y \texttt{ph} $>6.23$ predice potable; con sulfato entre 261 y
+387\,mg/L predice no potable, y por encima de 387\,mg/L vuelve a predecir potable
+cuando \texttt{ph} $\le 7.91$. El árbol representa la forma en U combinando dos cortes
+sobre la misma variable y una interacción con el \texttt{ph}.
+
+\FloatBarrier
+
+\subsection{Random Forest (RF)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Random Forest (RF) en Potabilidad del agua: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.6287 $\pm$ 0.031 & -- & 67.7\% & 0.6310 \\
+\texttt{500\_\allowbreak{}arboles} $\star$ & 500 árboles (estándar: 100) & 0.6435 $\pm$ 0.022 & +0.015 & 69.0\% & 0.6442 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}5} & mínimo 5 observaciones por hoja (estándar: 1) & 0.6151 $\pm$ 0.022 & -0.014 & 67.2\% & 0.6209 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.6278 $\pm$ 0.045 & -0.001 & 65.5\% & 0.6262 \\
+\texttt{500\_\allowbreak{}arboles+\allowbreak{}seleccion\_\allowbreak{}k5} & mejor anterior + 5 atributos por información mutua & 0.5436 $\pm$ 0.039 & -0.085 & 60.1\% & 0.5538 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{500\_\allowbreak{}arboles} con todos los atributos, reajustada con las 1508 filas de train. F1 macro: 1.0000 en entrenamiento, 0.6435 en validación cruzada y 0.6585 en test (exactitud 70.2\%, AUC 0.727).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{Random Forest (RF): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & No potable (0) & Potable (1) \\ \midrule
+No potable (0) & 266 & 34 \\
+Potable (1) & 116 & 87 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{Random Forest (RF): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+No potable (0) & 300 & 0.6963 & 0.8867 & 0.7801 \\
+Potable (1) & 203 & 0.7190 & 0.4286 & 0.5370 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Random Forest obtiene el mejor resultado de este dataset. El estándar (100 árboles)
+alcanza 0.629 y pasar a 500 árboles sube el F1 macro a 0.644 y además baja la
+desviación entre pliegues de 0.031 a 0.022: con más árboles el promedio es más estable,
+que es exactamente lo que predice la teoría del bagging. Exigir 5 observaciones por
+hoja empeora (0.615), porque limita los árboles profundos que el bosque necesita para
+capturar las interacciones. Ponderar las clases no ayudó. En prueba logra exactitud de
+70.2\,\% (contra 59.6\,\% de la referencia), F1 macro 0.659 y AUC 0.727. Es el modelo
+más preciso al predecir potable (0.719: de cada 10 muestras que marca como potables,
+7 lo son), pero sigue dejando pasar 116 de las 203 muestras potables (recall 0.429).
+El F1 de entrenamiento es 1.000: cada árbol memoriza su muestra, y aun así el promedio
+generaliza mejor que cualquier modelo individual. La importancia por permutación
+(Figura~\ref{fig:perm-potabilidad}) identifica el sulfato (caída de 0.131 en F1) y el
+\texttt{ph} (0.096) como las variables decisivas, seguidas de cloraminas, dureza y
+sólidos.
+
+\FloatBarrier
+
+\subsection{XGBoost}
+
+\begin{table}[H]\centering\footnotesize
+\caption{XGBoost en Potabilidad del agua: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.6220 $\pm$ 0.025 & -- & 65.1\% & 0.6210 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}05} & tasa de aprendizaje 0.05 (estándar: 0.3) & 0.6172 $\pm$ 0.024 & -0.005 & 66.3\% & 0.6196 \\
+\texttt{profundidad\_\allowbreak{}3} & profundidad máxima 3 (estándar: 6) & 0.6208 $\pm$ 0.034 & -0.001 & 65.1\% & 0.6197 \\
+\texttt{clases\_\allowbreak{}balanceadas} $\star$ & pesos por observación inversos a la frecuencia de su clase & 0.6392 $\pm$ 0.044 & +0.017 & 65.8\% & 0.6375 \\
+\texttt{clases\_\allowbreak{}balanceadas+\allowbreak{}seleccion\_\allowbreak{}k5} & mejor anterior + 5 atributos por información mutua & 0.5439 $\pm$ 0.012 & -0.078 & 56.6\% & 0.5441 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{clases\_\allowbreak{}balanceadas} con todos los atributos, reajustada con las 1508 filas de train. F1 macro: 1.0000 en entrenamiento, 0.6392 en validación cruzada y 0.5896 en test (exactitud 61.0\%, AUC 0.671).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{XGBoost: matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & No potable (0) & Potable (1) \\ \midrule
+No potable (0) & 210 & 90 \\
+Potable (1) & 106 & 97 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{XGBoost: métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+No potable (0) & 300 & 0.6646 & 0.7000 & 0.6818 \\
+Potable (1) & 203 & 0.5187 & 0.4778 & 0.4974 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Las variantes de tasa de aprendizaje (0.05) y profundidad (3) quedan prácticamente
+iguales al estándar (0.617--0.622). La única mejora es ponderar las clases (0.639,
++0.017), que obliga al modelo a prestar más atención a las muestras potables. En
+prueba esto se ve como el segundo mayor recall de potables (0.478, 97 de 203), a costa
+de más falsos positivos (90 frente a 34 de RF) y una exactitud de 61.0\,\%. XGBoost es
+el modelo que más cae de validación (0.639) a prueba (0.590), y su F1 de entrenamiento
+es 1.000: con la tasa 0.3 y profundidad 6 predeterminadas, los 100 árboles alcanzan a
+memorizar el entrenamiento. En este dataset ruidoso, el boosting por gradiente termina
+ajustando ruido, mientras que el promedio de RF lo atenúa.
+
+\FloatBarrier
+
+\subsection{AdaBoost}
+
+\begin{table}[H]\centering\footnotesize
+\caption{AdaBoost en Potabilidad del agua: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.4714 $\pm$ 0.018 & -- & 59.7\% & 0.5224 \\
+\texttt{200\_\allowbreak{}estimadores} & 200 estimadores (estándar: 50) & 0.5014 $\pm$ 0.017 & +0.030 & 59.9\% & 0.5337 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}5} & tasa de aprendizaje 0.5 (estándar: 1.0) & 0.4501 $\pm$ 0.016 & -0.021 & 61.5\% & 0.5286 \\
+\texttt{clases\_\allowbreak{}balanceadas} $\star$ & pesos por observación inversos a la frecuencia de su clase & 0.5404 $\pm$ 0.039 & +0.069 & 55.2\% & 0.5456 \\
+\texttt{clases\_\allowbreak{}balanceadas+\allowbreak{}seleccion\_\allowbreak{}k5} & mejor anterior + 5 atributos por información mutua & 0.5281 $\pm$ 0.011 & +0.057 & 54.4\% & 0.5314 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{clases\_\allowbreak{}balanceadas} con todos los atributos, reajustada con las 1508 filas de train. F1 macro: 0.5747 en entrenamiento, 0.5404 en validación cruzada y 0.5822 en test (exactitud 59.8\%, AUC 0.615).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{AdaBoost: matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & No potable (0) & Potable (1) \\ \midrule
+No potable (0) & 200 & 100 \\
+Potable (1) & 102 & 101 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{AdaBoost: métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+No potable (0) & 300 & 0.6623 & 0.6667 & 0.6645 \\
+Potable (1) & 203 & 0.5025 & 0.4975 & 0.5000 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} AdaBoost estándar tiene el peor desempeño del estudio: F1 macro 0.471 con exactitud
+59.7\,\%, igual a la proporción de la clase mayoritaria. Es decir, casi siempre
+predice ``no potable''. Bajar la tasa a 0.5 lo empeora (0.450) y duplicar los
+estimadores mejora poco (0.501). La razón está en sus aprendices: cada stump es un
+único corte sobre una variable, y como las medias de ambas clases son casi iguales,
+ningún corte supera por mucho el azar. En ese caso el peso $\alpha_t$ de cada stump es
+pequeño y el ensamble no logra representar la interacción entre sulfato
+y \texttt{ph}. La ponderación de clases es la variante con mayor efecto de todo el
+dataset (+0.069, F1 0.540): al igualar el peso de ambas clases, los stumps dejan de
+favorecer la mayoritaria. En prueba alcanza el recall más alto de potables (0.498),
+pero con precisión 0.502 y AUC 0.615, la más baja. A diferencia de RF y XGBoost no
+sobreajusta (F1 0.575 en entrenamiento y 0.582 en prueba): su problema es de sesgo
+(subajuste), no de varianza. Casi toda su capacidad se apoya en el sulfato.
+
+\FloatBarrier
+
+\subsection{Comparación de los cinco modelos elegidos}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Potabilidad del agua: resumen de los ganadores. La selección usó sólo la columna F1 CV; el mejor algoritmo por validación es RF.}
+\begin{tabular}{llrrrrrr}\toprule
+Familia & Configuración & F1 train & F1 CV & F1 test & Exactitud test & Recall Potable (1) & AUC \\ \midrule
+KNN & \texttt{manhattan} & 0.7472 & 0.6036 & 0.5969 & 63.4\% & 0.4089 & 0.668 \\
+DT & \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} & 0.7935 & 0.5908 & 0.5777 & 61.2\% & 0.4039 & 0.657 \\
+RF & \texttt{500\_\allowbreak{}arboles} & 1.0000 & 0.6435 & 0.6585 & 70.2\% & 0.4286 & 0.727 \\
+XGBoost & \texttt{clases\_\allowbreak{}balanceadas} & 1.0000 & 0.6392 & 0.5896 & 61.0\% & 0.4778 & 0.671 \\
+AdaBoost & \texttt{clases\_\allowbreak{}balanceadas} & 0.5747 & 0.5404 & 0.5822 & 59.8\% & 0.4975 & 0.615 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=8pt, width=\linewidth, height=6.2cm, ymin=0, ymax=1.08,
+ ylabel={F1 macro}, symbolic x coords={KNN,DT,RF,XGBoost,AdaBoost}, xtick=data,
+ enlarge x limits=0.14, ymajorgrids, legend style={at={(0.5,-0.16)},anchor=north,legend columns=4,font=\small},
+ tick label style={font=\small}]
+\addplot[fill=gray!35, draw=gray!70!black] coordinates {(KNN,0.7472) (DT,0.7935) (RF,1.0000) (XGBoost,1.0000) (AdaBoost,0.5747)};
+\addplot[fill=blue!55, draw=blue!70!black, error bars/.cd, y dir=both, y explicit] coordinates {(KNN,0.6036) +- (0,0.0303) (DT,0.5908) +- (0,0.0473) (RF,0.6435) +- (0,0.0218) (XGBoost,0.6392) +- (0,0.0441) (AdaBoost,0.5404) +- (0,0.0389)};
+\addplot[fill=orange!70, draw=orange!80!black] coordinates {(KNN,0.5969) (DT,0.5777) (RF,0.6585) (XGBoost,0.5896) (AdaBoost,0.5822)};
+\draw[dashed, red!70!black, thick] ({rel axis cs:0,0}|-{axis cs:KNN,0.3736}) -- ({rel axis cs:1,0}|-{axis cs:KNN,0.3736});
+\legend{Entrenamiento, Validación cruzada (media $\pm$ d.e.), Test}
+\end{axis}\end{tikzpicture}
+\caption{Potabilidad del agua: F1 macro del modelo elegido en cada familia. La línea roja es la referencia que siempre predice la clase mayoritaria (F1 macro 0.374). La distancia entre la barra gris y la azul indica sobreajuste.}
+\label{fig:resumen-potabilidad}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.72\linewidth, height=0.62\linewidth, xmin=0, xmax=1, ymin=0, ymax=1,
+ xlabel={Tasa de falsos positivos}, ylabel={Tasa de verdaderos positivos}, grid=major,
+ legend style={at={(0.98,0.02)}, anchor=south east, font=\footnotesize}]
+\addplot[dashed, gray, forget plot] coordinates {(0,0) (1,1)};
+\addplot[thick, blue!70!black] coordinates {(0.0000,0.0000) (0.0167,0.0197) (0.0600,0.1872) (0.2133,0.4089) (0.5200,0.7734) (0.8300,0.9655) (1.0000,1.0000)};
+\addlegendentry{KNN (AUC 0.668)}
+\addplot[thick, orange!85!black] coordinates {(0.0000,0.0000) (0.0433,0.1379) (0.0433,0.1626) (0.0500,0.1872) (0.0600,0.1921) (0.0833,0.2217) (0.1000,0.2562) (0.1200,0.2857) (0.1467,0.3153) (0.1567,0.3547) (0.1600,0.3547) (0.1633,0.3744) (0.1733,0.3744) (0.2100,0.3990) (0.2267,0.4039) (0.2400,0.4039) (0.2467,0.4039) (0.3233,0.5271) (0.3467,0.5616) (0.3667,0.6010) (0.3700,0.6158) (0.3767,0.6256) (0.4167,0.6453) (0.4200,0.6502) (0.4333,0.6502) (0.4367,0.6700) (0.4433,0.6700) (0.4500,0.6798) (0.4500,0.6897) (0.4600,0.6946) (0.4800,0.7044) (0.5167,0.7241) (0.5233,0.7340) (0.5467,0.7537) (0.5567,0.7586) (0.5867,0.7833) (0.6133,0.8128) (0.6133,0.8177) (0.6533,0.8325) (0.6733,0.8374) (0.7033,0.8621) (0.7200,0.8966) (1.0000,1.0000)};
+\addlegendentry{DT (AUC 0.657)}
+\addplot[thick, green!55!black] coordinates {(0.0000,0.0000) (0.0000,0.0049) (0.0000,0.0148) (0.0000,0.0345) (0.0033,0.0345) (0.0033,0.0443) (0.0067,0.0443) (0.0067,0.0640) (0.0100,0.0640) (0.0100,0.0788) (0.0133,0.0788) (0.0133,0.0985) (0.0167,0.0985) (0.0167,0.1084) (0.0200,0.1133) (0.0200,0.1330) (0.0233,0.1330) (0.0233,0.1527) (0.0267,0.1576) (0.0267,0.1626) (0.0300,0.1724) (0.0333,0.1724) (0.0333,0.1921) (0.0367,0.1921) (0.0367,0.2020) (0.0400,0.2020) (0.0400,0.2217) (0.0400,0.2266) (0.0400,0.2365) (0.0433,0.2463) (0.0433,0.2512) (0.0467,0.2562) (0.0467,0.2660) (0.0500,0.2660) (0.0500,0.2709) (0.0567,0.2759) (0.0600,0.2759) (0.0600,0.2906) (0.0633,0.3005) (0.0667,0.3005) (0.0700,0.3103) (0.0700,0.3202) (0.0733,0.3251) (0.0733,0.3350) (0.0733,0.3547) (0.0767,0.3645) (0.0800,0.3695) (0.0800,0.3744) (0.0867,0.3744) (0.0933,0.3793) (0.0967,0.3990) (0.1033,0.4187) (0.1067,0.4236) (0.1133,0.4236) (0.1133,0.4286) (0.1167,0.4286) (0.1200,0.4335) (0.1233,0.4433) (0.1267,0.4433) (0.1333,0.4433) (0.1400,0.4532) (0.1467,0.4581) (0.1533,0.4581) (0.1567,0.4581) (0.1567,0.4729) (0.1600,0.4729) (0.1733,0.4729) (0.1800,0.4778) (0.1800,0.4828) (0.1800,0.4926) (0.1800,0.4975) (0.2000,0.4975) (0.2033,0.5123) (0.2067,0.5320) (0.2067,0.5419) (0.2067,0.5567) (0.2100,0.5616) (0.2167,0.5616) (0.2333,0.5616) (0.2367,0.5665) (0.2467,0.5714) (0.2567,0.5714) (0.2700,0.5714) (0.2733,0.5764) (0.2733,0.5862) (0.2733,0.5911) (0.2767,0.5911) (0.2833,0.5961) (0.2833,0.6010) (0.2900,0.6010) (0.2933,0.6010) (0.2933,0.6059) (0.3000,0.6158) (0.3133,0.6207) (0.3167,0.6207) (0.3233,0.6404) (0.3367,0.6552) (0.3433,0.6650) (0.3533,0.6946) (0.3567,0.6995) (0.3700,0.6995) (0.3700,0.7044) (0.3867,0.7094) (0.3967,0.7094) (0.4033,0.7094) (0.4067,0.7094) (0.4133,0.7291) (0.4300,0.7291) (0.4300,0.7389) (0.4367,0.7488) (0.4467,0.7586) (0.4500,0.7586) (0.4633,0.7635) (0.4700,0.7734) (0.4800,0.7783) (0.4833,0.7833) (0.4933,0.7882) (0.5000,0.7931) (0.5067,0.7931) (0.5200,0.7931) (0.5233,0.7980) (0.5333,0.8030) (0.5433,0.8030) (0.5433,0.8177) (0.5433,0.8227) (0.5533,0.8227) (0.5600,0.8227) (0.5767,0.8276) (0.5900,0.8276) (0.6033,0.8276) (0.6233,0.8374) (0.6267,0.8424) (0.6467,0.8473) (0.6500,0.8473) (0.6567,0.8621) (0.6600,0.8621) (0.6667,0.8621) (0.6667,0.8719) (0.6700,0.8818) (0.6800,0.8818) (0.6800,0.8867) (0.6867,0.8916) (0.6933,0.8916) (0.6967,0.8966) (0.7000,0.8966) (0.7100,0.9113) (0.7233,0.9113) (0.7267,0.9113) (0.7267,0.9212) (0.7267,0.9261) (0.7333,0.9261) (0.7433,0.9310) (0.7467,0.9310) (0.7600,0.9310) (0.7633,0.9409) (0.7733,0.9458) (0.7767,0.9458) (0.7767,0.9557) (0.7833,0.9606) (0.7867,0.9606) (0.7933,0.9606) (0.8067,0.9655) (0.8133,0.9704) (0.8233,0.9704) (0.8300,0.9704) (0.8367,0.9754) (0.8500,0.9754) (0.8533,0.9754) (0.8600,0.9754) (0.8800,0.9754) (0.8833,0.9754) (0.8933,0.9754) (0.8967,0.9803) (0.9033,0.9852) (0.9067,0.9852) (0.9133,0.9852) (0.9167,0.9901) (0.9233,0.9901) (0.9367,0.9901) (0.9367,0.9951) (0.9467,0.9951) (0.9533,0.9951) (0.9633,0.9951) (0.9767,0.9951) (0.9800,1.0000) (1.0000,1.0000)};
+\addlegendentry{RF (AUC 0.727)}
+\addplot[thick, red!75!black] coordinates {(0.0000,0.0000) (0.0000,0.0049) (0.0000,0.0197) (0.0033,0.0197) (0.0033,0.0345) (0.0067,0.0345) (0.0067,0.0640) (0.0100,0.0640) (0.0100,0.1330) (0.0133,0.1330) (0.0133,0.1478) (0.0167,0.1478) (0.0167,0.1527) (0.0267,0.1527) (0.0267,0.1626) (0.0400,0.1626) (0.0400,0.1724) (0.0467,0.1724) (0.0467,0.2069) (0.0500,0.2069) (0.0500,0.2217) (0.0600,0.2217) (0.0600,0.2266) (0.0667,0.2266) (0.0667,0.2315) (0.0700,0.2315) (0.0700,0.2414) (0.0833,0.2414) (0.0833,0.2611) (0.0867,0.2611) (0.0867,0.2709) (0.0900,0.2709) (0.0900,0.2759) (0.0933,0.2759) (0.0933,0.2906) (0.0967,0.2906) (0.0967,0.3005) (0.1000,0.3005) (0.1000,0.3054) (0.1100,0.3054) (0.1100,0.3153) (0.1133,0.3153) (0.1133,0.3251) (0.1267,0.3251) (0.1267,0.3300) (0.1300,0.3300) (0.1300,0.3350) (0.1333,0.3350) (0.1333,0.3399) (0.1367,0.3399) (0.1367,0.3448) (0.1433,0.3448) (0.1433,0.3498) (0.1533,0.3498) (0.1533,0.3596) (0.1567,0.3596) (0.1567,0.3645) (0.1633,0.3645) (0.1633,0.3793) (0.1667,0.3793) (0.1667,0.3842) (0.1700,0.3842) (0.1700,0.3892) (0.1767,0.3892) (0.1767,0.3990) (0.1800,0.3990) (0.1800,0.4039) (0.2000,0.4039) (0.2000,0.4089) (0.2100,0.4089) (0.2100,0.4138) (0.2167,0.4138) (0.2167,0.4236) (0.2200,0.4236) (0.2200,0.4286) (0.2333,0.4286) (0.2333,0.4335) (0.2500,0.4335) (0.2500,0.4433) (0.2600,0.4433) (0.2600,0.4483) (0.2633,0.4483) (0.2633,0.4581) (0.2667,0.4581) (0.2667,0.4631) (0.2767,0.4631) (0.2767,0.4680) (0.2833,0.4680) (0.2833,0.4729) (0.3000,0.4729) (0.3000,0.4778) (0.3333,0.4778) (0.3333,0.4926) (0.3367,0.4926) (0.3367,0.5074) (0.3400,0.5074) (0.3400,0.5222) (0.3433,0.5222) (0.3433,0.5271) (0.3467,0.5271) (0.3467,0.5320) (0.3500,0.5320) (0.3500,0.5419) (0.3600,0.5419) (0.3600,0.5468) (0.3633,0.5468) (0.3633,0.5517) (0.3733,0.5517) (0.3733,0.5665) (0.3767,0.5665) (0.3767,0.5813) (0.3800,0.5813) (0.3800,0.5862) (0.3933,0.5862) (0.3933,0.6010) (0.4000,0.6010) (0.4000,0.6158) (0.4033,0.6158) (0.4033,0.6355) (0.4067,0.6355) (0.4067,0.6453) (0.4100,0.6453) (0.4100,0.6552) (0.4167,0.6552) (0.4167,0.6601) (0.4300,0.6601) (0.4300,0.6700) (0.4433,0.6700) (0.4433,0.6847) (0.4500,0.6847) (0.4500,0.6897) (0.4567,0.6897) (0.4567,0.7094) (0.4600,0.7094) (0.4600,0.7241) (0.4667,0.7241) (0.4667,0.7291) (0.4800,0.7291) (0.4800,0.7340) (0.4833,0.7340) (0.4833,0.7389) (0.5000,0.7389) (0.5000,0.7438) (0.5133,0.7438) (0.5133,0.7586) (0.5200,0.7586) (0.5200,0.7635) (0.5267,0.7635) (0.5267,0.7685) (0.5300,0.7685) (0.5300,0.7783) (0.5433,0.7783) (0.5433,0.7833) (0.5500,0.7833) (0.5500,0.7882) (0.5600,0.7882) (0.5600,0.8030) (0.5633,0.8030) (0.5633,0.8079) (0.5767,0.8079) (0.5767,0.8128) (0.5900,0.8128) (0.5900,0.8177) (0.5967,0.8177) (0.5967,0.8227) (0.6000,0.8227) (0.6000,0.8325) (0.6100,0.8325) (0.6100,0.8424) (0.6133,0.8424) (0.6133,0.8473) (0.6333,0.8473) (0.6333,0.8522) (0.6400,0.8522) (0.6400,0.8571) (0.6533,0.8571) (0.6533,0.8621) (0.6800,0.8621) (0.6800,0.8670) (0.6900,0.8670) (0.6900,0.8818) (0.7067,0.8818) (0.7067,0.8867) (0.7100,0.8867) (0.7100,0.8916) (0.7167,0.8916) (0.7167,0.8966) (0.7200,0.8966) (0.7200,0.9015) (0.7333,0.9015) (0.7333,0.9113) (0.7633,0.9113) (0.7633,0.9163) (0.7700,0.9163) (0.7700,0.9261) (0.7833,0.9261) (0.7833,0.9310) (0.8200,0.9310) (0.8200,0.9360) (0.8400,0.9360) (0.8400,0.9458) (0.8467,0.9458) (0.8467,0.9507) (0.8533,0.9507) (0.8533,0.9557) (0.8667,0.9557) (0.8667,0.9606) (0.8767,0.9606) (0.8767,0.9704) (0.8900,0.9704) (0.8900,0.9754) (0.9067,0.9754) (0.9067,0.9803) (0.9267,0.9803) (0.9267,0.9901) (0.9567,0.9901) (0.9567,0.9951) (0.9633,0.9951) (0.9633,1.0000) (1.0000,1.0000)};
+\addlegendentry{XGBoost (AUC 0.671)}
+\addplot[thick, violet!80!black] coordinates {(0.0000,0.0000) (0.0000,0.0148) (0.0133,0.0542) (0.0133,0.0591) (0.0233,0.0640) (0.0267,0.0690) (0.0667,0.1478) (0.1267,0.2709) (0.1400,0.2906) (0.1400,0.2956) (0.1433,0.3005) (0.1467,0.3103) (0.3300,0.4975) (0.3333,0.4975) (0.3733,0.5123) (0.4000,0.5616) (0.4067,0.5616) (0.4067,0.5665) (0.4100,0.5665) (0.4100,0.5714) (0.4133,0.5714) (0.9133,0.9803) (0.9233,0.9803) (0.9433,0.9803) (0.9433,0.9951) (0.9467,0.9951) (0.9667,0.9951) (0.9800,0.9951) (1.0000,1.0000)};
+\addlegendentry{AdaBoost (AUC 0.615)}
+\end{axis}\end{tikzpicture}
+\caption{Potabilidad del agua: curvas ROC en test de los cinco modelos elegidos; clase positiva: Potable (1). La diagonal corresponde a un clasificador aleatorio.}
+\label{fig:roc-potabilidad}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=11pt, width=0.9\linewidth, height=5.8cm, ymin=0, ymax=1.15, ytick={0,0.2,...,1},
+ ylabel={F1 macro (validación cruzada)}, symbolic x coords={KNN,DT,RF,XGBoost,AdaBoost}, xtick=data,
+ enlarge x limits=0.14, ymajorgrids, legend style={at={(0.5,-0.18)},anchor=north,legend columns=2,font=\small},
+ nodes near coords, nodes near coords style={font=\tiny, rotate=90, anchor=west, /pgf/number format/fixed, /pgf/number format/precision=3}]
+\addplot[fill=blue!50, draw=blue!70!black] coordinates {(KNN,0.6036) (DT,0.5908) (RF,0.6435) (XGBoost,0.6392) (AdaBoost,0.5404)};
+\addplot[fill=teal!45, draw=teal!70!black] coordinates {(KNN,0.5364) (DT,0.5487) (RF,0.5436) (XGBoost,0.5439) (AdaBoost,0.5281)};
+\legend{Todos los atributos (9),Selección por información mutua (5)}
+\end{axis}\end{tikzpicture}
+\caption{Potabilidad del agua: efecto de la selección de atributos sobre la mejor configuración de cada familia, medido con los mismos cinco pliegues.}
+\label{fig:seleccion-potabilidad}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[xbar, width=0.8\linewidth, height=7.1cm, bar width=7pt,
+ xlabel={Caída media del F1 macro en test al permutar}, ytick={0,1,2,3,4,5,6,7,8},
+ yticklabels={{Conductivity},{Turbidity},{Organic\_\allowbreak{}carbon},{Trihalomethanes},{Solids},{Hardness},{Chloramines},{ph},{Sulfate}}, xmajorgrids, tick label style={font=\small}, enlarge y limits=0.08,
+ scaled x ticks=false, xticklabel style={/pgf/number format/fixed, /pgf/number format/precision=2}]
+\addplot[fill=green!45!black!60, draw=green!40!black, error bars/.cd, x dir=both, x explicit] coordinates {(0.0018,0) +- (0.0097,0) (0.0067,1) +- (0.0081,0) (0.0087,2) +- (0.0094,0) (0.0209,3) +- (0.0034,0) (0.0377,4) +- (0.0065,0) (0.0409,5) +- (0.0101,0) (0.0468,6) +- (0.0084,0) (0.0959,7) +- (0.0137,0) (0.1311,8) +- (0.0202,0)};
+\end{axis}\end{tikzpicture}
+\caption{Potabilidad del agua: importancia por permutación del modelo RF (media y desviación de 10 permutaciones de cada variable en test). Es una herramienta de interpretación: no participó en la selección.}
+\label{fig:perm-potabilidad}
+\end{figure}
+
+Por validación cruzada, el mejor modelo es Random Forest con 500 árboles (F1 macro
+$0.644\pm0.022$), y también es el mejor en prueba en F1 macro, exactitud y AUC. Aun
+así, el problema es difícil: las AUC van de 0.615 a 0.727 y ninguna familia detecta
+más del 50\,\% de las muestras potables. Hay 37 muestras potables de prueba que los
+cinco modelos clasifican como no potables. Con medias casi idénticas entre clases, la
+información útil está en regiones extremas y en combinaciones de variables, y los
+modelos que mejor la aprovechan son los ensambles de árboles profundos.
+
+La selección de atributos por información mutua empeoró las cinco familias, con caídas
+de 0.01 (AdaBoost) a 0.10 (RF) en F1 macro (Figura~\ref{fig:seleccion-potabilidad}). El motivo es
+instructivo. La información mutua calculada en train asigna 0.026 al sulfato, 0.014 a
+la dureza y prácticamente 0 al \texttt{ph} y a las cloraminas, así que el filtro
+descarta el \texttt{ph}. Sin embargo, la importancia por permutación muestra que el
+\texttt{ph} es la segunda variable más importante para RF. Su efecto aparece sobre todo
+en combinación con el sulfato (como muestran las reglas del árbol), y un filtro que
+evalúa cada variable por separado no lo detecta. En este dataset conviene conservar
+las nueve variables y dejar que los árboles encuentren las interacciones.
+
+\FloatBarrier
+
+\clearpage
+
+\section{Resultados: Diabetes}
+
+\subsection{Datos y partición}
+
+Se analizan 390 pacientes con 17 variables: colesterol (\texttt{chol}), glucosa
+estabilizada (\texttt{stab.glu}), HDL, razón colesterol/HDL (\texttt{ratio}), edad,
+sexo, localidad, talla, peso, complexión (\texttt{frame}), dos mediciones de presión
+arterial, cintura, cadera y tiempo desde la última comida (\texttt{time.ppn}). Sólo el
+15.4\,\% son diabéticos (60 casos): en prueba hay 15 diabéticos, por lo que cada
+diabético mal clasificado cambia el recall en 6.7 puntos, y en cada pliegue de
+validación hay unos 9, lo que explica desviaciones de 0.06 a 0.12 en el F1 macro. La
+glucosa estabilizada separa mucho mejor las clases que cualquier variable de
+Potabilidad: su mediana es 186\,mg/dL en diabéticos y 86.5\,mg/dL en no diabéticos.
+Tras la codificación one-hot hay 21 atributos; la información mutua de la glucosa
+(0.228) es tres veces la del siguiente, \texttt{ratio} (0.063).
+
+\begin{table}[H]\centering\small
+\caption{Procedencia de Diabetes.}
+\begin{tabular}{lp{0.62\linewidth}}\toprule
+Elemento & Valor \\ \midrule
+Archivo analizado & \texttt{diabetes.csv} \\
+Original & \texttt{diabetes\_\allowbreak{}original.csv}, 403 filas \\
+Filas analizadas & 390 \\
+Objetivo & \texttt{diabetes} \\
+Predictoras & 17 \\
+Fuente & \url{https://hbiostat.org/data/repo/diabetes} \\
+SHA-256 analizado & {\footnotesize\texttt{47b48720dd246d95528d251c31c27a76}\newline\texttt{f44c958a24faf1273b873658f4979e85}} \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Distribución de clases en Diabetes (partición estratificada 75/25, semilla 42).}
+\begin{tabular}{lrrr}\toprule
+Clase & Train & Test & Total \\ \midrule
+No diabetes & 247 & 83 & 330 \\
+Diabetes & 45 & 15 & 60 \\
+\textbf{Total} & 292 & 98 & 390 \\
+\bottomrule\end{tabular}
+\end{table}
+
+Una referencia trivial que siempre predice la clase mayoritaria de train (No diabetes) obtendría en test una exactitud de 84.7\% y un F1 macro de 0.459. Cualquier modelo útil debe superar con claridad ese F1 macro, no sólo la exactitud.
+
+\subsection{K vecinos más cercanos (KNN)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{K vecinos más cercanos (KNN) en Diabetes: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.7190 $\pm$ 0.100 & -- & 89.0\% & 0.6808 \\
+\texttt{k\_\allowbreak{}15} & $k=15$ vecinos (estándar: 5) & 0.6814 $\pm$ 0.099 & -0.038 & 88.7\% & 0.6424 \\
+\texttt{pesos\_\allowbreak{}distancia} & votos ponderados por $1/d$ (estándar: uniformes) & 0.7190 $\pm$ 0.100 & +0.000 & 89.0\% & 0.6808 \\
+\texttt{manhattan} & distancia Manhattan, $p=1$ (estándar: euclidiana) & 0.6358 $\pm$ 0.080 & -0.083 & 87.7\% & 0.6091 \\
+\texttt{estandar+\allowbreak{}seleccion\_\allowbreak{}k11} $\star$ & mejor anterior + 11 atributos por información mutua & 0.7974 $\pm$ 0.070 & +0.078 & 91.8\% & 0.7424 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{estandar} con selección de atributos, reajustada con las 292 filas de train. F1 macro: 0.8547 en entrenamiento, 0.7974 en validación cruzada y 0.7478 en test (exactitud 88.8\%, AUC 0.754).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{K vecinos más cercanos (KNN): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & Diabetes & No diabetes \\ \midrule
+Diabetes & 7 & 8 \\
+No diabetes & 3 & 80 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{K vecinos más cercanos (KNN): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+Diabetes & 15 & 0.7000 & 0.4667 & 0.5600 \\
+No diabetes & 83 & 0.9091 & 0.9639 & 0.9357 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Con todos los atributos, KNN es la familia más débil (F1 macro 0.719 en el estándar).
+Aumentar a $k=15$ empeora (0.681): con sólo unos 36 diabéticos en cada ajuste, en un
+vecindario de 15 suele haber mayoría de no diabéticos y el voto favorece la clase
+mayoritaria. La distancia Manhattan también empeora (0.636) y ponderar por distancia dio
+exactamente las mismas métricas que el estándar en los cinco pliegues. El cambio que sí
+importa es la selección de atributos: con los 11 de mayor información mutua el F1 macro
+sube a 0.797 (+0.078), la mayor mejora de este dataset. Al eliminar variables poco
+informativas como la talla, la localidad, el sexo o las segundas mediciones de presión
+(ausentes en el 65\,\% de los pacientes e imputadas con la mediana), la distancia pasa
+a reflejar sobre todo la glucosa. En prueba detecta 7 de 15 diabéticos (recall 0.467)
+con precisión 0.70. Su AUC (0.754) es la más baja porque, con 5 vecinos, la
+probabilidad sólo puede tomar seis valores (0, 0.2, \dots, 1), lo que produce una curva
+ROC escalonada.
+
+\FloatBarrier
+
+\subsection{Árbol de decisión (DT)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Árbol de decisión (DT) en Diabetes: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.7826 $\pm$ 0.065 & -- & 88.0\% & 0.8110 \\
+\texttt{profundidad\_\allowbreak{}5} & profundidad máxima 5 (estándar: sin límite) & 0.7986 $\pm$ 0.117 & +0.016 & 89.4\% & 0.8101 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} & mínimo 10 observaciones por hoja (estándar: 1) & 0.8064 $\pm$ 0.070 & +0.024 & 90.1\% & 0.8232 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.7510 $\pm$ 0.077 & -0.032 & 87.7\% & 0.7454 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10+\allowbreak{}seleccion\_\allowbreak{}k11} $\star$ & mejor anterior + 11 atributos por información mutua & 0.8160 $\pm$ 0.085 & +0.033 & 90.8\% & 0.8182 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} con selección de atributos, reajustada con las 292 filas de train. F1 macro: 0.8894 en entrenamiento, 0.8160 en validación cruzada y 0.7783 en test (exactitud 89.8\%, AUC 0.907).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{Árbol de decisión (DT): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & Diabetes & No diabetes \\ \midrule
+Diabetes & 8 & 7 \\
+No diabetes & 3 & 80 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{Árbol de decisión (DT): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+Diabetes & 15 & 0.7273 & 0.5333 & 0.6154 \\
+No diabetes & 83 & 0.9195 & 0.9639 & 0.9412 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\begin{figure}[H]\centering\begin{minipage}{0.92\linewidth}\scriptsize\begin{verbatim}
+|--- stab.glu <= 158.00
+|   |--- stab.glu <= 107.50
+|   |   |--- age <= 63.50
+|   |   |   |--- clase: No diabetes [n=183] (rama truncada)
+|   |   |--- age > 63.50
+|   |   |   |--- clase: No diabetes [n=30] (rama truncada)
+|   |--- stab.glu > 107.50
+|   |   |--- chol <= 243.50
+|   |   |   |--- clase: No diabetes [n=33] (rama truncada)
+|   |   |--- chol > 243.50
+|   |   |   |--- clase: Diabetes [n=11]
+|--- stab.glu > 158.00
+|   |--- stab.glu <= 201.50
+|   |   |--- clase: Diabetes [n=13]
+|   |--- stab.glu > 201.50
+|   |   |--- ratio <= 5.45
+|   |   |   |--- clase: Diabetes [n=10]
+|   |   |--- ratio > 5.45
+|   |   |   |--- clase: Diabetes [n=12]
+\end{verbatim}\end{minipage}\caption{Primeros tres niveles del árbol final (profundidad total 5, 11 hojas). Los umbrales están en las unidades originales: la estandarización se invirtió con la media y desviación de train. $n$ es la cantidad de observaciones de train en el nodo.}\end{figure}
+
+\paragraph{Análisis.} Exigir al menos 10 observaciones por hoja es de nuevo la mejor variante (0.806, +0.024),
+igual que en Potabilidad. Limitar la profundidad a 5 da un resultado parecido (0.799)
+pero con una variación entre pliegues mucho mayor (0.117 frente a 0.070). Ponderar las clases empeora (0.751): con
+tan pocos diabéticos, darles más peso hace que el árbol cree hojas para casos
+aislados. La selección de atributos mejora un poco (0.816) y es la versión final. El
+árbol resultante es pequeño (profundidad 5, 11 hojas) y fácil de leer: su primera regla
+es \texttt{stab.glu} $>158$\,mg/dL $\Rightarrow$ diabetes, y en el rango de 107.5 a
+158\,mg/dL marca como diabéticos a los pacientes con colesterol mayor que 243.5\,mg/dL. La importancia por
+permutación confirma que en prueba el árbol depende exclusivamente de la glucosa (caída
+de 0.252 en F1 macro; el resto, cero). En prueba detecta 8 de 15 diabéticos (recall
+0.533, precisión 0.727) con exactitud 89.8\,\% y AUC 0.907. El umbral de 158\,mg/dL lo
+aprendió el árbol de estos datos; no es un criterio diagnóstico. Como referencia, el
+criterio clínico para una glucosa casual es 200\,mg/dL con síntomas \cite{ada}.
+
+\FloatBarrier
+
+\subsection{Random Forest (RF)}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Random Forest (RF) en Diabetes: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.8364 $\pm$ 0.087 & -- & 92.5\% & 0.8101 \\
+\texttt{500\_\allowbreak{}arboles} & 500 árboles (estándar: 100) & 0.8177 $\pm$ 0.079 & -0.019 & 91.8\% & 0.7878 \\
+\texttt{hoja\_\allowbreak{}minima\_\allowbreak{}5} & mínimo 5 observaciones por hoja (estándar: 1) & 0.7633 $\pm$ 0.068 & -0.073 & 90.1\% & 0.7232 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.8162 $\pm$ 0.081 & -0.020 & 91.1\% & 0.8111 \\
+\texttt{estandar+\allowbreak{}seleccion\_\allowbreak{}k11} $\star$ & mejor anterior + 11 atributos por información mutua & 0.8398 $\pm$ 0.066 & +0.003 & 92.5\% & 0.8192 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{estandar} con selección de atributos, reajustada con las 292 filas de train. F1 macro: 1.0000 en entrenamiento, 0.8398 en validación cruzada y 0.7638 en test (exactitud 88.8\%, AUC 0.892).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{Random Forest (RF): matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & Diabetes & No diabetes \\ \midrule
+Diabetes & 8 & 7 \\
+No diabetes & 4 & 79 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{Random Forest (RF): métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+Diabetes & 15 & 0.6667 & 0.5333 & 0.5926 \\
+No diabetes & 83 & 0.9186 & 0.9518 & 0.9349 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} En validación cruzada, Random Forest es el mejor algoritmo del dataset. Su
+configuración estándar (0.836) supera a las tres variantes: 500 árboles no mejora
+(0.818), la ponderación de clases tampoco (0.816) y exigir 5 observaciones por hoja
+empeora claramente (0.763), porque impide aislar a los pocos diabéticos en hojas
+propias. Con selección de atributos alcanza 0.840 y una desviación menor (0.066 frente
+a 0.087), así que esa es la versión final. En prueba tiene exactitud 88.8\,\%, F1
+macro 0.764 y AUC 0.892; detecta 8 de 15 diabéticos y tiene un falso positivo más que
+DT, XGBoost y AdaBoost (4 en lugar de 3). Por eso su F1 de prueba es ligeramente menor,
+aunque fue el elegido por validación. Esa diferencia de un paciente está muy por debajo
+de la incertidumbre del experimento. La importancia interna muestra que, además de la
+glucosa (0.454), el bosque reparte peso entre \texttt{ratio}, HDL y edad, pero en
+prueba sólo la glucosa produce una caída grande al permutarse.
+
+\FloatBarrier
+
+\subsection{XGBoost}
+
+\begin{table}[H]\centering\footnotesize
+\caption{XGBoost en Diabetes: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.7921 $\pm$ 0.089 & -- & 90.1\% & 0.7869 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}05} $\star$ & tasa de aprendizaje 0.05 (estándar: 0.3) & 0.8208 $\pm$ 0.117 & +0.029 & 91.8\% & 0.8060 \\
+\texttt{profundidad\_\allowbreak{}3} & profundidad máxima 3 (estándar: 6) & 0.8041 $\pm$ 0.098 & +0.012 & 90.8\% & 0.8000 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.7885 $\pm$ 0.102 & -0.004 & 89.4\% & 0.8010 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}05+\allowbreak{}seleccion\_\allowbreak{}k11} & mejor anterior + 11 atributos por información mutua & 0.8034 $\pm$ 0.108 & +0.011 & 91.1\% & 0.7929 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{tasa\_\allowbreak{}0\_\allowbreak{}05} con todos los atributos, reajustada con las 292 filas de train. F1 macro: 0.9934 en entrenamiento, 0.8208 en validación cruzada y 0.7783 en test (exactitud 89.8\%, AUC 0.929).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{XGBoost: matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & Diabetes & No diabetes \\ \midrule
+Diabetes & 8 & 7 \\
+No diabetes & 3 & 80 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{XGBoost: métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+Diabetes & 15 & 0.7273 & 0.5333 & 0.6154 \\
+No diabetes & 83 & 0.9195 & 0.9639 & 0.9412 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Bajar la tasa de aprendizaje a 0.05 es la mejor variante (0.821, +0.029): con sólo 292
+pacientes de entrenamiento, que cada árbol aporte menos funciona como regularización.
+Reducir la profundidad a 3 ayuda algo menos (0.804) y ponderar las clases no ayuda
+(0.789). A diferencia de las otras familias, la selección de atributos empeora a XGBoost
+(0.803): el algoritmo ya elige en cada división la variable más útil y quitarle
+variables secundarias le resta poco ruido y algo de información. En prueba obtiene la
+mejor AUC del estudio (0.929), exactitud 89.8\,\% y F1 macro 0.778, con la misma matriz
+de confusión que DT y AdaBoost. Su F1 de entrenamiento (0.993) indica que aun con tasa
+baja casi memoriza el entrenamiento.
+
+\FloatBarrier
+
+\subsection{AdaBoost}
+
+\begin{table}[H]\centering\footnotesize
+\caption{AdaBoost en Diabetes: validación cruzada estratificada de 5 pliegues sobre train. $\star$ = configuración elegida; $\Delta$ = diferencia de F1 macro frente al estándar.}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}rrrr}\toprule
+Configuración & Cambio respecto del estándar & F1 macro CV & $\Delta$ & Exact. CV & Recall CV \\ \midrule
+\texttt{estandar} & valores predeterminados de la biblioteca & 0.7920 $\pm$ 0.058 & -- & 90.4\% & 0.7616 \\
+\texttt{200\_\allowbreak{}estimadores} & 200 estimadores (estándar: 50) & 0.7896 $\pm$ 0.079 & -0.002 & 90.4\% & 0.7616 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}5} & tasa de aprendizaje 0.5 (estándar: 1.0) & 0.7994 $\pm$ 0.122 & +0.007 & 91.1\% & 0.7838 \\
+\texttt{clases\_\allowbreak{}balanceadas} & pesos por observación inversos a la frecuencia de su clase & 0.7944 $\pm$ 0.063 & +0.002 & 89.4\% & 0.8009 \\
+\texttt{tasa\_\allowbreak{}0\_\allowbreak{}5+\allowbreak{}seleccion\_\allowbreak{}k11} $\star$ & mejor anterior + 11 atributos por información mutua & 0.8027 $\pm$ 0.087 & +0.011 & 91.1\% & 0.7747 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\textbf{Modelo final.} Configuración \texttt{tasa\_\allowbreak{}0\_\allowbreak{}5} con selección de atributos, reajustada con las 292 filas de train. F1 macro: 0.8865 en entrenamiento, 0.8027 en validación cruzada y 0.7783 en test (exactitud 89.8\%, AUC 0.922).
+
+\begin{table}[H]\footnotesize\begin{minipage}[t]{0.44\linewidth}\centering\captionof{table}{AdaBoost: matriz de confusión en test (filas: real; columnas: predicción).}\begin{tabular}{lrr}\toprule
+Real / pred. & Diabetes & No diabetes \\ \midrule
+Diabetes & 8 & 7 \\
+No diabetes & 3 & 80 \\
+\bottomrule\end{tabular}\end{minipage}\hfill\begin{minipage}[t]{0.52\linewidth}\centering\captionof{table}{AdaBoost: métricas por clase en test.}\begin{tabular}{lrrrr}\toprule
+Clase & Soporte & Precisión & Recall & F1 \\ \midrule
+Diabetes & 15 & 0.7273 & 0.5333 & 0.6154 \\
+No diabetes & 83 & 0.9195 & 0.9639 & 0.9412 \\
+\bottomrule\end{tabular}\end{minipage}\end{table}
+
+\paragraph{Análisis.} Las variantes de AdaBoost quedan todas entre 0.790 y 0.799, sin diferencias claras. La
+tasa 0.5 es la de mayor media (0.799), pero también la de mayor desviación (0.122). La
+ponderación de clases logra el mayor recall macro de validación (0.801), aunque no el
+mayor F1. Con selección de atributos sube a 0.803 y esa es la versión final. En prueba
+coincide con DT y XGBoost (exactitud 89.8\,\%, F1 macro 0.778, 8 de 15 diabéticos) y
+tiene AUC 0.922. Es el ensamble con menor sobreajuste (F1 0.887 en entrenamiento frente
+a 0.778 en prueba). En este dataset los stumps sí funcionan, a diferencia de
+Potabilidad: un único corte en la glucosa ya separa bien las clases, y los siguientes
+stumps afinan con el colesterol (importancia interna 0.120) y el peso (0.106).
+
+\FloatBarrier
+
+\subsection{Comparación de los cinco modelos elegidos}
+
+\begin{table}[H]\centering\footnotesize
+\caption{Diabetes: resumen de los ganadores. La selección usó sólo la columna F1 CV; el mejor algoritmo por validación es RF.}
+\begin{tabular}{llrrrrrr}\toprule
+Familia & Configuración & F1 train & F1 CV & F1 test & Exactitud test & Recall Diabetes & AUC \\ \midrule
+KNN & \texttt{estandar} + sel. & 0.8547 & 0.7974 & 0.7478 & 88.8\% & 0.4667 & 0.754 \\
+DT & \texttt{hoja\_\allowbreak{}minima\_\allowbreak{}10} + sel. & 0.8894 & 0.8160 & 0.7783 & 89.8\% & 0.5333 & 0.907 \\
+RF & \texttt{estandar} + sel. & 1.0000 & 0.8398 & 0.7638 & 88.8\% & 0.5333 & 0.892 \\
+XGBoost & \texttt{tasa\_\allowbreak{}0\_\allowbreak{}05} & 0.9934 & 0.8208 & 0.7783 & 89.8\% & 0.5333 & 0.929 \\
+AdaBoost & \texttt{tasa\_\allowbreak{}0\_\allowbreak{}5} + sel. & 0.8865 & 0.8027 & 0.7783 & 89.8\% & 0.5333 & 0.922 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=8pt, width=\linewidth, height=6.2cm, ymin=0, ymax=1.08,
+ ylabel={F1 macro}, symbolic x coords={KNN,DT,RF,XGBoost,AdaBoost}, xtick=data,
+ enlarge x limits=0.14, ymajorgrids, legend style={at={(0.5,-0.16)},anchor=north,legend columns=4,font=\small},
+ tick label style={font=\small}]
+\addplot[fill=gray!35, draw=gray!70!black] coordinates {(KNN,0.8547) (DT,0.8894) (RF,1.0000) (XGBoost,0.9934) (AdaBoost,0.8865)};
+\addplot[fill=blue!55, draw=blue!70!black, error bars/.cd, y dir=both, y explicit] coordinates {(KNN,0.7974) +- (0,0.0704) (DT,0.8160) +- (0,0.0846) (RF,0.8398) +- (0,0.0659) (XGBoost,0.8208) +- (0,0.1170) (AdaBoost,0.8027) +- (0,0.0869)};
+\addplot[fill=orange!70, draw=orange!80!black] coordinates {(KNN,0.7478) (DT,0.7783) (RF,0.7638) (XGBoost,0.7783) (AdaBoost,0.7783)};
+\draw[dashed, red!70!black, thick] ({rel axis cs:0,0}|-{axis cs:KNN,0.4586}) -- ({rel axis cs:1,0}|-{axis cs:KNN,0.4586});
+\legend{Entrenamiento, Validación cruzada (media $\pm$ d.e.), Test}
+\end{axis}\end{tikzpicture}
+\caption{Diabetes: F1 macro del modelo elegido en cada familia. La línea roja es la referencia que siempre predice la clase mayoritaria (F1 macro 0.459). La distancia entre la barra gris y la azul indica sobreajuste.}
+\label{fig:resumen-diabetes}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.72\linewidth, height=0.62\linewidth, xmin=0, xmax=1, ymin=0, ymax=1,
+ xlabel={Tasa de falsos positivos}, ylabel={Tasa de verdaderos positivos}, grid=major,
+ legend style={at={(0.98,0.02)}, anchor=south east, font=\footnotesize}]
+\addplot[dashed, gray, forget plot] coordinates {(0,0) (1,1)};
+\addplot[thick, blue!70!black] coordinates {(0.0000,0.0000) (0.0000,0.0667) (0.0241,0.2667) (0.0361,0.4667) (0.0482,0.5333) (0.2771,0.6667) (1.0000,1.0000)};
+\addlegendentry{KNN (AUC 0.754)}
+\addplot[thick, orange!85!black] coordinates {(0.0000,0.0000) (0.0000,0.0667) (0.0120,0.4000) (0.0361,0.5333) (0.0361,0.8667) (0.1325,0.8667) (1.0000,1.0000)};
+\addlegendentry{DT (AUC 0.907)}
+\addplot[thick, green!55!black] coordinates {(0.0000,0.0000) (0.0120,0.0000) (0.0241,0.0667) (0.0241,0.2000) (0.0361,0.2000) (0.0361,0.5333) (0.0602,0.5333) (0.0602,0.6000) (0.1084,0.6000) (0.1084,0.7333) (0.1566,0.7333) (0.1566,0.8667) (0.1687,0.8667) (0.1928,0.8667) (0.2289,0.9333) (0.2651,0.9333) (0.2892,0.9333) (0.3855,0.9333) (0.4096,0.9333) (0.4578,0.9333) (0.5301,0.9333) (0.6145,1.0000) (0.8313,1.0000) (1.0000,1.0000)};
+\addlegendentry{RF (AUC 0.892)}
+\addplot[thick, red!75!black] coordinates {(0.0000,0.0000) (0.0000,0.0667) (0.0000,0.4667) (0.0361,0.4667) (0.0361,0.8000) (0.0482,0.8000) (0.0482,0.8667) (0.0964,0.8667) (0.0964,0.9333) (0.7470,0.9333) (0.7470,1.0000) (0.8193,1.0000) (0.8434,1.0000) (1.0000,1.0000)};
+\addlegendentry{XGBoost (AUC 0.929)}
+\addplot[thick, violet!80!black] coordinates {(0.0000,0.0000) (0.0000,0.0667) (0.0000,0.1333) (0.0120,0.1333) (0.0120,0.2000) (0.0241,0.2000) (0.0241,0.3333) (0.0361,0.3333) (0.0361,0.6000) (0.0361,0.7333) (0.0482,0.7333) (0.0482,0.8667) (0.0482,0.9333) (0.1325,0.9333) (0.1687,0.9333) (0.1928,0.9333) (0.2169,0.9333) (0.2410,0.9333) (0.2651,0.9333) (0.3012,0.9333) (0.3253,0.9333) (0.4096,0.9333) (0.4578,0.9333) (0.5181,0.9333) (0.5663,0.9333) (0.5904,0.9333) (0.6386,0.9333) (0.6627,0.9333) (0.7229,0.9333) (0.7470,0.9333) (0.7470,1.0000) (0.8434,1.0000) (0.9036,1.0000) (0.9398,1.0000) (0.9639,1.0000) (1.0000,1.0000)};
+\addlegendentry{AdaBoost (AUC 0.922)}
+\end{axis}\end{tikzpicture}
+\caption{Diabetes: curvas ROC en test de los cinco modelos elegidos; clase positiva: Diabetes. La diagonal corresponde a un clasificador aleatorio.}
+\label{fig:roc-diabetes}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=11pt, width=0.9\linewidth, height=5.8cm, ymin=0, ymax=1.15, ytick={0,0.2,...,1},
+ ylabel={F1 macro (validación cruzada)}, symbolic x coords={KNN,DT,RF,XGBoost,AdaBoost}, xtick=data,
+ enlarge x limits=0.14, ymajorgrids, legend style={at={(0.5,-0.18)},anchor=north,legend columns=2,font=\small},
+ nodes near coords, nodes near coords style={font=\tiny, rotate=90, anchor=west, /pgf/number format/fixed, /pgf/number format/precision=3}]
+\addplot[fill=blue!50, draw=blue!70!black] coordinates {(KNN,0.7190) (DT,0.8064) (RF,0.8364) (XGBoost,0.8208) (AdaBoost,0.7994)};
+\addplot[fill=teal!45, draw=teal!70!black] coordinates {(KNN,0.7974) (DT,0.8160) (RF,0.8398) (XGBoost,0.8034) (AdaBoost,0.8027)};
+\legend{Todos los atributos (21),Selección por información mutua (11)}
+\end{axis}\end{tikzpicture}
+\caption{Diabetes: efecto de la selección de atributos sobre la mejor configuración de cada familia, medido con los mismos cinco pliegues.}
+\label{fig:seleccion-diabetes}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\begin{axis}[xbar, width=0.8\linewidth, height=7.1cm, bar width=7pt,
+ xlabel={Caída media del F1 macro en test al permutar}, ytick={0,1,2,3,4,5,6,7,8},
+ yticklabels={{frame},{height},{gender},{location},{age},{bp.1s},{weight},{bp.1d},{stab.glu}}, xmajorgrids, tick label style={font=\small}, enlarge y limits=0.08,
+ scaled x ticks=false, xticklabel style={/pgf/number format/fixed, /pgf/number format/precision=2}]
+\addplot[fill=green!45!black!60, draw=green!40!black, error bars/.cd, x dir=both, x explicit] coordinates {(0.0000,0) +- (0.0000,0) (0.0000,1) +- (0.0000,0) (0.0000,2) +- (0.0000,0) (0.0000,3) +- (0.0000,0) (0.0028,4) +- (0.0058,0) (0.0040,5) +- (0.0094,0) (0.0070,6) +- (0.0139,0) (0.0241,7) +- (0.0168,0) (0.2487,8) +- (0.0692,0)};
+\end{axis}\end{tikzpicture}
+\caption{Diabetes: importancia por permutación del modelo RF (media y desviación de 10 permutaciones de cada variable en test). Es una herramienta de interpretación: no participó en la selección.}
+\label{fig:perm-diabetes}
+\end{figure}
+
+Los cuatro métodos basados en árboles quedan entre 0.80 y 0.84 de F1 macro en
+validación cruzada, con desviaciones de 0.07 a 0.12. Las diferencias entre ellos son
+menores que esa variación, así que el orden no es concluyente; RF se eligió por tener
+la mayor media. En prueba todos superan claramente la referencia (F1 macro 0.459) y DT,
+XGBoost y AdaBoost producen la misma matriz de confusión: 8 diabéticos detectados, 7 no
+detectados y 3 falsos positivos.
+
+Los 7 diabéticos que no detectan DT, RF, XGBoost y AdaBoost son exactamente los mismos
+(KNN falla esos 7 y uno más), y todos tienen glucosa estabilizada entre 90 y 130\,mg/dL, mientras que los 8 detectados
+tienen 196\,mg/dL o más. La etiqueta se definió con la hemoglobina glicosilada, que
+refleja la glucosa promedio de los últimos dos o tres meses, y puede estar elevada
+aunque una medición puntual de glucosa sea normal. Como \texttt{glyhb} se excluyó para
+evitar fuga, esos pacientes no se distinguen de los no diabéticos con las variables
+disponibles. Es un límite de la información, no de los algoritmos: ningún ajuste de
+hiperparámetros los recuperaría sin aumentar mucho los falsos positivos.
+
+Las AUC de 0.89 a 0.93 indican que los modelos ordenan bien a los pacientes por riesgo.
+Bajar el umbral de decisión de 0.5 aumentaría el recall de diabetes a cambio de más
+falsos positivos. Ese umbral debería elegirse con validación cruzada y no con el
+conjunto de prueba, por lo que se deja como trabajo futuro. A diferencia de
+Potabilidad, aquí la selección de atributos ayudó a cuatro de cinco familias
+(Figura~\ref{fig:seleccion-diabetes}): la información relevante se concentra en una
+variable con relación monótona con la clase, y la información mutua la detecta sin
+problema.
+
+\FloatBarrier
+
+\clearpage
+
+\section{Discusión comparativa}
+
+\subsection{Qué variantes ganaron y por qué}
+La Tabla~\ref{tab:variantes} resume la configuración elegida en cada caso. Hay dos
+patrones que se repiten en ambos datasets. Para el árbol de decisión, exigir un mínimo
+de 10 observaciones por hoja fue siempre la mejor variante: un árbol sin límites
+memoriza el entrenamiento, y limitar el tamaño de las hojas reduce esa varianza sin
+eliminar las reglas útiles. Para KNN, aumentar $k$ a 15 no fue la mejor variante en
+ningún dataset: en Diabetes bajó el F1 macro de 0.719 a 0.681, porque con 45 diabéticos
+en train un vecindario de 15 casos queda casi siempre dominado por la clase mayoritaria;
+en Potabilidad subió apenas 0.011, menos que el cambio a distancia Manhattan.
+
+En cambio, otras decisiones dependen del dataset. Ponderar las clases fue la mejor
+variante de XGBoost y AdaBoost en Potabilidad, donde los modelos tienden a predecir
+``no potable''. En Diabetes no fue la mejor variante en ninguna familia y bajó el F1 de
+DT (0.783 a 0.751) y RF (0.836 a 0.816): dar más peso a 45 diabéticos lleva a los
+árboles a crear reglas para casos aislados. La selección de atributos mejoró cuatro
+de cinco familias en Diabetes (en RF sólo 0.003, una diferencia despreciable) y empeoró las cinco en Potabilidad. La explicación es la
+forma de la relación entre variables y clase: en Diabetes la señal está casi toda en la
+glucosa y es monótona (más glucosa, más riesgo), así que un filtro univariado la
+encuentra; en Potabilidad la señal está en los extremos y en la combinación de sulfato
+y \texttt{ph}, y el filtro descarta el \texttt{ph} aunque sea la segunda variable más
+importante para el mejor modelo.
+
+\begin{table}[H]\centering\small
+\caption{Configuración elegida por validación cruzada en cada familia y dataset.}
+\label{tab:variantes}
+\begin{tabular}{lll}\toprule
+Familia & Potabilidad & Diabetes \\ \midrule
+KNN & Manhattan ($p=1$) & estándar + selección de 11 atributos \\
+DT & mínimo 10 por hoja & mínimo 10 por hoja + selección \\
+RF & 500 árboles & estándar + selección \\
+XGBoost & clases balanceadas & tasa de aprendizaje 0.05 \\
+AdaBoost & clases balanceadas & tasa 0.5 + selección \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sobreajuste y estabilidad}
+Las Figuras~\ref{fig:resumen-potabilidad} y~\ref{fig:resumen-diabetes} comparan el F1 de
+entrenamiento, validación cruzada y prueba. Random Forest y XGBoost llegan a F1 de
+entrenamiento de 1.0 o casi 1.0 en ambos datasets: memorizan el entrenamiento. Aun así,
+RF es el que mejor generaliza en Potabilidad, porque el promedio de cientos de árboles
+cancela buena parte de sus errores individuales. AdaBoost con stumps es el extremo
+opuesto en Potabilidad: casi no sobreajusta (0.575 en entrenamiento y 0.582 en prueba),
+pero subajusta. KNN y DT quedan en medio.
+
+La validación cruzada también muestra cuánto se puede confiar en cada diferencia. En
+Potabilidad (unos 300 casos por pliegue) las desviaciones de los ganadores están entre
+0.02 y 0.05, y la ventaja de RF sobre KNN, DT y AdaBoost es clara; frente a XGBoost
+(0.639) la diferencia es menor que la desviación. En Diabetes (unos 58 casos y 9
+diabéticos por pliegue) las desviaciones llegan a 0.12 y las cuatro familias de árboles
+son estadísticamente indistinguibles. Una sola partición de validación, como la que se
+usaba antes en el framework, habría dado un ganador sin advertir esa incertidumbre.
+
+\subsection{Exactitud frente a F1 macro}
+En Diabetes la exactitud de prueba (88.8--89.8\,\%) parece alta, pero la referencia que
+siempre predice ``no diabetes'' ya obtiene 84.7\,\%. El F1 macro (0.75--0.78 frente a
+0.459) y el recall de diabetes (0.47--0.53) muestran mejor lo que hace el modelo: detecta
+la mitad de los diabéticos. En Potabilidad, AdaBoost estándar tiene una exactitud de
+validación de 59.7\,\%, igual a la proporción de la clase mayoritaria: sin el F1 macro
+se habría pasado por alto que el modelo casi no aprendió nada.
+
+\subsection{Limitaciones}
+\begin{itemize}
+\item Se usó una única partición de prueba (503 y 98 casos). Con 15 diabéticos en
+prueba, un solo paciente cambia el recall en 6.7 puntos. No se calcularon intervalos de
+confianza ni pruebas de significancia.
+\item El catálogo tiene tres variantes por familia y cada una cambia un solo
+hiperparámetro. Es deliberado, para poder atribuir los efectos, pero no explora
+combinaciones (por ejemplo, más árboles y hojas mínimas a la vez).
+\item Todos los modelos usan el umbral de probabilidad 0.5. Ajustarlo con validación
+cruzada podría aumentar el recall de la clase minoritaria.
+\item La clase de Diabetes se construyó con el criterio histórico $\text{glyhb}>7$, y la
+versión de Potabilidad usada son los casos completos del archivo público. Los resultados
+son educativos: no constituyen un diagnóstico médico ni una certificación de potabilidad.
+\item La importancia por permutación mide de qué depende el modelo, no relaciones
+causales.
+\end{itemize}
+
+
+\section{Conclusiones}
+
+\begin{enumerate}
+\item Los cinco algoritmos quedaron integrados en la clase \texttt{Clasificacion} del
+framework, con un protocolo reproducible: preparación aprendida sólo con
+entrenamiento, validación cruzada estratificada de 5 pliegues para elegir y una única
+evaluación en prueba. Cada experimento se repite con un comando y deja toda la evidencia.
+
+\item En Potabilidad, el mejor modelo es Random Forest con 500 árboles (F1 macro de
+validación $0.644\pm0.022$; en prueba, F1 macro 0.659, exactitud 70.2\,\% y AUC 0.727).
+Supera con claridad la referencia (59.6\,\% de exactitud) y a las demás familias, pero
+detecta sólo el 43\,\% de las muestras potables. Las variables apenas difieren en
+promedio entre clases y la señal aparece en los extremos y en la combinación de sulfato
+y \texttt{ph}, algo que los ensambles de árboles profundos captan mejor que KNN o
+AdaBoost con stumps.
+
+\item En Diabetes, DT, RF, XGBoost y AdaBoost obtienen resultados equivalentes dentro de
+la variación de la validación cruzada (F1 macro 0.80--0.84). RF fue el elegido por
+validación; en prueba los cuatro detectan 8 de 15 diabéticos con AUC entre 0.89 y 0.93.
+La glucosa estabilizada explica casi todo el poder predictivo, y los siete diabéticos
+que ningún modelo detecta tienen glucosa normal en la medición, lo que marca un límite
+de la información disponible.
+
+\item Las variantes que mejoraron dependen del algoritmo y del dataset. Exigir hojas de al menos
+10 observaciones mejoró el árbol de decisión en ambos datasets, pero limitar las hojas
+de Random Forest empeoró el bosque, porque el promedio ya controla la varianza. Ponderar
+las clases ayudó a los métodos de boosting cuando tendían a ignorar la clase minoritaria
+(Potabilidad). Seleccionar atributos por información mutua ayudó
+cuando la señal estaba en pocas variables con relación monótona (Diabetes) y perjudicó
+cuando dependía de interacciones (Potabilidad).
+
+\item La exactitud sola es engañosa con clases desbalanceadas. El F1 macro, el recall
+por clase y la comparación con una referencia trivial fueron necesarios para interpretar
+los resultados.
+\end{enumerate}
+
+Como trabajo futuro se propone elegir el umbral de decisión con validación cruzada para
+aumentar el recall de la clase minoritaria, explorar combinaciones de hiperparámetros con
+búsqueda en rejilla dentro de la validación cruzada y repetir el experimento con varias
+semillas para estimar la estabilidad de las conclusiones.
+
+
+\clearpage
+
+\begin{thebibliography}{99}
+\bibitem{hastie}
+T. Hastie, R. Tibshirani y J. Friedman. \emph{The Elements of Statistical Learning:
+Data Mining, Inference, and Prediction}, 2.\textsuperscript{a} ed. Springer, 2009.
+
+\bibitem{coverhart}
+T. M. Cover y P. E. Hart. Nearest Neighbor Pattern Classification.
+\emph{IEEE Transactions on Information Theory}, 13(1):21--27, 1967.
+\url{https://doi.org/10.1109/TIT.1967.1053964}.
+
+\bibitem{sklearnknn}
+scikit-learn. \emph{Nearest Neighbors}, documentación oficial.
+\url{https://scikit-learn.org/stable/modules/neighbors.html}.
+
+\bibitem{sklearntree}
+scikit-learn. \emph{Decision Trees}, documentación oficial.
+\url{https://scikit-learn.org/stable/modules/tree.html}.
+
+\bibitem{breiman}
+L. Breiman. Random Forests. \emph{Machine Learning}, 45:5--32, 2001.
+\url{https://doi.org/10.1023/A:1010933404324}.
+
+\bibitem{sklearnensemble}
+scikit-learn. \emph{Ensembles: Gradient boosting, random forests, bagging, voting,
+stacking}, documentación oficial.
+\url{https://scikit-learn.org/stable/modules/ensemble.html}.
+
+\bibitem{chen}
+T. Chen y C. Guestrin. XGBoost: A Scalable Tree Boosting System. En
+\emph{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge
+Discovery and Data Mining}, pp. 785--794, 2016.
+\url{https://doi.org/10.1145/2939672.2939785}.
+
+\bibitem{xgboostmodel}
+XGBoost. \emph{Introduction to Boosted Trees}, documentación oficial.
+\url{https://xgboost.readthedocs.io/en/stable/tutorials/model.html}.
+
+\bibitem{freund}
+Y. Freund y R. E. Schapire. A Decision-Theoretic Generalization of On-Line Learning
+and an Application to Boosting. \emph{Journal of Computer and System Sciences},
+55(1):119--139, 1997. \url{https://doi.org/10.1006/jcss.1997.1504}.
+
+\bibitem{sklearnada}
+scikit-learn. \emph{AdaBoostClassifier}, documentación oficial.
+\url{https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html}.
+
+\bibitem{sklearnmetrics}
+scikit-learn. \emph{Metrics and scoring: quantifying the quality of predictions},
+documentación oficial.
+\url{https://scikit-learn.org/stable/modules/model_evaluation.html}.
+
+\bibitem{sklearnleakage}
+scikit-learn. \emph{Common pitfalls and recommended practices: Data leakage},
+documentación oficial.
+\url{https://scikit-learn.org/stable/common_pitfalls.html}.
+
+\bibitem{kohavi}
+R. Kohavi. A Study of Cross-Validation and Bootstrap for Accuracy Estimation and
+Model Selection. En \emph{Proceedings of the 14th International Joint Conference on
+Artificial Intelligence (IJCAI)}, pp. 1137--1145, 1995.
+
+\bibitem{sklearncv}
+scikit-learn. \emph{Cross-validation: evaluating estimator performance},
+documentación oficial.
+\url{https://scikit-learn.org/stable/modules/cross_validation.html}.
+
+\bibitem{kraskov}
+A. Kraskov, H. Stögbauer y P. Grassberger. Estimating mutual information.
+\emph{Physical Review E}, 69:066138, 2004.
+\url{https://doi.org/10.1103/PhysRevE.69.066138}.
+
+\bibitem{ross}
+B. C. Ross. Mutual Information between Discrete and Continuous Data Sets.
+\emph{PLoS ONE}, 9(2):e87357, 2014.
+\url{https://doi.org/10.1371/journal.pone.0087357}.
+
+\bibitem{guyon}
+I. Guyon y A. Elisseeff. An Introduction to Variable and Feature Selection.
+\emph{Journal of Machine Learning Research}, 3:1157--1182, 2003.
+
+\bibitem{hegarcia}
+H. He y E. A. Garcia. Learning from Imbalanced Data. \emph{IEEE Transactions on
+Knowledge and Data Engineering}, 21(9):1263--1284, 2009.
+\url{https://doi.org/10.1109/TKDE.2008.239}.
+
+\bibitem{fawcett}
+T. Fawcett. An introduction to ROC analysis. \emph{Pattern Recognition Letters},
+27(8):861--874, 2006. \url{https://doi.org/10.1016/j.patrec.2005.10.010}.
+
+\bibitem{sklearnperm}
+scikit-learn. \emph{Permutation feature importance}, documentación oficial.
+\url{https://scikit-learn.org/stable/modules/permutation_importance.html}.
+
+\bibitem{pedregosa}
+F. Pedregosa et al. Scikit-learn: Machine Learning in Python. \emph{Journal of
+Machine Learning Research}, 12:2825--2830, 2011.
+
+\bibitem{datospotabilidad}
+A. Kadiwal. \emph{Water Quality} (water\_potability.csv). Kaggle, 2021.
+\url{https://www.kaggle.com/datasets/adityakadiwal/water-potability}.
+
+\bibitem{datosdiabetes}
+Vanderbilt University, Department of Biostatistics. \emph{Diabetes Dataset}
+(J. P. Willems, J. T. Saunders, D. E. Hunt y J. B. Schorling).
+\url{https://hbiostat.org/data/repo/diabetes}.
+
+\bibitem{ada}
+American Diabetes Association Professional Practice Committee. 2. Diagnosis and
+Classification of Diabetes: Standards of Care in Diabetes---2024. \emph{Diabetes
+Care}, 47(Suppl. 1):S20--S42, 2024. \url{https://doi.org/10.2337/dc24-S002}.
+\end{thebibliography}
+
+
+\clearpage
+
+\appendix
+
+\section{Reproducción de los experimentos}
+
+Desde la carpeta raíz del proyecto, con Python 3.11 o superior y las dependencias de
+\texttt{requirements.txt} instaladas, los pasos son los siguientes. Cada
+experimento tarda alrededor de un minuto. La carpeta de salida debe estar vacía: el
+script no sobrescribe evidencia anterior.
+
+\begin{verbatim}
+python -m pip install -r requirements.txt
+
+# 1. Preparación de los datos (determinista; conserva los originales)
+python -m scripts.preparar_potabilidad_lab02 data/lab02/water_potability.csv
+python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv
+
+# 2. Experimentos (validación cruzada de 5 pliegues, semilla 42)
+python -m scripts.ejecutar_lab02 data/lab02/potabilidad.csv --target Potability
+    --salida salida_lab02/potabilidad --semilla 42
+    --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+python -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes
+    --features chol stab.glu hdl ratio location age gender height weight
+    frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas
+    --salida salida_lab02/diabetes --semilla 42
+    --fuente https://hbiostat.org/data/repo/diabetes
+
+# 3. Informe y pruebas del software
+python -m scripts.generar_informe_lab02 salida_lab02 --autor "Nombre (ID)"
+python -m pytest -q
+\end{verbatim}
+
+Las líneas indentadas continúan el comando anterior (en PowerShell se escriben en una
+sola línea). Cada carpeta de resultados contiene \texttt{configuracion.json} (argumentos,
+SHA-256 del CSV, versiones, índices de train, test y de cada pliegue),
+\texttt{comparacion\_validacion.csv} (todas las configuraciones con media, desviación y
+puntuación por pliegue), \texttt{mejores\_modelos.json}, \texttt{ranking\_atributos.csv}
+y, por algoritmo, la matriz de confusión, las predicciones de prueba, la curva ROC y la
+importancia por permutación; además, \texttt{DT/arbol.txt} con las reglas del árbol.
+
+
+\begin{table}[H]\centering\small
+\caption{Versiones registradas durante la ejecución.}
+\begin{tabular}{ll}\toprule
+Paquete & Versión \\ \midrule
+numpy & 2.5.3 \\
+pandas & 3.0.5 \\
+scikit-learn & 1.9.1 \\
+xgboost & 3.4.1 \\
+python & 3.13.16 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Huellas de los datos utilizados.}
+\begin{tabular}{lp{0.6\linewidth}}\toprule
+Archivo & SHA-256 \\ \midrule
+water\_\allowbreak{}potability.csv & {\footnotesize\texttt{904004bde729bfe3d2e195f46343bcee}\newline\texttt{ad09e32a0eb95bb8184e7e20e029b2bf}} \\
+potabilidad.csv & {\footnotesize\texttt{d2569bece50025b9dbf21cfd720ecbed}\newline\texttt{cdaa838ca082db29ef853c5fb9da8e12}} \\
+diabetes\_\allowbreak{}original.csv & {\footnotesize\texttt{3de140ba6771ee5af7043500065c667c}\newline\texttt{fb5c059eb840cc22e14cabf1ebfc0838}} \\
+diabetes.csv & {\footnotesize\texttt{47b48720dd246d95528d251c31c27a76}\newline\texttt{f44c958a24faf1273b873658f4979e85}} \\
+\bottomrule\end{tabular}
+\end{table}
+
+\end{document}

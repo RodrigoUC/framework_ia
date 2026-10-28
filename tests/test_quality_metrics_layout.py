@@ -11,7 +11,8 @@ APP_SOURCE = (
     Path(__file__).resolve().parents[1]
     / "framework_ia"
     / "ui"
-    / "streamlit_app.py"
+    / "vistas"
+    / "navegacion.py"
 )
 
 

@@ -1,0 +1,34 @@
+Desde la carpeta raíz del proyecto, con Python 3.11 o superior y las dependencias de
+\texttt{requirements.txt} instaladas, los pasos son los siguientes. Cada
+experimento tarda alrededor de un minuto. La carpeta de salida debe estar vacía: el
+script no sobrescribe evidencia anterior.
+
+\begin{verbatim}
+python -m pip install -r requirements.txt
+
+# 1. Preparación de los datos (determinista; conserva los originales)
+python -m scripts.preparar_potabilidad_lab02 data/lab02/water_potability.csv
+python -m scripts.preparar_diabetes_lab02 data/lab02/diabetes_original.csv
+
+# 2. Experimentos (validación cruzada de 5 pliegues, semilla 42)
+python -m scripts.ejecutar_lab02 data/lab02/potabilidad.csv --target Potability
+    --salida salida_lab02/potabilidad --semilla 42
+    --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+python -m scripts.ejecutar_lab02 data/lab02/diabetes.csv --target diabetes
+    --features chol stab.glu hdl ratio location age gender height weight
+    frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas
+    --salida salida_lab02/diabetes --semilla 42
+    --fuente https://hbiostat.org/data/repo/diabetes
+
+# 3. Informe y pruebas del software
+python -m scripts.generar_informe_lab02 salida_lab02 --autor "Nombre (ID)"
+python -m pytest -q
+\end{verbatim}
+
+Las líneas indentadas continúan el comando anterior (en PowerShell se escriben en una
+sola línea). Cada carpeta de resultados contiene \texttt{configuracion.json} (argumentos,
+SHA-256 del CSV, versiones, índices de train, test y de cada pliegue),
+\texttt{comparacion\_validacion.csv} (todas las configuraciones con media, desviación y
+puntuación por pliegue), \texttt{mejores\_modelos.json}, \texttt{ranking\_atributos.csv}
+y, por algoritmo, la matriz de confusión, las predicciones de prueba, la curva ROC y la
+importancia por permutación; además, \texttt{DT/arbol.txt} con las reglas del árbol.

@@ -1,51 +1,26 @@
+# Tema Nexo IA. Conserva el diseño establecido en Lab02:
+# conserva la paleta de la interfaz y los contrastes verificados por las pruebas.
 [theme]
-base = "light"
 primaryColor = "#1a3c2b"
-font = "sans serif"
-baseRadius = "small"
-buttonRadius = "small"
-showWidgetBorder = true
-showSidebarBorder = true
+font = "sans-serif"
 
 [theme.light]
 backgroundColor = "#f7f7f5"
 secondaryBackgroundColor = "#eeeee9"
 textColor = "#242523"
-borderColor = "#a8aaa2"
-chartCategoricalColors = ["#1a3c2b", "#b84c35", "#806000", "#2d7456", "#77512f", "#65416f"]
-redColor = "#b42318"
-orangeColor = "#a9471e"
-yellowColor = "#715600"
-blueColor = "#1a5f8f"
-greenColor = "#1f6b4f"
-violetColor = "#65416f"
-grayColor = "#535750"
+
+[theme.light.sidebar]
+primaryColor = "#1a3c2b"
+backgroundColor = "#eeeee9"
+textColor = "#242523"
 
 [theme.dark]
+primaryColor = "#2e7d4f"
 backgroundColor = "#111713"
 secondaryBackgroundColor = "#1a241d"
 textColor = "#f7f7f5"
-borderColor = "#556158"
-primaryColor = "#317a57"
-chartCategoricalColors = ["#9effbf", "#ff9a7f", "#ffd166", "#7ddcaa", "#f3bf8c", "#d8b4fe"]
-redColor = "#ffb4ab"
-orangeColor = "#ffb68c"
-yellowColor = "#ffe08a"
-blueColor = "#9ed0ff"
-greenColor = "#8cf0c0"
-violetColor = "#d8b4fe"
-grayColor = "#c5c9c3"
-
-[theme.light.sidebar]
-backgroundColor = "#eeeee9"
-secondaryBackgroundColor = "#e3e4dd"
-textColor = "#242523"
-primaryColor = "#1a3c2b"
-borderColor = "#a8aaa2"
 
 [theme.dark.sidebar]
-backgroundColor = "#0e2016"
-secondaryBackgroundColor = "#193324"
+primaryColor = "#2e7d4f"
+backgroundColor = "#1a241d"
 textColor = "#f7f7f5"
-primaryColor = "#317a57"
-borderColor = "#556158"

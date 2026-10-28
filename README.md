@@ -1,160 +1,84 @@
-# Framework de análisis exploratorio y clustering
+# Nexo IA (`framework_ia`) · Plataforma Unificada de Análisis de Datos y Machine Learning
 
-Framework modular para cargar cualquier archivo CSV, preparar sus datos y
-ejecutar EDA, ACP, K-Means, K-Medoids, clustering jerárquico, t-SNE y UMAP.
-La interfaz gráfica usa Streamlit y Plotly para los gráficos interactivos,
-mientras que los algoritmos permanecen en clases independientes y
-reutilizables. La versión oficial del proyecto es este directorio
-(`framework_start`).
+`framework_ia` es un producto unificado de análisis exploratorio de datos, aprendizaje no supervisado y aprendizaje supervisado (clasificación y regresión), desacoplado de la interfaz gráfica (`ui/streamlit_app.py`).
 
-## Inicio rápido
-
-```bash
-cd framework_start
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
-```
-
-En Anaconda también puede usarse `conda activate base` (o el entorno donde
-estén instaladas las dependencias) antes de ejecutar los comandos.
-
-En la barra lateral:
-
-1. Seleccione un CSV ubicado en `framework_start` o suba uno desde el navegador.
-2. Ajuste separador, decimal, codificación e índice según el archivo.
-3. Navegue por Datos, Exploración o los tres pilares: Agrupamiento,
-   Clasificación y Regresión.
-4. Seleccione una técnica; la configuración relevante aparece de forma
-   contextual en la barra lateral.
-5. Ejecute el análisis y consulte sus métricas, gráficos, trazabilidad y
-   exportaciones desde la vista activa.
-
-En la vista **Datos y preparación** también puede:
-
-- Ver el tipo analítico de cada columna (numérica/categórica), sus nulos y
-  su cardinalidad.
-- Eliminar columnas manualmente antes de aplicar el resto de la preparación.
-- Calcular una partición train/test/validación eligiendo el porcentaje de
-  cada subconjunto y, de forma opcional, una columna para estratificar. Esa
-  partición queda disponible para Clasificación (y, a futuro, Regresión),
-  que pueden reutilizarla en vez de dividir los datos de nuevo.
-
-ACP, t-SNE y UMAP se mantienen bajo Exploración y reducción dimensional. La
-regresión aparece como pilar independiente, marcada como próxima mientras sus
-métodos sigan siendo una plantilla.
-
-El archivo `data/ejemplo_analisis.csv` permite comprobar la aplicación de inmediato;
-puede reemplazarse por cualquier otro CSV.
-
-No existen nombres de columnas ni rutas de datasets codificados en los modelos.
-Por ello, reemplazar el CSV no exige modificar el código.
-
-## Arquitectura
+## Arquitectura del Framework
 
 ```text
-app.py                         Punto de entrada de Streamlit.
-framework_ia/
-  datos/                       Carga, EDA, preprocesamiento y partición.
-  modelos/
-    supervisado/               Clasificación y regresión.
-    no_supervisado/            Agrupamiento y reducción dimensional.
-  resultados.py                Objetos de transferencia entre capas.
-  visualizacion.py             Figuras Plotly independientes de Streamlit.
-  ui/streamlit_app.py          Interfaz y estado de sesión.
-scripts/                       Automatización de Lab01 y empaquetado.
-tests/                         Pruebas automatizadas.
-data/                          Datasets locales de ejemplo.
-docs/lab01/                    Guías, plantilla y referencias del laboratorio.
+DataFrame         (framework_ia/datos/dataframe.py · operaciones tabulares y estadísticas)
+└── EDA           (framework_ia/datos/eda.py · preparación, calidad y gráficos exploratorios)
+    ├── NoSupervisado (framework_ia/modelos/no_supervisado/)
+    │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
+    └── Supervisado   (framework_ia/modelos/supervisado/)
+           ├── Clasificacion  ->  KNN, DT, RF, XGBoost, AdaBoost, NR, RL
+           └── Regresion      ->  RLS, RLM, RL, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT, RF
 ```
 
-La separación aplica responsabilidad única y composición: Streamlit no calcula
-modelos, los modelos no leen widgets y las visualizaciones reciben resultados
-ya calculados.
+## Módulos Principales
 
-## Dependencias
+| Ruta | Responsabilidad |
+| --- | --- |
+| `framework_ia/datos/` | `DataFrame`, `EDA`, `CargadorCSV`, `Particionador`, `PreprocesadorNoSupervisado` y `PreprocesadorSupervisado` |
+| `framework_ia/modelos/no_supervisado/` | `NoSupervisado` y `Cluster` (ACP, K-Means, K-Medoids, HAC, t-SNE, UMAP y `benchmark`) |
+| `framework_ia/modelos/supervisado/` | `Supervisado`, `Clasificacion` y `Regresion` (`Progresion`) con preprocesamiento ajustado solo en train |
+| `framework_ia/visualizacion.py` | `VisualizadorDatos`, `VisualizadorNoSupervisado`, `VisualizadorSupervisado` y `VisualizadorRegresion` |
+| `framework_ia/exportacion.py` y `framework_ia/evidencia.py` | Exportación y verificación de evidencia reproducible de experimentos supervisados |
+| `framework_ia/ui/modelos/` | Capa de modelos de estado, catálogo de vistas, disponibilidad y validación de procedencia |
+| `framework_ia/ui/controladores/` | Capa de casos de uso y controladores de fuentes, no supervisado, clasificación y regresión |
+| `framework_ia/ui/vistas/` | Capa de presentación en Streamlit (tema, navegación, controles y vistas por dominio) |
+| `framework_ia/ui/streamlit_app.py` | Punto de entrada y enrutador principal de la interfaz **Nexo IA** |
+| `scripts/` | Ejecución reproducible por línea de comandos, informes y empaquetado |
+| `tests/` | Suite de pruebas unitarias e integrales del framework y la interfaz |
 
-Todos los gráficos del framework (EDA, ACP, clustering, t-SNE/UMAP y
-clasificación) se generan con Plotly, incluido en `requirements.txt`. UMAP
-está incluido mediante `umap-learn`. K-Medoids se implementa en
-`framework_ia/modelos/algoritmos_cluster.py`, por lo que no requiere una
-biblioteca adicional.
+## Ejecutar la aplicación y pruebas
 
-Las versiones mínimas están en `requirements.txt`. El código de t-SNE admite
-las versiones de scikit-learn que nombran el parámetro de iteraciones como
-`max_iter` y las versiones anteriores que lo nombran `n_iter`.
+En PowerShell, dentro de la carpeta del proyecto (Python 3.11 o superior; verificado con Python 3.13):
 
-## Estado de las clases
-
-| Módulo | Clase o capacidad | Estado |
-| --- | --- | --- |
-| `framework_ia/datos` | Operaciones tabulares, EDA y preprocesamiento | Implementada |
-| `framework_ia/modelos/no_supervisado/agrupamiento.py` | K-Means, K-Medoids, HAC y benchmarks | Implementada |
-| `framework_ia/modelos/no_supervisado/reduccion_dimensional.py` | ACP, t-SNE y UMAP | Implementada; UMAP depende de `umap-learn` |
-| `framework_ia/visualizacion.py` | Figuras Matplotlib/Seaborn | Implementada |
-| `framework_ia/modelos/supervisado/clasificacion.py` | `Clasificacion.RF()` y `Clasificacion.NR()` | Implementada |
-| `framework_ia/modelos/supervisado/regresion.py` | `Regresion.RLS()`, `RLM()` y `RL()` | Plantilla declarada |
-
-Las clases supervisadas y sus métodos existen para completar el framework por
-etapas; actualmente `Clasificacion` (RF/NR) y su flujo de métricas y predicciones
-ya están funcionales.
-
-## Uso desde Python
-
-```python
-from framework_ia.datos import EDA
-from framework_ia.modelos import Cluster, ReduccionDimensional
-
-eda = EDA(ruta_datos="mis_datos.csv")
-datos = eda.preparar_dataset()
-
-cluster = Cluster(dataframe=datos, features=["variable_1", "variable_2"])
-resultado_kmeans = cluster.K_means(n_clusters=3)
-# También están disponibles los nombres pythonicos:
-resultado_kmeans = cluster.k_means(n_clusters=3)
-
-reduccion = ReduccionDimensional(
-    dataframe=datos,
-    features=["variable_1", "variable_2"],
-)
-resultado_acp = reduccion.ACP(n_componentes=2)
-# Equivalente pythonico:
-resultado_acp = reduccion.acp(n_componentes=2)
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## Validación
+---
 
-```bash
-python -m unittest discover -s tests -v
+## Ejecución por línea de comandos (`scripts/`)
+
+### 1. Agrupamiento (No Supervisado)
+
+```powershell
+python -m scripts.ejecutar_no_supervisado data/ejemplo_analisis.csv --salida salida_no_supervisado --semilla 42
 ```
 
-Las pruebas cubren carga de CSV, limpieza, preprocesamiento, ACP, t-SNE,
-UMAP, clustering, herencia, existencia de métodos pendientes y alias pythonicos.
+### 2. Clasificación (Potabilidad y Diabetes)
 
-## Experimentos reproducibles de Lab01
+Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero (402680547), Rodrigo Ureña Castillo (118910482) y Mariana Ureña Padilla (119180324).
 
-Para ejecutar las configuraciones base y sus variaciones sobre el CSV del
-profesor, use el siguiente comando:
-
-```bash
-python -m scripts.ejecutar_lab01 data/datos_profesor.csv --salida salida_lab01 --semilla 42
+```powershell
+python -m scripts.preparar_potabilidad data/lab02/water_potability.csv
+python -m scripts.preparar_diabetes data/lab02/diabetes_original.csv
+python -m scripts.ejecutar_clasificacion data/lab02/potabilidad.csv --target Potability --salida salida_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
+python -m scripts.ejecutar_clasificacion data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
+python -m scripts.generar_informe salida_reproducida
 ```
 
-El directorio de salida contiene la configuración exacta (`configuracion.json`),
-un resumen (`resumen_experimentos.json`), las comparaciones de ACP, K-Means,
-HAC, t-SNE y UMAP, y las asignaciones de los modelos seleccionados. La métrica
-``trustworthiness`` para t-SNE/UMAP sirve de apoyo: la elección final debe
-justificarse también con las visualizaciones y el contexto del dataset.
+### 3. Regresión (Diabetes y Concrete)
 
-UMAP inicializa automáticamente un directorio de caché temporal para Numba,
-por lo que puede ejecutarse incluso cuando el caché por defecto no es
-escribible. Se recomienda usar Python 3.11 o 3.12 para un entorno estable con
-las dependencias científicas del laboratorio.
+```powershell
+python -m scripts.preparar_diabetes
+python -m scripts.ejecutar_regresion data/lab03/diabetes_regresion.csv --target target --feature-simple bmi --salida salida_lab03
+python -m scripts.preparar_concrete Concrete_Data.xls
+python -m scripts.ejecutar_regresion data/lab03/concrete/concrete.csv --target strength --feature-simple cement --salida salida_lab03/concrete --fuente https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength
+python -m scripts.generar_informe salida_lab03/concrete --datos data/lab03/concrete/concrete.csv --procedencia data/lab03/concrete/procedencia.json --salida informe/main.tex
+```
 
-## Referencia de implementación
+### 4. Empaquetado de entrega
 
-La organización funcional toma como caso de estudio el paquete y el notebook
-entregados para la clase, pero reemplaza su diseño monolítico por componentes
-independientes.
+```powershell
+python -m scripts.preparar_entrega --ids ID-1 ID-2 --resultados salida_no_supervisado --informe informe.pdf
+```
 
-Murillo-Morera, J. D. (2026). *Paquete 1: Análisis de datos exploratorios (EDA)*
-[Código fuente de curso no publicado]. Universidad Nacional de Costa Rica.
+- [Preparación y variables de Concrete](data/lab03/concrete/README.md).
+- [Experimentos, informe y resultados verificados](docs/lab03/CONCRETE.md).
+- [API y flujos de regresión](docs/lab03/README.md).

@@ -1,0 +1,105 @@
+%% BLOQUE: datos
+Se analizan 2011 muestras de agua con nueve mediciones fisicoquímicas (\texttt{ph},
+dureza, sólidos disueltos, cloraminas, sulfato, conductividad, carbono orgánico,
+trihalometanos y turbidez). El 59.7\,\% de las muestras es no potable. Un rasgo
+central de este conjunto es que las medias de cada variable son casi idénticas en las
+dos clases (por ejemplo, \texttt{ph} 7.07 frente a 7.11 y sulfato 333.7 frente a
+332.5\,mg/L): ninguna variable separa las clases por sí sola. Lo que cambia es la
+dispersión y los extremos. El 73\,\% de las muestras con sulfato menor que 260\,mg/L
+y el 62\,\% de las que superan 420\,mg/L son potables, frente al 35\,\% entre 300 y
+340\,mg/L. Con el \texttt{ph} ocurre algo parecido: la proporción de potables es mayor
+cerca de la neutralidad (43--45\,\% entre 6 y 8) que en los extremos (30\,\% con
+\texttt{ph} $\le 5$). Son relaciones en forma de U, no lineales, y eso condiciona qué
+algoritmos funcionan mejor.
+
+%% BLOQUE: KNN
+Las cuatro configuraciones quedan dentro de una desviación estándar entre sí
+(0.588--0.604, con desviaciones cercanas a 0.03), así que la elección de la distancia
+Manhattan (+0.014 sobre el estándar) es una mejora pequeña y poco segura. Aumentar a
+$k=15$ sube la exactitud de validación de 62.6\,\% a 65.7\,\% pero apenas el F1 macro:
+promediar más vecinos suaviza la frontera hacia la clase mayoritaria. Ponderar por
+distancia no cambia nada relevante. La selección de cinco atributos empeoró el F1 macro
+a 0.536, por la razón que se discute en la síntesis. En prueba, KNN reconoce bien el
+agua no potable (recall 0.787) pero sólo 83 de 203 muestras potables (recall 0.409).
+La importancia por permutación reparte el efecto entre \texttt{ph}, sulfato y sólidos,
+sin una variable dominante. Esto es coherente con el método: KNN usa las nueve
+variables con el mismo peso, aunque la mayoría aporta poca información, y esas
+dimensiones irrelevantes vuelven las distancias menos informativas. La diferencia entre
+F1 de entrenamiento (0.747) y de prueba (0.597) muestra además que, con $k=5$, el
+modelo depende mucho de los vecinos concretos.
+
+%% BLOQUE: DT
+El árbol sin restricciones (estándar) obtiene F1 macro 0.565 con una exactitud de
+apenas 57.5\,\%, menor que la de predecir siempre ``no potable'': crece hasta
+memorizar el entrenamiento. Limitar la profundidad a 5 sube la exactitud (62.5\,\%)
+pero baja el F1 macro (0.535), porque un árbol tan corto termina prediciendo casi
+siempre la clase mayoritaria. La mejor opción es exigir al menos 10 observaciones por
+hoja (0.591, +0.025): regulariza sin impedir que el árbol aprenda las reglas en U. El
+árbol final sigue siendo grande (profundidad 14, 107 hojas) y el F1 cae de 0.794 en
+entrenamiento a 0.578 en prueba, lo que confirma su alta varianza. Sus primeras reglas
+son interpretables y coinciden con lo observado en los datos: con sulfato
+$\le 261$\,mg/L, sólidos mayores que 18\,347\,mg/L y \texttt{ph} $>6.23$ predice potable; con sulfato entre 261 y
+387\,mg/L predice no potable, y por encima de 387\,mg/L vuelve a predecir potable
+cuando \texttt{ph} $\le 7.91$. El árbol representa la forma en U combinando dos cortes
+sobre la misma variable y una interacción con el \texttt{ph}.
+
+%% BLOQUE: RF
+Random Forest obtiene el mejor resultado de este dataset. El estándar (100 árboles)
+alcanza 0.629 y pasar a 500 árboles sube el F1 macro a 0.644 y además baja la
+desviación entre pliegues de 0.031 a 0.022: con más árboles el promedio es más estable,
+que es exactamente lo que predice la teoría del bagging. Exigir 5 observaciones por
+hoja empeora (0.615), porque limita los árboles profundos que el bosque necesita para
+capturar las interacciones. Ponderar las clases no ayudó. En prueba logra exactitud de
+70.2\,\% (contra 59.6\,\% de la referencia), F1 macro 0.659 y AUC 0.727. Es el modelo
+más preciso al predecir potable (0.719: de cada 10 muestras que marca como potables,
+7 lo son), pero sigue dejando pasar 116 de las 203 muestras potables (recall 0.429).
+El F1 de entrenamiento es 1.000: cada árbol memoriza su muestra, y aun así el promedio
+generaliza mejor que cualquier modelo individual. La importancia por permutación
+(Figura~\ref{fig:perm-potabilidad}) identifica el sulfato (caída de 0.131 en F1) y el
+\texttt{ph} (0.096) como las variables decisivas, seguidas de cloraminas, dureza y
+sólidos.
+
+%% BLOQUE: XGBoost
+Las variantes de tasa de aprendizaje (0.05) y profundidad (3) quedan prácticamente
+iguales al estándar (0.617--0.622). La única mejora es ponderar las clases (0.639,
++0.017), que obliga al modelo a prestar más atención a las muestras potables. En
+prueba esto se ve como el segundo mayor recall de potables (0.478, 97 de 203), a costa
+de más falsos positivos (90 frente a 34 de RF) y una exactitud de 61.0\,\%. XGBoost es
+el modelo que más cae de validación (0.639) a prueba (0.590), y su F1 de entrenamiento
+es 1.000: con la tasa 0.3 y profundidad 6 predeterminadas, los 100 árboles alcanzan a
+memorizar el entrenamiento. En este dataset ruidoso, el boosting por gradiente termina
+ajustando ruido, mientras que el promedio de RF lo atenúa.
+
+%% BLOQUE: AdaBoost
+AdaBoost estándar tiene el peor desempeño del estudio: F1 macro 0.471 con exactitud
+59.7\,\%, igual a la proporción de la clase mayoritaria. Es decir, casi siempre
+predice ``no potable''. Bajar la tasa a 0.5 lo empeora (0.450) y duplicar los
+estimadores mejora poco (0.501). La razón está en sus aprendices: cada stump es un
+único corte sobre una variable, y como las medias de ambas clases son casi iguales,
+ningún corte supera por mucho el azar. En ese caso el peso $\alpha_t$ de cada stump es
+pequeño y el ensamble no logra representar la interacción entre sulfato
+y \texttt{ph}. La ponderación de clases es la variante con mayor efecto de todo el
+dataset (+0.069, F1 0.540): al igualar el peso de ambas clases, los stumps dejan de
+favorecer la mayoritaria. En prueba alcanza el recall más alto de potables (0.498),
+pero con precisión 0.502 y AUC 0.615, la más baja. A diferencia de RF y XGBoost no
+sobreajusta (F1 0.575 en entrenamiento y 0.582 en prueba): su problema es de sesgo
+(subajuste), no de varianza. Casi toda su capacidad se apoya en el sulfato.
+
+%% BLOQUE: sintesis
+Por validación cruzada, el mejor modelo es Random Forest con 500 árboles (F1 macro
+$0.644\pm0.022$), y también es el mejor en prueba en F1 macro, exactitud y AUC. Aun
+así, el problema es difícil: las AUC van de 0.615 a 0.727 y ninguna familia detecta
+más del 50\,\% de las muestras potables. Hay 37 muestras potables de prueba que los
+cinco modelos clasifican como no potables. Con medias casi idénticas entre clases, la
+información útil está en regiones extremas y en combinaciones de variables, y los
+modelos que mejor la aprovechan son los ensambles de árboles profundos.
+
+La selección de atributos por información mutua empeoró las cinco familias, con caídas
+de 0.01 (AdaBoost) a 0.10 (RF) en F1 macro (Figura~\ref{fig:seleccion-potabilidad}). El motivo es
+instructivo. La información mutua calculada en train asigna 0.026 al sulfato, 0.014 a
+la dureza y prácticamente 0 al \texttt{ph} y a las cloraminas, así que el filtro
+descarta el \texttt{ph}. Sin embargo, la importancia por permutación muestra que el
+\texttt{ph} es la segunda variable más importante para RF. Su efecto aparece sobre todo
+en combinación con el sulfato (como muestran las reglas del árbol), y un filtro que
+evalúa cada variable por separado no lo detecta. En este dataset conviene conservar
+las nueve variables y dejar que los árboles encuentren las interacciones.

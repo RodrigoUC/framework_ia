@@ -5,8 +5,8 @@ from .supervisado import Clasificacion, Regresion, Supervisado
 
 __all__ = [
     "Clasificacion",
-    "Regresion",
-    "Supervisado",
     "Cluster",
     "NoSupervisado",
+    "Regresion",
+    "Supervisado",
 ]
