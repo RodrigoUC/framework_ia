@@ -24,7 +24,7 @@ from framework_ia.ui import streamlit_app
 from framework_ia.ui.controladores.controlador_regresion import snapshot_ejecucion
 from scripts.preparar_diabetes import crear_parser, ejecutar, main
 
-REFERENCIA = "Diabetes · referencia Lab03"
+REFERENCIA = "Diabetes (referencia)"
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
 

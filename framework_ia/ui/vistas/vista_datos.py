@@ -78,13 +78,13 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
 
             origen = st.radio(
                 "Origen",
-                ["CSV local", "Subir CSV", "Diabetes · referencia Lab03"],
+                ["CSV local", "Subir CSV", "Diabetes (referencia)"],
                 key="fuente_origen",
             )
             with st.form("form_fuente_datos"):
                 seleccion = None
                 archivo = None
-                if origen == "Diabetes · referencia Lab03":
+                if origen in ("Diabetes (referencia)", "Diabetes · referencia Lab03"):
                     st.caption("Referencia de regresión scikit-learn (442 filas).")
                 else:
                     separador = st.text_input(
@@ -136,7 +136,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
 
             if aplicar:
                 try:
-                    if origen == "Diabetes · referencia Lab03":
+                    if origen in ("Diabetes (referencia)", "Diabetes · referencia Lab03"):
                         _cargar_referencia_regresion()
                         return st.session_state["fuente_aplicada"]
                     configuracion = ConfiguracionCSV(
@@ -450,17 +450,16 @@ def render_perfil_diabetes(datos: pd.DataFrame) -> None:
     perfil = estado_fuente_diabetes(datos, st.session_state)
     if perfil == "original":
         st.warning(
-            "Este es el CSV original de Diabetes. Para los experimentos Lab02, "
-            "aplique el archivo preparado data/lab02/diabetes.csv desde Fuente de datos. "
-            "El preparado contiene el objetivo diabetes y conserva las variables nativas."
+            "Este es el CSV original de Diabetes. "
+            "Para clasificación binaria, aplique el archivo preparado data/diabetes.csv desde Fuente de datos."
         )
     elif perfil == "preparado":
         st.caption(
-            "Diabetes Lab02: objetivo diabetes, 17 predictoras nativas sin id ni glyhb; "
-            "codificación de location, gender y frame, imputación y escalado con train."
+            "Diabetes: objetivo diabetes, 17 predictoras nativas sin id ni glyhb; "
+            "codificación de variables categóricas, imputación y escalado ajustados con entrenamiento."
         )
         st.button(
-            "Aplicar configuración Diabetes Lab02",
+            "Aplicar configuración recomendada para Diabetes",
             key="aplicar_configuracion_diabetes_lab02",
             on_click=_aplicar_configuracion_diabetes,
         )

@@ -63,9 +63,12 @@ TITULOS_VISTA = {
     "clasificacion_nb": "Naive Bayes",
     "clasificacion_configuracion": "Configuración",
     "lab2_experimentos": "Comparar modelos entrenados",
-    "lab2_benchmark": "Experimentos Lab02",
+    "lab2_benchmark": "Evaluación Comparativa de Modelos",
     "lab2_resultados": "Resultados de clasificación",
     "regresion": "Regresión",
+    "lab3_benchmark": "Evaluación Comparativa de Modelos",
+    "lab3_comparacion": "Comparar modelos entrenados",
+    "lab3_resultados": "Resultados de regresión",
 }
 
 RUTAS_VISTA = {
@@ -83,9 +86,12 @@ RUTAS_VISTA = {
     "clasificacion_nb": "Clasificación / Naive Bayes",
     "clasificacion_configuracion": "Configuración / Clasificación",
     "lab2_experimentos": "Clasificación / Comparar modelos entrenados",
-    "lab2_benchmark": "Clasificación / Experimentos Lab02",
+    "lab2_benchmark": "Clasificación / Evaluación Comparativa de Modelos",
     "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
-    "regresion": "Regresión / Próximamente",
+    "regresion": "Regresión / Modelos",
+    "lab3_benchmark": "Regresión / Evaluación Comparativa de Modelos",
+    "lab3_comparacion": "Regresión / Comparar modelos entrenados",
+    "lab3_resultados": "Resultados / Regresión / Validación y prueba",
 }
 
 TAREAS = {"clasificacion": "Clasificación", "regresion": "Regresión"}

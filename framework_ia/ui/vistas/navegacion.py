@@ -156,7 +156,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                 help=motivo,
             )
             boton(
-                "Experimentos Lab02",
+                "Evaluación Comparativa",
                 "lab2_benchmark",
                 disabled=bloqueada,
                 help=motivo,
@@ -178,7 +178,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                     help=motivo,
                 )
             boton(
-                "Experimentos Lab03",
+                "Evaluación Comparativa",
                 "lab3_benchmark",
                 disabled=bloqueada
                 and not disponibilidades.get("RLS", disponible).lista,
@@ -197,7 +197,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                 etiqueta,
                 destino,
                 disabled=not evidencia,
-                help="Ejecute primero un modelo o experimento del contexto actual.",
+                help="Ejecute primero un modelo o evaluación comparativa.",
             )
     return st.session_state["vista_activa"]
 
@@ -213,8 +213,8 @@ def _render_encabezado_atlas(
         },
         "regresion": "Configuración",
         "regresion_configuracion": "Configuración",
-        "lab3_benchmark": "Experimentos Lab03",
-        "lab3_comparacion": "Comparar regresores entrenados",
+        "lab3_benchmark": "Evaluación Comparativa de Modelos",
+        "lab3_comparacion": "Comparar modelos entrenados",
         "lab3_resultados": "Resultados de regresión",
     }
     titulo = (
@@ -222,14 +222,14 @@ def _render_encabezado_atlas(
         if vista == "configuracion"
         else titulos_regresion[vista]
         if vista in VISTAS_REGRESION
-        else TITULOS_VISTA[vista]
+        else TITULOS_VISTA.get(vista, vista)
     )
     ruta = (
         "Configuración"
         if vista == "configuracion"
         else f"Regresión / {titulo}"
         if vista in VISTAS_REGRESION
-        else RUTAS_VISTA[vista]
+        else RUTAS_VISTA.get(vista, f"Análisis / {titulo}")
     )
     nombre_dataset = escape(etiqueta)
     st.markdown(
@@ -261,12 +261,13 @@ def mostrar_guia(
     vista, familia=None, disponibilidad=None, configuracion=None
 ) -> None:
     """Muestra la orientación contextual de la etapa actual y acciones siguientes."""
+    del configuracion
     if familia is None:
         if vista == "configuracion":
-            st.markdown("**Etapa 2 · Configuración**")
+            st.markdown("<!-- Etapa 2 · Configuración -->", unsafe_allow_html=True)
             return
         if vista == "datos":
-            st.markdown("**Etapa 1 · Fuente activa**")
+            st.markdown("<!-- Etapa 1 · Fuente activa -->", unsafe_allow_html=True)
             st.button(
                 "Configurar tarea",
                 key="flujo_configurar",
@@ -294,53 +295,40 @@ def mostrar_guia(
         if consultando
         else "3 · Ejecución"
     )
-    st.markdown(f"**Etapa {etapa} de {nombre}**")
-    if configuracion is not None:
-        particion = (
-            "compartida"
-            if configuracion.get("particion_global") is not None
-            else "automática al ejecutar"
-        )
-        with st.expander("Contexto activo"):
-            st.caption(
-                f"Objetivo: {configuracion['target']} · Predictores: {len(configuracion['features'])} · "
-                f"Prueba: {configuracion['test_size']:.0%} · Semilla: {configuracion['random_state']} · Partición {particion}."
-            )
+    st.markdown(f"<!-- Etapa {etapa} de {nombre} -->", unsafe_allow_html=True)
+
     if disponibilidad is not None and not disponibilidad.lista:
         if configurando or consultando:
             mostrar_faltantes(disponibilidad)
-    elif configurando:
-        st.success(
-            "Configuración utilizable. Continúe a un modelo o experimento."
-        )
-    destino = "configuracion"
-    if consultando and not hay_evidencia(st.session_state, familia):
-        st.info(
-            "Falta ejecutar un modelo o experimento del contexto actual. Revise la configuración y continúe a un modelo."
-        )
-    if not configurando:
-        st.button(
-            "Revisar configuración",
-            key="flujo_corregir",
-            on_click=ir_a,
-            args=(destino,),
-        )
-    elif disponibilidad is not None:
-        destino = "regresion_ridge" if familia == "regresion" else "clasificacion"
-        st.button(
-            "Continuar a un modelo",
-            key="flujo_continuar",
-            disabled=not disponibilidad.lista,
-            on_click=ir_a,
-            args=(destino,),
-        )
-    if not consultando and hay_evidencia(st.session_state, familia):
-        destino = (
-            "lab3_resultados" if familia == "regresion" else "lab2_resultados"
-        )
-        st.button(
-            "Revisar resultados guardados",
-            key="flujo_resultados",
-            on_click=ir_a,
-            args=(destino,),
-        )
+
+    if configurando:
+        if disponibilidad is not None:
+            destino = "regresion_ridge" if familia == "regresion" else "clasificacion"
+            st.button(
+                "Continuar a un modelo",
+                key="flujo_continuar",
+                disabled=not disponibilidad.lista,
+                on_click=ir_a,
+                args=(destino,),
+            )
+    else:
+        # En ejecución y resultados, botones discretos de soporte en columnas compactas
+        col1, col2, _ = st.columns([1, 1, 3])
+        with col1:
+            st.button(
+                "Revisar configuración",
+                key="flujo_corregir",
+                on_click=ir_a,
+                args=("configuracion",),
+            )
+        if not consultando and hay_evidencia(st.session_state, familia):
+            destino_res = (
+                "lab3_resultados" if familia == "regresion" else "lab2_resultados"
+            )
+            with col2:
+                st.button(
+                    "Revisar resultados guardados",
+                    key="flujo_resultados",
+                    on_click=ir_a,
+                    args=(destino_res,),
+                )

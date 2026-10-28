@@ -48,19 +48,14 @@ def render_experimentos(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
     """Renderiza los controles y ejecuta el benchmark de clasificación."""
-    st.caption(f"{TOTAL_CANDIDATOS} configuraciones · 5 algoritmos")
     contexto = _contexto_ejecucion(configuracion)
-    st.caption(
-        f"Dataset: {contexto['dataset']} · Objetivo: {configuracion['target']} · "
-        f"Semilla: {configuracion['random_state']}"
-    )
-    segura = preparacion_segura(mostrar_guia=True)
+    segura = preparacion_segura()
     original_diabetes = (
         estado_fuente_diabetes(datos, st.session_state) == "original"
     )
     catalogo = configuraciones_experimento()
     with st.expander(
-        f"Catálogo · 5 algoritmos / {TOTAL_CANDIDATOS} configuraciones"
+        f"Catálogo de modelos ({TOTAL_CANDIDATOS} configuraciones en 5 familias)"
     ):
         _mostrar_dataframe(
             pd.DataFrame(
@@ -174,7 +169,7 @@ def render_experimentos(
     )
     mostrar_faltantes(disponibilidad)
     ejecutar = st.button(
-        f"Ejecutar experimentos Lab02 · {TOTAL_CANDIDATOS} configuraciones",
+        "Ejecutar evaluación comparativa",
         key="lab2_benchmark_ejecutar",
         type="primary",
         disabled=not segura
@@ -185,7 +180,7 @@ def render_experimentos(
     if ejecutar and segura and not original_diabetes and disponibilidad.lista:
         try:
             with st.spinner(
-                f"Entrenando {TOTAL_CANDIDATOS} configuraciones y seleccionando en validación…"
+                "Evaluando y comparando modelos con validación cruzada…"
             ):
                 argumentos = {
                     **_argumentos_comunes(configuracion),
@@ -267,14 +262,14 @@ def render_resultado_experimento(
     if guardado is None:
         if intento is None:
             st.info(
-                f"Todavía no hay experimentos guardados. Ejecute las {TOTAL_CANDIDATOS} configuraciones en Experimentos Lab02."
+                "Todavía no hay evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos."
             )
         return
     resultado = guardado["resultado"]
     metadatos = resultado.metadatos
     metrica = guardado["opciones"]["metrica"]
     contexto = guardado["contexto"]
-    st.markdown("### Experimento guardado · selección en validación")
+    st.markdown("### Evaluación comparativa · selección en validación")
     st.caption(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
@@ -363,7 +358,7 @@ def render_resultado_experimento(
                     "Precisión macro prueba": ganador.metricas["precision"][
                         "macro"
                     ],
-                    "Recall macro prueba": ganador.metricas["recall"]["macro"],
+                    "Tasa de verdaderos macro prueba": ganador.metricas["recall"]["macro"],
                     "F1 macro prueba": ganador.metricas["f1"]["macro"],
                 }
                 for algoritmo, ganador in resultado.mejores.items()
@@ -396,7 +391,7 @@ def render_resultado_experimento(
                 mostrar_figura(
                     figura_clases,
                     key=f"{prefijo}_{algoritmo}_clases",
-                    alt="Precisión, recall y F1 por clase del ganador en prueba",
+                    alt="Precisión, tasa de verdaderos y F1 por clase del ganador en prueba",
                 )
     _descargas(guardado, prefijo)
 

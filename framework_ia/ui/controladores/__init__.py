@@ -9,6 +9,7 @@ from framework_ia.ui.controladores.controlador_clasificacion import (
     _metricas_por_clase,
     _metricas_porcentuales,
     _modelo,
+    nombre_tasa_verdaderos,
 )
 from framework_ia.ui.controladores.controlador_fuentes import (
     _aplicar_configuracion_diabetes,
@@ -73,5 +74,6 @@ __all__ = [
     "ejecutar_tsne",
     "ejecutar_umap",
     "evaluar_kmeans_k",
+    "nombre_tasa_verdaderos",
     "snapshot_ejecucion",
 ]

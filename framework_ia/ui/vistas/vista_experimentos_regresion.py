@@ -47,11 +47,11 @@ def mostrar_experimento_guardado(
     snapshot = st.session_state.get("resultado_lab3_experimento")
     if not snapshot:
         st.info(
-            "Sin experimento completo guardado. Ejecute el benchmark para comparar por validación."
+            "Sin evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos para comparar por validación."
         )
         return
     resultado = snapshot["resultado"]
-    st.markdown("### Experimento guardado · selección por RMSE de validación")
+    st.markdown("### Evaluación comparativa · selección por RMSE de validación")
     st.caption(
         f"Estrategia: {resultado.metadatos['estrategia_seleccion']} · Ganador por validación: {resultado.mejor_algoritmo}"
     )
@@ -137,7 +137,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     st.caption("14 configuraciones · 9 algoritmos")
     segura = preparacion_regresion_segura()
     algoritmos = st.multiselect(
-        "Algoritmos del experimento",
+        "Modelos a evaluar",
         ALGORITMOS_LAB3,
         default=list(ALGORITMOS_LAB3),
         key="lab3_algoritmos",
@@ -180,7 +180,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         preparacion=st.session_state.get("dataset_preparacion"),
     )
     mostrar_faltantes(disponibilidad)
-    with st.expander("Candidatos que se ejecutarán"):
+    with st.expander("Modelos y configuraciones que se evaluarán"):
         st.dataframe(
             pd.DataFrame(
                 [
@@ -198,7 +198,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         )
     if (
         st.button(
-            "Ejecutar experimento",
+            "Ejecutar evaluación comparativa",
             key="lab3_ejecutar_experimento",
             type="primary",
             disabled=not segura or not algoritmos or not disponibilidad.lista,
@@ -206,7 +206,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         and disponibilidad.lista
     ):
         try:
-            with st.spinner("Comparando candidatos por validación…"):
+            with st.spinner("Evaluando y comparando modelos por validación…"):
                 resultado = crear_regresor(datos, configuracion).experimentar(
                     **argumentos_comunes(configuracion), **opciones
                 )

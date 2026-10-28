@@ -12,6 +12,7 @@ from framework_ia.ui.controladores.controlador_clasificacion import (
     _metricas_por_clase,
     _metricas_porcentuales,
     _modelo,
+    nombre_tasa_verdaderos,
 )
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
@@ -41,9 +42,8 @@ def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
         return False
     if mostrar_guia:
         st.caption(
-            "Imputación, codificación y escalado se ajustan con entrenamiento. "
-            "Las filas con target vacío se excluyen. Seleccione su CSV de Potabilidad "
-            "o Diabetes en Fuente de datos; el CSV de ejemplo no reemplaza los datos del profesor."
+            "Imputación, codificación y escalado se ajustan automáticamente con el conjunto de entrenamiento. "
+            "Las filas con target vacío se excluyen del modelado."
         )
     return True
 
@@ -99,103 +99,106 @@ def render_modelo_individual(
                 guardados = dict(st.session_state.get(clave_criterios_rf, {}))
                 guardados[criterio_rf] = {
                     "resultado": resultado,
-                    "contexto": contexto,
                     "firma": firma,
+                    "criterio": criterio_rf,
+                    "contexto": contexto,
                     "parametros": parametros,
                 }
                 st.session_state[clave_criterios_rf] = guardados
-                st.session_state[resultado_modelo] = resultado
-                st.session_state[f"contexto_lab2_{estado_modelo}"] = contexto
                 errores = dict(st.session_state.get(intentos_rf, {}))
                 errores.pop(criterio_rf, None)
                 st.session_state[intentos_rf] = errores
-            else:
-                st.session_state[resultado_modelo] = resultado
-                st.session_state[f"contexto_lab2_{estado_modelo}"] = contexto
-            st.success(
-                "Modelo entrenado. Las métricas siguientes corresponden a prueba."
-            )
+            st.session_state[resultado_modelo] = resultado
+            st.session_state[f"contexto_{resultado_modelo}"] = contexto
+            st.session_state[f"firma_{resultado_modelo}"] = firma
+            st.session_state.pop(f"error_{resultado_modelo}", None)
             st.rerun()
-        except Exception as exc:
+        except Exception as error:
+            st.session_state[f"error_{resultado_modelo}"] = str(error)
             if algoritmo == "RF":
                 errores = dict(st.session_state.get(intentos_rf, {}))
-                errores[criterio_rf] = str(exc)
+                errores[criterio_rf] = str(error)
                 st.session_state[intentos_rf] = errores
-            st.error(f"No fue posible entrenar {nombre_modelo}: {exc}")
+            st.error(f"Error al entrenar {nombre_modelo}: {error}")
+    if st.session_state.get(f"error_{resultado_modelo}"):
+        st.error(
+            f"Último error en {nombre_modelo}: {st.session_state[f'error_{resultado_modelo}']}"
+        )
     if algoritmo == "RF":
-        error = st.session_state.get(intentos_rf, {}).get(criterio_rf)
-        if error:
-            st.error(
-                f"Falló el intento actual de Random Forest ({criterio_rf}); se conserva la última ejecución exitosa: {error}"
+        guardados = st.session_state.get(clave_criterios_rf, {})
+        errores_rf = st.session_state.get(intentos_rf, {})
+        for c in ("gini", "entropy", "log_loss"):
+            if c in errores_rf:
+                st.warning(f"Intento previo con criterion='{c}' falló: {errores_rf[c]}")
+        actual_rf = guardados.get(criterio_rf)
+        if actual_rf is not None:
+            if actual_rf["firma"] != firma:
+                st.info(
+                    "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar."
+                )
+            _diagnostico(
+                actual_rf["resultado"],
+                mostrar_figura,
+                prefijo=f"lab2_{algoritmo}_{criterio_rf}",
             )
-        resultado = (
-            st.session_state.get(clave_criterios_rf, {})
-            .get(criterio_rf, {})
-            .get("resultado")
+            return
+    resultado_previo = st.session_state.get(resultado_modelo)
+    if resultado_previo is not None:
+        if st.session_state.get(f"firma_{resultado_modelo}") != firma:
+            st.info(
+                "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar."
+            )
+        _diagnostico(
+            resultado_previo,
+            mostrar_figura,
+            prefijo=f"lab2_{algoritmo}",
         )
-    else:
-        resultado = st.session_state.get(resultado_modelo)
-    if resultado is None:
-        st.info(
-            "Configure el modelo y pulse Entrenar modelo para ver sus resultados."
-        )
-        return
-    _diagnostico(
-        resultado,
-        mostrar_figura,
-        f"clasificacion_{algoritmo}_{criterio_rf or 'default'}",
-    )
 
 
 def render_resultados(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
-    """Vista de lectura de modelos entrenados y resultados experimentales."""
-    hay_experimento = incluir_experimentos and any(
-        st.session_state.get(clave)
-        for clave in (
-            "resultado_lab2_experimento",
-            "resultado_lab2_intento_experimento",
-            "error_lab2_experimento",
-        )
+    """Compara métricas de prueba de modelos individuales y del benchmark experimental."""
+    hay_experimento = bool(
+        st.session_state.get("resultado_lab2_experimento") is not None
+        or st.session_state.get("resultado_lab2_intento_experimento") is not None
     )
+    clave_criterios_rf = "resultado_lab2_modelo_RF_criterios"
     individuales = []
-    for codigo in (*NOMBRES_MODELOS, "NR"):
-        if codigo == "RF":
-            criterios_guardados = st.session_state.get(
-                "resultado_lab2_modelo_RF_criterios", {}
-            )
-            if not criterios_guardados:
-                legacy = st.session_state.get("resultado_lab2_modelo_RF")
-                if legacy is not None:
-                    parametros = getattr(legacy, "parametros", {})
-                    criterio = parametros.get(
-                        "criterion",
-                        legacy.modelo.get_params().get("criterion", "gini"),
-                    )
-                    individuales.append(
-                        (
-                            codigo,
-                            criterio,
-                            legacy,
-                            st.session_state.get(
-                                "contexto_lab2_modelo_RF", {}
-                            ),
-                            parametros,
-                        )
-                    )
-            for criterio, snapshot in criterios_guardados.items():
+    guardados_rf = st.session_state.get(clave_criterios_rf, {})
+    if guardados_rf:
+        for criterio, entrada in sorted(guardados_rf.items()):
+            resultado = entrada.get("resultado")
+            if resultado is not None:
                 individuales.append(
                     (
-                        codigo,
+                        "RF",
                         criterio,
-                        snapshot["resultado"],
-                        snapshot["contexto"],
-                        snapshot.get("parametros", {}),
+                        resultado,
+                        entrada.get("contexto", {}),
+                        entrada.get("parametros", {}),
                     )
                 )
-        else:
-            resultado = st.session_state.get(f"resultado_lab2_modelo_{codigo}")
+    else:
+        resultado_rf = st.session_state.get("resultado_lab2_modelo_RF")
+        if resultado_rf is not None:
+            contexto_rf = st.session_state.get(
+                "contexto_lab2_modelo_RF", {}
+            )
+            individuales.append(
+                (
+                    "RF",
+                    None,
+                    resultado_rf,
+                    contexto_rf,
+                    getattr(resultado_rf, "parametros", {}),
+                )
+            )
+    for codigo in ("KNN", "DT", "XGBoost", "AdaBoost", "NR"):
+        if f"resultado_lab2_modelo_{codigo}" in st.session_state:
+            resultado = st.session_state.get(
+                f"resultado_lab2_modelo_{codigo}"
+            )
             if resultado is not None:
                 contexto = st.session_state.get(
                     f"contexto_lab2_modelo_{codigo}", {}
@@ -229,15 +232,17 @@ def render_resultados(
                 "Algoritmo": nombre,
                 "Exactitud (%)": round(100.0 * float(resultado.metricas["accuracy"]), 2),
                 "Precisión Macro": round(float(resultado.metricas["precision"]["macro"]), 4),
-                "Recall Macro": round(float(resultado.metricas["recall"]["macro"]), 4),
+                "Tasa de Verdaderos Macro": round(float(resultado.metricas["recall"]["macro"]), 4),
                 "F1-Score Macro": round(float(resultado.metricas["f1"]["macro"]), 4),
             }
             y_true = resultado.y_true
             y_pred = resultado.y_pred
-            for etiqueta in list(resultado.labels):
+            etiquetas_lista = list(resultado.labels)
+            for etiqueta in etiquetas_lista:
                 reales = y_true == etiqueta
                 soporte = int(reales.sum())
-                fila[f"Recall ({etiqueta}) (%)"] = (
+                col_nombre = nombre_tasa_verdaderos(etiqueta, etiquetas_lista)
+                fila[col_nombre] = (
                     round(100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte, 2)
                     if soporte
                     else "Sin casos"
@@ -309,14 +314,14 @@ def _diagnostico(
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Accuracy", f"{resultado.metricas['accuracy']:.1%}")
     c2.metric("Precisión macro", f"{resultado.metricas['precision']['macro']:.4f}")
-    c3.metric("Recall macro", f"{resultado.metricas['recall']['macro']:.4f}")
+    c3.metric("Tasa de verdaderos macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
     metricas_clase = _metricas_por_clase(resultado)
-    st.markdown("**Recall por clase**")
+    st.markdown("**Tasa de verdaderos por clase**")
     st.dataframe(
         pd.DataFrame(
             [
-                {"Clase real": etiqueta, "Recall (%)": recall}
+                {"Clase real": etiqueta, "Tasa de verdaderos (%)": recall}
                 for etiqueta, recall in metricas_clase.items()
             ]
         ),

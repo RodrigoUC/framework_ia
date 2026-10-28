@@ -52,23 +52,28 @@ def _json(datos) -> str:
     return json.dumps(datos, ensure_ascii=False, indent=2, default=str)
 
 
+def nombre_tasa_verdaderos(etiqueta, etiquetas) -> str:
+    """Retorna el nombre descriptivo de la tasa de verdaderos para una clase."""
+    etiquetas_lista = list(etiquetas)
+    if len(etiquetas_lista) == 2:
+        str_set = {str(e).strip().casefold() for e in etiquetas_lista}
+        str_etiq = str(etiqueta).strip().casefold()
+        if str_set in ({"0", "1"}, {"n", "y"}, {"false", "true"}, {"no", "si"}, {"no", "sí"}):
+            es_positivo = str_etiq in {"1", "y", "true", "si", "sí"}
+            tipo = "Positivos" if es_positivo else "Negativos"
+            etiq_fmt = str(etiqueta).upper() if str_set == {"n", "y"} else str(etiqueta)
+            return f"Tasa de Verdaderos {tipo} ({etiq_fmt}) (%)"
+    return f"Tasa de Verdaderos ({etiqueta}) (%)"
+
+
 def _metricas_por_clase(resultado) -> dict[str, float | str]:
-    """Calcula el recall porcentual por clase real sobre las predicciones de prueba."""
+    """Calcula la tasa de verdaderos porcentual por clase real sobre las predicciones de prueba."""
     y_true = resultado.y_true
     y_pred = resultado.y_pred
     etiquetas = list(resultado.labels)
-    binarias_yn = (
-        len(etiquetas) == 2
-        and {str(etiqueta).casefold() for etiqueta in etiquetas} == {"y", "n"}
-        and all(isinstance(etiqueta, str) for etiqueta in etiquetas)
-    )
     recalls = {}
     for etiqueta in etiquetas:
-        nombre = (
-            f"Recall {str(etiqueta).upper()} (%)"
-            if binarias_yn
-            else f"Recall actual {etiqueta!s} (%)"
-        )
+        nombre = nombre_tasa_verdaderos(etiqueta, etiquetas)
         reales = y_true == etiqueta
         soporte = int(reales.sum())
         recalls[nombre] = (
@@ -80,7 +85,7 @@ def _metricas_por_clase(resultado) -> dict[str, float | str]:
 
 
 def _metricas_porcentuales(resultado) -> dict[str, float | str]:
-    """Combina el accuracy porcentual general con el recall por clase real."""
+    """Combina el accuracy porcentual general con la tasa de verdaderos por clase real."""
     return {
         "Accuracy general (%)": 100.0 * float(resultado.metricas["accuracy"]),
         **_metricas_por_clase(resultado),

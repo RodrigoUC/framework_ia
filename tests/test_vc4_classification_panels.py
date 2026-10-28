@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
+from framework_ia.ui.controladores.controlador_clasificacion import nombre_tasa_verdaderos
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -71,7 +72,8 @@ class ClassificationPanelTests(unittest.TestCase):
             set(tabla["Algoritmo"]), {"Random Forest · gini", "Naive Bayes"}
         )
         for label in resultado_rf.labels:
-            self.assertIn(f"Recall ({label}) (%)", tabla.columns)
+            col = nombre_tasa_verdaderos(label, resultado_rf.labels)
+            self.assertIn(col, tabla.columns)
         for nombre, resultado in (
             ("Random Forest · gini", resultado_rf),
             ("Naive Bayes", resultado_nr),

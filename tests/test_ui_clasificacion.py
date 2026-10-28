@@ -71,9 +71,9 @@ def test_saved_metrics_use_accuracy_and_recall_by_actual_class_percent():
     )
     metrics = _metricas_porcentuales(result)
     assert metrics["Accuracy general (%)"] == 50.0
-    assert metrics["Recall Y (%)"] == pytest.approx(100 / 3)
-    assert metrics["Recall N (%)"] == pytest.approx(200 / 3)
-    assert metrics["Recall Y (%)"] != 50.0
+    assert metrics["Tasa de Verdaderos Positivos (Y) (%)"] == pytest.approx(100 / 3)
+    assert metrics["Tasa de Verdaderos Negativos (N) (%)"] == pytest.approx(200 / 3)
+    assert metrics["Tasa de Verdaderos Positivos (Y) (%)"] != 50.0
 
 
 def test_numeric_and_multiclass_labels_are_literal_and_zero_support_is_unavailable():
@@ -84,10 +84,10 @@ def test_numeric_and_multiclass_labels_are_literal_and_zero_support_is_unavailab
         metricas={"accuracy": 2 / 3},
     )
     numeric_metrics = _metricas_porcentuales(numeric)
-    assert numeric_metrics["Recall actual 1 (%)"] == 50.0
-    assert numeric_metrics["Recall actual 0 (%)"] == 100.0
-    assert numeric_metrics["Recall actual 2 (%)"] == "Sin casos evaluados"
-    assert not any("Recall Y" in name or "Recall N" in name for name in numeric_metrics)
+    assert numeric_metrics["Tasa de Verdaderos (1) (%)"] == 50.0
+    assert numeric_metrics["Tasa de Verdaderos (0) (%)"] == 100.0
+    assert numeric_metrics["Tasa de Verdaderos (2) (%)"] == "Sin casos evaluados"
+    assert not any("Tasa de Verdaderos Positivos" in name for name in numeric_metrics)
 
     multiclass = SimpleNamespace(
         y_true=pd.Series(["cat", "dog", "cat"]),
@@ -96,9 +96,9 @@ def test_numeric_and_multiclass_labels_are_literal_and_zero_support_is_unavailab
         metricas={"accuracy": 2 / 3},
     )
     class_metrics = _metricas_porcentuales(multiclass)
-    assert class_metrics["Recall actual cat (%)"] == 50.0
-    assert class_metrics["Recall actual dog (%)"] == 100.0
-    assert class_metrics["Recall actual bird (%)"] == "Sin casos evaluados"
+    assert class_metrics["Tasa de Verdaderos (cat) (%)"] == 50.0
+    assert class_metrics["Tasa de Verdaderos (dog) (%)"] == 100.0
+    assert class_metrics["Tasa de Verdaderos (bird) (%)"] == "Sin casos evaluados"
 
 
 def ejecutar_comparacion(app):
