@@ -9,7 +9,7 @@ from sklearn.model_selection import KFold
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
-from ..configuracion_regresion import (
+from .configuracion_regresion import (
     ALGORITMOS_LAB3,
     ALPHAS_LAB3,
     PLIEGUES_INTERNOS,

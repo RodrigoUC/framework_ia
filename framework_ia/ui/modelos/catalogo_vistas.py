@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from framework_ia.utils import configuraciones_experimento
-from framework_ia.utils.configuracion_regresion import ALGORITMOS_LAB3
+from framework_ia.utils.supervisado.configuracion_regresion import ALGORITMOS_LAB3
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 APP_NAME = "Nexo IA"

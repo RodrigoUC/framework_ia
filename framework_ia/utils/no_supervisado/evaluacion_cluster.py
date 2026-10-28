@@ -8,7 +8,7 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-from ..resultados import DatosPreparados, ResultadoCluster
+from ...resultados import DatosPreparados, ResultadoCluster
 
 
 def validar_numero_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:

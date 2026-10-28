@@ -15,10 +15,10 @@ from ...resultados import (
     ResultadoExperimentoClasificacion,
     ResultadoExperimentoRegresion,
 )
-from ..configuracion_clasificacion import (
+from .configuracion_clasificacion import (
     METRICAS_SELECCION as METRICAS_SELECCION_CLASIFICACION,
 )
-from ..configuracion_regresion import (
+from .configuracion_regresion import (
     ALGORITMOS_LAB3 as ALGORITMOS_REGRESION_DEFECTO,
     configuraciones_experimento_regresion,
 )

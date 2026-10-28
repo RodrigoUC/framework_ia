@@ -25,7 +25,7 @@ from sklearn.utils.multiclass import type_of_target
 
 from ...datos.preprocesamiento import PreprocesadorSupervisado
 from ...resultados import ResultadoClasificacion
-from ..configuracion_clasificacion import (
+from .configuracion_clasificacion import (
     ALGORITMOS_CLASIFICACION,
     ALGORITMOS_LAB2,
     configuraciones_experimento,

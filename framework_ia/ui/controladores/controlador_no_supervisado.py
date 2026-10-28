@@ -10,7 +10,7 @@ from framework_ia.resultados import (
     ResultadoCluster,
     ResultadoProyeccion,
 )
-from framework_ia.utils.evaluacion_cluster import (
+from framework_ia.utils.no_supervisado import (
     evaluar_hac,
     evaluar_kmeans,
 )

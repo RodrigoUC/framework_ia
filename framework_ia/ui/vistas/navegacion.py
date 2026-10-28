@@ -20,7 +20,7 @@ from framework_ia.ui.modelos.catalogo_vistas import (
     VISTAS_REGRESORES,
 )
 from framework_ia.ui.modelos.disponibilidad import Disponibilidad, hay_evidencia
-from framework_ia.utils.configuracion_regresion import NOMBRES_REGRESORES
+from framework_ia.utils.supervisado.configuracion_regresion import NOMBRES_REGRESORES
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:

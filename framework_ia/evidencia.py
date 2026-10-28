@@ -17,7 +17,7 @@ from sklearn.model_selection import KFold, train_test_split
 from .datos.fuentes import CargadorCSV
 from .datos.particion import huella_datos
 from .utils.supervisado.regresion import metricas_regresion
-from .utils.configuracion_csv import ConfiguracionCSV
+from .utils.datos.configuracion_csv import ConfiguracionCSV
 from .utils.configuracion_regresion import (
     ALGORITMOS_REGRESION,
     configuraciones_experimento_regresion,

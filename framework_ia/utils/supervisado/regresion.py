@@ -10,7 +10,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from ...datos.preprocesamiento import PreprocesadorSupervisado
 from ...resultados import ResultadoRegresion
-from ..configuracion_regresion import ALGORITMOS_REGRESION
+from .configuracion_regresion import ALGORITMOS_REGRESION
 from .algoritmos_regresion import (
     crear_modelo,
     metadatos_regresion,

@@ -21,7 +21,7 @@ from framework_ia.ui.vistas.vista_regresion import (
     mostrar_resultado_modelo,
     preparacion_regresion_segura,
 )
-from framework_ia.utils.configuracion_regresion import (
+from framework_ia.utils.supervisado.configuracion_regresion import (
     ALGORITMOS_LAB3,
     configuraciones_experimento_regresion,
 )

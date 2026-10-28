@@ -18,7 +18,7 @@ from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.vistas.navegacion import mostrar_faltantes
 from framework_ia.ui.vistas.vista_controles import parametros_regresion
-from framework_ia.utils.configuracion_regresion import (
+from framework_ia.utils.supervisado.configuracion_regresion import (
     ALGORITMOS_LAB3,
     NOMBRES_REGRESORES,
 )

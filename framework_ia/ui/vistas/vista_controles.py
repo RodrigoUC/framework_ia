@@ -12,7 +12,7 @@ from framework_ia.utils import (
     METRICAS_SELECCION,
     NOMBRES_MODELOS,
 )
-from framework_ia.utils.configuracion_regresion import CONFIGURACIONES_REGRESION
+from framework_ia.utils.supervisado.configuracion_regresion import CONFIGURACIONES_REGRESION
 
 
 def _seleccionar_entero(

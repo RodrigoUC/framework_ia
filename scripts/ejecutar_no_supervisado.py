@@ -13,7 +13,7 @@ from sklearn.manifold import trustworthiness
 
 from framework_ia.datos.eda import EDA
 from framework_ia.modelos.no_supervisado import Cluster, DependenciaOpcionalError
-from framework_ia.utils.evaluacion_cluster import evaluar_hac, evaluar_kmeans
+from framework_ia.utils.no_supervisado import evaluar_hac, evaluar_kmeans
 
 
 def _argumentos() -> argparse.Namespace:

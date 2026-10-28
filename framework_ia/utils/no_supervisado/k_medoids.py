@@ -48,55 +48,55 @@ class ModeloKMedoids:
         )
 
         for iteracion in range(1, self.max_iter + 1):
-            etiquetas = np.argmin(distancias[:, medoides], axis=1)
-            nuevos = medoides.copy()
-            for cluster in range(self.n_clusters):
-                miembros = np.flatnonzero(etiquetas == cluster)
+            dist_medoides = distancias[:, medoides]
+            etiquetas = np.argmin(dist_medoides, axis=1)
+
+            nuevos_medoides = np.empty_like(medoides)
+            for k in range(self.n_clusters):
+                miembros = np.where(etiquetas == k)[0]
                 if len(miembros) == 0:
-                    nuevos[cluster] = self._seleccionar_reemplazo(
-                        distancias, nuevos, generador
+                    disponibles = np.setdiff1d(
+                        np.arange(len(matriz)), nuevos_medoides[:k]
+                    )
+                    nuevos_medoides[k] = (
+                        generador.choice(disponibles)
+                        if len(disponibles) > 0
+                        else medoides[k]
                     )
                     continue
-                internas = distancias[np.ix_(miembros, miembros)]
-                nuevos[cluster] = miembros[np.argmin(internas.sum(axis=1))]
 
-            self.n_iter_ = iteracion
-            if np.array_equal(nuevos, medoides):
+                submatriz = distancias[np.ix_(miembros, miembros)]
+                costes = submatriz.sum(axis=1)
+                nuevos_medoides[k] = miembros[np.argmin(costes)]
+
+            if np.array_equal(np.sort(medoides), np.sort(nuevos_medoides)):
+                self.n_iter_ = iteracion
                 break
-            medoides = nuevos
+            medoides = nuevos_medoides
+        else:
+            self.n_iter_ = self.max_iter
 
-        etiquetas = np.argmin(distancias[:, medoides], axis=1)
+        dist_finales = distancias[:, medoides]
+        self.labels_ = np.argmin(dist_finales, axis=1)
         self.medoid_indices_ = medoides
         self.cluster_centers_ = matriz[medoides]
-        self.labels_ = etiquetas
         self.inertia_ = float(
-            distancias[np.arange(len(matriz)), medoides[etiquetas]].sum()
+            dist_finales[np.arange(len(matriz)), self.labels_].sum()
         )
         return self
 
     def fit_predict(self, datos) -> np.ndarray:
-        """Ajusta el modelo y retorna las etiquetas resultantes."""
-        return self.fit(datos).labels_.copy()
+        """Ajusta el estimador y retorna las etiquetas asignadas."""
+        self.fit(datos)
+        assert self.labels_ is not None
+        return self.labels_
 
     def predict(self, datos) -> np.ndarray:
         """Asigna nuevas observaciones al medoide más cercano."""
         if self.cluster_centers_ is None:
-            raise ValueError("El modelo debe ajustarse antes de predecir.")
+            raise RuntimeError("El modelo no está entrenado.")
         matriz = np.asarray(datos, dtype=float)
         distancias = pairwise_distances(
             matriz, self.cluster_centers_, metric=self.metric
         )
         return np.argmin(distancias, axis=1)
-
-    @staticmethod
-    def _seleccionar_reemplazo(
-        distancias: np.ndarray,
-        medoides: np.ndarray,
-        generador: np.random.Generator,
-    ) -> int:
-        """Elige un punto distante cuando un cluster queda vacío por empates."""
-        disponibles = np.setdiff1d(np.arange(len(distancias)), medoides)
-        if len(disponibles) == 0:
-            return int(generador.integers(0, len(distancias)))
-        distancia_actual = distancias[np.ix_(disponibles, medoides)].min(axis=1)
-        return int(disponibles[np.argmax(distancia_actual)])

@@ -18,12 +18,12 @@ from ...utils import (
     configurar_cache_numba,
     crear_tsne,
 )
-from ...utils.evaluacion_cluster import (
+from ...utils.no_supervisado.evaluacion_cluster import (
     calcular_centroides,
     construir_resultado_cluster,
     validar_numero_clusters,
 )
-from ...utils.k_medoids import ModeloKMedoids
+from ...utils.no_supervisado.k_medoids import ModeloKMedoids
 
 
 class Cluster(NoSupervisado):

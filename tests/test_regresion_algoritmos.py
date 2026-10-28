@@ -25,7 +25,7 @@ from framework_ia.utils import (
     NOMBRES_REGRESORES,
     configuraciones_experimento_regresion,
 )
-from framework_ia.utils.configuracion_regresion import ALPHAS_LAB3
+from framework_ia.utils.supervisado.configuracion_regresion import ALPHAS_LAB3
 
 
 class RegressionEstimatorTests(unittest.TestCase):
