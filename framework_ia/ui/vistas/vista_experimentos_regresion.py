@@ -274,6 +274,6 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
                 args=("lab3_resultados",),
             )
         with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
-            mostrar_experimento_guardado(mostrar_figura)
+            mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
     else:
-        mostrar_experimento_guardado(mostrar_figura)
+        mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)

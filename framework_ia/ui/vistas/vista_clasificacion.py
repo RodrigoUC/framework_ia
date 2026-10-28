@@ -156,8 +156,10 @@ def render_modelo_individual(
 
 
 def _render_modelos_individuales(individuales: list) -> None:
-    st.markdown("#### Modelos entrenados individualmente")
+    from framework_ia.ui.vistas.vista_resultados import render_panel_modelos_individuales
+
     filas_comparativa = []
+    modelos_params = []
     for codigo, criterio, resultado, contexto, parametros in individuales:
         nombre = (
             NOMBRES_MODELOS.get(
@@ -186,52 +188,16 @@ def _render_modelos_individuales(individuales: list) -> None:
                 else "Sin casos"
             )
         filas_comparativa.append(fila)
+        params_dict = getattr(resultado, "parametros", {}) or (
+            resultado.modelo.get_params() if hasattr(resultado, "modelo") else {}
+        )
+        modelos_params.append((nombre, params_dict))
 
-    st.dataframe(
+    render_panel_modelos_individuales(
         pd.DataFrame(filas_comparativa),
-        hide_index=True,
-        width="stretch",
+        modelos_params,
+        titulo="Modelos entrenados individualmente",
     )
-
-    with st.expander("Ver hiperparámetros de los modelos"):
-        nombres_modelos = [
-            (
-                NOMBRES_MODELOS.get(
-                    codigo,
-                    "Naive Bayes" if codigo == "NR" else codigo,
-                )
-                + (f" · {criterio}" if criterio else "")
-            )
-            for codigo, criterio, _, _, _ in individuales
-        ]
-        if len(nombres_modelos) == 1:
-            codigo, criterio, resultado, contexto, parametros = individuales[0]
-            params_dict = (
-                getattr(resultado, "parametros", {})
-                or resultado.modelo.get_params()
-            )
-            filas_p = [
-                {"Hiperparámetro": str(k), "Valor": str(v)}
-                for k, v in params_dict.items()
-                if not str(k).startswith("_") and v is not None and not callable(v)
-            ]
-            st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
-        else:
-            tabs_params = st.tabs(nombres_modelos)
-            for tab, (codigo, criterio, resultado, contexto, parametros) in zip(
-                tabs_params, individuales
-            ):
-                with tab:
-                    params_dict = (
-                        getattr(resultado, "parametros", {})
-                        or resultado.modelo.get_params()
-                    )
-                    filas_p = [
-                        {"Hiperparámetro": str(k), "Valor": str(v)}
-                        for k, v in params_dict.items()
-                        if not str(k).startswith("_") and v is not None and not callable(v)
-                    ]
-                    st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
 
 
 def render_resultados(
@@ -302,20 +268,18 @@ def render_resultados(
         )
         return
 
+    from framework_ia.ui.vistas.vista_resultados import render_layout_resultados
     from framework_ia.ui.vistas.vista_experimentos_clasificacion import (
         render_resultado_experimento,
     )
 
-    if individuales and hay_experimento:
-        col_ind, col_exp = st.columns(2, gap="large")
-        with col_ind:
-            _render_modelos_individuales(individuales)
-        with col_exp:
-            render_resultado_experimento(mostrar_figura, solo_comparacion=True)
-    elif individuales:
-        _render_modelos_individuales(individuales)
-    elif hay_experimento:
-        render_resultado_experimento(mostrar_figura, solo_comparacion=True)
+    render_layout_resultados(
+        hay_individuales=bool(individuales),
+        hay_comparativa=hay_experimento,
+        render_individuales_fn=lambda: _render_modelos_individuales(individuales),
+        render_comparativa_fn=lambda: render_resultado_experimento(mostrar_figura, solo_comparacion=True),
+        mensaje_sin_datos="Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación.",
+    )
 
 
 def _diagnostico(

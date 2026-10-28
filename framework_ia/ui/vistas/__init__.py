@@ -22,6 +22,10 @@ from framework_ia.ui.vistas.tema import (
     _mostrar_figura,
     _texto_mapa_calor,
 )
+from framework_ia.ui.vistas.vista_resultados import (
+    render_layout_resultados,
+    render_panel_modelos_individuales,
+)
 from framework_ia.ui.vistas.vista_clasificacion import (
     _diagnostico,
     preparacion_segura,
@@ -128,6 +132,8 @@ __all__ = [
     "render_modelo_regresion",
     "render_perfil_diabetes",
     "render_resultado_experimento",
+    "render_layout_resultados",
+    "render_panel_modelos_individuales",
     "render_resultados",
     "render_resultados_regresion",
 ]

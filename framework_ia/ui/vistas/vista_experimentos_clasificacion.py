@@ -242,9 +242,9 @@ def render_experimentos(
                 args=("lab2_resultados",),
             )
         with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
-            render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark")
+            render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
     else:
-        render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark")
+        render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
 
 
 def render_resultado_experimento(

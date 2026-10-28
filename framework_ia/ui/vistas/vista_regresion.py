@@ -209,30 +209,41 @@ def render_resultados_regresion(
         st.info("Todavía no hay modelos entrenados en este contexto.")
         return
 
+    from framework_ia.ui.vistas.vista_resultados import (
+        render_layout_resultados,
+        render_panel_modelos_individuales,
+    )
     from framework_ia.ui.vistas.vista_experimentos_regresion import (
         mostrar_experimento_guardado,
     )
 
     def _render_tabla_regresion():
-        st.markdown("#### Modelos de regresión entrenados")
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {"Algoritmo": alg, **snap["resultado"].metricas}
-                    for alg, snap in snapshots.items()
-                ]
-            ),
-            hide_index=True,
-            width="stretch",
+        filas = []
+        modelos_params = []
+        for alg, snap in snapshots.items():
+            res = snap["resultado"]
+            nombre = NOMBRES_REGRESORES.get(alg, alg)
+            filas.append(
+                {
+                    "Algoritmo": nombre,
+                    "rmse": round(float(res.metricas.get("rmse", 0.0)), 4),
+                    "mae": round(float(res.metricas.get("mae", 0.0)), 4),
+                    "mse": round(float(res.metricas.get("mse", 0.0)), 4),
+                    "r2": round(float(res.metricas.get("r2", 0.0)), 4),
+                }
+            )
+            modelos_params.append((nombre, getattr(res, "parametros", {})))
+
+        render_panel_modelos_individuales(
+            pd.DataFrame(filas),
+            modelos_params,
+            titulo="Modelos entrenados individualmente",
         )
 
-    if snapshots and hay_experimento:
-        col_ind, col_exp = st.columns(2, gap="large")
-        with col_ind:
-            _render_tabla_regresion()
-        with col_exp:
-            mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
-    elif snapshots:
-        _render_tabla_regresion()
-    elif hay_experimento:
-        mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
+    render_layout_resultados(
+        hay_individuales=bool(snapshots),
+        hay_comparativa=hay_experimento,
+        render_individuales_fn=_render_tabla_regresion,
+        render_comparativa_fn=lambda: mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True),
+        mensaje_sin_datos="Todavía no hay modelos entrenados en este contexto.",
+    )
