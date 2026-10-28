@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from ..resultados import ResultadoParticion
-from ..utils import ConfiguracionParticion
+from ..utils.resultados import ResultadoParticion
+from ..utils.datos.configuracion_particion import ConfiguracionParticion
 
 
 def huella_datos(datos: pd.DataFrame) -> str:

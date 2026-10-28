@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA
 
 from ...datos.eda import EDA
 from ...datos.preprocesamiento import PreprocesadorNoSupervisado
-from ...resultados import DatosPreparados
+from ...utils.resultados import DatosPreparados
 from ...utils import ConfiguracionPreprocesamiento
 
 

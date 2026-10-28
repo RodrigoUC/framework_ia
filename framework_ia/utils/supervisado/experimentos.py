@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.model_selection import KFold
 
 from ...datos.particion import comprobar_clases, dividir_indices
-from ...resultados import (
+from ..resultados import (
     ResultadoExperimentoClasificacion,
     ResultadoExperimentoRegresion,
 )

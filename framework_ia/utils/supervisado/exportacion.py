@@ -19,7 +19,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import numpy as np
 import pandas as pd
 
-from .resultados import (
+from ..resultados import (
     ResultadoExperimentoClasificacion,
     ResultadoExperimentoRegresion,
     ResultadoRegresion,

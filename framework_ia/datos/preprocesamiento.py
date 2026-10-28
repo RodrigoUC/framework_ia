@@ -24,8 +24,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.validation import check_is_fitted
 
-from ..resultados import DatosPreparados
-from ..utils import ConfiguracionPreprocesamiento, crear_codificador_denso
+from ..utils.resultados import DatosPreparados
+from ..utils.compatibilidad_sklearn import crear_codificador_denso
+from ..utils.datos.configuracion_preprocesamiento import ConfiguracionPreprocesamiento
 
 
 class PreprocesadorNoSupervisado:

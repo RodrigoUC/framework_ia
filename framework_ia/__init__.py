@@ -1,5 +1,7 @@
 """Framework modular de análisis exploratorio y aprendizaje automático (Nexo IA)."""
 
+import sys
+
 from . import datasets
 from .datos import (
     CargadorCSV,
@@ -19,7 +21,13 @@ from .modelos import (
     Regresion,
     Supervisado,
 )
-from .resultados import (
+from .utils import (
+    evidencia,
+    exportacion,
+    resultados,
+    visualizacion,
+)
+from .utils.resultados import (
     DatosPreparados,
     ResultadoACP,
     ResultadoClasificacion,
@@ -30,6 +38,12 @@ from .resultados import (
     ResultadoProyeccion,
     ResultadoRegresion,
 )
+
+# Alias en sys.modules para mantener compatibilidad histórica con framework_ia.<modulo>
+sys.modules.setdefault("framework_ia.resultados", resultados)
+sys.modules.setdefault("framework_ia.visualizacion", visualizacion)
+sys.modules.setdefault("framework_ia.exportacion", exportacion)
+sys.modules.setdefault("framework_ia.evidencia", evidencia)
 
 __all__ = [
     "CargadorCSV",
@@ -56,4 +70,8 @@ __all__ = [
     "ResultadoRegresion",
     "Supervisado",
     "datasets",
+    "evidencia",
+    "exportacion",
+    "resultados",
+    "visualizacion",
 ]

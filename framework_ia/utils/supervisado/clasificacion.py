@@ -24,7 +24,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.utils.multiclass import type_of_target
 
 from ...datos.preprocesamiento import PreprocesadorSupervisado
-from ...resultados import ResultadoClasificacion
+from ..resultados import ResultadoClasificacion
 from .configuracion_clasificacion import (
     ALGORITMOS_CLASIFICACION,
     ALGORITMOS_LAB2,

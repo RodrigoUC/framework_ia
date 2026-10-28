@@ -57,6 +57,7 @@ from .regresion import (
     validar_predictoras as validar_predictoras_regresion,
 )
 from .validacion_cruzada import ejecutar_experimento_cv
+from . import evidencia, exportacion
 
 __all__ = [
     "crear_modelo_regresion",
@@ -102,4 +103,6 @@ __all__ = [
     "validar_objetivo_regresion",
     "validar_predictoras_regresion",
     "ejecutar_experimento_cv",
+    "evidencia",
+    "exportacion",
 ]

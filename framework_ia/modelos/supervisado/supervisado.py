@@ -11,7 +11,7 @@ import pandas as pd
 
 from ...datos.eda import EDA
 from ...datos.particion import comprobar_clases, dividir_indices, huella_datos, validar_particion
-from ...resultados import ResultadoParticion
+from ...utils.resultados import ResultadoParticion
 from ...utils.supervisado import (
     ajustar_clasificacion,
     ajustar_regresion,

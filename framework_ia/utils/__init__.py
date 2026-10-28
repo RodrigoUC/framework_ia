@@ -42,11 +42,13 @@ from .supervisado import (
     configuraciones_experimento,
     configuraciones_experimento_regresion,
     despachar_algoritmo_supervisado,
+    evidencia,
     experimentos as utils_experimentos,
+    exportacion,
     regresion as utils_regresion,
     validacion_cruzada as utils_validacion_cruzada,
 )
-from . import datos, no_supervisado, supervisado
+from . import datos, no_supervisado, resultados, supervisado, visualizacion
 
 # Alias en sys.modules para mantener compatibilidad transparente
 sys.modules.setdefault("framework_ia.utils.k_medoids", no_supervisado.k_medoids)
@@ -56,6 +58,8 @@ sys.modules.setdefault("framework_ia.utils.configuracion_regresion", supervisado
 sys.modules.setdefault("framework_ia.utils.configuracion_csv", datos.configuracion_csv)
 sys.modules.setdefault("framework_ia.utils.configuracion_particion", datos.configuracion_particion)
 sys.modules.setdefault("framework_ia.utils.configuracion_preprocesamiento", datos.configuracion_preprocesamiento)
+sys.modules.setdefault("framework_ia.utils.exportacion", exportacion)
+sys.modules.setdefault("framework_ia.utils.evidencia", evidencia)
 
 __all__ = [
     "ALGORITMOS_CLASIFICACION",
@@ -91,5 +95,9 @@ __all__ = [
     "despachar_algoritmo_supervisado",
     "evaluar_hac",
     "evaluar_kmeans",
+    "evidencia",
+    "exportacion",
+    "resultados",
     "validar_numero_clusters",
+    "visualizacion",
 ]

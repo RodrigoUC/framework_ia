@@ -20,7 +20,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from ...datos.particion import comprobar_clases
 from ...datos.preprocesamiento import PreprocesadorSupervisado
-from ...resultados import ResultadoExperimentoClasificacion
+from ..resultados import ResultadoExperimentoClasificacion
 from .configuracion_clasificacion import METRICAS_SELECCION
 from .clasificacion import (
     ALGORITMOS_LAB2,

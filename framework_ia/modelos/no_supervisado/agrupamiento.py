@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 from .no_supervisados import DependenciaOpcionalError, NoSupervisado
-from ...resultados import (
+from ...utils.resultados import (
     ResultadoACP,
     ResultadoCluster,
     ResultadoProyeccion,

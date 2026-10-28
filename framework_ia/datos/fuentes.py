@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..utils import ConfiguracionCSV
+from ..utils.datos.configuracion_csv import ConfiguracionCSV
 from .dataframe import DataFrame
 
 
