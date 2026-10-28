@@ -12,17 +12,17 @@ import pytest
 from sklearn.datasets import make_regression
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.datos.particion import ConfiguracionParticion, Particionador
-from framework_ia.exportacion import construir_archivos_modelo
-from framework_ia.modelos.supervisado import Regresion
-from framework_ia.ui import streamlit_app
-from framework_ia.ui.modelos.estado_regresion import configuracion_regresion_actual
-from framework_ia.ui.modelos.estado_regresion import (
+from ai_framework.data.partition import ConfiguracionParticion, Particionador
+from ai_framework.utils.supervised.export import construir_archivos_modelo
+from ai_framework.models.supervised import Regresion
+from ai_framework.ui import streamlit_app
+from ai_framework.ui.models.regression_state import configuracion_regresion_actual
+from ai_framework.ui.models.regression_state import (
     limpiar_resultados_regresion,
     sincronizar_contexto_regresion,
 )
-from framework_ia.ui.streamlit_app import APP_NAME, VISTAS_REGRESORES
-from framework_ia.visualizacion import VisualizadorRegresion
+from ai_framework.ui.streamlit_app import APP_NAME, VISTAS_REGRESORES
+from ai_framework.utils.visualization import VisualizadorRegresion
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -80,7 +80,7 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
     with (
         patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
         patch(
-            "framework_ia.ui.vistas.vista_regresion.mostrar_resultado_modelo",
+            "ai_framework.ui.views.regression_view.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in comparison"),
         ),
         patch.object(
@@ -235,7 +235,7 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     with (
         patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
         patch(
-            "framework_ia.ui.vistas.vista_experimentos_regresion.mostrar_resultado_modelo",
+            "ai_framework.ui.views.regression_experiments_view.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in results"),
         ),
     ):
@@ -338,7 +338,7 @@ def test_branding_page_title_no_data_and_header_share_app_name():
 
 
 def test_experiment_summary_precedes_chart_then_evidence_table_and_downloads():
-    from framework_ia.ui.vistas import vista_experimentos_regresion as experimentos_lab3
+    from ai_framework.ui.views import vista_experimentos_regresion as experimentos_lab3
 
     tabla = pd.DataFrame(
         [

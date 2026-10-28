@@ -122,7 +122,7 @@ def main() -> None:
         )
 
     _fn = _seleccionar_fuente
-    for _mod in ('framework_ia.ui.streamlit_app', 'ai_framework.ui.streamlit_app'):
+    for _mod in ('ai_framework.ui.streamlit_app', 'ai_framework.ui.app'):
         if _mod in sys.modules and hasattr(sys.modules[_mod], '_seleccionar_fuente'):
             _candidate = getattr(sys.modules[_mod], '_seleccionar_fuente')
             if _candidate is not _seleccionar_fuente:

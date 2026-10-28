@@ -1,7 +1,7 @@
 """Pruebas unitarias para el sistema de internacionalización (i18n)."""
 
 import unittest
-from framework_ia.ui.i18n import (
+from ai_framework.ui.i18n import (
     cambiar_idioma,
     obtener_idioma,
     render_selector_idioma,

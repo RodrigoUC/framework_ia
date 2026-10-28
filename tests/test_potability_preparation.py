@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datasets.potabilidad import (
+from ai_framework.datasets.potability import (
     PREDICTORAS_POTABILIDAD,
     preparar_potabilidad,
     validar_preparacion_potabilidad,

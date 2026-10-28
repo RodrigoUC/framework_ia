@@ -9,14 +9,14 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.datos.particion import ConfiguracionParticion, Particionador
-from framework_ia.modelos.supervisado import Clasificacion, Regresion
-from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
-from framework_ia.ui.modelos.estado_clasificacion import (
+from ai_framework.data.partition import ConfiguracionParticion, Particionador
+from ai_framework.models.supervised import Clasificacion, Regresion
+from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.ui.models.classification_state import (
     configuracion_clasificacion_actual,
 )
-from framework_ia.ui.modelos.estado_regresion import configuracion_regresion_actual
-from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada, hay_evidencia
+from ai_framework.ui.models.regression_state import configuracion_regresion_actual
+from ai_framework.ui.models.availability import disponibilidad_supervisada, hay_evidencia
 
 
 @pytest.fixture

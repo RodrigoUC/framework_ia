@@ -42,9 +42,7 @@ from ai_framework.utils.visualization import VisualizadorDatos
 def _obtener_base_dir() -> Path:
     """Obtiene el directorio raíz del proyecto permitiendo sustitución en pruebas."""
     for mod_name in (
-        "framework_ia.ui.streamlit_app",
         "ai_framework.ui.streamlit_app",
-        "framework_ia.ui.app",
         "ai_framework.ui.app",
     ):
         if mod_name in sys.modules:
@@ -55,7 +53,6 @@ def _obtener_base_dir() -> Path:
                     return val
     mod = (
         sys.modules.get("ai_framework.ui.streamlit_app")
-        or sys.modules.get("framework_ia.ui.streamlit_app")
         or sys.modules.get("ai_framework.ui.app")
     )
     return getattr(mod, "BASE_DIR", BASE_DIR)
@@ -64,9 +61,7 @@ def _obtener_base_dir() -> Path:
 def _obtener_cargador_csv():
     """Obtiene la función de carga de CSV permitiendo sustitución en pruebas."""
     for mod_name in (
-        "framework_ia.ui.streamlit_app",
         "ai_framework.ui.streamlit_app",
-        "framework_ia.ui.app",
         "ai_framework.ui.app",
     ):
         if mod_name in sys.modules:

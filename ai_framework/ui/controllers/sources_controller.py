@@ -28,9 +28,7 @@ def _cargar_referencia_regresion() -> None:
     """Prepara la fuente local de referencia para regresión y su preset asociado."""
     cargador = cargar_diabetes_regresion
     for mod_name in (
-        "framework_ia.ui.streamlit_app",
         "ai_framework.ui.streamlit_app",
-        "framework_ia.ui.app",
         "ai_framework.ui.app",
     ):
         if mod_name in sys.modules:

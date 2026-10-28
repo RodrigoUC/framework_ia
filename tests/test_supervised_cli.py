@@ -20,15 +20,15 @@ import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
 from sklearn.datasets import make_classification
 
-from framework_ia import Regresion
-from framework_ia.datos.fuentes import CargadorCSV
-from framework_ia.exportacion import (
+from ai_framework import Regresion
+from ai_framework.data.sources import CargadorCSV
+from ai_framework.utils.supervised.export import (
     construir_archivos_experimento,
     construir_archivos_modelo,
     construir_zip_experimento,
 )
-from framework_ia.modelos.supervisado import Clasificacion
-from framework_ia.utils import ConfiguracionCSV
+from ai_framework.models.supervised import Clasificacion
+from ai_framework.utils import ConfiguracionCSV
 from scripts import ejecutar_clasificacion, ejecutar_regresion
 
 
@@ -187,7 +187,7 @@ class ClasificacionCLITests(unittest.TestCase):
             "fuente": "fixture sintético",
             "lectura": {"separador": ",", "decimal": ".", "usar_indice": False},
         }
-        with patch("framework_ia.exportacion.version", return_value="otra-version"):
+        with patch("ai_framework.utils.supervised.export.version", return_value="otra-version"):
             archivos = construir_archivos_experimento(
                 resultado, argumentos={"semilla": 42}, dataset=dataset
             )

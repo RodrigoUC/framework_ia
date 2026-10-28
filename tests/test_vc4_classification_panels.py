@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
-from framework_ia.ui.controladores.controlador_clasificacion import nombre_tasa_verdaderos
+from ai_framework.ui.controllers.classification_controller import nombre_tasa_verdaderos
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -37,11 +37,11 @@ class ClassificationPanelTests(unittest.TestCase):
         resultado_nr = app.session_state["resultado_lab2_modelo_NR"]
         with (
             patch(
-                "framework_ia.ui.controladores.controlador_clasificacion.Clasificacion.entrenar",
+                "ai_framework.models.supervised.classification.Clasificacion.entrenar",
                 side_effect=AssertionError("Results navigation must not train"),
             ) as entrenar,
             patch(
-                "framework_ia.ui.controladores.controlador_clasificacion.Clasificacion.experimentar",
+                "ai_framework.models.supervised.classification.Clasificacion.experimentar",
                 side_effect=AssertionError("Results navigation must not compare"),
             ) as experimentar,
         ):

@@ -1,15 +1,15 @@
-"""Pruebas exhaustivas del módulo funcional framework_ia.datos.preprocesamiento."""
+"""Pruebas exhaustivas del módulo funcional ai_framework.data.preprocessing."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datos.preprocesamiento import (
+from ai_framework.data.preprocessing import (
     ConfiguracionPreprocesamiento,
     PreprocesadorNoSupervisado,
     PreprocesadorSupervisado,
 )
-from framework_ia.resultados import DatosPreparados
+from ai_framework.utils.results import DatosPreparados
 
 
 def test_preprocesador_no_supervisado_numerico_estandar():

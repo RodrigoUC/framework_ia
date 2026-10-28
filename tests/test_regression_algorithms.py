@@ -13,19 +13,19 @@ from sklearn.model_selection import KFold
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
-from framework_ia import Regresion
-from framework_ia.utils.supervisado.algoritmos_regresion import (
+from ai_framework import Regresion
+from ai_framework.utils.supervised.regression_algorithms import (
     crear_modelo,
     normalizar_algoritmo,
 )
-from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
-from framework_ia.utils import (
+from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.utils import (
     ALGORITMOS_LAB3,
     CONFIGURACIONES_REGRESION,
     NOMBRES_REGRESORES,
     configuraciones_experimento_regresion,
 )
-from framework_ia.utils.supervisado.configuracion_regresion import ALPHAS_LAB3
+from ai_framework.utils.supervised.regression_config import ALPHAS_LAB3
 
 
 class RegressionEstimatorTests(unittest.TestCase):

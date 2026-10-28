@@ -9,12 +9,12 @@ import pytest
 from pandas.testing import assert_frame_equal
 from sklearn.datasets import make_regression
 
-from framework_ia import Regresion
-from framework_ia.datos.particion import Particionador
-from framework_ia.modelos.supervisado import experimentos_regresion as experimentos
-from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
-from framework_ia.resultados import ResultadoExperimentoRegresion
-from framework_ia.utils import ALGORITMOS_LAB3, ConfiguracionParticion
+from ai_framework import Regresion
+from ai_framework.data.partition import Particionador
+from ai_framework.models.supervised import experimentos_regresion as experimentos
+from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.utils.results import ResultadoExperimentoRegresion
+from ai_framework.utils import ALGORITMOS_LAB3, ConfiguracionParticion
 
 
 @pytest.fixture

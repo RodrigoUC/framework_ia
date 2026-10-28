@@ -11,10 +11,10 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from framework_ia import Regresion
-from framework_ia.evidencia import EvidenciaLab03, cargar_evidencia
-from framework_ia.exportacion import construir_archivos_experimento
-from framework_ia.utils.supervisado.configuracion_regresion import ALGORITMOS_LAB3
+from ai_framework import Regresion
+from ai_framework.utils.supervised.evidence import EvidenciaLab03, cargar_evidencia
+from ai_framework.utils.supervised.export import construir_archivos_experimento
+from ai_framework.utils.supervised.regression_config import ALGORITMOS_LAB3
 
 
 @pytest.fixture(scope="module")

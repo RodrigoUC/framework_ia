@@ -1,10 +1,10 @@
-"""Pruebas exhaustivas del módulo funcional framework_ia.datos.particion."""
+"""Pruebas exhaustivas del módulo funcional ai_framework.data.partition."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.datos.particion import (
+from ai_framework.data.partition import (
     ConfiguracionParticion,
     Particionador,
     comprobar_clases,
@@ -12,7 +12,7 @@ from framework_ia.datos.particion import (
     huella_datos,
     validar_particion,
 )
-from framework_ia.resultados import ResultadoParticion
+from ai_framework.utils.results import ResultadoParticion
 
 
 def test_huella_datos_consistencia_y_sensibilidad():

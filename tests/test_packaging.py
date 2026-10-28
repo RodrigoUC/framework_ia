@@ -15,8 +15,8 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
-from framework_ia.datasets.diabetes import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
-from framework_ia.datasets.potabilidad import PREDICTORAS_POTABILIDAD
+from ai_framework.datasets.diabetes import COLUMNAS_ORIGINALES, PREDICTORAS_DIABETES
+from ai_framework.datasets.potability import PREDICTORAS_POTABILIDAD
 from scripts import ejecutar_clasificacion, preparar_diabetes, preparar_potabilidad
 from scripts.preparar_entrega import crear_parser, ejecutar
 
@@ -74,7 +74,7 @@ class PackagingTests(unittest.TestCase):
             "Abrir la aplicación desde la carpeta extraída con streamlit run app.py\n",
             encoding="utf-8",
         )
-        for carpeta in ("framework_ia", "scripts", "tests"):
+        for carpeta in ("ai_framework", "scripts", "tests"):
             (cls.raiz / carpeta).mkdir()
             (cls.raiz / carpeta / "fixture.py").write_text(
                 "# código\n", encoding="utf-8"

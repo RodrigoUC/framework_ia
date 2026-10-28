@@ -8,9 +8,9 @@ import pandas as pd
 from pandas.testing import assert_series_equal
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from framework_ia import Regresion
-from framework_ia.modelos.supervisado import Supervisado
-from framework_ia.resultados import ResultadoParticion, ResultadoRegresion
+from ai_framework import Regresion
+from ai_framework.models.supervised import Supervisado
+from ai_framework.utils.results import ResultadoParticion, ResultadoRegresion
 
 
 def regression_data(n=40):

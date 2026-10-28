@@ -22,10 +22,10 @@ try:
 except ModuleNotFoundError:
     AppTestError = Exception
 
-from framework_ia.modelos.supervisado import Clasificacion
-from framework_ia.ui.modelos.estado_clasificacion import huella_datos, sincronizar_contexto
-from framework_ia.ui.controladores.controlador_clasificacion import _metricas_porcentuales
-from framework_ia.utils import configuraciones_experimento
+from ai_framework.models.supervised import Clasificacion
+from ai_framework.ui.models.classification_state import huella_datos, sincronizar_contexto
+from ai_framework.ui.controllers.classification_controller import _metricas_porcentuales
+from ai_framework.utils import configuraciones_experimento
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 TOTAL_CANDIDATOS = sum(len(lista) for lista in configuraciones_experimento().values())
@@ -115,7 +115,7 @@ def test_navigation_comparison_is_read_only_and_never_experiments():
     app.button(key="lab2_entrenar_KNN").click().run()
     with (
         patch(
-            "framework_ia.ui.vistas.vista_clasificacion._diagnostico",
+            "ai_framework.ui.views.classification_view._diagnostico",
             side_effect=AssertionError("individual diagnostic in results"),
         ),
         patch.object(
@@ -235,7 +235,7 @@ def test_clustering_navigation_has_distinct_algorithms_and_embedded_projections(
 
 
 def test_target_balance_reports_numeric_classes_missing_and_rare_without_mutation():
-    from framework_ia.datos.eda import EDA
+    from ai_framework.data.eda import EDA
 
     datos = pd.DataFrame({"x": [1, 2, 3, 4, 5, 6], "clase": [0, 0, 1, 1, 2, None]})
     original = datos.copy(deep=True)
@@ -435,8 +435,8 @@ def test_shared_classification_setup_applies_to_models_and_invalidates_them():
 
 
 def test_reused_global_partition_is_shared_across_classifier_routes():
-    from framework_ia.datos.particion import Particionador
-    from framework_ia.utils import ConfiguracionParticion
+    from ai_framework.data.partition import Particionador
+    from ai_framework.utils import ConfiguracionParticion
 
     app = nueva_app()
     datos = app.session_state["dataset_preparado"]
@@ -726,8 +726,8 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
 
 @pytest.mark.parametrize("validacion", [0.0, 0.2])
 def test_benchmark_reuses_global_validation_or_splits_only_global_train(validacion):
-    from framework_ia.datos.particion import Particionador
-    from framework_ia.utils import ConfiguracionParticion
+    from ai_framework.data.partition import Particionador
+    from ai_framework.utils import ConfiguracionParticion
 
     app = nueva_app()
     particion = Particionador(
@@ -890,8 +890,8 @@ def test_benchmark_global_imputation_blocks_execution():
 
 
 def test_applied_csv_provenance_tracks_exact_bytes_and_read_options(tmp_path):
-    from framework_ia.ui import streamlit_app
-    from framework_ia.utils import ConfiguracionCSV
+    from ai_framework.ui import streamlit_app
+    from ai_framework.utils import ConfiguracionCSV
 
     primero = tmp_path / "primero.csv"
     segundo = tmp_path / "segundo.csv"
@@ -920,7 +920,7 @@ def test_applied_csv_provenance_tracks_exact_bytes_and_read_options(tmp_path):
 def test_local_source_lists_nested_csvs_after_root_example_and_applies_read_options(
     tmp_path,
 ):
-    from framework_ia.ui import streamlit_app
+    from ai_framework.ui import streamlit_app
 
     data = tmp_path / "data"
     nested = data / "lab02"
@@ -968,8 +968,8 @@ def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
 ):
     import os
 
-    from framework_ia.ui import streamlit_app
-    from framework_ia.utils import ConfiguracionCSV
+    from ai_framework.ui import streamlit_app
+    from ai_framework.utils import ConfiguracionCSV
 
     csv = tmp_path / "mismo.csv"
     csv.write_bytes(b"x,clase\n1,0\n2,1\n")
@@ -996,7 +996,7 @@ def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
 
 
 def _fuentes_diabetes_sinteticas(tmp_path):
-    from framework_ia.datasets.diabetes import PREDICTORAS_DIABETES
+    from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
 
     filas = 60
     datos = pd.DataFrame(
@@ -1049,10 +1049,10 @@ def _app_fuente_diabetes(datos, sha, *, identidad="diabetes-fixture"):
 def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains(
     tmp_path,
 ):
-    from framework_ia.datasets.diabetes import PREDICTORAS_DIABETES
-    from framework_ia.datos.particion import Particionador
-    from framework_ia.ui.modelos import perfil_diabetes
-    from framework_ia.utils import ConfiguracionParticion
+    from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
+    from ai_framework.data.partition import Particionador
+    from ai_framework.ui.models import perfil_diabetes
+    from ai_framework.utils import ConfiguracionParticion
 
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
@@ -1110,7 +1110,7 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
 
 
 def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_path):
-    from framework_ia.ui.modelos import perfil_diabetes
+    from ai_framework.ui.models import perfil_diabetes
 
     datos, original, preparado_sha, original_sha, procedencia = (
         _fuentes_diabetes_sinteticas(tmp_path)
@@ -1159,7 +1159,7 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
 
 
 def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
-    from framework_ia.ui.modelos import perfil_diabetes
+    from ai_framework.ui.models import perfil_diabetes
 
     datos, _, _, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
@@ -1180,7 +1180,7 @@ def test_diabetes_preset_does_not_match_generic_same_filename(tmp_path):
 def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(
     tmp_path,
 ):
-    from framework_ia.ui.modelos import perfil_diabetes
+    from ai_framework.ui.models import perfil_diabetes
 
     datos, _, preparado_sha, original_sha, procedencia = _fuentes_diabetes_sinteticas(
         tmp_path
@@ -1236,7 +1236,7 @@ def test_diabetes_profile_exact_sha_requires_matching_data_and_safe_preparation(
 def test_diabetes_profile_malformed_nested_json_keeps_generic_data_operable(
     tmp_path, seccion
 ):
-    from framework_ia.ui.modelos import perfil_diabetes
+    from ai_framework.ui.models import perfil_diabetes
 
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     contenido = json.loads(procedencia.read_text(encoding="utf-8"))

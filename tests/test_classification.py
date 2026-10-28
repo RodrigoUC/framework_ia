@@ -17,12 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from framework_ia.datos.particion import Particionador
-from framework_ia.datos.preprocesamiento import PreprocesadorSupervisado
-from framework_ia.modelos.supervisado import Clasificacion, Supervisado
-from framework_ia.modelos.supervisado.clasificacion import configuraciones_lab2
-from framework_ia.resultados import ResultadoParticion
-from framework_ia.utils import (
+from ai_framework.data.partition import Particionador
+from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.models.supervised import Clasificacion, Supervisado
+from ai_framework.models.supervised.classification import configuraciones_lab2
+from ai_framework.utils.results import ResultadoParticion
+from ai_framework.utils import (
     CONFIGURACIONES_MODELO,
     ConfiguracionParticion,
     configuraciones_experimento,
