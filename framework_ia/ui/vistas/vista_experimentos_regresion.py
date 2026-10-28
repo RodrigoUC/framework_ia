@@ -16,7 +16,7 @@ from framework_ia.ui.controladores.controlador_regresion import (
 )
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
-from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.navegacion import ir_a, mostrar_faltantes
 from framework_ia.ui.vistas.vista_regresion import (
     mostrar_resultado_modelo,
     preparacion_regresion_segura,
@@ -70,7 +70,8 @@ def mostrar_experimento_guardado(
         key="lab3_validacion",
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
     )
-    st.dataframe(resultado.tabla, hide_index=True, width="stretch")
+    with st.expander("Validación · todas las configuraciones"):
+        st.dataframe(resultado.tabla, hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
     if errores:
         st.warning(
@@ -230,4 +231,20 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         st.info(
             "Opciones modificadas sin ejecutar. La evidencia corresponde al último experimento exitoso."
         )
-    mostrar_experimento_guardado(mostrar_figura)
+    if snapshot:
+        st.success(
+            "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados."
+        )
+        col_btn, _ = st.columns([1, 1])
+        with col_btn:
+            st.button(
+                "Ir a Resultados de regresión",
+                key="btn_ir_a_resultados_regresion",
+                type="primary",
+                on_click=ir_a,
+                args=("lab3_resultados",),
+            )
+        with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
+            mostrar_experimento_guardado(mostrar_figura)
+    else:
+        mostrar_experimento_guardado(mostrar_figura)

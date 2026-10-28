@@ -29,7 +29,7 @@ from framework_ia.ui.modelos.catalogo_vistas import (
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.modelos.perfil_diabetes import estado_fuente_diabetes
-from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.navegacion import ir_a, mostrar_faltantes
 from framework_ia.ui.vistas.tema import MostrarFigura
 from framework_ia.ui.vistas.vista_clasificacion import (
     _diagnostico,
@@ -228,7 +228,23 @@ def render_experimentos(
             "Las opciones cambiaron. Se muestra la última ejecución guardada con "
             "su configuración original; pulse Ejecutar para sustituirla."
         )
-    render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark")
+    if guardado is not None:
+        st.success(
+            "Evaluación comparativa completada. Puede consultar la comparativa detallada en la sección de Resultados."
+        )
+        col_btn, _ = st.columns([1, 1])
+        with col_btn:
+            st.button(
+                "Ir a Resultados de clasificación",
+                key="btn_ir_a_resultados_clasificacion",
+                type="primary",
+                on_click=ir_a,
+                args=("lab2_resultados",),
+            )
+        with st.expander("Ver evidencia y resultados de la evaluación en esta vista"):
+            render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark")
+    else:
+        render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark")
 
 
 def render_resultado_experimento(
@@ -303,8 +319,36 @@ def render_resultado_experimento(
         )
     for algoritmo, detalle in errores_test.items():
         st.error(f"Prueba de {algoritmo}: {detalle}")
-    st.markdown("#### Validación · todas las configuraciones")
-    _tabla_validacion(resultado.tabla)
+    if resultado.mejor_algoritmo:
+        st.info(
+            f"🏆 **Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
+        )
+    st.markdown("#### Prueba reservada · ganadores seleccionados")
+    _mostrar_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "Algoritmo": algoritmo,
+                    "Configuración elegida en validación": ganador.metadatos[
+                        "configuracion"
+                    ],
+                    "Puntuación validación": ganador.metadatos[
+                        "puntuacion_validacion"
+                    ],
+                    "Accuracy prueba": ganador.metricas["accuracy"],
+                    "Precisión macro prueba": ganador.metricas["precision"][
+                        "macro"
+                    ],
+                    "Tasa de verdaderos macro prueba": ganador.metricas["recall"]["macro"],
+                    "F1 macro prueba": ganador.metricas["f1"]["macro"],
+                }
+                for algoritmo, ganador in resultado.mejores.items()
+            ]
+        ),
+        alt="Métricas de prueba de los ganadores elegidos previamente por validación, en el orden de las familias",
+        hide_index=True,
+        width="stretch",
+    )
     validos = resultado.tabla.loc[resultado.tabla["estado"] == "ok"]
     if not validos.empty:
         figura = go.Figure(
@@ -338,36 +382,11 @@ def render_resultado_experimento(
             key=f"{prefijo}_grafico_validacion",
             alt="Puntuación de cada candidato en validación; verde identifica los ganadores por familia. Los valores están también en la tabla",
         )
-    if resultado.mejor_algoritmo:
-        st.markdown(
-            f"**Mejor algoritmo por validación: {resultado.mejor_algoritmo}.**"
+    with st.expander("Validación · todas las configuraciones"):
+        st.caption(
+            "Configuraciones y parámetros efectivos, métricas de validación, selección, estado y errores"
         )
-    st.markdown("#### Prueba reservada · ganadores seleccionados")
-    _mostrar_dataframe(
-        pd.DataFrame(
-            [
-                {
-                    "Algoritmo": algoritmo,
-                    "Configuración elegida en validación": ganador.metadatos[
-                        "configuracion"
-                    ],
-                    "Puntuación validación": ganador.metadatos[
-                        "puntuacion_validacion"
-                    ],
-                    "Accuracy prueba": ganador.metricas["accuracy"],
-                    "Precisión macro prueba": ganador.metricas["precision"][
-                        "macro"
-                    ],
-                    "Tasa de verdaderos macro prueba": ganador.metricas["recall"]["macro"],
-                    "F1 macro prueba": ganador.metricas["f1"]["macro"],
-                }
-                for algoritmo, ganador in resultado.mejores.items()
-            ]
-        ),
-        alt="Métricas de prueba de los ganadores elegidos previamente por validación, en el orden de las familias",
-        hide_index=True,
-        width="stretch",
-    )
+        _tabla_validacion(resultado.tabla)
     if not solo_comparacion:
         with st.expander(
             "Diagnóstico del ganador · matriz de confusión y predicciones"
