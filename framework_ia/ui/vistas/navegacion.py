@@ -21,6 +21,24 @@ from framework_ia.ui.modelos.catalogo_vistas import (
 )
 from framework_ia.ui.modelos.disponibilidad import Disponibilidad, hay_evidencia
 from framework_ia.utils.supervisado.configuracion_regresion import NOMBRES_REGRESORES
+from framework_ia.ui.i18n import t, render_selector_idioma, obtener_idioma
+
+def _nombre_regresor(algoritmo: str) -> str:
+    lang = obtener_idioma()
+    if lang == "en":
+        nombres_en = {
+            "RLS": "Simple Linear Regression",
+            "RLM": "Multiple Linear Regression",
+            "Lasso": "Lasso",
+            "LassoCV": "LassoCV",
+            "Ridge": "Ridge",
+            "RidgeCV": "RidgeCV",
+            "SVR": "SVR · Support Vector Regressor",
+            "DT": "Regression Tree",
+            "RF": "Random Forest Regressor",
+        }
+        return nombres_en.get(algoritmo, NOMBRES_REGRESORES.get(algoritmo, algoritmo))
+    return NOMBRES_REGRESORES.get(algoritmo, algoritmo)
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:
@@ -86,31 +104,32 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
 
     with st.sidebar:
+        render_selector_idioma()
         st.markdown(
-            '<p class="atlas-nav-label">Navegación</p>', unsafe_allow_html=True
+            f'<p class="atlas-nav-label">{t("nav_seccion", "Navegación")}</p>', unsafe_allow_html=True
         )
-        boton("Datos y preparación", "datos")
+        boton(t("nav_datos", "Datos y preparación"), "datos")
         st.markdown(
-            '<p class="atlas-nav-label">Exploración de datos</p>',
+            f'<p class="atlas-nav-label">{t("nav_exploracion", "Exploración de datos")}</p>',
             unsafe_allow_html=True,
         )
-        boton("EDA", "eda")
-        boton("ACP", "acp")
+        boton(t("nav_eda", "EDA"), "eda")
+        boton(t("nav_acp", "ACP"), "acp")
 
         st.markdown(
-            '<p class="atlas-nav-label">Análisis y modelos</p>',
+            f'<p class="atlas-nav-label">{t("nav_analisis", "Análisis y modelos")}</p>',
             unsafe_allow_html=True,
         )
-        boton("Configuración", "configuracion")
+        boton(t("nav_configuracion", "Configuración"), "configuracion")
         with st.expander(
-            "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac"}
+            t("nav_clustering", "Clustering"), expanded=vista in {"kmeans", "kmedoids", "hac"}
         ):
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
 
         with st.expander(
-            "Clasificación",
+            t("nav_clasificacion", "Clasificación"),
             expanded=vista
             in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"},
         ):
@@ -118,18 +137,18 @@ def _seleccionar_vista(disponibilidades=None) -> str:
             bloqueada = disponible is not None and not disponible.lista
             motivo = " ".join(disponible.faltantes) if bloqueada else None
             st.markdown(
-                '<p class="atlas-family">Modelos disponibles</p>',
+                f'<p class="atlas-family">{t("nav_modelos_disponibles", "Modelos disponibles")}</p>',
                 unsafe_allow_html=True,
             )
             boton("KNN", "clasificacion_knn", disabled=bloqueada, help=motivo)
             boton(
-                "Árbol de decisión",
+                t("nav_dt", "Árbol de decisión"),
                 "clasificacion_dt",
                 disabled=bloqueada,
                 help=motivo,
             )
             boton(
-                "Random Forest",
+                t("nav_rf", "Random Forest"),
                 "clasificacion",
                 disabled=bloqueada,
                 help=motivo,
@@ -153,13 +172,13 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                 help=motivo,
             )
             boton(
-                "Evaluación Comparativa",
+                t("nav_benchmark", "Evaluación Comparativa"),
                 "lab2_benchmark",
                 disabled=bloqueada,
                 help=motivo,
             )
 
-        with st.expander("Regresión", expanded=vista in VISTAS_REGRESION):
+        with st.expander(t("nav_regresion", "Regresión"), expanded=vista in VISTAS_REGRESION):
             disponible = disponibilidades.get("regresion")
             bloqueada = disponible is not None and not disponible.lista
             motivo = " ".join(disponible.faltantes) if bloqueada else None
@@ -169,13 +188,13 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                     and disponibilidades.get("RLS", disponible).lista
                 )
                 boton(
-                    NOMBRES_REGRESORES[algoritmo],
+                    _nombre_regresor(algoritmo),
                     destino,
                     disabled=bloqueo_modelo,
                     help=motivo,
                 )
             boton(
-                "Evaluación Comparativa",
+                t("nav_benchmark", "Evaluación Comparativa"),
                 "lab3_benchmark",
                 disabled=bloqueada
                 and not disponibilidades.get("RLS", disponible).lista,
@@ -183,18 +202,18 @@ def _seleccionar_vista(disponibilidades=None) -> str:
             )
 
         st.markdown(
-            '<p class="atlas-nav-label">Resultados</p>', unsafe_allow_html=True
+            f'<p class="atlas-nav-label">{t("nav_resultados", "Resultados")}</p>', unsafe_allow_html=True
         )
-        for familia, destino, etiqueta in (
-            ("clasificacion", "lab2_resultados", "Resultados de clasificación"),
-            ("regresion", "lab3_resultados", "Resultados de regresión"),
+        for familia, destino, etiqueta_k, etiqueta_d in (
+            ("clasificacion", "lab2_resultados", "nav_resultados_clasificacion", "Resultados de clasificación"),
+            ("regresion", "lab3_resultados", "nav_resultados_regresion", "Resultados de regresión"),
         ):
             evidencia = hay_evidencia(st.session_state, familia)
             boton(
-                etiqueta,
+                t(etiqueta_k, etiqueta_d),
                 destino,
                 disabled=not evidencia,
-                help="Ejecute primero un modelo o evaluación comparativa.",
+                help=t("nav_resultados_help", "Ejecute primero un modelo o evaluación comparativa."),
             )
     return st.session_state["vista_activa"]
 
@@ -205,14 +224,14 @@ def _render_encabezado_atlas(
     """Muestra el encabezado del dataset activo y el resumen de calidad en vistas exploratorias."""
     titulos_regresion = {
         **{
-            ruta: NOMBRES_REGRESORES[alg]
+            ruta: _nombre_regresor(alg)
             for ruta, alg in VISTAS_REGRESORES.items()
         },
-        "regresion": "Configuración",
-        "regresion_configuracion": "Configuración",
-        "lab3_benchmark": "Evaluación Comparativa de Modelos",
-        "lab3_comparacion": "Comparar modelos entrenados",
-        "lab3_resultados": "Resultados de regresión",
+        "regresion": t("nav_configuracion", "Configuración"),
+        "regresion_configuracion": t("nav_configuracion", "Configuración"),
+        "lab3_benchmark": t("nav_benchmark_completo", "Evaluación Comparativa de Modelos"),
+        "lab3_comparacion": t("res_eval_comp", "Comparar modelos entrenados"),
+        "lab3_resultados": t("nav_resultados_regresion", "Resultados de regresión"),
     }
     titulo = (
         "Configuración"
