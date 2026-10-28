@@ -237,3 +237,14 @@ def test_reapply_safe_cleanup_retains_policy_after_global_imputation():
     assert app.session_state["dataset_preparacion"]["columnas_sin_nulos"] == ["target"]
     assert app.session_state["dataset_preparado"].x.isna().sum() == 1
     assert not app.sidebar.button(key="nav_regresion_ridge").disabled
+
+
+def test_distribucion_objetivo_no_numerico_serializa_arrow_sin_error():
+    app, original = nueva_app()
+    original["estado"] = ["Nuevo" if i % 2 == 0 else "Usado" for i in range(len(original))]
+    app.session_state["dataset_preparado"] = original
+    app.sidebar.button(key="nav_configuracion").click().run()
+    app.radio(key="sup_tarea").set_value("regresion").run()
+    app.selectbox(key="sup_target").set_value("estado").run()
+    assert not app.exception
+    assert any("debe ser numérica para regresión" in w.value for w in app.warning)

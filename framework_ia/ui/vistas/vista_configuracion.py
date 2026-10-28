@@ -65,7 +65,14 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
                     .to_frame()
                 )
         else:
-            resumen = serie.describe().rename("Valor").to_frame()
+            if not pd.api.types.is_numeric_dtype(serie):
+                st.warning("La variable objetivo debe ser numérica para regresión.")
+                resumen = serie.describe().astype(str).rename("Valor").to_frame()
+            else:
+                resumen = serie.describe().rename("Valor").to_frame()
+        for col in resumen.columns:
+            if resumen[col].dtype == object:
+                resumen[col] = resumen[col].astype(str)
         st.dataframe(resumen, width="stretch")
     if tarea == "regresion":
         simples = datos[st.session_state["sup_features"]].select_dtypes(
@@ -194,7 +201,7 @@ def _render_regresion() -> None:
     """Orienta hacia las vistas de configuración y modelos de regresión."""
     st.info(
         "Abra Configuración para elegir target y predictores; "
-        "después seleccione un modelo o Experimentos Lab03 en la navegación."
+        "después seleccione un modelo o Experimentos en la navegación."
     )
 
 
