@@ -65,6 +65,8 @@ def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
         )
         if algoritmo == "RidgeCV":
             opciones["scoring"] = "neg_mean_squared_error"
+    if algoritmo in ("Lasso", "LassoCV"):
+        opciones.setdefault("max_iter", 10000)
     if algoritmo in ("Lasso", "LassoCV", "Ridge", "DT", "RF"):
         opciones["random_state"] = random_state
     if algoritmo in ("LassoCV", "RF"):

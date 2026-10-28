@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import warnings
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from ai_framework.data.preprocessing import PreprocesadorSupervisado
@@ -99,7 +101,9 @@ def ajustar_regresion(
         base.loc[train, features], y_train
     )
     modelo = crear_modelo(algoritmo, random_state, parametros)
-    modelo.fit(preparados.matriz, y_train)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=ConvergenceWarning)
+        modelo.fit(preparados.matriz, y_train)
     return modelo, preparados
 
 
