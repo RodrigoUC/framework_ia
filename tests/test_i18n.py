@@ -21,6 +21,7 @@ class TestI18n(unittest.TestCase):
         self.assertEqual(t("nav_datos"), "Datos y preparación")
         self.assertEqual(t("nav_clasificacion"), "Clasificación")
         self.assertEqual(t("nav_regresion"), "Regresión")
+        self.assertEqual(t("idioma_label"), "Idioma")
 
     def test_cambiar_idioma_a_ingles(self):
         cambiar_idioma("en")
@@ -31,6 +32,7 @@ class TestI18n(unittest.TestCase):
         self.assertEqual(t("actualizar_graficos"), "Refresh Charts")
         self.assertEqual(t("res_modelos_ind"), "Individual Models")
         self.assertEqual(t("res_eval_comp"), "Comparative Evaluation")
+        self.assertEqual(t("idioma_label"), "Language")
 
     def test_fallback_clave_inexistente(self):
         cambiar_idioma("en")

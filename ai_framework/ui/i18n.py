@@ -18,7 +18,7 @@ TEXTOS = {
         # App & Header
         "app_nombre": "Nexo IA",
         "app_subtitulo": "Framework modular para análisis exploratorio y aprendizaje automático",
-        "idioma_label": "Idioma / Language",
+        "idioma_label": "Idioma",
         "actualizar_graficos": "Actualizar gráficos",
         "actualizar_graficos_help": "Úselo después de cambiar el tema en Configuración para actualizar los colores de gráficos y estilos.",
         
@@ -106,7 +106,7 @@ TEXTOS = {
         # App & Header
         "app_nombre": "Nexo AI",
         "app_subtitulo": "Modular framework for exploratory data analysis and machine learning",
-        "idioma_label": "Language / Idioma",
+        "idioma_label": "Language",
         "actualizar_graficos": "Refresh Charts",
         "actualizar_graficos_help": "Use after changing the theme in Settings to refresh chart colors and styles.",
         
