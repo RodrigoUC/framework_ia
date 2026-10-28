@@ -17,6 +17,10 @@ from .clasificacion import (
     ordenar_labels,
     validar_datos_clasificacion,
 )
+from .comparacion import (
+    comparar_algoritmos_supervisados,
+    despachar_algoritmo_supervisado,
+)
 from .experimentos import (
     ExperimentoClasificacion,
     ExperimentoRegresion,
@@ -49,6 +53,8 @@ __all__ = [
     "normalizar_algoritmo_clasificacion",
     "ordenar_labels",
     "validar_datos_clasificacion",
+    "comparar_algoritmos_supervisados",
+    "despachar_algoritmo_supervisado",
     "ExperimentoSupervisado",
     "ExperimentoClasificacion",
     "ExperimentoRegresion",

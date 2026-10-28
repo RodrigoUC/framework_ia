@@ -10,8 +10,24 @@ import numpy as np
 import pandas as pd
 
 from ...datos.eda import EDA
-from ...datos.particion import dividir_indices, huella_datos, validar_particion
+from ...datos.particion import comprobar_clases, dividir_indices, huella_datos, validar_particion
 from ...resultados import ResultadoParticion
+from ...utils.supervisado import (
+    ajustar_clasificacion,
+    ajustar_regresion,
+    crear_resultado_clasificacion,
+    crear_resultado_regresion,
+    ejecutar_experimento_clasificacion,
+    ejecutar_experimento_regresion,
+    metricas_clasificacion,
+    normalizar_algoritmo_clasificacion,
+    normalizar_algoritmo_regresion,
+    ordenar_labels,
+    validar_datos_clasificacion,
+    validar_datos_regresion,
+    validar_objetivo_regresion,
+    validar_predictoras_regresion,
+)
 
 
 class Supervisado(EDA):
@@ -21,8 +37,6 @@ class Supervisado(EDA):
     sin fuga de datos, orquestación de entrenamiento y experimentación mediante
     herencia, preprocesamiento y contratos pythónicos.
     """
-
-    _mensaje_sin_entrenar = "Entrene primero un modelo supervisado."
 
     def __init__(
         self,
@@ -67,6 +81,18 @@ class Supervisado(EDA):
         ):
             return "regresion"
         return "clasificacion"
+
+    def _es_regresion(self) -> bool:
+        """Comprueba si la instancia opera en modalidad regresión."""
+        from .regresion import Regresion
+
+        if isinstance(self, Regresion):
+            return True
+        from .clasificacion import Clasificacion
+
+        if isinstance(self, Clasificacion):
+            return False
+        return self._tipo_target() == "regresion"
 
     def _definir_features(self):
         """Devuelve las features (todas las columnas menos el target)."""
@@ -138,10 +164,32 @@ class Supervisado(EDA):
 
     def _datos_supervisados(self) -> pd.DataFrame:
         """Obtiene el DataFrame base validado según la tarea supervisada."""
-        return self._validar_estructura_base()
+        if self._es_regresion():
+            base = self._validar_estructura_base(
+                mensaje_indices="El dataset necesita índices únicos."
+            )
+            return validar_datos_regresion(base, self.target)
+        base = self._validar_estructura_base(
+            mensaje_indices="El dataset necesita índices únicos; restablezca su índice antes de partir."
+        )
+        return validar_datos_clasificacion(base, self.target)
+
+    _datos_regresion = _datos_supervisados
+    _datos_clasificacion = _datos_supervisados
+
+    _validar_objetivo = staticmethod(validar_objetivo_regresion)
+    _ordenar_labels = staticmethod(ordenar_labels)
+    _metricas_supervisadas = staticmethod(metricas_clasificacion)
+
+    def _validar_predictoras(self, base: pd.DataFrame, algoritmo: str | None = None):
+        """Valida que las predictoras sean aptas para el algoritmo."""
+        if self._es_regresion():
+            return validar_predictoras_regresion(self.features, base, algoritmo)
+        return self.features
 
     def _stratify_defecto(self) -> bool:
-        return self._tipo_target() == "clasificacion"
+        """Define si la estratificación se aplica por defecto en la tarea supervisada."""
+        return not self._es_regresion()
 
     def _metadatos(
         self,
@@ -227,23 +275,115 @@ class Supervisado(EDA):
         clase = Regresion if self._tipo_target() == "regresion" else Clasificacion
         return clase(dataframe=self.datos, target=self.target, features=self.features)
 
-    def _normalizar_algoritmo(self, algoritmo: str) -> str:
-        return str(algoritmo)
+    def _normalizar_algoritmo(self, algoritmo: str | None) -> str:
+        """Normaliza el identificador del algoritmo según la modalidad."""
+        if self._es_regresion():
+            alg = str(algoritmo or "RLM").strip()
+            if alg.lower() in {
+                "rl",
+                "regresion_logistica",
+                "logistic_regression",
+                "logisticregression",
+            }:
+                from .clasificacion import Clasificacion
 
-    def _validar_entrenamiento(self, base: pd.DataFrame, train: pd.Index, test: pd.Index, validacion: pd.Index) -> None:
-        pass
+                return Clasificacion(
+                    dataframe=self.datos, target=self.target, features=self.features
+                ).RL
+            return normalizar_algoritmo_regresion(alg)
+        return normalizar_algoritmo_clasificacion(algoritmo or "RF")
+
+    def _validar_entrenamiento(
+        self,
+        base: pd.DataFrame,
+        train: pd.Index,
+        test: pd.Index,
+        validacion: pd.Index,
+    ) -> None:
+        """Valida que los conjuntos de partición cumplan los requisitos de la tarea."""
+        if self._es_regresion():
+            if len(test) < 2:
+                raise ValueError(
+                    "La evaluación necesita al menos dos filas para calcular R²."
+                )
+        else:
+            comprobar_clases(base.loc[train, self.target], base.loc[test, self.target])
 
     def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
-        raise NotImplementedError
+        """Ajusta el estimador supervisado según la modalidad."""
+        if self._es_regresion():
+            return ajustar_regresion(
+                base,
+                train,
+                self.features,
+                self.target,
+                algoritmo,
+                random_state,
+                opciones,
+                parametros,
+            )
+        return ajustar_clasificacion(
+            base,
+            train,
+            self.features,
+            self.target,
+            algoritmo,
+            random_state,
+            opciones,
+            parametros,
+        )
 
-    def _resultado(self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos):
-        raise NotImplementedError
+    def _resultado(
+        self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos
+    ):
+        """Construye el contenedor tipado de resultados supervisados."""
+        if self._es_regresion():
+            return crear_resultado_regresion(
+                base,
+                train,
+                evaluacion,
+                self.features,
+                self.target,
+                algoritmo,
+                modelo,
+                preparados,
+                metadatos,
+            )
+        return crear_resultado_clasificacion(
+            base,
+            train,
+            evaluacion,
+            self.features,
+            self.target,
+            algoritmo,
+            modelo,
+            preparados,
+            metadatos,
+        )
 
     def _actualizar_metricas_resumen(self, resultado: Any) -> None:
-        pass
+        """Sincroniza los atributos escalares principales de evaluación."""
+        if self._es_regresion():
+            self.r2 = resultado.metricas.get("r2")
+        else:
+            self.exactitud = resultado.metricas.get("accuracy")
 
     def _ejecutar_experimento(self, **kwargs) -> Any:
-        raise NotImplementedError
+        """Ejecuta la suite experimental adecuada a la tarea supervisada."""
+        if self._es_regresion():
+            intento = ejecutar_experimento_regresion(self, **kwargs)
+            elegido = intento.mejores.get(intento.mejor_algoritmo)
+            if elegido is not None:
+                self.experimento = intento
+                self.resultado = elegido
+                self.modelo = elegido.modelo
+                self._preparados = elegido.datos_preparados
+                self.r2 = elegido.metricas["r2"]
+            return intento
+        self._reiniciar_resultados()
+        intento = ejecutar_experimento_clasificacion(self, **kwargs)
+        self.experimento = intento
+        return intento
 
     def entrenar(
         self,
@@ -360,13 +500,13 @@ class Supervisado(EDA):
     def evaluar(self):
         """Devuelve el resultado de evaluación del último modelo entrenado."""
         if self.resultado is None:
-            raise RuntimeError(self._mensaje_sin_entrenar)
+            raise RuntimeError("Entrene primero un modelo antes de evaluarlo.")
         return self.resultado
 
     def predecir(self, X=None):
         """Genera predicciones conservando el orden e índice de las observaciones."""
         if self.modelo is None and self.resultado is None:
-            raise RuntimeError(self._mensaje_sin_entrenar)
+            raise RuntimeError("Entrene primero un modelo antes de predecir.")
         if X is None:
             return self.evaluar().y_pred.copy()
         if isinstance(X, pd.Series):
