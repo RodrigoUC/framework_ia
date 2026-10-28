@@ -16,14 +16,15 @@ from typing import Any
 
 import numpy as np
 
-from framework_ia.datasets.concrete import (
+from ai_framework.datasets.concrete import (
     COLUMNAS_CONCRETE,
     PREDICTORAS_CONCRETE,
     validar_preparacion_concrete,
 )
-from framework_ia.evidencia import cargar_evidencia
+from ai_framework.utils.supervised.evidence import cargar_evidencia
 
-RAIZ = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
+RAIZ = ROOT
 RECURSOS_REGRESION = RAIZ / "docs" / "lab03"
 RECURSOS_CLASIFICACION = RAIZ / "docs" / "lab02"
 
@@ -883,3 +884,8 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+create_parser = crear_parser
+run = ejecutar
+build_report = construir_informe

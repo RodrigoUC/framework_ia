@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from framework_ia.ui import streamlit_app
+from ai_framework.ui import streamlit_app
 
 
 THEME_CONFIG = Path(__file__).parents[1] / ".streamlit" / "config.toml"

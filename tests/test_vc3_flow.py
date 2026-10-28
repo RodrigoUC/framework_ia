@@ -99,7 +99,7 @@ class VisualContrastFlowTests(unittest.TestCase):
     
             from unittest.mock import patch
 
-            from framework_ia.ui import streamlit_app
+            from ai_framework.ui import streamlit_app
 
             with patch.object(
                 streamlit_app.CargadorCSV,
