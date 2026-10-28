@@ -115,6 +115,7 @@ def main() -> None:
                 "Úselo después de cambiar el tema en Configuración para "
                 "actualizar los colores de gráficos y estilos."
             ),
+            use_container_width=True,
         )
 
     datos_cargados, etiqueta, identidad = _seleccionar_fuente()

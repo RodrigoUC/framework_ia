@@ -82,6 +82,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
             help=help if disabled else None,
             on_click=navegar if not disabled else None,
             args=(destino,) if not disabled else None,
+            use_container_width=True,
         )
 
     with st.sidebar:
@@ -98,10 +99,6 @@ def _seleccionar_vista(disponibilidades=None) -> str:
 
         st.markdown(
             '<p class="atlas-nav-label">Análisis y modelos</p>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<p class="atlas-nav-label">Configuración</p>',
             unsafe_allow_html=True,
         )
         boton("Configuración", "configuracion")
