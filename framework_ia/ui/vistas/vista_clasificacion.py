@@ -17,7 +17,7 @@ from framework_ia.ui.controladores.controlador_clasificacion import (
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.vistas.navegacion import mostrar_faltantes
-from framework_ia.ui.vistas.tema import MostrarFigura
+from framework_ia.ui.vistas.tema import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
 from framework_ia.ui.vistas.vista_controles import (
     NOMBRES_MODELOS,
     _mostrar_dataframe,
@@ -364,11 +364,23 @@ def _diagnostico(
                 key=f"{prefijo}_distribucion_estratificada",
             )
     with st.expander("Parámetros y metadatos"):
-        st.json(
-            getattr(resultado, "parametros", resultado.modelo.get_params()),
-            expanded=False,
+        tab_params, tab_meta = _obtener_pestanas(
+            ["⚙️ Parámetros del modelo", "📋 Metadatos de ejecución"]
         )
-        st.json(getattr(resultado, "metadatos", {}), expanded=False)
+        with tab_params:
+            render_tabla_clave_valor(
+                getattr(resultado, "parametros", resultado.modelo.get_params()),
+                columna_clave="Parámetro",
+                columna_valor="Valor configurado",
+                vacio_mensaje="No se registraron parámetros específicos para este modelo.",
+            )
+        with tab_meta:
+            render_tabla_clave_valor(
+                getattr(resultado, "metadatos", {}),
+                columna_clave="Metadato",
+                columna_valor="Detalle",
+                vacio_mensaje="No se registraron metadatos para esta ejecución.",
+            )
     predicciones = pd.DataFrame(
         {"real": resultado.y_true, "prediccion": resultado.y_pred}
     )

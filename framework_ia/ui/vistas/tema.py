@@ -8,6 +8,7 @@ import re
 from collections.abc import Callable
 
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.colors import sample_colorscale
@@ -350,3 +351,146 @@ def _mostrar_figura(
 
 
     st.plotly_chart(figura, **opciones)
+
+
+DICCIONARIO_CAMPOS_LEGIBLES: dict[str, str] = {
+    # Metadatos generales y contexto
+    "duracion_entrenamiento_s": "Duración de entrenamiento (segundos)",
+    "duracion_total_s": "Duración total (segundos)",
+    "timestamp": "Fecha y hora de ejecución",
+    "semilla": "Semilla aleatoria (seed)",
+    "version_sklearn": "Versión de scikit-learn",
+    "tamano_prueba": "Proporción conjunto de prueba",
+    "proporcion_prueba": "Proporción de prueba",
+    "muestras_entrenamiento": "Muestras de entrenamiento",
+    "muestras_prueba": "Muestras de prueba",
+    "total_muestras": "Total de muestras",
+    "columnas_predictoras": "Variables predictoras (features)",
+    "columna_objetivo": "Variable objetivo (target)",
+    "clases": "Clases objetivo",
+    "estrategia_seleccion": "Estrategia de selección",
+    "mejor_algoritmo": "Mejor algoritmo seleccionado",
+    "mejor_modelo": "Mejor modelo",
+    "nombre_archivo": "Nombre de archivo",
+    "tipo_archivo": "Tipo de archivo",
+    "tamano_bytes": "Tamaño del archivo",
+    "ruta": "Ruta de archivo",
+    "filas": "Cantidad de registros (filas)",
+    "columnas": "Cantidad de columnas",
+    "n_splits": "Número de pliegues (splits)",
+    "pliegues": "Pliegues de validación cruzada",
+    "validacion_cruzada": "Validación cruzada",
+    "algoritmo": "Algoritmo",
+    "familias": "Familias evaluadas",
+    "argumentos": "Argumentos de ejecución",
+    "dataset": "Información del dataset",
+    "fuente": "Fuente de datos",
+    "nombre": "Nombre",
+    "dimensiones": "Dimensiones del conjunto",
+    "n_filas": "Número de filas",
+    "n_columnas": "Número de columnas",
+    "n_caracteristicas": "Número de características",
+    "tipo_problema": "Tipo de problema",
+    "errores_prueba": "Errores en prueba",
+    # Hiperparámetros de modelos (clasificación y regresión)
+    "n_estimators": "Número de estimadores (árboles)",
+    "max_depth": "Profundidad máxima",
+    "learning_rate": "Tasa de aprendizaje (learning rate)",
+    "random_state": "Semilla aleatoria",
+    "criterion": "Criterio de división",
+    "min_samples_split": "Muestras mínimas para división",
+    "min_samples_leaf": "Muestras mínimas por hoja",
+    "max_features": "Características máximas consideradas",
+    "bootstrap": "Muestreo con reemplazo (bootstrap)",
+    "kernel": "Tipo de función kernel",
+    "C": "Parámetro de regularización (C)",
+    "gamma": "Coeficiente gamma",
+    "degree": "Grado polinomial",
+    "n_neighbors": "Número de vecinos (k)",
+    "weights": "Ponderación de vecinos",
+    "metric": "Métrica de distancia",
+    "p": "Parámetro Minkowski (p)",
+    "alpha": "Parámetro de regularización (alpha)",
+    "l1_ratio": "Proporción de regularización L1",
+    "fit_intercept": "Ajustar intercepto",
+    "penalty": "Penalización",
+    "solver": "Algoritmo de optimización (solver)",
+    "max_iter": "Iteraciones máximas",
+    "tol": "Tolerancia de convergencia",
+    "subsample": "Proporción de submuestreo",
+    "var_smoothing": "Suavizado de varianza",
+    "algorithm": "Algoritmo interno",
+    "leaf_size": "Tamaño de hoja",
+    "splitter": "Estrategia de división",
+    "loss": "Función de pérdida (loss)",
+    "base_estimator": "Estimador base",
+    "estimator": "Estimador base",
+}
+
+
+def formatear_valor_legible(val: object) -> str:
+    """Convierte cualquier valor a una representación textual clara y comprensible."""
+    if val is None:
+        return "Por defecto (None)"
+    if isinstance(val, bool):
+        return "Sí" if val else "No"
+    if isinstance(val, (int, np.integer)):
+        return f"{val:,}".replace(",", ".")
+    if isinstance(val, (float, np.floating)):
+        if np.isnan(val):
+            return "No disponible (NaN)"
+        if abs(val) < 1e-4 and val != 0:
+            return f"{val:.2e}"
+        if float(val).is_integer():
+            return str(int(val))
+        return f"{val:.4f}".rstrip("0").rstrip(".")
+    if isinstance(val, (list, tuple, set)):
+        if not val:
+            return "Ninguno"
+        if all(isinstance(x, (str, int, float, bool)) for x in val):
+            return ", ".join(str(x) for x in val)
+        return ", ".join(formatear_valor_legible(x) for x in val)
+    if isinstance(val, dict):
+        if not val:
+            return "Ninguno"
+        partes = [f"{k}: {formatear_valor_legible(v)}" for k, v in val.items()]
+        return "; ".join(partes)
+    return str(val)
+
+
+def _obtener_pestanas(titulos: list[str]) -> list:
+    """Devuelve contenedores de pestañas seguros frente a entornos donde st está mockeado."""
+    resultado = st.tabs(titulos)
+    if isinstance(resultado, (list, tuple)) and len(resultado) == len(titulos):
+        return list(resultado)
+    return [st.container() for _ in titulos]
+
+
+def render_tabla_clave_valor(
+    datos: object,
+    *,
+    columna_clave: str = "Campo",
+    columna_valor: str = "Valor",
+    vacio_mensaje: str = "No hay registros disponibles.",
+) -> None:
+    """Renderiza un diccionario o mapeo como una tabla clara y estilizada para cualquier usuario."""
+    if not isinstance(datos, dict) or not datos:
+        if datos is None or (isinstance(datos, dict) and not datos):
+            st.caption(vacio_mensaje)
+            return
+        try:
+            datos = dict(datos)
+        except Exception:
+            st.caption(str(datos))
+            return
+
+    filas = [f"| {columna_clave} | {columna_valor} |", "| :--- | :--- |"]
+    for k, v in datos.items():
+        clave_str = str(k)
+        nombre_legible = DICCIONARIO_CAMPOS_LEGIBLES.get(clave_str)
+        if not nombre_legible:
+            nombre_legible = clave_str.replace("_", " ").strip().capitalize()
+        valor_formateado = formatear_valor_legible(v).replace("|", "-")
+        filas.append(f"| **{nombre_legible}** | {valor_formateado} |")
+
+    st.markdown("\n".join(filas))

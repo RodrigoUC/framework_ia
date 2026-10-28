@@ -17,6 +17,7 @@ from framework_ia.ui.controladores.controlador_regresion import (
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.vistas.navegacion import ir_a, mostrar_faltantes
+from framework_ia.ui.vistas.tema import _obtener_pestanas, render_tabla_clave_valor
 from framework_ia.ui.vistas.vista_regresion import (
     mostrar_resultado_modelo,
     preparacion_regresion_segura,
@@ -37,7 +38,13 @@ def mostrar_experimento_guardado(
         st.warning(
             "El último intento fue parcial: falta la evaluación final del ganador seleccionado por validación. No se reemplaza la evidencia exitosa anterior ni se elige otro ganador por test."
         )
-        st.json(intento["resultado"].metadatos.get("errores_prueba", {}))
+        errores_intento = intento["resultado"].metadatos.get("errores_prueba", {})
+        if errores_intento:
+            render_tabla_clave_valor(
+                errores_intento,
+                columna_clave="Familia / Algoritmo",
+                columna_valor="Detalle del error",
+            )
         st.dataframe(intento["resultado"].tabla, hide_index=True, width="stretch")
     error = st.session_state.get("error_lab3_experimento")
     if error:
@@ -77,15 +84,37 @@ def mostrar_experimento_guardado(
         st.warning(
             "Algunas familias fallaron en la evaluación final; se muestran los errores, sin sustituir la selección por validación."
         )
-        st.json(errores)
-    with st.expander("Selecciones por familia y contexto ejecutado"):
-        st.json(
-            {
-                "argumentos": snapshot["argumentos"],
-                "dataset": snapshot["dataset"],
-                "metadatos": resultado.metadatos,
-            }
+        render_tabla_clave_valor(
+            errores,
+            columna_clave="Familia / Algoritmo",
+            columna_valor="Detalle del error",
         )
+    with st.expander("Selecciones por familia y contexto ejecutado"):
+        tab_meta, tab_args, tab_data = _obtener_pestanas(
+            [
+                "📋 Metadatos del experimento",
+                "🔧 Argumentos de ejecución",
+                "📊 Información del dataset",
+            ]
+        )
+        with tab_meta:
+            render_tabla_clave_valor(
+                resultado.metadatos,
+                columna_clave="Metadato",
+                columna_valor="Detalle",
+            )
+        with tab_args:
+            render_tabla_clave_valor(
+                snapshot.get("argumentos", {}),
+                columna_clave="Argumento",
+                columna_valor="Valor",
+            )
+        with tab_data:
+            render_tabla_clave_valor(
+                snapshot.get("dataset", {}),
+                columna_clave="Propiedad",
+                columna_valor="Detalle",
+            )
     ganador = resultado.mejores.get(resultado.mejor_algoritmo)
     if solo_comparacion and resultado.mejores:
         st.markdown("#### Prueba reservada · ganadores seleccionados")

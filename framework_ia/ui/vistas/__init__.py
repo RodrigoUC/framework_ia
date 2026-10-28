@@ -10,6 +10,8 @@ from framework_ia.ui.vistas.navegacion import (
 )
 from framework_ia.ui.vistas.tema import (
     MostrarFigura,
+    _obtener_pestanas,
+    render_tabla_clave_valor,
     _ajustar_color_traza,
     _aplicar_estilos_atlas,
     _aplicar_tema_figura,

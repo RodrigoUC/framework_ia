@@ -17,6 +17,7 @@ from framework_ia.ui.controladores.controlador_regresion import (
 from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.vistas.navegacion import mostrar_faltantes
+from framework_ia.ui.vistas.tema import _obtener_pestanas, render_tabla_clave_valor
 from framework_ia.ui.vistas.vista_controles import parametros_regresion
 from framework_ia.utils.supervisado.configuracion_regresion import (
     ALGORITMOS_LAB3,
@@ -67,14 +68,38 @@ def mostrar_resultado_modelo(
         alt="Residuos frente a predicción en prueba, con referencia horizontal en cero.",
     )
     with st.expander("Contexto ejecutado, parámetros y trazabilidad"):
-        st.json(
-            {
-                "argumentos": snapshot["argumentos"],
-                "dataset": snapshot["dataset"],
-                "parametros_efectivos": resultado.parametros,
-                "metadatos": resultado.metadatos,
-            }
+        tab_params, tab_meta, tab_args, tab_data = _obtener_pestanas(
+            [
+                "⚙️ Parámetros del modelo",
+                "📋 Metadatos",
+                "🔧 Argumentos de ejecución",
+                "📊 Información del dataset",
+            ]
         )
+        with tab_params:
+            render_tabla_clave_valor(
+                resultado.parametros,
+                columna_clave="Parámetro",
+                columna_valor="Valor configurado",
+            )
+        with tab_meta:
+            render_tabla_clave_valor(
+                resultado.metadatos,
+                columna_clave="Metadato",
+                columna_valor="Detalle",
+            )
+        with tab_args:
+            render_tabla_clave_valor(
+                snapshot.get("argumentos", {}),
+                columna_clave="Argumento",
+                columna_valor="Valor",
+            )
+        with tab_data:
+            render_tabla_clave_valor(
+                snapshot.get("dataset", {}),
+                columna_clave="Propiedad",
+                columna_valor="Detalle",
+            )
     archivos = construir_archivos_modelo(
         resultado,
         argumentos=snapshot["argumentos"],

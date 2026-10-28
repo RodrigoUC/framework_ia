@@ -30,7 +30,7 @@ from framework_ia.ui.modelos.disponibilidad import disponibilidad_supervisada
 from framework_ia.ui.modelos.estado_sesion import firma_parametros
 from framework_ia.ui.modelos.perfil_diabetes import estado_fuente_diabetes
 from framework_ia.ui.vistas.navegacion import ir_a, mostrar_faltantes
-from framework_ia.ui.vistas.tema import MostrarFigura
+from framework_ia.ui.vistas.tema import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
 from framework_ia.ui.vistas.vista_clasificacion import (
     _diagnostico,
     preparacion_segura,
@@ -472,13 +472,21 @@ def _descargas(
             "ZIP con configuración, comparación, ganadores y matrices/predicciones de prueba. Usa el mismo formato que la CLI."
         )
         with st.expander("Configuración ejecutada y reproducibilidad"):
-            st.json(
-                {
-                    "fuente": guardado["fuente"],
-                    "experimento": guardado["resultado"].metadatos,
-                },
-                expanded=False,
+            tab_meta, tab_fuente = _obtener_pestanas(
+                ["📋 Metadatos del experimento", "📁 Fuente de datos"]
             )
+            with tab_meta:
+                render_tabla_clave_valor(
+                    guardado["resultado"].metadatos,
+                    columna_clave="Metadato",
+                    columna_valor="Detalle",
+                )
+            with tab_fuente:
+                render_tabla_clave_valor(
+                    guardado.get("fuente", {}),
+                    columna_clave="Propiedad",
+                    columna_valor="Detalle",
+                )
     except (ValueError, TypeError, KeyError, OSError) as exc:
         st.error(
             f"La ejecución se conserva, pero no fue posible preparar la descarga: {exc}"
