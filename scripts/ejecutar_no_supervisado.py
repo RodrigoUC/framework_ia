@@ -13,6 +13,7 @@ from sklearn.manifold import trustworthiness
 
 from framework_ia.datos.eda import EDA
 from framework_ia.modelos.no_supervisado import Cluster, DependenciaOpcionalError
+from framework_ia.utils.evaluacion_cluster import evaluar_hac, evaluar_kmeans
 
 
 def _argumentos() -> argparse.Namespace:
@@ -135,8 +136,9 @@ def ejecutar() -> None:
     resumen["acp"] = tabla_acp.to_dict(orient="records")
 
     cluster = _crear_cluster(datos, configuracion)
+    matriz_cluster = cluster.preparar_matriz().matriz
     k_max = min(10, len(datos) - 1)
-    tabla_kmeans = cluster.evaluar_kmeans(2, k_max, random_state=args.semilla)
+    tabla_kmeans = evaluar_kmeans(matriz_cluster, 2, k_max, random_state=args.semilla)
     tabla_kmeans.to_csv(salida / "comparacion_kmeans.csv", index=False)
     mejor_kmeans = tabla_kmeans.loc[tabla_kmeans["silhouette"].idxmax()]
     resultado_kmeans = cluster.K_means(
@@ -148,7 +150,7 @@ def ejecutar() -> None:
         "seleccion_sugerida": mejor_kmeans.to_dict(),
     }
 
-    tabla_hac = cluster.evaluar_hac(2, k_max)
+    tabla_hac = evaluar_hac(matriz_cluster, 2, k_max)
     tabla_hac.to_csv(salida / "comparacion_hac.csv", index=False)
     mejor_hac = tabla_hac.loc[tabla_hac["silhouette"].idxmax()]
     resultado_hac = cluster.HAC(int(mejor_hac["k"]), metodo=str(mejor_hac["metodo"]))
@@ -158,7 +160,7 @@ def ejecutar() -> None:
         "seleccion_sugerida": mejor_hac.to_dict(),
     }
 
-    tabla_benchmark = cluster.benchmark(int(mejor_kmeans["k"]))
+    tabla_benchmark = cluster.benchmark()
     tabla_benchmark.to_csv(salida / "comparacion_algoritmos_cluster.csv", index=False)
     resumen["benchmark_cluster"] = tabla_benchmark.to_dict(orient="records")
 

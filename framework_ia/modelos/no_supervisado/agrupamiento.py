@@ -11,8 +11,6 @@ from ...resultados import ResultadoCluster
 from ...utils.evaluacion_cluster import (
     calcular_centroides,
     construir_resultado_cluster,
-    evaluar_hac,
-    evaluar_kmeans,
     validar_numero_clusters,
 )
 from ...utils.k_medoids import ModeloKMedoids
@@ -49,15 +47,22 @@ class Cluster(NoSupervisado):
             columns=preparados.matriz.columns,
             index=pd.Index(range(n_clusters), name="cluster"),
         )
-        resultado = self._construir_resultado(
+        resultado = construir_resultado_cluster(
             algoritmo="K-Means",
             preparados=preparados,
             etiquetas=etiquetas,
             centroides=centroides,
             modelo=modelo,
             inercia=float(modelo.inertia_),
+            proyeccion_2d=self.proyectar_2d(preparados.matriz),
         )
+        self.modelo = modelo
+        self.etiquetas = resultado.etiquetas
+        self.centroides = centroides
         self.inercia = resultado.inercia
+        self._registrar_resultado(
+            "K-Means", resultado.etiquetas.nunique(), resultado.silhouette
+        )
         return resultado
 
     def K_medoids(
@@ -83,14 +88,23 @@ class Cluster(NoSupervisado):
             columns=preparados.matriz.columns,
             index=pd.Index(range(n_clusters), name="cluster"),
         )
-        return self._construir_resultado(
+        resultado = construir_resultado_cluster(
             algoritmo="K-Medoids",
             preparados=preparados,
             etiquetas=etiquetas,
             centroides=centroides,
             modelo=modelo,
             inercia=float(modelo.inertia_),
+            proyeccion_2d=self.proyectar_2d(preparados.matriz),
         )
+        self.modelo = modelo
+        self.etiquetas = resultado.etiquetas
+        self.centroides = centroides
+        self.inercia = resultado.inercia
+        self._registrar_resultado(
+            "K-Medoids", resultado.etiquetas.nunique(), resultado.silhouette
+        )
+        return resultado
 
     def HAC(
         self,
@@ -116,14 +130,23 @@ class Cluster(NoSupervisado):
             fcluster(matriz_vinculacion, t=n_clusters, criterion="maxclust") - 1
         )
         centroides = calcular_centroides(matriz, etiquetas)
-        return self._construir_resultado(
+        resultado = construir_resultado_cluster(
             algoritmo=f"HAC-{metodo}",
             preparados=preparados,
             etiquetas=etiquetas,
             centroides=centroides,
             modelo={"metodo": metodo, "metrica": metrica},
             matriz_vinculacion=matriz_vinculacion,
+            proyeccion_2d=self.proyectar_2d(preparados.matriz),
         )
+        self.modelo = {"metodo": metodo, "metrica": metrica}
+        self.etiquetas = resultado.etiquetas
+        self.centroides = centroides
+        self.inercia = None
+        self._registrar_resultado(
+            f"HAC-{metodo}", resultado.etiquetas.nunique(), resultado.silhouette
+        )
+        return resultado
 
     def ajustar(self, algoritmo: str = "KMEANS", **kwargs) -> ResultadoCluster:
         """Despacha el algoritmo solicitado a través de una interfaz común."""
@@ -137,60 +160,8 @@ class Cluster(NoSupervisado):
             raise ValueError(f"Algoritmo no soportado: {algoritmo}")
         return metodos[clave](**kwargs)
 
-    def evaluar_kmeans(
-        self,
-        k_min: int = 2,
-        k_max: int = 10,
-        *,
-        random_state: int = 42,
-    ) -> pd.DataFrame:
-        """Compara inercia y silhouette para un intervalo de valores de k."""
-        return evaluar_kmeans(
-            self.preparar_matriz().matriz,
-            k_min=k_min,
-            k_max=k_max,
-            random_state=random_state,
-        )
-
-    def evaluar_hac(
-        self,
-        k_min: int = 2,
-        k_max: int = 10,
-        *,
-        metodos: tuple[str, ...] = ("ward", "average", "complete", "single"),
-    ) -> pd.DataFrame:
-        """Compara silhouette para métodos jerárquicos y cantidades de clusters."""
-        return evaluar_hac(
-            self.preparar_matriz().matriz,
-            k_min=k_min,
-            k_max=k_max,
-            metodos=metodos,
-        )
-
-    def _construir_resultado(
-        self,
-        *,
-        algoritmo: str,
-        preparados,
-        etiquetas,
-        centroides: pd.DataFrame,
-        modelo,
-        inercia: float | None = None,
-        matriz_vinculacion=None,
-    ) -> ResultadoCluster:
-        """Construye el resultado de agrupamiento y actualiza el estado interno."""
-        resultado = construir_resultado_cluster(
-            algoritmo=algoritmo,
-            preparados=preparados,
-            etiquetas=etiquetas,
-            centroides=centroides,
-            modelo=modelo,
-            inercia=inercia,
-            matriz_vinculacion=matriz_vinculacion,
-            proyeccion_2d=self.proyectar_2d(preparados.matriz),
-        )
-        self.modelo = modelo
-        self.etiquetas = resultado.etiquetas
-        self.centroides = centroides
-        self._registrar_resultado(algoritmo, resultado.etiquetas.nunique(), resultado.silhouette)
-        return resultado
+    # Alias pythonicos
+    k_means = K_means
+    k_medoids = K_medoids
+    hac = HAC
+    fit = ajustar

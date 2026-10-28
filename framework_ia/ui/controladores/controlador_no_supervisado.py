@@ -10,6 +10,10 @@ from framework_ia.resultados import (
     ResultadoCluster,
     ResultadoProyeccion,
 )
+from framework_ia.utils.evaluacion_cluster import (
+    evaluar_hac,
+    evaluar_kmeans,
+)
 
 
 def _columnas_numericas(datos: pd.DataFrame) -> list[str]:
@@ -76,7 +80,8 @@ def evaluar_kmeans_k(
     limite = min(k_max, len(muestra) - 1)
     if k_min > limite:
         raise ValueError("No hay suficientes filas para evaluar el rango de clusters.")
-    return modelo.evaluar_kmeans(k_min=k_min, k_max=limite)
+    matriz = modelo.preparar_matriz().matriz
+    return evaluar_kmeans(matriz, k_min=k_min, k_max=limite)
 
 
 def ejecutar_kmedoids(
@@ -113,8 +118,11 @@ def comparar_metodos_hac(
     modelo = _crear_cluster(muestra, configuracion)
     limite = min(k_max, len(muestra) - 1)
     if k_min > limite:
-        raise ValueError("No hay suficientes filas para evaluar el rango de clusters en HAC.")
-    return modelo.evaluar_hac(k_min=k_min, k_max=limite)
+        raise ValueError(
+            "No hay suficientes filas para evaluar el rango de clusters en HAC."
+        )
+    matriz = modelo.preparar_matriz().matriz
+    return evaluar_hac(matriz, k_min=k_min, k_max=limite)
 
 
 def ejecutar_tsne(
