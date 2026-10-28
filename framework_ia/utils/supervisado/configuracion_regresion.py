@@ -82,7 +82,7 @@ CONFIGURACIONES_REGRESION = {
         ),
     ),
     "DT": ConfiguracionRegresion(
-        "Árbol de decisión",
+        "Árbol de regresión",
         (
             _PROFUNDIDAD,
             ParametroModelo(
@@ -91,7 +91,7 @@ CONFIGURACIONES_REGRESION = {
         ),
     ),
     "RF": ConfiguracionRegresion(
-        "Random Forest",
+        "Random Forest Regressor",
         (
             _PROFUNDIDAD,
             ParametroModelo(
