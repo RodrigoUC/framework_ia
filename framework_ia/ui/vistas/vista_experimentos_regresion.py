@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import pandas as pd
 import streamlit as st
 
@@ -28,6 +29,21 @@ from framework_ia.utils.supervisado.configuracion_regresion import (
 )
 from framework_ia.visualizacion import VisualizadorRegresion
 
+def _sanear_tabla_regresion(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Prepara la tabla para serialización segura en Arrow sin fallos de tipo."""
+    if not isinstance(tabla, pd.DataFrame) or tabla.empty:
+        return tabla
+    vista = tabla.copy()
+    for col in ("parametros", "features", "puntuaciones_pliegues", "metricas_pliegues"):
+        if col in vista.columns:
+            vista[col] = vista[col].map(
+                lambda x: json.dumps(x, ensure_ascii=False, default=str)
+                if isinstance(x, (dict, list, tuple, set))
+                else (str(x) if x is not None else "")
+            )
+    return vista
+
+
 
 def mostrar_experimento_guardado(
     mostrar_figura, *, solo_comparacion=False
@@ -45,7 +61,7 @@ def mostrar_experimento_guardado(
                 columna_clave="Familia / Algoritmo",
                 columna_valor="Detalle del error",
             )
-        st.dataframe(intento["resultado"].tabla, hide_index=True, width="stretch")
+        st.dataframe(_sanear_tabla_regresion(intento["resultado"].tabla), hide_index=True, width="stretch")
     error = st.session_state.get("error_lab3_experimento")
     if error:
         st.error(
@@ -78,7 +94,7 @@ def mostrar_experimento_guardado(
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
     )
     with st.expander("Validación · todas las configuraciones"):
-        st.dataframe(resultado.tabla, hide_index=True, width="stretch")
+        st.dataframe(_sanear_tabla_regresion(resultado.tabla), hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
     if errores:
         st.warning(

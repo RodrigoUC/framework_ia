@@ -1,6 +1,7 @@
 """Controles reutilizables de entrada e hiperparámetros para la interfaz."""
 
 from __future__ import annotations
+import json
 
 import math
 
@@ -36,10 +37,31 @@ def _seleccionar_entero(
     )
 
 
+def _sanear_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
+    """Evita fallos de serialización de PyArrow convirtiendo columnas de tipo dict/list a JSON/string."""
+    if not isinstance(data, pd.DataFrame) or data.empty:
+        return data
+    modificado = False
+    vista = data
+    for col in data.columns:
+        serie = data[col]
+        if serie.dtype == "object":
+            if any(isinstance(v, (dict, list, tuple, set)) for v in serie.dropna().head(20)):
+                if not modificado:
+                    vista = data.copy()
+                    modificado = True
+                vista[col] = vista[col].map(
+                    lambda x: json.dumps(x, ensure_ascii=False, default=str)
+                    if isinstance(x, (dict, list, tuple, set))
+                    else (str(x) if x is not None else "")
+                )
+    return vista
+
+
 def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
     """Muestra una descripción accesible junto a la tabla de datos."""
     st.caption(alt)
-    st.dataframe(data, **opciones)
+    st.dataframe(_sanear_dataframe_arrow(data), **opciones)
 
 
 def parametros_individuales(algoritmo: str) -> dict:
