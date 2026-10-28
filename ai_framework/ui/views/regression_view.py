@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
     construir_archivos_modelo,
@@ -106,7 +107,7 @@ def mostrar_resultado_modelo(
         dataset=snapshot["dataset"],
     )
     st.download_button(
-        "Descargar evidencia del modelo (ZIP)",
+        t("sup_descargar_evidencia", "Descargar evidencia del modelo (ZIP)"),
         construir_zip_experimento(archivos),
         file_name=f"lab03_{resultado.algoritmo}.zip",
         mime="application/zip",
@@ -143,7 +144,7 @@ def render_modelo_regresion(
         st.warning("Seleccione un predictor numérico para RLS en Configuración.")
     if (
         st.button(
-            "Entrenar modelo",
+            t("sup_entrenar_modelo", "Entrenar modelo"),
             key=f"lab3_entrenar_{algoritmo}",
             type="primary",
             disabled=not segura
@@ -184,7 +185,7 @@ def render_modelo_regresion(
         )
     else:
         st.info(
-            "Sin resultados para este contexto. Configure el modelo y pulse Entrenar modelo."
+            t("sup_sin_resultados_contexto", "Sin resultados para este contexto. Configure el modelo y pulse Entrenar modelo.")
         )
 
 

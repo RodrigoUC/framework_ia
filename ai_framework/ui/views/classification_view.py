@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.ui.controllers.classification_controller import (
     _argumentos_comunes,
@@ -78,7 +79,7 @@ def render_modelo_individual(
     intentos_rf = "errores_lab2_modelo_RF"
     if (
         st.button(
-            "Entrenar modelo",
+            t("sup_entrenar_modelo", "Entrenar modelo"),
             key=f"lab2_entrenar_{algoritmo}",
             type="primary",
             disabled=not configuracion["features"]
@@ -134,7 +135,7 @@ def render_modelo_individual(
         if actual_rf is not None:
             if actual_rf["firma"] != firma:
                 st.info(
-                    "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar."
+                    t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
                 )
             _diagnostico(
                 actual_rf["resultado"],
@@ -146,7 +147,7 @@ def render_modelo_individual(
     if resultado_previo is not None:
         if st.session_state.get(f"firma_{resultado_modelo}") != firma:
             st.info(
-                "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar."
+                t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
             )
         _diagnostico(
             resultado_previo,
@@ -294,7 +295,7 @@ def _diagnostico(
     c3.metric("Tasa de verdaderos macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
     metricas_clase = _metricas_por_clase(resultado)
-    st.markdown("**Tasa de verdaderos por clase**")
+    st.markdown(f"**{t('sup_tasa_verdaderos', 'Tasa de verdaderos por clase')}**")
     st.dataframe(
         pd.DataFrame(
             [
@@ -309,8 +310,8 @@ def _diagnostico(
         VisualizadorSupervisado.matriz_confusion(resultado),
         key=f"{prefijo}_confusion",
     )
-    with st.expander("Valores de la matriz de confusión"):
-        st.caption("Valores de la matriz de confusión")
+    with st.expander(t("sup_valores_matriz", "Valores de la matriz de confusión")):
+        st.caption(t("sup_valores_matriz", "Valores de la matriz de confusión"))
         st.dataframe(
             resultado.matriz_confusion,
             width="stretch",
@@ -356,7 +357,7 @@ def _diagnostico(
             width="stretch",
         )
     st.download_button(
-        "Descargar predicciones (CSV)",
+        t("sup_descargar_predicciones", "Descargar predicciones (CSV)"),
         predicciones.to_csv(index=True).encode("utf-8"),
         f"predicciones_{resultado.algoritmo}.csv",
         "text/csv",

@@ -7,6 +7,7 @@ import math
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.utils import (
     CONFIGURACIONES_MODELO,
@@ -78,11 +79,12 @@ def parametros_individuales(algoritmo: str) -> dict:
             help="Cada criterio conserva su última ejecución exitosa por separado.",
         )
     modo = st.radio(
-        "Configuración del modelo",
+        t("sup_configuracion_modelo", "Configuración del modelo"),
         ["Estándar", "Personalizada"],
+        format_func=lambda x: {"Estándar": t("modo_estandar", "Estándar"), "Personalizada": t("modo_personalizada", "Personalizada")}.get(x, x),
         key=f"lab2_modo_{algoritmo}",
         persist_state="session",
-        help="Estándar utiliza los valores predeterminados del algoritmo y la semilla indicada.",
+        help=t("modo_help", "Estándar utiliza los valores predeterminados del algoritmo y la semilla indicada."),
     )
     if modo == "Estándar":
         return {"criterion": criterio_rf} if criterio_rf is not None else {}
@@ -128,8 +130,9 @@ def parametros_individuales(algoritmo: str) -> dict:
 def parametros_regresion(algoritmo: str) -> dict | None:
     """Renderiza los controles de hiperparámetros para un modelo de regresión."""
     modo = st.radio(
-        "Configuración del modelo",
+        t("sup_configuracion_modelo", "Configuración del modelo"),
         ["Estándar", "Personalizada"],
+        format_func=lambda x: {"Estándar": t("modo_estandar", "Estándar"), "Personalizada": t("modo_personalizada", "Personalizada")}.get(x, x),
         key=f"lab3_modo_{algoritmo}",
         persist_state="session",
     )

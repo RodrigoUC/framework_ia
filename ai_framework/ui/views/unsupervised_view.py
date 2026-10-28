@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.data.eda import EDA
 from ai_framework.models.unsupervised import DependenciaOpcionalError
@@ -43,26 +44,37 @@ def _render_eda(datos: pd.DataFrame) -> None:
         frecuencias,
     ) = st.tabs(
         [
-            "Resumen",
-            "Histogramas",
-            "Boxplots",
-            "Dispersión",
-            "Correlación",
-            "Outliers",
-            "Frecuencias",
+            t("eda_tab_resumen", "Resumen"),
+            t("eda_tab_histogramas", "Histogramas"),
+            t("eda_tab_boxplots", "Boxplots"),
+            t("eda_tab_dispersion", "Dispersión"),
+            t("eda_tab_correlacion", "Correlación"),
+            t("eda_tab_outliers", "Outliers"),
+            t("eda_tab_frecuencias", "Frecuencias"),
         ]
     )
 
     with resumen:
+        col_rename = {
+            "mediana": t("eda_col_mediana", "mediana"),
+            "nulos": t("eda_col_nulos", "nulos"),
+            "porcentaje_nulos": t("eda_col_porcentaje_nulos", "porcentaje_nulos"),
+        }
         for nombre, tabla in eda.distribucion_variables().items():
             if not tabla.empty:
-                st.markdown(f"**Variables {nombre}**")
-                st.dataframe(tabla, width="stretch")
+                nombre_trad = (
+                    t("eda_vars_numericas", t("eda_vars_numericas", "Variables numéricas"))
+                    if nombre == "numericas"
+                    else t("eda_vars_categoricas", "Variables categóricas")
+                )
+                st.markdown(f"**{nombre_trad}**")
+                tabla_mostrada = tabla.rename(columns=col_rename)
+                st.dataframe(tabla_mostrada, width="stretch")
 
     numericas = _columnas_numericas(datos)
     with histogramas:
         seleccion = st.multiselect(
-            "Variables numéricas",
+            t("eda_vars_numericas", "Variables numéricas"),
             numericas,
             default=numericas[:3],
             key="eda_histogramas",
@@ -73,7 +85,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
 
     with boxplots:
         seleccion = st.multiselect(
-            "Variables numéricas",
+            t("eda_vars_numericas", "Variables numéricas"),
             numericas,
             default=numericas[:3],
             key="eda_boxplots",
@@ -84,18 +96,18 @@ def _render_eda(datos: pd.DataFrame) -> None:
 
     with dispersion:
         seleccion = st.multiselect(
-            "Variables numéricas",
+            t("eda_vars_numericas", "Variables numéricas"),
             numericas,
             default=numericas[:4],
             key="eda_dispersion",
         )
-        if len(seleccion) >= 2 and st.button("Generar dispersión"):
+        if len(seleccion) >= 2 and st.button(t("eda_generar_dispersion", "Generar dispersión")):
             grafico = eda.scatterplots(seleccion, mostrar=False)
             _mostrar_figura(grafico)
 
     with correlacion:
         seleccion = st.multiselect(
-            "Variables numéricas",
+            t("eda_vars_numericas", "Variables numéricas"),
             numericas,
             default=numericas[:8],
             key="eda_correlacion",
@@ -111,33 +123,39 @@ def _render_eda(datos: pd.DataFrame) -> None:
             st.dataframe(matriz, width="stretch")
 
     with outliers:
-        factor = st.slider("Factor IQR", 1.0, 3.0, 1.5, 0.1)
+        factor = st.slider(t("eda_factor_iqr", "Factor IQR"), 1.0, 3.0, 1.5, 0.1)
         if numericas:
             resultado = eda.detectar_outliers(numericas, factor_iqr=factor)
             st.dataframe(resultado["resumen"], width="stretch")
             st.metric(
-                "Filas con algún valor atípico",
+                t("eda_filas_outliers", "Filas con algún valor atípico"),
                 len(resultado["filas_con_algun_outlier"]),
             )
 
     with frecuencias:
         seleccion = st.multiselect(
-            "Variables",
+            t("eda_variables", "Variables"),
             datos.columns.tolist(),
             default=datos.columns.tolist()[:3],
             key="eda_frecuencias",
         )
         for columna, tabla in eda.frecuencias(seleccion).items():
-            with st.expander(f"Frecuencias de {columna}"):
-                st.dataframe(tabla, width="stretch")
+            with st.expander(t("eda_frecuencias_de", f"Frecuencias de {columna}", columna=columna)):
+                tabla_mostrada = tabla.rename(
+                    columns={
+                        "frecuencia": t("eda_col_frecuencia", "frecuencia"),
+                        "porcentaje": t("eda_col_porcentaje", "porcentaje"),
+                    }
+                )
+                st.dataframe(tabla_mostrada, width="stretch")
 
 
 def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
     """Ejecuta y muestra el análisis de componentes principales."""
-    st.markdown("### Análisis de componentes principales")
+    st.markdown(f"### {t('acp_titulo', 'Análisis de componentes principales')}")
     if len(datos) < 2 or len(configuracion["features"]) < 2:
         st.warning(
-            "Seleccione al menos dos variables y dos filas para ejecutar el ACP."
+            t("acp_adv_min", "Seleccione al menos dos variables y dos filas para ejecutar el ACP.")
         )
         return
     maximo = min(10, len(datos), max(2, len(configuracion["features"])))
@@ -145,7 +163,7 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
         "Componentes", 2, maximo, 2, key="acp_componentes"
     )
     firma = _firma(configuracion, componentes)
-    if st.button("Ejecutar ACP", type="primary"):
+    if st.button(t("acp_ejecutar", "Ejecutar ACP"), type="primary"):
         try:
             resultado = ejecutar_acp(datos, configuracion, n_componentes=componentes)
             _guardar_resultado("resultado_acp", firma, resultado)
@@ -163,7 +181,7 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
     )
     _mostrar_figura(VisualizadorNoSupervisado.varianza_acp(resultado))
     plano, circulo, sobreposicion = st.tabs(
-        ["Plano principal", "Círculo de correlación", "Sobreposición"]
+        [t("acp_tab_plano", "Plano principal"), t("acp_tab_circulo", "Círculo de correlación"), t("acp_tab_sobreposicion", "Sobreposición")]
     )
     with plano:
         _mostrar_figura(VisualizadorNoSupervisado.plano_acp(resultado))
@@ -181,15 +199,15 @@ def _render_particional(
     """Renderiza una técnica particional con el flujo común de resultados."""
     st.markdown(f"### {algoritmo}")
     if len(datos) < 3 or not configuracion["features"]:
-        st.warning("Se requieren variables y al menos tres filas.")
+        st.warning(t("cluster_adv_min", "Se requieren variables y al menos tres filas."))
         return
     limite = min(12, len(datos) - 1)
     clusters = _seleccionar_entero(
-        "Número de clusters", 2, limite, 3, key=f"{algoritmo.lower()}_clusters"
+        t("cluster_num_clusters", "Número de clusters"), 2, limite, 3, key=f"{algoritmo.lower()}_clusters"
     )
     firma = _firma(configuracion, algoritmo, clusters)
     clave_resultado = f"resultado_{algoritmo.lower().replace('-', '_')}"
-    if st.button(f"Ejecutar {algoritmo}", type="primary"):
+    if st.button(t("cluster_ejecutar", f"Ejecutar {algoritmo}", algoritmo=algoritmo), type="primary"):
         try:
             if algoritmo == "K-Means":
                 resultado = ejecutar_kmeans(datos, configuracion, clusters)
@@ -219,7 +237,7 @@ def _render_particional(
         salida = datos.loc[resultado.etiquetas.index].copy()
         salida["cluster"] = resultado.etiquetas
         st.download_button(
-            "Descargar asignaciones",
+            t("cluster_descargar", "Descargar asignaciones"),
             salida.to_csv(index=False).encode("utf-8"),
             file_name="clusters.csv",
             mime="text/csv",
@@ -227,7 +245,7 @@ def _render_particional(
 
     if algoritmo == "K-Means":
         firma_benchmark = _firma(configuracion, "benchmark_kmeans")
-        if st.button("Evaluar valores de k", key="btn_evaluar_kmeans"):
+        if st.button(t("cluster_evaluar_k", "Evaluar valores de k"), key="btn_evaluar_kmeans"):
             try:
                 limite_k = min(10, len(datos) - 1)
                 tabla = evaluar_kmeans_k(datos, configuracion, k_min=2, k_max=limite_k)
@@ -242,7 +260,7 @@ def _render_particional(
             )
 
     if algoritmo == "K-Means":
-        with st.expander("Proyecciones para visualizar los clusters"):
+        with st.expander(t("cluster_proyecciones", "Proyecciones para visualizar los clusters")):
             etiquetas = (
                 resultado.etiquetas if resultado is not None else None
             )
@@ -259,20 +277,20 @@ def _render_particional(
 
 def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
     """Ejecuta clustering jerárquico y presenta el dendrograma."""
-    st.markdown("### Clustering jerárquico aglomerativo")
+    st.markdown(f"### {t('hac_titulo', 'Clustering jerárquico aglomerativo')}")
     if len(datos) < 3 or not configuracion["features"]:
-        st.warning("Se requieren variables y al menos tres filas.")
+        st.warning(t("cluster_adv_min", "Se requieren variables y al menos tres filas."))
         return
     metodo = st.selectbox(
-        "Vinculación", ["ward", "average", "complete", "single"]
+        t("hac_vinculacion", "Vinculación"), ["ward", "average", "complete", "single"]
     )
     limite = min(12, len(datos) - 1)
     clusters = _seleccionar_entero(
-        "Número de clusters", 2, limite, 3, key="hac_clusters"
+        t("cluster_num_clusters", "Número de clusters"), 2, limite, 3, key="hac_clusters"
     )
     filas_hac = min(configuracion["filas"], 800)
     firma = _firma(configuracion, metodo, clusters, filas_hac)
-    if st.button("Ejecutar HAC", type="primary"):
+    if st.button(t("hac_ejecutar", "Ejecutar HAC"), type="primary"):
         try:
             resultado = ejecutar_hac(
                 datos,
@@ -298,7 +316,7 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(VisualizadorNoSupervisado.perfiles_cluster(resultado))
 
     firma_benchmark = _firma(configuracion, "benchmark_hac", filas_hac)
-    if st.button("Comparar métodos HAC", key="btn_comparar_hac"):
+    if st.button(t("hac_comparar", "Comparar métodos HAC"), key="btn_comparar_hac"):
         try:
             limite_k = min(8, len(datos) - 1)
             tabla = comparar_metodos_hac(
@@ -322,19 +340,19 @@ def _render_tsne(
     firma_cluster=None,
 ) -> None:
     """Ejecuta t-SNE bajo demanda para contextualizar la solución K-Means."""
-    st.markdown("### Proyección t-SNE")
+    st.markdown(f"### {t('tsne_titulo', 'Proyección t-SNE')}")
     filas = min(configuracion["filas"], 2000)
     if filas < 3 or not configuracion["features"]:
-        st.warning("t-SNE requiere variables y al menos tres filas.")
+        st.warning(t("tsne_adv_min", "t-SNE requiere variables y al menos tres filas."))
         return
     max_perplexity = min(50, filas - 1)
     perplexity = _seleccionar_entero(
         "Perplexity", 2, max_perplexity, 30, key="tsne_perplexity"
     )
-    iteraciones = st.slider("Iteraciones", 250, 2000, 1000, 250, key="tsne_iteraciones")
+    iteraciones = st.slider(t("tsne_iteraciones", "Iteraciones"), 250, 2000, 1000, 250, key="tsne_iteraciones")
     firma = _firma(configuracion, perplexity, iteraciones, filas, firma_cluster)
     clave = "resultado_kmeans_tsne"
-    if st.button("Ejecutar t-SNE", type="primary"):
+    if st.button(t("tsne_ejecutar", "Ejecutar t-SNE"), type="primary"):
         try:
             resultado = ejecutar_tsne(
                 datos,
@@ -368,19 +386,19 @@ def _render_umap(
     firma_cluster=None,
 ) -> None:
     """Ejecuta UMAP bajo demanda para contextualizar la solución K-Means."""
-    st.markdown("### Proyección UMAP")
+    st.markdown(f"### {t('umap_titulo', 'Proyección UMAP')}")
     filas = min(configuracion["filas"], 3000)
     if filas < 3 or not configuracion["features"]:
-        st.warning("UMAP requiere variables y al menos tres filas.")
+        st.warning(t("umap_adv_min", "UMAP requiere variables y al menos tres filas."))
         return
     max_vecinos = min(100, filas - 1)
     vecinos = _seleccionar_entero(
-        "Vecinos", 2, max_vecinos, 15, key="umap_vecinos"
+        t("umap_vecinos", "Vecinos"), 2, max_vecinos, 15, key="umap_vecinos"
     )
-    distancia = st.slider("Distancia mínima", 0.0, 0.99, 0.1, 0.05, key="umap_distancia")
+    distancia = st.slider(t("umap_distancia", "Distancia mínima"), 0.0, 0.99, 0.1, 0.05, key="umap_distancia")
     firma = _firma(configuracion, vecinos, distancia, filas, firma_cluster)
     clave = "resultado_kmeans_umap"
-    if st.button("Ejecutar UMAP", type="primary"):
+    if st.button(t("umap_ejecutar", "Ejecutar UMAP"), type="primary"):
         try:
             resultado = ejecutar_umap(
                 datos,

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
     construir_archivos_experimento,
@@ -83,9 +84,9 @@ def mostrar_experimento_guardado(
         & resultado.tabla["seleccionado"]
     ].iloc[0]
     columnas = st.columns(3)
-    columnas[0].metric("Ganador por validación", resultado.mejor_algoritmo)
+    columnas[0].metric(t("sup_ganador_val", "Ganador por validación"), resultado.mejor_algoritmo)
     columnas[1].metric(
-        "RMSE de validación", f"{seleccion['puntuacion_validacion']:.4f}"
+        t("sup_rmse_val", "RMSE de validación"), f"{seleccion['puntuacion_validacion']:.4f}"
     )
     columnas[2].metric("Candidatos comparados", len(resultado.tabla))
     mostrar_figura(
@@ -93,7 +94,7 @@ def mostrar_experimento_guardado(
         key="lab3_validacion",
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
     )
-    with st.expander("Validación · todas las configuraciones"):
+    with st.expander(t("sup_val_todas_configs", "Validación · todas las configuraciones")):
         st.dataframe(_sanear_tabla_regresion(resultado.tabla), hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
     if errores:
@@ -133,7 +134,7 @@ def mostrar_experimento_guardado(
             )
     ganador = resultado.mejores.get(resultado.mejor_algoritmo)
     if solo_comparacion and resultado.mejores:
-        st.markdown("#### Prueba reservada · ganadores seleccionados")
+        st.markdown(f"#### {t('sup_test_reservada', 'Prueba reservada · ganadores seleccionados')}")
         st.dataframe(
             pd.DataFrame(
                 [
@@ -156,21 +157,21 @@ def mostrar_experimento_guardado(
         dataset=snapshot["dataset"],
     )
     st.download_button(
-        "Descargar evidencia del experimento (ZIP)",
+        t("sup_descargar_zip_exp", "Descargar evidencia del experimento (ZIP)"),
         construir_zip_experimento(archivos),
         file_name="lab03_experimento.zip",
         mime="application/zip",
         key="lab3_experimento_zip",
     )
     st.download_button(
-        "Comparación de validación (CSV)",
+        t("sup_comp_val_csv", "Comparación de validación (CSV)"),
         archivos["comparacion_validacion.csv"],
         file_name="comparacion_validacion.csv",
         mime="text/csv",
         key="lab3_experimento_csv",
     )
     st.download_button(
-        "Configuración ejecutada (JSON)",
+        t("sup_config_ejecutada_json", "Configuración ejecutada (JSON)"),
         archivos["configuracion.json"],
         file_name="configuracion.json",
         mime="application/json",
@@ -190,7 +191,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         persist_state="session",
     )
     estrategia = st.selectbox(
-        "Estrategia de validación",
+        t("sup_estrategia_val", "Estrategia de validación"),
         ["Automática", "CV", "Holdout"],
         key="lab3_estrategia",
         persist_state="session",
@@ -244,7 +245,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         )
     if (
         st.button(
-            "Ejecutar evaluación comparativa",
+            t("res_ejecutar_evaluacion", "Ejecutar evaluación comparativa"),
             key="lab3_ejecutar_experimento",
             type="primary",
             disabled=not segura or not algoritmos or not disponibilidad.lista,

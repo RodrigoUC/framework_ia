@@ -413,10 +413,10 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
         st.warning(particion.advertencia)
 
     m1, m2, m3 = st.columns(3)
-    m1.metric("Train", len(particion.train))
-    m2.metric("Test", len(particion.test))
+    m1.metric(t("part_train", "Train"), len(particion.train))
+    m2.metric(t("part_test", "Test"), len(particion.test))
     m3.metric(
-        "Validación",
+        t("part_validacion", "Validación"),
         len(particion.validacion) if particion.validacion is not None else 0,
     )
 
@@ -432,28 +432,28 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
 
     vista_train, vista_test = st.columns(2)
     with vista_train:
-        st.markdown("**Vista previa de train**")
+        st.markdown(f"**{t('part_vista_train', 'Vista previa de train')}**")
         st.dataframe(particion.train.head(5), width="stretch")
     with vista_test:
-        st.markdown("**Vista previa de test**")
+        st.markdown(f"**{t('part_vista_test', 'Vista previa de test')}**")
         st.dataframe(particion.test.head(5), width="stretch")
 
     descarga_train, descarga_test, descarga_val = st.columns(3)
     descarga_train.download_button(
-        "Descargar train.csv",
+        t("part_descargar_train", "Descargar train.csv"),
         particion.train.to_csv(index=False).encode("utf-8"),
         file_name="train.csv",
         mime="text/csv",
     )
     descarga_test.download_button(
-        "Descargar test.csv",
+        t("part_descargar_test", "Descargar test.csv"),
         particion.test.to_csv(index=False).encode("utf-8"),
         file_name="test.csv",
         mime="text/csv",
     )
     if particion.validacion is not None:
         descarga_val.download_button(
-            "Descargar validacion.csv",
+            t("part_descargar_val", "Descargar validacion.csv"),
             particion.validacion.to_csv(index=False).encode("utf-8"),
             file_name="validacion.csv",
             mime="text/csv",
@@ -474,18 +474,18 @@ def _resumen_dataset_modulo(
             eda.detectar_outliers(numericas)["filas_con_algun_outlier"]
         )
     lineas = [
-        f"- Filas: **{resumen['filas']}**",
-        f"- Columnas: **{resumen['columnas']}**",
-        f"- Duplicados: **{resumen['duplicados']}**",
-        f"- Nulos: **{resumen['nulos']}**",
-        f"- Variables numéricas: **{len(numericas)}**",
-        f"- Variables categóricas: **{len(categoricas)}**",
-        f"- Outliers críticos: **{outliers}**",
+        f"- {t('ds_filas', 'Filas')}: **{resumen['filas']}**",
+        f"- {t('ds_columnas', 'Columnas')}: **{resumen['columnas']}**",
+        f"- {t('ds_duplicados', 'Duplicados')}: **{resumen['duplicados']}**",
+        f"- {t('ds_nulos', 'Nulos')}: **{resumen['nulos']}**",
+        f"- {t('ds_numericas', 'Variables numéricas')}: **{len(numericas)}**",
+        f"- {t('ds_categoricas', 'Variables categóricas')}: **{len(categoricas)}**",
+        f"- {t('ds_outliers', 'Outliers críticos')}: **{outliers}**",
     ]
     if objetivo:
         cardinalidad = datos[objetivo].nunique(dropna=True)
-        lineas.append(f"- Cardinalidad de target: **{cardinalidad}**")
-    with st.expander("Resumen del dataset activo"):
+        lineas.append(f"- {t('ds_cardinalidad_target', 'Cardinalidad de target')}: **{cardinalidad}**")
+    with st.expander(t("ds_resumen_activo", "Resumen del dataset activo")):
         for linea in lineas:
             st.markdown(linea)
 

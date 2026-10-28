@@ -8,6 +8,7 @@ from copy import deepcopy
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
     construir_archivos_experimento,
@@ -75,17 +76,17 @@ def render_experimentos(
             hide_index=True,
             width="stretch",
         )
-    st.markdown("#### Selección y validación")
+    st.markdown(f"#### {t('sup_seleccion_val', 'Selección y validación')}")
     izquierda, derecha = st.columns(2)
     metrica = izquierda.selectbox(
-        "Métrica para seleccionar",
+        t("sup_metrica_seleccionar", "Métrica para seleccionar"),
         list(METRICAS_SELECCION),
         format_func=METRICAS_SELECCION.get,
         key="lab2_benchmark_metrica",
         persist_state="session",
     )
     estrategia = st.radio(
-        "Estrategia de validación",
+        t("sup_estrategia_val", "Estrategia de validación"),
         list(ESTRATEGIAS),
         format_func=ESTRATEGIAS.get,
         key="lab2_benchmark_estrategia",
@@ -169,7 +170,7 @@ def render_experimentos(
     )
     mostrar_faltantes(disponibilidad)
     ejecutar = st.button(
-        "Ejecutar evaluación comparativa",
+        t("res_ejecutar_evaluacion", "Ejecutar evaluación comparativa"),
         key="lab2_benchmark_ejecutar",
         type="primary",
         disabled=not segura
@@ -278,14 +279,14 @@ def render_resultado_experimento(
     if guardado is None:
         if intento is None:
             st.info(
-                "Todavía no hay evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos."
+                t("sup_sin_evaluaciones_guardadas", "Todavía no hay evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos.")
             )
         return
     resultado = guardado["resultado"]
     metadatos = resultado.metadatos
     metrica = guardado["opciones"]["metrica"]
     contexto = guardado["contexto"]
-    st.markdown("#### Evaluación comparativa · selección en validación")
+    st.markdown(f"#### {t('sup_eval_comp_val', 'Evaluación comparativa · selección en validación')}")
     st.caption(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
@@ -323,7 +324,7 @@ def render_resultado_experimento(
         st.info(
             f"**Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
         )
-    st.markdown("#### Prueba reservada · ganadores seleccionados")
+    st.markdown(f"#### {t('sup_test_reservada', 'Prueba reservada · ganadores seleccionados')}")
     _mostrar_dataframe(
         pd.DataFrame(
             [

@@ -26,10 +26,10 @@ from ai_framework.ui.models.session_state import inicializar_configuracion
 def configurar_supervisado(datos: pd.DataFrame) -> None:
     """Renderiza los controles de preparación y protocolo para tareas supervisadas."""
     tarea = st.radio(
-        "Tarea",
+        t("cfg_tarea", "Tarea"),
         list(TAREAS),
         index=None,
-        format_func=TAREAS.get,
+        format_func=lambda x: t(f"tarea_{x}", TAREAS.get(x, x)),
         key="sup_tarea",
         persist_state="session",
         horizontal=True,
@@ -168,20 +168,20 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
     if any(columna not in opciones for columna in guardadas):
         del st.session_state["modelo_features"]
     features = st.multiselect(
-        "Variables de análisis",
+        t("cfg_variables_analisis", "Variables de análisis"),
         options=opciones,
         default=predeterminadas,
         key="modelo_features",
     )
     estandarizar = st.checkbox(
-        "Estandarizar para modelado",
+        t("cfg_estandarizar_modelado", "Estandarizar para modelado"),
         value=True,
         key="modelo_estandarizar",
     )
     maximo = min(len(datos), 3000)
     if maximo > 20:
         filas = st.slider(
-            "Máximo de filas por modelo",
+            t("cfg_max_filas_modelo", "Máximo de filas por modelo"),
             min_value=20,
             max_value=maximo,
             value=maximo,
