@@ -73,6 +73,108 @@ def _obtener_cargador_csv():
     return _cargar_fuente_csv
 
 
+
+def _formatear_error_fuente(exc: Exception, configuracion: ConfiguracionCSV | None = None) -> str:
+    """Convierte excepciones internas de lectura en mensajes de error controlados y claros."""
+    lang = obtener_idioma()
+    exc_str = str(exc)
+    separador = configuracion.separador if configuracion else ""
+    encoding = configuracion.encoding if configuracion else "utf-8"
+
+    if isinstance(exc, pd.errors.ParserError) or "tokenizing data" in exc_str.lower() or "expected" in exc_str.lower():
+        import re
+        match_linea = re.search(r"line\s+(\d+)", exc_str, re.IGNORECASE)
+        linea_info = f" (detectado cerca de la línea {match_linea.group(1)})" if match_linea else ""
+        linea_info_en = f" (detected near line {match_linea.group(1)})" if match_linea else ""
+        sep_txt = f" '{separador}'" if separador else ""
+        sep_txt_es = f" «{separador}»" if separador else ""
+        if lang == "en":
+            return (
+                f"The file structure does not match the delimiter{sep_txt}{linea_info_en}. "
+                "An uneven number of columns was found between rows. "
+                "Please verify whether the correct delimiter is comma (,), semicolon (;), or tab (\t)."
+            )
+        return (
+            f"La estructura del archivo no coincide con el separador{sep_txt_es}{linea_info}. "
+            "Se detectó un número desigual de columnas entre las filas. "
+            "Verifique si el separador correcto es coma (,), punto y coma (;) o tabulación (\t)."
+        )
+
+    if isinstance(exc, pd.errors.EmptyDataError) or "no contiene registros" in exc_str.lower() or "empty" in exc_str.lower():
+        if lang == "en":
+            return "The selected CSV file is empty or does not contain readable records."
+        return "El archivo CSV seleccionado está vacío o no contiene registros analizables."
+
+    if isinstance(exc, UnicodeDecodeError) or "codec can't decode" in exc_str.lower():
+        if lang == "en":
+            return (
+                f"Encoding error reading the file with '{encoding}'. "
+                "Please select a different encoding (such as latin-1 or cp1252)."
+            )
+        return (
+            f"Error de codificación al leer el archivo con «{encoding}». "
+            "Intente seleccionando otra codificación (ej. latin-1 o cp1252)."
+        )
+
+    if "no puede estar vacío" in exc_str.lower() or "empty separator" in exc_str.lower():
+        if lang == "en":
+            return "The CSV delimiter cannot be empty."
+        return "El separador del CSV no puede estar vacío."
+
+    return exc_str
+
+
+def _verificar_calidad_carga_csv(datos: pd.DataFrame | None, separador: str) -> str | None:
+    """Verifica si el dataset parece haber sido cargado incorrectamente por un separador erróneo."""
+    lang = obtener_idioma()
+    if datos is None or datos.empty:
+        return None
+
+    if datos.shape[1] == 1:
+        col = str(datos.columns[0])
+        valores_muestra = [str(v) for v in datos.iloc[:10, 0].dropna()]
+        muestra = col + " " + " ".join(valores_muestra)
+
+        delimitadores = [
+            (",", "coma (,)", "comma (,)"),
+            (";", "punto y coma (;)", "semicolon (;)"),
+            ("\t", "tabulación (\\t)", "tab (\\t)"),
+            ("|", "barra vertical (|)", "pipe (|)"),
+        ]
+
+        detectado = None
+        for delim, nom_es, nom_en in delimitadores:
+            if delim != separador and delim in muestra:
+                if muestra.count(delim) >= 2:
+                    detectado = nom_en if lang == "en" else nom_es
+                    break
+
+        col_corta = col if len(col) <= 50 else col[:47] + "..."
+        if detectado:
+            if lang == "en":
+                return (
+                    f"Warning: The dataset was loaded with only 1 column ('{col_corta}'). "
+                    f"The current delimiter '{separador}' appears to be incorrect because {detectado} was detected in the content. "
+                    "Please update the delimiter and click 'Apply source'."
+                )
+            return (
+                f"Advertencia: El dataset se cargó con 1 sola columna («{col_corta}»). "
+                f"El separador actual «{separador}» parece incorrecto ya que se detectó {detectado} en el contenido. "
+                "Actualice el separador y pulse «Aplicar fuente»."
+            )
+        else:
+            if lang == "en":
+                return (
+                    f"Warning: The dataset was loaded with only 1 column ('{col_corta}'). "
+                    f"Please verify that the delimiter '{separador}' is correct for this CSV file."
+                )
+            return (
+                f"Advertencia: El dataset se cargó con 1 sola columna («{col_corta}»). "
+                f"Verifique si el separador «{separador}» es el correcto para este archivo CSV."
+            )
+    return None
+
+
 def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
     """Permite preparar una fuente y aplicarla al confirmar el formulario."""
     directorio_datos = _obtener_base_dir() / "data"
@@ -98,6 +200,8 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     "No fue posible cargar el CSV inicial. Elija otra fuente y "
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
+            if st.session_state.get("advertencia_fuente"):
+                st.warning(st.session_state["advertencia_fuente"])
 
             opciones_origen = ["CSV local", "Subir CSV", "Diabetes (referencia)"]
             labels_origen = {
@@ -120,13 +224,15 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     separador = st.text_input(
                         t("fuente_separador", "Separador"),
                         value=",",
-                        max_chars=3,
                         key="fuente_separador",
+                        help=t(
+                            "fuente_separador_help",
+                            "Ej. coma (,), punto y coma (;), tabulación (\t) o barra vertical (|)",
+                        ),
                     )
                     decimal = st.text_input(
                         t("fuente_separador_decimal", "Separador decimal"),
                         value=".",
-                        max_chars=1,
                         key="fuente_decimal",
                     )
                     encoding = st.selectbox(
@@ -165,8 +271,10 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                 )
 
             if aplicar:
+                configuracion = None
                 try:
                     if origen in ("Diabetes (referencia)", "Diabetes · referencia Lab03"):
+                        st.session_state.pop("advertencia_fuente", None)
                         _cargar_referencia_regresion()
                         return st.session_state["fuente_aplicada"]
                     configuracion = ConfiguracionCSV(
@@ -179,8 +287,10 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                         raise ValueError(
                             "El separador del CSV no puede estar vacío."
                         )
+                    datos = None
                     if origen == "CSV local" and seleccion is not None:
                         cargar_csv(seleccion, configuracion, fuente=referencia)
+                        datos = st.session_state["fuente_aplicada"][0]
                     elif origen == "Subir CSV" and archivo is not None:
                         contenido = archivo.getvalue()
                         datos = CargadorCSV.cargar_bytes(
@@ -199,13 +309,24 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                         st.warning(
                             "Seleccione un archivo CSV antes de aplicarlo."
                         )
+                    if datos is not None:
+                        adv = _verificar_calidad_carga_csv(datos, separador)
+                        st.session_state["advertencia_fuente"] = adv
+                        if adv:
+                            st.warning(adv)
+                        else:
+                            st.session_state.pop("advertencia_fuente", None)
                 except Exception as exc:
-                    st.error(f"No fue posible aplicar la fuente: {exc}")
+                    st.session_state.pop("advertencia_fuente", None)
+                    mensaje = _formatear_error_fuente(exc, configuracion)
+                    st.error(f"No fue posible aplicar la fuente: {mensaje}")
     return st.session_state.get("fuente_aplicada", (None, "", ""))
 
 
 def _render_dataset() -> None:
     """Permite preparar, restaurar y exportar el dataset persistente."""
+    if st.session_state.get("advertencia_fuente"):
+        st.warning(st.session_state["advertencia_fuente"])
     original = st.session_state["dataset_original"]
     actual = st.session_state["dataset_preparado"]
     st.markdown(f"### {t('prep_dataset', 'Preparación del dataset')}")
