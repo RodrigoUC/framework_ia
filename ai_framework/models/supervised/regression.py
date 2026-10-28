@@ -1,13 +1,13 @@
-"""Regresión supervisada con particiones reproducibles y evaluación numérica."""
+"""Supervised regression models with reproducible partitions and numerical evaluation."""
 
 from __future__ import annotations
 
 from ai_framework.utils.supervised.regression import metricas_regresion
-from .supervised import Supervisado
+from .supervised import Supervised
 
 
-class Regresion(Supervisado):
-    """Modelos numéricos de regresión que aprenden transformaciones sólo de train."""
+class Regression(Supervised):
+    """Numerical regression models learning preprocessing transformations only on train data."""
 
     def __init__(
         self, dataframe=None, ruta_datos=None, *, target=None, features=None, **kwargs
@@ -20,66 +20,58 @@ class Regresion(Supervisado):
             **kwargs,
         )
 
-    def lineal_simple(self, **kwargs):
-        """Ajusta un modelo de regresión lineal simple."""
+    def simple_linear_regression(self, **kwargs):
+        """Fit a simple linear regression model."""
         return self.entrenar(algoritmo="RLS", **kwargs)
 
-    def lineal_multiple(self, **kwargs):
-        """Ajusta un modelo de regresión lineal múltiple."""
+    def multiple_linear_regression(self, **kwargs):
+        """Fit a multiple linear regression model."""
         return self.entrenar(algoritmo="RLM", **kwargs)
 
     def lasso(self, **kwargs):
-        """Ajusta un modelo regularizado Lasso."""
+        """Fit a regularized Lasso model."""
         return self.entrenar(algoritmo="Lasso", **kwargs)
 
     def lasso_cv(self, **kwargs):
-        """Ajusta un modelo Lasso con validación cruzada interna."""
+        """Fit a Lasso model with internal cross-validation."""
         return self.entrenar(algoritmo="LassoCV", **kwargs)
 
     def ridge(self, **kwargs):
-        """Ajusta un modelo regularizado Ridge."""
+        """Fit a regularized Ridge model."""
         return self.entrenar(algoritmo="Ridge", **kwargs)
 
     def ridge_cv(self, **kwargs):
-        """Ajusta un modelo Ridge con validación cruzada interna."""
+        """Fit a Ridge model with internal cross-validation."""
         return self.entrenar(algoritmo="RidgeCV", **kwargs)
 
     def svr(self, **kwargs):
-        """Ajusta una máquina de vectores de soporte para regresión (SVR)."""
+        """Fit a Support Vector Regressor (SVR)."""
         return self.entrenar(algoritmo="SVR", **kwargs)
 
-    def arbol_decision(self, **kwargs):
-        """Ajusta un árbol de decisión para regresión."""
+    def decision_tree(self, **kwargs):
+        """Fit a regression decision tree."""
         return self.entrenar(algoritmo="DT", **kwargs)
 
     def random_forest(self, **kwargs):
-        """Ajusta un ensamble de bosques aleatorios para regresión."""
+        """Fit a random forest regressor ensemble."""
         return self.entrenar(algoritmo="RF", **kwargs)
-
-    # Alias pythonicos
-    RLS = lineal_simple
-    RLM = lineal_multiple
-    Lasso = lasso
-    LassoCV = lasso_cv
-    Ridge = ridge
-    RidgeCV = ridge_cv
-    SVR = svr
-    DT = dt = decision_tree = arbol_decision
-    RF = rf = random_forest
 
     def __str__(self) -> str:
         self._definir_target()
         base = (
-            "Clase Regresion\n"
+            "Class Regression\n"
             f"Target: {self.target} ({self._tipo_target()})\n"
             f"Features: {self._definir_features()}"
         )
         if self.r2 is not None:
             base += f"\nR²: {self.r2:.4f}"
         if self.exactitud is not None:
-            base += f"\nExactitud: {self.exactitud:.4f}"
+            base += f"\nAccuracy: {self.exactitud:.4f}"
         return base
 
 
-Regression = Regresion
-
+def __getattr__(name: str):
+    if name == "Regresion":
+        import ai_framework.utils.aliases as aliases
+        return aliases.Regresion
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

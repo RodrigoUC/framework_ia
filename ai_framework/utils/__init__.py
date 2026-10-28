@@ -58,6 +58,21 @@ from .supervised import (
 )
 from . import data, results, supervised, unsupervised, visualization
 
+
+def __getattr__(name: str):
+    if name in (
+        "Clasificacion",
+        "Regresion",
+        "Supervisado",
+        "NoSupervisado",
+        "Cluster",
+        "DependenciaOpcionalError",
+        "aliases",
+    ):
+        from . import aliases
+        return getattr(aliases, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 # Compatibility aliases
 datos = data
 no_supervisado = unsupervised

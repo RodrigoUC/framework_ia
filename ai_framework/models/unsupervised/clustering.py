@@ -8,7 +8,7 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
-from .unsupervised import DependenciaOpcionalError, NoSupervisado
+from .unsupervised import OptionalDependencyError, Unsupervised
 from ai_framework.utils.results import (
     ResultadoACP,
     ResultadoCluster,
@@ -26,7 +26,7 @@ from ai_framework.utils.unsupervised.cluster_evaluation import (
 from ai_framework.utils.unsupervised.k_medoids import ModeloKMedoids
 
 
-class Cluster(NoSupervisado):
+class Clustering(Unsupervised):
     """Ejecuta algoritmos de agrupamiento (K-Means, K-Medoids, HAC) y proyecciones (ACP, t-SNE, UMAP)."""
 
     def __init__(self, *args, **kwargs) -> None:
@@ -235,7 +235,7 @@ class Cluster(NoSupervisado):
         try:
             import umap.umap_ as umap
         except (ImportError, RuntimeError) as exc:
-            raise DependenciaOpcionalError(
+            raise OptionalDependencyError(
                 "No fue posible inicializar UMAP. Instale 'umap-learn' y "
                 "verifique que Numba tenga un directorio de caché escribible. "
                 f"Detalle técnico: {exc}"
@@ -271,14 +271,9 @@ class Cluster(NoSupervisado):
             modelo=modelo,
         )
 
-    # Alias pythonicos
-    k_means = K_means
-    k_medoids = K_medoids
-    hac = HAC
-    acp = ACP
-    tsne = TSNE
-    umap = UMAP
 
-
-Clustering = Cluster
-
+def __getattr__(name: str):
+    if name == "Cluster":
+        import ai_framework.utils.aliases as aliases
+        return aliases.Cluster
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

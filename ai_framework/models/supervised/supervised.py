@@ -30,7 +30,7 @@ from ai_framework.utils.supervised import (
 )
 
 
-class Supervisado(EDA):
+class Supervised(EDA):
     """Base común del aprendizaje supervisado.
 
     Proporciona validación estructural de ``target`` y ``features``, particiones
@@ -88,13 +88,13 @@ class Supervisado(EDA):
             return True
         if self.__class__.__name__ in ("Clasificacion", "Classification"):
             return False
-        from .regression import Regresion
+        from .regression import Regression
 
-        if isinstance(self, Regresion):
+        if isinstance(self, Regression):
             return True
-        from .classification import Clasificacion
+        from .classification import Classification
 
-        if isinstance(self, Clasificacion):
+        if isinstance(self, Classification):
             return False
         return self._tipo_target() == "regresion"
 
@@ -237,10 +237,10 @@ class Supervisado(EDA):
             "versiones": versiones,
         }
 
-    def _delegado_supervisado(self, algoritmo: str | None = None) -> "Supervisado":
+    def _delegado_supervisado(self, algoritmo: str | None = None) -> "Supervised":
         """Instancia la subclase correspondiente si se invoca Supervisado directamente."""
-        from .classification import Clasificacion
-        from .regression import Regresion
+        from .classification import Classification
+        from .regression import Regression
 
         if algoritmo is not None:
             alg_norm = str(algoritmo).strip().lower()
@@ -257,7 +257,7 @@ class Supervisado(EDA):
                 "regresion_logistica",
                 "logistic_regression",
             }:
-                return Clasificacion(
+                return Classification(
                     dataframe=self.datos, target=self.target, features=self.features
                 )
             if alg_norm in {
@@ -265,6 +265,8 @@ class Supervisado(EDA):
                 "rlm",
                 "lineal_simple",
                 "lineal_multiple",
+                "simple_linear_regression",
+                "multiple_linear_regression",
                 "lasso",
                 "lassocv",
                 "lasso_cv",
@@ -273,10 +275,10 @@ class Supervisado(EDA):
                 "ridge_cv",
                 "svr",
             }:
-                return Regresion(
+                return Regression(
                     dataframe=self.datos, target=self.target, features=self.features
                 )
-        clase = Regresion if self._tipo_target() == "regresion" else Clasificacion
+        clase = Regression if self._tipo_target() == "regresion" else Classification
         return clase(dataframe=self.datos, target=self.target, features=self.features)
 
     def _normalizar_algoritmo(self, algoritmo: str | None) -> str:
@@ -289,9 +291,9 @@ class Supervisado(EDA):
                 "logistic_regression",
                 "logisticregression",
             }:
-                from .classification import Clasificacion
+                from .classification import Classification
 
-                return Clasificacion(
+                return Classification(
                     dataframe=self.datos, target=self.target, features=self.features
                 ).RL
             return normalizar_algoritmo_regresion(alg)
@@ -403,7 +405,7 @@ class Supervisado(EDA):
         **kwargs,
     ):
         """Orquesta el flujo común de entrenamiento supervisado sin fuga de datos."""
-        if type(self) is Supervisado:
+        if type(self) is Supervised:
             delegado = self._delegado_supervisado(algoritmo)
             if type(delegado) is type(self):
                 raise ValueError("Especifique una subclase o algoritmo supervisado válido.")
@@ -473,7 +475,7 @@ class Supervisado(EDA):
 
     def experimentar(self, *args, **kwargs):
         """Ejecuta un experimento comparativo supervisado sin fuga de datos."""
-        if type(self) is Supervisado:
+        if type(self) is Supervised:
             delegado = self._delegado_supervisado()
             if type(delegado) is type(self):
                 raise ValueError("Especifique una subclase supervisada válida.")
@@ -578,11 +580,14 @@ class Supervisado(EDA):
     def __str__(self) -> str:
         self._definir_target()
         return (
-            "Clase Supervisado\n"
+            "Class Supervised\n"
             f"Target: {self.target} ({self._tipo_target()})\n"
             f"Features: {self._definir_features()}"
         )
 
 
-Supervised = Supervisado
-
+def __getattr__(name: str):
+    if name == "Supervisado":
+        import ai_framework.utils.aliases as aliases
+        return aliases.Supervisado
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

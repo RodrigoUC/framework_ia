@@ -12,11 +12,11 @@ from ai_framework.utils.results import DatosPreparados
 from ai_framework.utils import ConfiguracionPreprocesamiento
 
 
-class DependenciaOpcionalError(ImportError):
+class OptionalDependencyError(ImportError):
     """Indica que una capacidad opcional requiere instalar una dependencia."""
 
 
-class NoSupervisado(EDA):
+class Unsupervised(EDA):
     """Clase base para análisis no supervisados: preprocesamiento y benchmark."""
 
     def __init__(
@@ -85,6 +85,8 @@ class NoSupervisado(EDA):
         )
 
 
-Unsupervised = NoSupervisado
-OptionalDependencyError = DependenciaOpcionalError
-
+def __getattr__(name: str):
+    if name in ("NoSupervisado", "DependenciaOpcionalError"):
+        import ai_framework.utils.aliases as aliases
+        return getattr(aliases, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

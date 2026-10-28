@@ -5,9 +5,9 @@ from __future__ import annotations
 import sys
 
 from . import classification, regression, supervised
-from .classification import Clasificacion, Classification
-from .regression import Regresion, Regression
-from .supervised import Supervisado, Supervised
+from .classification import Classification
+from .regression import Regression
+from .supervised import Supervised
 
 clasificacion = classification
 regresion = regression
@@ -30,13 +30,21 @@ sys.modules[__name__ + ".experimentos"] = experiments
 sys.modules[__name__ + ".experimentos_regresion"] = experiments
 sys.modules[__name__ + ".validacion_cruzada"] = cross_validation
 
+
+def __getattr__(name: str):
+    if name in ("Clasificacion", "Regresion", "Supervisado"):
+        import ai_framework.utils.aliases as aliases
+        return getattr(aliases, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 __all__ = [
     "Supervised",
     "Classification",
     "Regression",
-    "Supervisado",
     "Clasificacion",
     "Regresion",
+    "Supervisado",
     "regression_algorithms",
     "experiments",
     "cross_validation",
