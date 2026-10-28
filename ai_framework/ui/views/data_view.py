@@ -125,54 +125,37 @@ def _formatear_error_fuente(exc: Exception, configuracion: ConfiguracionCSV | No
 
 
 def _verificar_calidad_carga_csv(datos: pd.DataFrame | None, separador: str) -> str | None:
-    """Verifica si el dataset parece haber sido cargado incorrectamente por un separador erróneo."""
-    lang = obtener_idioma()
-    if datos is None or datos.empty:
+    """Verifica si el dataset parece haber sido cargado con un separador erróneo."""
+    if datos is None or datos.empty or datos.shape[1] > 1:
         return None
 
-    if datos.shape[1] == 1:
-        col = str(datos.columns[0])
-        valores_muestra = [str(v) for v in datos.iloc[:10, 0].dropna()]
-        muestra = col + " " + " ".join(valores_muestra)
+    lang = obtener_idioma()
+    col = str(datos.columns[0])
+    valores_muestra = [str(v) for v in datos.iloc[:10, 0].dropna()]
+    muestra = col + " " + " ".join(valores_muestra)
 
-        delimitadores = [
-            (",", "coma (,)", "comma (,)"),
-            (";", "punto y coma (;)", "semicolon (;)"),
-            ("\t", "tabulación (\\t)", "tab (\\t)"),
-            ("|", "barra vertical (|)", "pipe (|)"),
-        ]
+    delimitadores = [
+        (",", "coma (,)", "comma (,)"),
+        (";", "punto y coma (;)", "semicolon (;)"),
+        ("\t", "tabulación (\\t)", "tab (\\t)"),
+        ("|", "barra vertical (|)", "pipe (|)"),
+    ]
 
-        detectado = None
-        for delim, nom_es, nom_en in delimitadores:
-            if delim != separador and delim in muestra:
-                if muestra.count(delim) >= 2:
-                    detectado = nom_en if lang == "en" else nom_es
-                    break
+    detectado = None
+    for delim, nom_es, nom_en in delimitadores:
+        if delim != separador and delim in muestra:
+            if muestra.count(delim) >= 2:
+                detectado = nom_en if lang == "en" else nom_es
+                break
 
-        col_corta = col if len(col) <= 50 else col[:47] + "..."
-        if detectado:
-            if lang == "en":
-                return (
-                    f"Warning: The dataset was loaded with only 1 column ('{col_corta}'). "
-                    f"The current delimiter '{separador}' appears to be incorrect because {detectado} was detected in the content. "
-                    "Please update the delimiter and click 'Apply source'."
-                )
-            return (
-                f"Advertencia: El dataset se cargó con 1 sola columna («{col_corta}»). "
-                f"El separador actual «{separador}» parece incorrecto ya que se detectó {detectado} en el contenido. "
-                "Actualice el separador y pulse «Aplicar fuente»."
-            )
-        else:
-            if lang == "en":
-                return (
-                    f"Warning: The dataset was loaded with only 1 column ('{col_corta}'). "
-                    f"Please verify that the delimiter '{separador}' is correct for this CSV file."
-                )
-            return (
-                f"Advertencia: El dataset se cargó con 1 sola columna («{col_corta}»). "
-                f"Verifique si el separador «{separador}» es el correcto para este archivo CSV."
-            )
-    return None
+    if detectado:
+        if lang == "en":
+            return f"Possibly incorrect delimiter: {detectado} detected in file."
+        return f"Separador posiblemente incorrecto: se detectó {detectado} en el archivo."
+
+    if lang == "en":
+        return "The file was loaded with only one column. Please check the delimiter."
+    return "El archivo se cargó con una sola columna. Verifique el separador."
 
 
 def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
@@ -200,7 +183,10 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     "No fue posible cargar el CSV inicial. Elija otra fuente y "
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
-            if st.session_state.get("advertencia_fuente"):
+            fuente_actual = st.session_state.get("fuente_aplicada")
+            if fuente_actual and fuente_actual[0] is not None and fuente_actual[0].shape[1] > 1:
+                st.session_state.pop("advertencia_fuente", None)
+            elif st.session_state.get("advertencia_fuente"):
                 st.warning(st.session_state["advertencia_fuente"])
 
             opciones_origen = ["CSV local", "Subir CSV", "Diabetes (referencia)"]
@@ -325,7 +311,10 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
 
 def _render_dataset() -> None:
     """Permite preparar, restaurar y exportar el dataset persistente."""
-    if st.session_state.get("advertencia_fuente"):
+    fuente_actual = st.session_state.get("fuente_aplicada")
+    if fuente_actual and fuente_actual[0] is not None and fuente_actual[0].shape[1] > 1:
+        st.session_state.pop("advertencia_fuente", None)
+    elif st.session_state.get("advertencia_fuente"):
         st.warning(st.session_state["advertencia_fuente"])
     original = st.session_state["dataset_original"]
     actual = st.session_state["dataset_preparado"]

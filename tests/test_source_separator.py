@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 import pandas as pd
 from ai_framework.data.sources import ConfiguracionCSV
 from ai_framework.ui.views.data_view import (
@@ -40,7 +39,7 @@ def test_verificar_calidad_carga_csv_detecta_coma():
     })
     adv = _verificar_calidad_carga_csv(df, ";")
     assert adv is not None
-    assert "1 sola columna" in adv
+    assert "Separador posiblemente incorrecto" in adv
     assert "coma (,)" in adv
 
 
