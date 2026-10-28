@@ -1,13 +1,23 @@
-"""Algoritmos de agrupamiento (clustering): K-Means, K-Medoids y HAC."""
+"""Algoritmos de agrupamiento y proyecciones no supervisadas: K-Means, K-Medoids, HAC, ACP, t-SNE y UMAP."""
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 
-from .no_supervisados import NoSupervisado
-from ...resultados import ResultadoCluster
+from .no_supervisados import DependenciaOpcionalError, NoSupervisado
+from ...resultados import (
+    ResultadoACP,
+    ResultadoCluster,
+    ResultadoProyeccion,
+)
+from ...utils import (
+    configurar_cache_numba,
+    crear_tsne,
+)
 from ...utils.evaluacion_cluster import (
     calcular_centroides,
     construir_resultado_cluster,
@@ -17,7 +27,7 @@ from ...utils.k_medoids import ModeloKMedoids
 
 
 class Cluster(NoSupervisado):
-    """Ejecuta algoritmos de agrupamiento: K-Means, K-Medoids y HAC."""
+    """Ejecuta algoritmos de agrupamiento (K-Means, K-Medoids, HAC) y proyecciones (ACP, t-SNE, UMAP)."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -148,12 +158,128 @@ class Cluster(NoSupervisado):
         )
         return resultado
 
-    def ajustar(self, algoritmo: str = "KMEANS", **kwargs) -> ResultadoCluster:
+    def ACP(self, n_componentes: int = 2) -> ResultadoACP:
+        """Calcula componentes principales, cargas y varianza explicada."""
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        maximo = min(matriz.shape)
+        if not 1 <= n_componentes <= maximo:
+            raise ValueError(f"n_componentes debe estar entre 1 y {maximo}.")
+
+        modelo = PCA(n_components=n_componentes)
+        valores = modelo.fit_transform(matriz)
+        nombres = [f"CP{i + 1}" for i in range(n_componentes)]
+        coordenadas = pd.DataFrame(valores, index=matriz.index, columns=nombres)
+
+        cargas_np = modelo.components_.T * np.sqrt(modelo.explained_variance_)
+        cargas = pd.DataFrame(cargas_np, index=matriz.columns, columns=nombres)
+        varianza = pd.Series(
+            modelo.explained_variance_ratio_ * 100,
+            index=nombres,
+            name="varianza_explicada_porcentaje",
+        )
+        acumulada = varianza.cumsum().rename("varianza_acumulada_porcentaje")
+        self.modelo = modelo
+        return ResultadoACP(
+            coordenadas=coordenadas,
+            cargas=cargas,
+            varianza_explicada=varianza,
+            varianza_acumulada=acumulada,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def TSNE(
+        self,
+        *,
+        perplexity: float = 30.0,
+        max_iter: int = 1000,
+        random_state: int = 42,
+    ) -> ResultadoProyeccion:
+        """Genera una proyección t-SNE bidimensional."""
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        if len(matriz) < 3:
+            raise ValueError("t-SNE requiere al menos tres filas.")
+        if not 1 <= perplexity < len(matriz):
+            raise ValueError(
+                f"perplexity debe ser menor que el número de filas ({len(matriz)})."
+            )
+
+        modelo = crear_tsne(
+            perplexity=perplexity, max_iter=max_iter, random_state=random_state
+        )
+        valores = modelo.fit_transform(matriz)
+        coordenadas = pd.DataFrame(
+            valores,
+            index=matriz.index,
+            columns=["TSNE1", "TSNE2"],
+        )
+        self.modelo = modelo
+        return ResultadoProyeccion(
+            algoritmo="t-SNE",
+            coordenadas=coordenadas,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def UMAP(
+        self,
+        *,
+        n_neighbors: int = 15,
+        min_dist: float = 0.1,
+        random_state: int = 42,
+    ) -> ResultadoProyeccion:
+        """Genera una proyección UMAP bidimensional reproducible."""
+        configurar_cache_numba()
+        try:
+            import umap.umap_ as umap
+        except (ImportError, RuntimeError) as exc:
+            raise DependenciaOpcionalError(
+                "No fue posible inicializar UMAP. Instale 'umap-learn' y "
+                "verifique que Numba tenga un directorio de caché escribible. "
+                f"Detalle técnico: {exc}"
+            ) from exc
+
+        preparados = self.preparar_matriz()
+        matriz = preparados.matriz
+        if len(matriz) < 3:
+            raise ValueError("UMAP requiere al menos tres filas.")
+        if not 2 <= n_neighbors < len(matriz):
+            raise ValueError(
+                f"n_neighbors debe estar entre 2 y {len(matriz) - 1}."
+            )
+
+        modelo = umap.UMAP(
+            n_components=2,
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            random_state=random_state,
+            n_jobs=1,
+        )
+        valores = modelo.fit_transform(matriz)
+        coordenadas = pd.DataFrame(
+            valores,
+            index=matriz.index,
+            columns=["UMAP1", "UMAP2"],
+        )
+        self.modelo = modelo
+        return ResultadoProyeccion(
+            algoritmo="UMAP",
+            coordenadas=coordenadas,
+            datos_preparados=preparados,
+            modelo=modelo,
+        )
+
+    def ajustar(self, algoritmo: str = "KMEANS", **kwargs):
         """Despacha el algoritmo solicitado a través de una interfaz común."""
         metodos = {
             "KMEANS": self.K_means,
             "KMEDOIDS": self.K_medoids,
             "HAC": self.HAC,
+            "ACP": self.ACP,
+            "TSNE": self.TSNE,
+            "UMAP": self.UMAP,
         }
         clave = algoritmo.upper().replace("-", "").replace("_", "")
         if clave not in metodos:
@@ -164,4 +290,7 @@ class Cluster(NoSupervisado):
     k_means = K_means
     k_medoids = K_medoids
     hac = HAC
+    acp = ACP
+    tsne = TSNE
+    umap = UMAP
     fit = ajustar
