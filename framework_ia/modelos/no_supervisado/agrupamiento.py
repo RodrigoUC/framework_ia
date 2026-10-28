@@ -271,21 +271,6 @@ class Cluster(NoSupervisado):
             modelo=modelo,
         )
 
-    def ajustar(self, algoritmo: str = "KMEANS", **kwargs):
-        """Despacha el algoritmo solicitado a través de una interfaz común."""
-        metodos = {
-            "KMEANS": self.K_means,
-            "KMEDOIDS": self.K_medoids,
-            "HAC": self.HAC,
-            "ACP": self.ACP,
-            "TSNE": self.TSNE,
-            "UMAP": self.UMAP,
-        }
-        clave = algoritmo.upper().replace("-", "").replace("_", "")
-        if clave not in metodos:
-            raise ValueError(f"Algoritmo no soportado: {algoritmo}")
-        return metodos[clave](**kwargs)
-
     # Alias pythonicos
     k_means = K_means
     k_medoids = K_medoids
@@ -293,4 +278,3 @@ class Cluster(NoSupervisado):
     acp = ACP
     tsne = TSNE
     umap = UMAP
-    fit = ajustar

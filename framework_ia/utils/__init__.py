@@ -31,6 +31,11 @@ from .evaluacion_cluster import (
     validar_numero_clusters,
 )
 from .k_medoids import ModeloKMedoids
+from .no_supervisado import (
+    ALGORITMOS_CLUSTERING_COMPARACION,
+    comparar_algoritmos_clustering,
+    despachar_algoritmo,
+)
 from .supervisado import (
     algoritmos_regresion,
     clasificacion as utils_clasificacion,
@@ -41,6 +46,7 @@ from .supervisado import (
 
 __all__ = [
     "ALGORITMOS_CLASIFICACION",
+    "ALGORITMOS_CLUSTERING_COMPARACION",
     "ALGORITMOS_LAB2",
     "ALGORITMOS_LAB3",
     "ALGORITMOS_REGRESION",
@@ -57,12 +63,14 @@ __all__ = [
     "NOMBRES_REGRESORES",
     "calcular_centroides",
     "color_texto_por_luminancia",
+    "comparar_algoritmos_clustering",
     "configuraciones_experimento",
     "configuraciones_experimento_regresion",
     "configurar_cache_numba",
     "construir_resultado_cluster",
     "crear_codificador_denso",
     "crear_tsne",
+    "despachar_algoritmo",
     "evaluar_hac",
     "evaluar_kmeans",
     "validar_numero_clusters",

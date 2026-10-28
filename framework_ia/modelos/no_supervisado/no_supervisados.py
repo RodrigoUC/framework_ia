@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -18,7 +16,7 @@ class DependenciaOpcionalError(ImportError):
     """Indica que una capacidad opcional requiere instalar una dependencia."""
 
 
-class NoSupervisado(EDA, ABC):
+class NoSupervisado(EDA):
     """Clase base para análisis no supervisados: preprocesamiento y benchmark."""
 
     def __init__(
@@ -85,7 +83,3 @@ class NoSupervisado(EDA, ABC):
                 "silhouette": silhouette,
             }
         )
-
-    @abstractmethod
-    def ajustar(self, *args, **kwargs):
-        """Ajusta el algoritmo implementado por la subclase."""
