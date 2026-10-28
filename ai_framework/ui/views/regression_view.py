@@ -70,10 +70,10 @@ def mostrar_resultado_modelo(
     with st.expander("Contexto ejecutado, parámetros y trazabilidad"):
         tab_params, tab_meta, tab_args, tab_data = _obtener_pestanas(
             [
-                "⚙️ Parámetros del modelo",
-                "📋 Metadatos",
-                "🔧 Argumentos de ejecución",
-                "📊 Información del dataset",
+                "Parámetros del modelo",
+                "Metadatos",
+                "Argumentos de ejecución",
+                "Información del dataset",
             ]
         )
         with tab_params:

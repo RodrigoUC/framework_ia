@@ -113,7 +113,6 @@ def main() -> None:
         st.button(
             t("actualizar_graficos", "Actualizar gráficos"),
             key="actualizar_graficos",
-            icon=":material/refresh:",
             help=t(
                 "actualizar_graficos_help",
                 "Úselo después de cambiar el tema en Configuración para "

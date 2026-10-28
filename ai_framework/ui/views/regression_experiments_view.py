@@ -108,9 +108,9 @@ def mostrar_experimento_guardado(
     with st.expander("Selecciones por familia y contexto ejecutado"):
         tab_meta, tab_args, tab_data = _obtener_pestanas(
             [
-                "📋 Metadatos del experimento",
-                "🔧 Argumentos de ejecución",
-                "📊 Información del dataset",
+                "Metadatos del experimento",
+                "Argumentos de ejecución",
+                "Información del dataset",
             ]
         )
         with tab_meta:

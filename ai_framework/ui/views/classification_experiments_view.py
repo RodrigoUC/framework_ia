@@ -321,7 +321,7 @@ def render_resultado_experimento(
         st.error(f"Prueba de {algoritmo}: {detalle}")
     if resultado.mejor_algoritmo:
         st.info(
-            f"🏆 **Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
+            f"**Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
         )
     st.markdown("#### Prueba reservada · ganadores seleccionados")
     _mostrar_dataframe(
@@ -473,7 +473,7 @@ def _descargas(
         )
         with st.expander("Configuración ejecutada y reproducibilidad"):
             tab_meta, tab_fuente = _obtener_pestanas(
-                ["📋 Metadatos del experimento", "📁 Fuente de datos"]
+                ["Metadatos del experimento", "Fuente de datos"]
             )
             with tab_meta:
                 render_tabla_clave_valor(

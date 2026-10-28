@@ -330,7 +330,7 @@ def _diagnostico(
             )
     with st.expander("Parámetros y metadatos"):
         tab_params, tab_meta = _obtener_pestanas(
-            ["⚙️ Parámetros del modelo", "📋 Metadatos de ejecución"]
+            ["Parámetros del modelo", "Metadatos de ejecución"]
         )
         with tab_params:
             render_tabla_clave_valor(
