@@ -517,6 +517,29 @@ class VisualizadorDatos:
     def tipos_columnas(tabla: pd.DataFrame) -> go.Figure:
         """Grafica la cantidad de columnas numéricas frente a categóricas."""
         conteo = tabla["tipo"].value_counts()
+        try:
+            from ai_framework.ui.i18n import obtener_idioma
+            lang = obtener_idioma()
+        except Exception:
+            lang = "es"
+        if lang == "en":
+            etiquetas_map = {"Numérica": "Numerical", "Categórica": "Categorical"}
+            nombres = [etiquetas_map.get(k, k) for k in conteo.index]
+            figura = px.pie(
+                names=nombres,
+                values=conteo.values,
+                color=nombres,
+                color_discrete_map={
+                    "Numerical": COLOR_PRIMARIO,
+                    "Categorical": COLOR_SECUNDARIO,
+                    "Numérica": COLOR_PRIMARIO,
+                    "Categórica": COLOR_SECUNDARIO,
+                },
+                hole=0.45,
+            )
+            figura.update_traces(textinfo="label+value")
+            figura.update_layout(title="Column types")
+            return figura
         figura = px.pie(
             names=conteo.index,
             values=conteo.values,

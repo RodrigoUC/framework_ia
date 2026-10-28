@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.data.eda import EDA
 from ai_framework.ui.controllers.sources_controller import _usar_particion
@@ -42,18 +43,18 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
         )
         return
     target = st.selectbox(
-        "Variable objetivo (target)",
+        t("cfg_target", "Variable objetivo (target)"),
         datos.columns.tolist(),
         key="sup_target",
         persist_state="session",
     )
     st.multiselect(
-        "Variables predictoras",
+        t("cfg_features", "Variables predictoras"),
         [col for col in datos if col != target],
         key="sup_features",
         persist_state="session",
     )
-    with st.expander("Distribución del objetivo"):
+    with st.expander(t("cfg_distribucion_target", "Distribución del objetivo")): 
         serie = datos[target]
         st.caption(f"Filas: {len(serie)} · Nulos: {int(serie.isna().sum())}")
         if tarea == "clasificacion":
@@ -79,12 +80,12 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
             include="number"
         )
         st.selectbox(
-            "Predictor de regresión lineal simple",
+            t("cfg_feature_simple", "Predictor de regresión lineal simple"),
             simples.columns.tolist(),
             key="sup_feature_simple",
             persist_state="session",
         )
-    st.markdown("#### Partición y reproducibilidad")
+    st.markdown(f"#### {t('cfg_particion_reproducibilidad', 'Partición y reproducibilidad')}")
     if st.session_state.get("sup_aviso_particion"):
         st.info(st.session_state["sup_aviso_particion"])
     externa = bool(
@@ -92,7 +93,7 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
         and st.session_state.get("sup_usar_particion_global")
     )
     st.slider(
-        "Tamaño de prueba (%)",
+        t("cfg_test_size", "Tamaño de prueba (%)"),
         10,
         60,
         step=5,
@@ -101,7 +102,7 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
         disabled=externa,
     )
     st.number_input(
-        "Semilla",
+        t("cfg_random_state", "Semilla"),
         min_value=0,
         max_value=10_000,
         step=1,
@@ -111,23 +112,23 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
     )
     if tarea == "clasificacion":
         st.checkbox(
-            "Estratificar por target",
+            t("cfg_estratificar", "Estratificar por target"),
             key="sup_strat",
             persist_state="session",
             disabled=externa,
         )
     if st.session_state.get("particion_global") is not None:
         st.checkbox(
-            "Usar partición calculada",
+            t("cfg_usar_particion", "Usar partición calculada"),
             key="sup_usar_particion_global",
             persist_state="session",
             on_change=_usar_particion,
         )
-    st.markdown("#### Preparación aprendida solo con entrenamiento")
+    st.markdown(f"#### {t('cfg_prep_entrenamiento', 'Preparación aprendida solo con entrenamiento')}")
     for etiqueta, clave in (
-        ("Codificar categóricas", "incluir_categoricas"),
-        ("Imputar nulos de predictores", "imputar"),
-        ("Escalar predictores numéricos", "escalar"),
+        (t("cfg_codificar_cat", "Codificar categóricas"), "incluir_categoricas"),
+        (t("cfg_imputar", "Imputar nulos de predictores"), "imputar"),
+        (t("cfg_escalar", "Escalar predictores numéricos"), "escalar"),
     ):
         st.checkbox(etiqueta, key=f"sup_{clave}", persist_state="session")
 
@@ -151,7 +152,7 @@ def configurar_regresion(datos: pd.DataFrame) -> dict | None:
 
 def _configurar_modelos(datos: pd.DataFrame) -> dict:
     """Recopila una configuración común para todos los modelos no supervisados."""
-    st.markdown("### Configuración del análisis")
+    st.markdown(f"### {t('cfg_analisis_titulo', 'Configuración del análisis')}")
     incluir_categoricas = st.checkbox(
         "Codificar variables categóricas",
         value=False,

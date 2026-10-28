@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 import streamlit as st
+from ai_framework.ui.i18n import t
 
 from ai_framework.datasets.diabetes import cargar_diabetes_regresion
 from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
@@ -110,12 +111,13 @@ def main() -> None:
 
     with st.sidebar:
         st.button(
-            "Actualizar gráficos",
+            t("actualizar_graficos", "Actualizar gráficos"),
             key="actualizar_graficos",
             icon=":material/refresh:",
-            help=(
+            help=t(
+                "actualizar_graficos_help",
                 "Úselo después de cambiar el tema en Configuración para "
-                "actualizar los colores de gráficos y estilos."
+                "actualizar los colores de gráficos y estilos.",
             ),
             use_container_width=True,
         )

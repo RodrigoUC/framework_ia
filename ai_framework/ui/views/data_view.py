@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from ai_framework.ui.i18n import t, obtener_idioma
 
 from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
 from ai_framework.data.eda import EDA
@@ -96,16 +97,23 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
             error_inicio = str(exc)
 
     with st.sidebar:
-        with st.expander("Fuente de datos", expanded=False):
+        with st.expander(t("fuente_titulo", "Fuente de datos"), expanded=False):
             if error_inicio:
                 st.error(
                     "No fue posible cargar el CSV inicial. Elija otra fuente y "
                     f"pulse «Aplicar fuente». Detalle: {error_inicio}"
                 )
 
+            opciones_origen = ["CSV local", "Subir CSV", "Diabetes (referencia)"]
+            labels_origen = {
+                "CSV local": t("fuente_csv_local", "CSV local"),
+                "Subir CSV": t("fuente_subir_csv", "Subir CSV"),
+                "Diabetes (referencia)": t("fuente_diabetes_ref", "Diabetes (referencia)"),
+            }
             origen = st.radio(
-                "Origen",
-                ["CSV local", "Subir CSV", "Diabetes (referencia)"],
+                t("fuente_origen_label", "Origen"),
+                opciones_origen,
+                format_func=lambda opt: labels_origen.get(opt, opt),
                 key="fuente_origen",
             )
             with st.form("form_fuente_datos"):
@@ -115,13 +123,13 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                     st.caption("Referencia de regresión scikit-learn (442 filas).")
                 else:
                     separador = st.text_input(
-                        "Separador",
+                        t("fuente_separador", "Separador"),
                         value=",",
                         max_chars=3,
                         key="fuente_separador",
                     )
                     decimal = st.text_input(
-                        "Separador decimal",
+                        t("fuente_separador_decimal", "Separador decimal"),
                         value=".",
                         max_chars=1,
                         key="fuente_decimal",
@@ -158,7 +166,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                             "Archivo CSV", type=["csv"], key="fuente_upload"
                         )
                 aplicar = st.form_submit_button(
-                    "Aplicar fuente", type="primary"
+                    t("fuente_aplicar", "Aplicar fuente"), type="primary"
                 )
 
             if aplicar:
@@ -205,24 +213,32 @@ def _render_dataset() -> None:
     """Permite preparar, restaurar y exportar el dataset persistente."""
     original = st.session_state["dataset_original"]
     actual = st.session_state["dataset_preparado"]
-    st.markdown("### Preparación del dataset")
+    st.markdown(f"### {t('prep_dataset', 'Preparación del dataset')}")
 
-    st.markdown("#### Tipos de columna")
+    st.markdown(f"#### {t('prep_tipos_columna', 'Tipos de columna')}")
     tabla_tipos = EDA(dataframe=actual).resumen_columnas()
     tabla_col, grafico_col = st.columns([3, 2])
     with tabla_col:
-        st.dataframe(tabla_tipos, width="stretch")
+        lang = obtener_idioma()
+        if lang == "en":
+            tabla_vista = tabla_tipos.copy()
+            tabla_vista["tipo"] = tabla_vista["tipo"].replace({"Numérica": "Numerical", "Categórica": "Categorical"})
+            tabla_vista.index.name = "column"
+            tabla_vista.columns = ["dtype", "type", "nulls", "null_percentage", "unique_values"]
+            st.dataframe(tabla_vista, width="stretch")
+        else:
+            st.dataframe(tabla_tipos, width="stretch")
     with grafico_col:
         _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
 
-    st.markdown("#### Preparación y limpieza")
+    st.markdown(f"#### {t('prep_limpieza', 'Preparación y limpieza')}")
     columnas_eliminar = st.multiselect(
-        "Columnas a eliminar",
+        t("prep_columnas_eliminar", "Columnas a eliminar"),
         options=original.columns.tolist(),
         default=[],
         key="dataset_columnas_eliminar",
         persist_state="session",
-        help="Se descartan del dataset original antes de aplicar el resto de la preparación.",
+        help=t("prep_columnas_eliminar_help", "Se descartan del dataset original antes de aplicar el resto de la preparación."),
     )
     retenidas = [col for col in original if col not in columnas_eliminar]
     seleccion_nulos = st.session_state.get("dataset_columnas_sin_nulos", [])
@@ -231,7 +247,7 @@ def _render_dataset() -> None:
             col for col in seleccion_nulos if col in retenidas
         ]
     columnas_sin_nulos = st.multiselect(
-        "Eliminar filas con nulos en estas columnas",
+        t("prep_filas_sin_nulos", "Eliminar filas con nulos en estas columnas"),
         options=retenidas,
         default=[],
         key="dataset_columnas_sin_nulos",
@@ -244,27 +260,34 @@ def _render_dataset() -> None:
             f"El filtro eliminará {eliminadas} de {len(original)} filas antes de quitar duplicados. Se aplica siempre sobre el original."
         )
     eliminar_duplicados = st.checkbox(
-        "Eliminar duplicados",
+        t("prep_eliminar_duplicados", "Eliminar duplicados"),
         value=True,
         key="dataset_eliminar_duplicados",
         persist_state="session",
     )
-    with st.expander("Transformaciones globales · solo exploración y clustering"):
+    with st.expander(t("prep_transf_globales", "Transformaciones globales · solo exploración y clustering")):
         imputar_nulos = st.checkbox(
-            "Imputar valores nulos",
+            t("prep_imputar_nulos", "Imputar valores nulos"),
             value=False,
             key="dataset_imputar",
             persist_state="session",
         )
+        opciones_escalado = ["Ninguno", "Normalizar", "Estandarizar"]
+        escalado_labels = {
+            "Ninguno": t("prep_escalado_ninguno", "Ninguno"),
+            "Normalizar": t("prep_escalado_normalizar", "Normalizar"),
+            "Estandarizar": t("prep_escalado_estandarizar", "Estandarizar"),
+        }
         escalado = st.selectbox(
-            "Escalado permanente",
-            options=["Ninguno", "Normalizar", "Estandarizar"],
+            t("prep_escalado", "Escalado permanente"),
+            options=opciones_escalado,
+            format_func=lambda opt: escalado_labels.get(opt, opt),
             key="dataset_escalado",
             persist_state="session",
         )
 
     accion, restaurar = st.columns(2)
-    if accion.button("Aplicar preparación", type="primary"):
+    if accion.button(t("prep_aplicar", "Aplicar preparación"), type="primary"):
         try:
             eda = EDA(dataframe=original)
             preparado = eda.preparar_dataset(
@@ -287,7 +310,7 @@ def _render_dataset() -> None:
         except Exception as exc:
             st.error(f"No fue posible preparar el dataset: {exc}")
 
-    if restaurar.button("Restaurar dataset original"):
+    if restaurar.button(t("prep_restaurar", "Restaurar dataset original")):
         st.session_state["dataset_preparado"] = original.copy()
         st.session_state.pop("dataset_preparacion", None)
         _limpiar_resultados()
@@ -302,7 +325,7 @@ def _render_dataset() -> None:
         )
     st.dataframe(actual, width="stretch")
     st.download_button(
-        "Descargar dataset actual",
+        t("prep_descargar", "Descargar dataset actual"),
         data=actual.to_csv(index=False).encode("utf-8"),
         file_name="dataset_preparado.csv",
         mime="text/csv",
@@ -311,7 +334,7 @@ def _render_dataset() -> None:
 
 def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
     """Calcula una partición train/test/validación reutilizable en el framework."""
-    st.markdown("#### División en entrenamiento y prueba")
+    st.markdown(f"#### {t('prep_division_titulo', 'División en entrenamiento y prueba')}")
     st.caption(
         "La partición calculada aquí queda disponible para Clasificación y "
         "Regresión, que pueden reutilizarla en vez de dividir los datos de nuevo."
@@ -345,7 +368,7 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
     semilla = st.session_state["sup_random_state"]
 
     if st.button(
-        "Calcular partición", type="primary", key="particion_calcular"
+        t("prep_calcular_particion", "Calcular partición"), type="primary", key="particion_calcular"
     ):
         try:
             cfg = ConfiguracionParticion(

@@ -101,6 +101,59 @@ TEXTOS = {
         "cfg_escalar": "Escalar características numéricas",
         "cfg_imputar": "Imputar valores faltantes",
         "cfg_estratificar": "Partición estratificada",
+        # General & Breadcrumbs
+        "dataset_activo": "Dataset activo",
+        "configurar_tarea": "Configurar tarea",
+        "flujo_continuar_modelo": "Continuar a un modelo",
+        "flujo_revisar_config": "Revisar configuración",
+        "flujo_revisar_resultados": "Revisar resultados guardados",
+        
+        # Metrics
+        "metric_filas": "Filas",
+        "metric_columnas": "Columnas",
+        "metric_duplicados": "Duplicados",
+        "metric_nulos": "Nulos",
+        "metric_porcentaje_nulos": "Porcentaje Nulos",
+        "metric_numericas": "Numéricas",
+        "metric_categoricas": "Categóricas",
+        "metric_outliers_criticos": "Outliers Críticos",
+
+        # Data Preparation
+        "prep_dataset": "Preparación del dataset",
+        "prep_tipos_columna": "Tipos de columna",
+        "prep_limpieza": "Preparación y limpieza",
+        "prep_columnas_eliminar": "Columnas a eliminar",
+        "prep_columnas_eliminar_help": "Se descartan del dataset original antes de aplicar el resto de la preparación.",
+        "prep_filas_sin_nulos": "Eliminar filas con nulos en estas columnas",
+        "prep_filas_sin_nulos_help": "Se elimina la fila completa si falta un valor en alguna columna seleccionada. El objetivo sólo se filtra si lo selecciona; no se rellena ni se deduce automáticamente.",
+        "prep_eliminar_duplicados": "Eliminar duplicados",
+        "prep_transf_globales": "Transformaciones globales · solo exploración y clustering",
+        "prep_imputar_nulos": "Imputar valores nulos",
+        "prep_escalado": "Escalado permanente",
+        "prep_escalado_ninguno": "Ninguno",
+        "prep_escalado_normalizar": "Normalizar",
+        "prep_escalado_estandarizar": "Estandarizar",
+        "prep_aplicar": "Aplicar preparación",
+        "prep_restaurar": "Restaurar dataset original",
+        "prep_descargar": "Descargar dataset actual",
+        "prep_division_titulo": "División en entrenamiento y prueba",
+        "prep_calcular_particion": "Calcular partición",
+
+        # Source
+        "fuente_origen_label": "Origen",
+        "fuente_csv_local": "CSV local",
+        "fuente_subir_csv": "Subir CSV",
+        "fuente_diabetes_ref": "Diabetes (referencia)",
+        "fuente_separador_decimal": "Separador decimal",
+
+        # Supervised Configuration
+        "cfg_distribucion_target": "Distribución del objetivo",
+        "cfg_feature_simple": "Predictor de regresión lineal simple",
+        "cfg_particion_reproducibilidad": "Partición y reproducibilidad",
+        "cfg_usar_particion": "Usar partición calculada",
+        "cfg_prep_entrenamiento": "Preparación aprendida solo con entrenamiento",
+        "cfg_codificar_cat": "Codificar categóricas",
+        "cfg_analisis_titulo": "Configuración del análisis",
     },
     "en": {
         # App & Header
@@ -189,6 +242,59 @@ TEXTOS = {
         "cfg_escalar": "Scale Numerical Features",
         "cfg_imputar": "Impute Missing Values",
         "cfg_estratificar": "Stratified Split",
+        # General & Breadcrumbs
+        "dataset_activo": "Active dataset",
+        "configurar_tarea": "Configure task",
+        "flujo_continuar_modelo": "Continue to a model",
+        "flujo_revisar_config": "Review configuration",
+        "flujo_revisar_resultados": "Review saved results",
+        
+        # Metrics
+        "metric_filas": "Rows",
+        "metric_columnas": "Columns",
+        "metric_duplicados": "Duplicates",
+        "metric_nulos": "Nulls",
+        "metric_porcentaje_nulos": "% Nulls",
+        "metric_numericas": "Numerical",
+        "metric_categoricas": "Categorical",
+        "metric_outliers_criticos": "Critical Outliers",
+
+        # Data Preparation
+        "prep_dataset": "Dataset preparation",
+        "prep_tipos_columna": "Column types",
+        "prep_limpieza": "Preparation & cleaning",
+        "prep_columnas_eliminar": "Columns to remove",
+        "prep_columnas_eliminar_help": "Discarded from the original dataset before applying the rest of preparation.",
+        "prep_filas_sin_nulos": "Drop rows with nulls in these columns",
+        "prep_filas_sin_nulos_help": "The entire row is dropped if a value is missing in any selected column.",
+        "prep_eliminar_duplicados": "Remove duplicates",
+        "prep_transf_globales": "Global transformations · exploration and clustering only",
+        "prep_imputar_nulos": "Impute missing values",
+        "prep_escalado": "Permanent scaling",
+        "prep_escalado_ninguno": "None",
+        "prep_escalado_normalizar": "Normalize",
+        "prep_escalado_estandarizar": "Standardize",
+        "prep_aplicar": "Apply preparation",
+        "prep_restaurar": "Restore original dataset",
+        "prep_descargar": "Download current dataset",
+        "prep_division_titulo": "Train & test split",
+        "prep_calcular_particion": "Compute partition",
+
+        # Source
+        "fuente_origen_label": "Source",
+        "fuente_csv_local": "Local CSV",
+        "fuente_subir_csv": "Upload CSV",
+        "fuente_diabetes_ref": "Diabetes (reference)",
+        "fuente_separador_decimal": "Decimal separator",
+
+        # Supervised Configuration
+        "cfg_distribucion_target": "Target Distribution",
+        "cfg_feature_simple": "Simple linear regression predictor",
+        "cfg_particion_reproducibilidad": "Split & reproducibility",
+        "cfg_usar_particion": "Use precomputed split",
+        "cfg_prep_entrenamiento": "Training-only learned preprocessing",
+        "cfg_codificar_cat": "Encode categorical features",
+        "cfg_analisis_titulo": "Analysis Settings",
     },
 }
 

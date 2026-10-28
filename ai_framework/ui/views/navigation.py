@@ -54,13 +54,27 @@ def _resumen_calidad(datos: pd.DataFrame) -> None:
         if numericas
         else 0
     )
+    metricas_en = {
+        "filas": "Rows",
+        "columnas": "Columns",
+        "duplicados": "Duplicates",
+        "nulos": "Nulls",
+        "porcentaje_nulos": "% Nulls",
+        "numericas": "Numerical",
+        "categoricas": "Categorical",
+        "outliers_criticos": "Critical Outliers",
+    }
+    lang = obtener_idioma()
     indicadores = list(resumen.items())
     metricas_por_fila = 3
     for inicio in range(0, len(indicadores), metricas_por_fila):
         fila = indicadores[inicio : inicio + metricas_por_fila]
         columnas = st.columns(len(fila))
         for columna, (nombre, valor) in zip(columnas, fila):
-            etiqueta = nombre.replace("_", " ").title()
+            if lang == "en":
+                etiqueta = metricas_en.get(nombre, nombre.replace("_", " ").title())
+            else:
+                etiqueta = nombre.replace("_", " ").title()
             columna.metric(etiqueta, valor)
 
 
@@ -218,42 +232,90 @@ def _seleccionar_vista(disponibilidades=None) -> str:
     return st.session_state["vista_activa"]
 
 
+def _titulo_vista(vista: str) -> str:
+    lang = obtener_idioma()
+    if vista == "configuracion":
+        return t("nav_configuracion", "Configuración")
+    if vista in VISTAS_REGRESION:
+        titulos_regresion = {
+            **{
+                ruta: _nombre_regresor(alg)
+                for ruta, alg in VISTAS_REGRESORES.items()
+            },
+            "regresion": t("nav_configuracion", "Configuración"),
+            "regresion_configuracion": t("nav_configuracion", "Configuración"),
+            "lab3_benchmark": t("nav_benchmark_completo", "Evaluación Comparativa de Modelos"),
+            "lab3_comparacion": t("res_eval_comp", "Comparar modelos entrenados"),
+            "lab3_resultados": t("nav_resultados_regresion", "Resultados de regresión"),
+        }
+        return titulos_regresion.get(vista, TITULOS_VISTA.get(vista, vista))
+    if lang == "en":
+        titulos_en = {
+            "datos": "Data & Preparation",
+            "eda": "Data Exploration",
+            "acp": "PCA",
+            "kmeans": "K-Means",
+            "kmedoids": "K-Medoids",
+            "hac": "Hierarchical Clustering",
+            "clasificacion": "Random Forest",
+            "clasificacion_knn": "KNN",
+            "clasificacion_dt": "Decision Tree",
+            "clasificacion_xgboost": "XGBoost",
+            "clasificacion_adaboost": "AdaBoost",
+            "clasificacion_nb": "Naive Bayes",
+            "clasificacion_configuracion": "Settings",
+            "lab2_experimentos": "Comparative Evaluation",
+            "lab2_benchmark": "Model Comparative Evaluation",
+            "lab2_resultados": "Classification Results",
+        }
+        return titulos_en.get(vista, TITULOS_VISTA.get(vista, vista))
+    return TITULOS_VISTA.get(vista, vista)
+
+
+def _ruta_vista(vista: str, titulo: str) -> str:
+    lang = obtener_idioma()
+    if vista == "configuracion":
+        return t("nav_configuracion", "Configuración")
+    if vista in VISTAS_REGRESION:
+        pref = "Regression" if lang == "en" else "Regresión"
+        return f"{pref} / {titulo}"
+    if lang == "en":
+        rutas_en = {
+            "datos": "Data / Preparation",
+            "eda": "Exploration / EDA",
+            "acp": "Exploration / PCA",
+            "kmeans": "Clustering / K-Means",
+            "kmedoids": "Clustering / K-Medoids",
+            "hac": "Clustering / Hierarchical",
+            "clasificacion": "Classification / Random Forest",
+            "clasificacion_knn": "Classification / KNN",
+            "clasificacion_dt": "Classification / Decision Tree",
+            "clasificacion_xgboost": "Classification / XGBoost",
+            "clasificacion_adaboost": "Classification / AdaBoost",
+            "clasificacion_nb": "Classification / Naive Bayes",
+            "clasificacion_configuracion": "Settings",
+            "lab2_experimentos": "Classification / Benchmark",
+            "lab2_benchmark": "Classification / Benchmark",
+            "lab2_resultados": "Results / Classification",
+        }
+        return rutas_en.get(vista, f"Analysis / {titulo}")
+    return RUTAS_VISTA.get(vista, f"Análisis / {titulo}")
+
+
 def _render_encabezado_atlas(
     datos: pd.DataFrame, etiqueta: str, vista: str
 ) -> None:
     """Muestra el encabezado del dataset activo y el resumen de calidad en vistas exploratorias."""
-    titulos_regresion = {
-        **{
-            ruta: _nombre_regresor(alg)
-            for ruta, alg in VISTAS_REGRESORES.items()
-        },
-        "regresion": t("nav_configuracion", "Configuración"),
-        "regresion_configuracion": t("nav_configuracion", "Configuración"),
-        "lab3_benchmark": t("nav_benchmark_completo", "Evaluación Comparativa de Modelos"),
-        "lab3_comparacion": t("res_eval_comp", "Comparar modelos entrenados"),
-        "lab3_resultados": t("nav_resultados_regresion", "Resultados de regresión"),
-    }
-    titulo = (
-        "Configuración"
-        if vista == "configuracion"
-        else titulos_regresion[vista]
-        if vista in VISTAS_REGRESION
-        else TITULOS_VISTA.get(vista, vista)
-    )
-    ruta = (
-        "Configuración"
-        if vista == "configuracion"
-        else f"Regresión / {titulo}"
-        if vista in VISTAS_REGRESION
-        else RUTAS_VISTA.get(vista, f"Análisis / {titulo}")
-    )
+    titulo = _titulo_vista(vista)
+    ruta = _ruta_vista(vista, titulo)
     nombre_dataset = escape(etiqueta)
+    lbl_dataset = t("dataset_activo", "Dataset activo")
     st.markdown(
         f"""
         <section class="atlas-header">
           <div class="atlas-breadcrumb">{APP_NAME} / {ruta}</div>
           <h1 class="atlas-title">{titulo}</h1>
-          <p class="atlas-subtitle">Dataset activo: <strong>{nombre_dataset}</strong></p>
+          <p class="atlas-subtitle">{lbl_dataset}: <strong>{nombre_dataset}</strong></p>
         </section>
         """,
         unsafe_allow_html=True,
@@ -285,7 +347,7 @@ def mostrar_guia(
         if vista == "datos":
             st.markdown("<!-- Etapa 1 · Fuente activa -->", unsafe_allow_html=True)
             st.button(
-                "Configurar tarea",
+                t("configurar_tarea", "Configurar tarea"),
                 key="flujo_configurar",
                 on_click=ir_a,
                 args=("configuracion",),
@@ -321,7 +383,7 @@ def mostrar_guia(
         if disponibilidad is not None:
             destino = "regresion_ridge" if familia == "regresion" else "clasificacion"
             st.button(
-                "Continuar a un modelo",
+                t("flujo_continuar_modelo", "Continuar a un modelo"),
                 key="flujo_continuar",
                 disabled=not disponibilidad.lista,
                 on_click=ir_a,
@@ -332,7 +394,7 @@ def mostrar_guia(
         col1, col2, _ = st.columns([1, 1, 3])
         with col1:
             st.button(
-                "Revisar configuración",
+                t("flujo_revisar_config", "Revisar configuración"),
                 key="flujo_corregir",
                 on_click=ir_a,
                 args=("configuracion",),
@@ -343,7 +405,7 @@ def mostrar_guia(
             )
             with col2:
                 st.button(
-                    "Revisar resultados guardados",
+                    t("flujo_revisar_resultados", "Revisar resultados guardados"),
                     key="flujo_resultados",
                     on_click=ir_a,
                     args=(destino_res,),
