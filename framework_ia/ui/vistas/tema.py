@@ -45,9 +45,11 @@ def _aplicar_estilos_atlas() -> None:
         .atlas-breadcrumb { color: inherit; opacity: .82; font-family: 'JetBrains Mono', monospace; font-size: .68rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
         .atlas-title { margin: .45rem 0 .25rem; color: inherit; font-family: 'Space Grotesk', sans-serif; font-size: 2.15rem; font-weight: 600; letter-spacing: -.03em; }
         .atlas-subtitle { margin: 0; color: inherit; opacity: .78; font-size: .94rem; }
-        [data-testid="stMetric"] { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 2px; background: transparent; padding: .8rem .9rem; }
-        [data-testid="stMetricLabel"] { font-family: 'JetBrains Mono', monospace; font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; }
-        [data-testid="stMetricValue"] { font-family: 'Space Grotesk', sans-serif; }
+        [data-testid="stMetric"] { border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 2px; background: color-mix(in srgb, currentColor 2%, transparent); padding: .28rem .55rem; min-height: auto; }
+        [data-testid="stMetricLabel"] { font-family: 'JetBrains Mono', monospace; font-size: .60rem; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 0 !important; }
+        [data-testid="stMetricLabel"] p { font-size: .60rem !important; margin: 0 !important; line-height: 1.15 !important; }
+        [data-testid="stMetricValue"], [data-testid="stMetricValue"] * { font-family: 'Space Grotesk', sans-serif !important; font-size: 1.12rem !important; line-height: 1.2 !important; font-weight: 600; }
+        div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) { gap: .45rem; margin-bottom: .35rem; }
         .stButton > button[kind="primary"] { border-radius: 2px; }
         .stButton > button:focus-visible, input:focus-visible { outline: 2px solid var(--atlas-focus-color) !important; outline-offset: 2px; }
         [data-testid="stSidebar"] .stButton > button:focus-visible, [data-testid="stSidebar"] input:focus-visible { outline-color: #f4d35e !important; }
