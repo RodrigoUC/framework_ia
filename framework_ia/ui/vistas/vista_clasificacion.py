@@ -155,6 +155,85 @@ def render_modelo_individual(
         )
 
 
+def _render_modelos_individuales(individuales: list) -> None:
+    st.markdown("#### Modelos entrenados individualmente")
+    filas_comparativa = []
+    for codigo, criterio, resultado, contexto, parametros in individuales:
+        nombre = (
+            NOMBRES_MODELOS.get(
+                codigo,
+                "Naive Bayes" if codigo == "NR" else codigo,
+            )
+            + (f" · {criterio}" if criterio else "")
+        )
+        fila = {
+            "Algoritmo": nombre,
+            "Exactitud (%)": round(100.0 * float(resultado.metricas["accuracy"]), 2),
+            "Precisión Macro": round(float(resultado.metricas["precision"]["macro"]), 4),
+            "Tasa de Verdaderos Macro": round(float(resultado.metricas["recall"]["macro"]), 4),
+            "F1-Score Macro": round(float(resultado.metricas["f1"]["macro"]), 4),
+        }
+        y_true = resultado.y_true
+        y_pred = resultado.y_pred
+        etiquetas_lista = list(resultado.labels)
+        for etiqueta in etiquetas_lista:
+            reales = y_true == etiqueta
+            soporte = int(reales.sum())
+            col_nombre = nombre_tasa_verdaderos(etiqueta, etiquetas_lista)
+            fila[col_nombre] = (
+                round(100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte, 2)
+                if soporte
+                else "Sin casos"
+            )
+        filas_comparativa.append(fila)
+
+    st.dataframe(
+        pd.DataFrame(filas_comparativa),
+        hide_index=True,
+        width="stretch",
+    )
+
+    with st.expander("Ver hiperparámetros de los modelos"):
+        nombres_modelos = [
+            (
+                NOMBRES_MODELOS.get(
+                    codigo,
+                    "Naive Bayes" if codigo == "NR" else codigo,
+                )
+                + (f" · {criterio}" if criterio else "")
+            )
+            for codigo, criterio, _, _, _ in individuales
+        ]
+        if len(nombres_modelos) == 1:
+            codigo, criterio, resultado, contexto, parametros = individuales[0]
+            params_dict = (
+                getattr(resultado, "parametros", {})
+                or resultado.modelo.get_params()
+            )
+            filas_p = [
+                {"Hiperparámetro": str(k), "Valor": str(v)}
+                for k, v in params_dict.items()
+                if not str(k).startswith("_") and v is not None and not callable(v)
+            ]
+            st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
+        else:
+            tabs_params = st.tabs(nombres_modelos)
+            for tab, (codigo, criterio, resultado, contexto, parametros) in zip(
+                tabs_params, individuales
+            ):
+                with tab:
+                    params_dict = (
+                        getattr(resultado, "parametros", {})
+                        or resultado.modelo.get_params()
+                    )
+                    filas_p = [
+                        {"Hiperparámetro": str(k), "Valor": str(v)}
+                        for k, v in params_dict.items()
+                        if not str(k).startswith("_") and v is not None and not callable(v)
+                    ]
+                    st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
+
+
 def render_resultados(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
@@ -217,92 +296,25 @@ def render_resultados(
         for codigo, criterio, resultado, contexto, parametros in individuales
         if resultado is not None
     ]
-    if individuales:
-        st.markdown("#### Modelos entrenados individualmente")
-        filas_comparativa = []
-        for codigo, criterio, resultado, contexto, parametros in individuales:
-            nombre = (
-                NOMBRES_MODELOS.get(
-                    codigo,
-                    "Naive Bayes" if codigo == "NR" else codigo,
-                )
-                + (f" · {criterio}" if criterio else "")
-            )
-            fila = {
-                "Algoritmo": nombre,
-                "Exactitud (%)": round(100.0 * float(resultado.metricas["accuracy"]), 2),
-                "Precisión Macro": round(float(resultado.metricas["precision"]["macro"]), 4),
-                "Tasa de Verdaderos Macro": round(float(resultado.metricas["recall"]["macro"]), 4),
-                "F1-Score Macro": round(float(resultado.metricas["f1"]["macro"]), 4),
-            }
-            y_true = resultado.y_true
-            y_pred = resultado.y_pred
-            etiquetas_lista = list(resultado.labels)
-            for etiqueta in etiquetas_lista:
-                reales = y_true == etiqueta
-                soporte = int(reales.sum())
-                col_nombre = nombre_tasa_verdaderos(etiqueta, etiquetas_lista)
-                fila[col_nombre] = (
-                    round(100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte, 2)
-                    if soporte
-                    else "Sin casos"
-                )
-            filas_comparativa.append(fila)
-
-        st.dataframe(
-            pd.DataFrame(filas_comparativa),
-            hide_index=True,
-            width="stretch",
-        )
-
-        with st.expander("Ver hiperparámetros de los modelos"):
-            nombres_modelos = [
-                (
-                    NOMBRES_MODELOS.get(
-                        codigo,
-                        "Naive Bayes" if codigo == "NR" else codigo,
-                    )
-                    + (f" · {criterio}" if criterio else "")
-                )
-                for codigo, criterio, _, _, _ in individuales
-            ]
-            if len(nombres_modelos) == 1:
-                codigo, criterio, resultado, contexto, parametros = individuales[0]
-                params_dict = (
-                    getattr(resultado, "parametros", {})
-                    or resultado.modelo.get_params()
-                )
-                filas_p = [
-                    {"Hiperparámetro": str(k), "Valor": str(v)}
-                    for k, v in params_dict.items()
-                    if not str(k).startswith("_") and v is not None and not callable(v)
-                ]
-                st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
-            else:
-                tabs_params = st.tabs(nombres_modelos)
-                for tab, (codigo, criterio, resultado, contexto, parametros) in zip(
-                    tabs_params, individuales
-                ):
-                    with tab:
-                        params_dict = (
-                            getattr(resultado, "parametros", {})
-                            or resultado.modelo.get_params()
-                        )
-                        filas_p = [
-                            {"Hiperparámetro": str(k), "Valor": str(v)}
-                            for k, v in params_dict.items()
-                            if not str(k).startswith("_") and v is not None and not callable(v)
-                        ]
-                        st.dataframe(pd.DataFrame(filas_p), hide_index=True, width="stretch")
     if not individuales and not hay_experimento:
         st.info(
             "Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación."
         )
-    if hay_experimento:
-        from framework_ia.ui.vistas.vista_experimentos_clasificacion import (
-            render_resultado_experimento,
-        )
+        return
 
+    from framework_ia.ui.vistas.vista_experimentos_clasificacion import (
+        render_resultado_experimento,
+    )
+
+    if individuales and hay_experimento:
+        col_ind, col_exp = st.columns(2, gap="large")
+        with col_ind:
+            _render_modelos_individuales(individuales)
+        with col_exp:
+            render_resultado_experimento(mostrar_figura, solo_comparacion=True)
+    elif individuales:
+        _render_modelos_individuales(individuales)
+    elif hay_experimento:
         render_resultado_experimento(mostrar_figura, solo_comparacion=True)
 
 

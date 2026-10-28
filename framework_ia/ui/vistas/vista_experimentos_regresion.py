@@ -51,7 +51,7 @@ def mostrar_experimento_guardado(
         )
         return
     resultado = snapshot["resultado"]
-    st.markdown("### Evaluación comparativa · selección por RMSE de validación")
+    st.markdown("#### Evaluación comparativa · selección por RMSE de validación")
     st.caption(
         f"Estrategia: {resultado.metadatos['estrategia_seleccion']} · Ganador por validación: {resultado.mejor_algoritmo}"
     )

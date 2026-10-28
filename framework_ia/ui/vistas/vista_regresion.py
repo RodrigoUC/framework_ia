@@ -180,8 +180,16 @@ def render_resultados_regresion(
         for alg in ALGORITMOS_LAB3
         if f"resultado_lab3_modelo_{alg}" in st.session_state
     }
-    if snapshots:
-        st.markdown("### Modelos de regresión entrenados")
+    if not snapshots and not hay_experimento:
+        st.info("Todavía no hay modelos entrenados en este contexto.")
+        return
+
+    from framework_ia.ui.vistas.vista_experimentos_regresion import (
+        mostrar_experimento_guardado,
+    )
+
+    def _render_tabla_regresion():
+        st.markdown("#### Modelos de regresión entrenados")
         st.dataframe(
             pd.DataFrame(
                 [
@@ -192,11 +200,14 @@ def render_resultados_regresion(
             hide_index=True,
             width="stretch",
         )
-    elif not hay_experimento:
-        st.info("Todavía no hay modelos entrenados en este contexto.")
-    if hay_experimento:
-        from framework_ia.ui.vistas.vista_experimentos_regresion import (
-            mostrar_experimento_guardado,
-        )
 
+    if snapshots and hay_experimento:
+        col_ind, col_exp = st.columns(2, gap="large")
+        with col_ind:
+            _render_tabla_regresion()
+        with col_exp:
+            mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
+    elif snapshots:
+        _render_tabla_regresion()
+    elif hay_experimento:
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)

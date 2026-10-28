@@ -269,7 +269,7 @@ def render_resultado_experimento(
     metadatos = resultado.metadatos
     metrica = guardado["opciones"]["metrica"]
     contexto = guardado["contexto"]
-    st.markdown("### Evaluación comparativa · selección en validación")
+    st.markdown("#### Evaluación comparativa · selección en validación")
     st.caption(
         f"Dataset: {contexto['dataset']} · Objetivo: {contexto['target']} · "
         f"Semilla: {contexto['random_state']} · Métrica ejecutada: {METRICAS_SELECCION[metrica]}"
