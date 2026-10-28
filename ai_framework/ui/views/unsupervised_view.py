@@ -113,7 +113,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
             key="eda_correlacion",
         )
         metodo = st.selectbox(
-            "Método", ["pearson", "spearman", "kendall"], key="eda_metodo"
+            t("eda_metodo", "Método"), ["pearson", "spearman", "kendall"], key="eda_metodo"
         )
         if len(seleccion) >= 2:
             figura, matriz = eda.mapa_calor(
@@ -160,7 +160,7 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
         return
     maximo = min(10, len(datos), max(2, len(configuracion["features"])))
     componentes = _seleccionar_entero(
-        "Componentes", 2, maximo, 2, key="acp_componentes"
+        t("acp_componentes", "Componentes"), 2, maximo, 2, key="acp_componentes"
     )
     firma = _firma(configuracion, componentes)
     if st.button(t("acp_ejecutar", "Ejecutar ACP"), type="primary"):
@@ -173,12 +173,14 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
     resultado = _recuperar_resultado("resultado_acp", firma)
     if resultado is None:
         return
-    st.dataframe(
-        pd.concat(
-            [resultado.varianza_explicada, resultado.varianza_acumulada], axis=1
-        ),
-        width="stretch",
+    df_var = pd.concat(
+        [resultado.varianza_explicada, resultado.varianza_acumulada], axis=1
     )
+    df_var.columns = [
+        t("acp_var_explicada", "Varianza explicada (%)"),
+        t("acp_var_acumulada", "Varianza acumulada (%)"),
+    ]
+    st.dataframe(df_var, width="stretch")
     _mostrar_figura(VisualizadorNoSupervisado.varianza_acp(resultado))
     plano, circulo, sobreposicion = st.tabs(
         [t("acp_tab_plano", "Plano principal"), t("acp_tab_circulo", "Círculo de correlación"), t("acp_tab_sobreposicion", "Sobreposición")]
@@ -221,16 +223,16 @@ def _render_particional(
     if resultado is not None:
         c1, c2 = st.columns(2)
         c1.metric(
-            "Silhouette",
+            t("cluster_silhouette", "Silhouette"),
             f"{resultado.silhouette:.4f}"
             if resultado.silhouette is not None
-            else "No disponible",
+            else t("no_disponible", "No disponible"),
         )
         c2.metric(
-            "Inercia",
+            t("cluster_inercia", "Inercia"),
             f"{resultado.inercia:.4f}"
             if resultado.inercia is not None
-            else "No aplica",
+            else t("no_aplica", "No aplica"),
         )
         _mostrar_figura(VisualizadorNoSupervisado.clusters(resultado))
         _mostrar_figura(VisualizadorNoSupervisado.perfiles_cluster(resultado))
@@ -306,10 +308,10 @@ def _render_hac(datos: pd.DataFrame, configuracion: dict) -> None:
     resultado = _recuperar_resultado("resultado_hac", firma)
     if resultado is not None:
         st.metric(
-            "Silhouette",
+            t("cluster_silhouette", "Silhouette"),
             f"{resultado.silhouette:.4f}"
             if resultado.silhouette is not None
-            else "No disponible",
+            else t("no_disponible", "No disponible"),
         )
         _mostrar_figura(VisualizadorNoSupervisado.dendrograma(resultado))
         _mostrar_figura(VisualizadorNoSupervisado.clusters(resultado))

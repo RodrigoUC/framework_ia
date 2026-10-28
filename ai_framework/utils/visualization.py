@@ -21,7 +21,17 @@ from .results import (
 COLOR_PRIMARIO = "#1A3C2B"
 COLOR_SECUNDARIO = "#FF8C69"
 COLOR_TERCIARIO = "#3C7D65"
+COLOR_PUNTOS = "#2DD4BF"
 PALETA_CUALITATIVA = px.colors.qualitative.T10
+
+
+def _lang_vis() -> str:
+    try:
+        from ai_framework.ui.i18n import obtener_idioma
+        return obtener_idioma()
+    except Exception:
+        return "es"
+
 
 
 class VisualizadorRegresion:
@@ -39,7 +49,7 @@ class VisualizadorRegresion:
                 y=resultado.y_pred,
                 mode="markers",
                 name="Prueba",
-                marker={"color": COLOR_PRIMARIO},
+                marker={"color": COLOR_PUNTOS},
             )
         )
         figura.add_trace(
@@ -66,7 +76,7 @@ class VisualizadorRegresion:
                 y=resultado.residuos,
                 mode="markers",
                 name="Residuos",
-                marker={"color": COLOR_PRIMARIO},
+                marker={"color": COLOR_PUNTOS},
             )
         )
         figura.add_hline(y=0, line_dash="dash", line_color=COLOR_SECUNDARIO)
@@ -106,20 +116,27 @@ class VisualizadorNoSupervisado:
         VisualizadorNoSupervisado._validar_acp_2d(resultado)
         datos = resultado.coordenadas
         x, y = datos.columns[:2]
+        lang = _lang_vis()
+        lbl_obs = "Observations" if lang == "en" else "Observaciones"
+        titulo = "Principal plane of observations" if lang == "en" else "Plano principal de observaciones"
+        eje_x = f"{x.replace('CP', 'PC')} ({resultado.varianza_explicada[x]:.2f} %)" if lang == "en" else f"{x} ({resultado.varianza_explicada[x]:.2f} %)"
+        eje_y = f"{y.replace('CP', 'PC')} ({resultado.varianza_explicada[y]:.2f} %)" if lang == "en" else f"{y} ({resultado.varianza_explicada[y]:.2f} %)"
+
         figura = go.Figure(
             go.Scatter(
                 x=datos[x],
                 y=datos[y],
                 mode="markers",
-                marker=dict(color=COLOR_PRIMARIO, size=8, opacity=0.75),
+                name=lbl_obs,
+                marker=dict(color=COLOR_PUNTOS, size=8, opacity=0.85),
             )
         )
         figura.add_hline(y=0, line_dash="dash", line_color="gray")
         figura.add_vline(x=0, line_dash="dash", line_color="gray")
         figura.update_layout(
-            title="Plano principal de observaciones",
-            xaxis_title=f"{x} ({resultado.varianza_explicada[x]:.2f} %)",
-            yaxis_title=f"{y} ({resultado.varianza_explicada[y]:.2f} %)",
+            title=titulo,
+            xaxis_title=eje_x,
+            yaxis_title=eje_y,
         )
         return figura
 
@@ -166,9 +183,13 @@ class VisualizadorNoSupervisado:
             )
         figura.add_hline(y=0, line_dash="dash", line_color="gray")
         figura.add_vline(x=0, line_dash="dash", line_color="gray")
-        figura.update_xaxes(range=[-1.1, 1.1])
-        figura.update_yaxes(range=[-1.1, 1.1], scaleanchor="x", scaleratio=1)
-        figura.update_layout(title="Círculo de correlación")
+        lang = _lang_vis()
+        titulo = "Correlation circle" if lang == "en" else "Círculo de correlación"
+        col_x = cargas.columns[0].replace("CP", "PC") if lang == "en" else cargas.columns[0]
+        col_y = cargas.columns[1].replace("CP", "PC") if lang == "en" else cargas.columns[1]
+        figura.update_xaxes(range=[-1.1, 1.1], title=col_x)
+        figura.update_yaxes(range=[-1.1, 1.1], scaleanchor="x", scaleratio=1, title=col_y)
+        figura.update_layout(title=titulo)
         return figura
 
     @staticmethod
@@ -197,13 +218,23 @@ class VisualizadorNoSupervisado:
             line=dict(color=COLOR_SECUNDARIO, width=1.5, dash="dash"),
         )
 
+        lang = _lang_vis()
+        lbl_obs = "Observations" if lang == "en" else "Observaciones"
+        titulo = (
+            "Superposition of observations and variables (PCA Biplot)"
+            if lang == "en"
+            else "Sobreposición de observaciones y variables (Biplot ACP)"
+        )
+        eje_x = coordenadas.columns[0].replace("CP", "PC") if lang == "en" else coordenadas.columns[0]
+        eje_y = coordenadas.columns[1].replace("CP", "PC") if lang == "en" else coordenadas.columns[1]
+
         figura.add_trace(
             go.Scatter(
                 x=puntos.iloc[:, 0],
                 y=puntos.iloc[:, 1],
                 mode="markers",
-                marker=dict(color="rgba(150, 160, 175, 0.6)", size=6),
-                name="Observaciones",
+                marker=dict(color=COLOR_PUNTOS, size=7, opacity=0.85),
+                name=lbl_obs,
                 showlegend=True,
             )
         )
@@ -244,18 +275,18 @@ class VisualizadorNoSupervisado:
 
         figura.update_xaxes(
             range=[-1.25, 1.25],
-            title=coordenadas.columns[0],
+            title=eje_x,
             zeroline=False,
         )
         figura.update_yaxes(
             range=[-1.25, 1.25],
-            title=coordenadas.columns[1],
+            title=eje_y,
             scaleanchor="x",
             scaleratio=1,
             zeroline=False,
         )
         figura.update_layout(
-            title="Sobreposición de observaciones y variables (Biplot ACP)",
+            title=titulo,
             height=560,
             margin=dict(l=60, r=60, t=60, b=60),
         )
@@ -264,36 +295,46 @@ class VisualizadorNoSupervisado:
     @staticmethod
     def varianza_acp(resultado: ResultadoACP) -> go.Figure:
         """Grafica varianza individual y acumulada por componente."""
+        lang = _lang_vis()
+        nom_ind = "Individual"
+        nom_acu = "Cumulative" if lang == "en" else "Acumulada"
+        titulo = "Variance explained by PCA" if lang == "en" else "Varianza explicada por el ACP"
+        tit_y1 = "Explained variance (%)" if lang == "en" else "Varianza explicada (%)"
+        tit_y2 = "Cumulative variance (%)" if lang == "en" else "Varianza acumulada (%)"
+        tit_x = "Component" if lang == "en" else "Componente"
+
         tabla = pd.DataFrame(
             {
-                "Individual": resultado.varianza_explicada,
-                "Acumulada": resultado.varianza_acumulada,
+                nom_ind: resultado.varianza_explicada,
+                nom_acu: resultado.varianza_acumulada,
             }
         )
+        indices = [str(idx).replace("CP", "PC") for idx in tabla.index] if lang == "en" else tabla.index
+
         figura = make_subplots(specs=[[{"secondary_y": True}]])
         figura.add_trace(
             go.Bar(
-                x=tabla.index,
-                y=tabla["Individual"],
-                name="Individual",
+                x=indices,
+                y=tabla[nom_ind],
+                name=nom_ind,
                 marker_color=COLOR_TERCIARIO,
             ),
             secondary_y=False,
         )
         figura.add_trace(
             go.Scatter(
-                x=tabla.index,
-                y=tabla["Acumulada"],
-                name="Acumulada",
+                x=indices,
+                y=tabla[nom_acu],
+                name=nom_acu,
                 mode="lines+markers",
                 line=dict(color=COLOR_SECUNDARIO, width=2),
             ),
             secondary_y=True,
         )
-        figura.update_yaxes(title_text="Varianza explicada (%)", secondary_y=False)
-        figura.update_yaxes(title_text="Varianza acumulada (%)", range=[0, 105], secondary_y=True)
-        figura.update_xaxes(title_text="Componente")
-        figura.update_layout(title="Varianza explicada por el ACP")
+        figura.update_yaxes(title_text=tit_y1, secondary_y=False)
+        figura.update_yaxes(title_text=tit_y2, range=[0, 105], secondary_y=True)
+        figura.update_xaxes(title_text=tit_x)
+        figura.update_layout(title=titulo)
         return figura
 
     @staticmethod
@@ -417,7 +458,7 @@ class VisualizadorNoSupervisado:
         columnas = datos.columns
         if etiquetas is None:
             figura = px.scatter(datos, x=columnas[0], y=columnas[1], opacity=0.75)
-            figura.update_traces(marker=dict(color=COLOR_PRIMARIO, size=8))
+            figura.update_traces(marker=dict(color=COLOR_PUNTOS, size=8))
         else:
             datos["grupo"] = pd.Series(etiquetas, index=datos.index).astype(str)
             figura = px.scatter(

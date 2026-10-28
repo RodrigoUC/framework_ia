@@ -242,7 +242,7 @@ class EDA(DataFrameBase):
         if len(numericas) < 2:
             raise ValueError("Se requieren al menos dos columnas numéricas.")
         figura = px.scatter_matrix(self.datos[numericas], dimensions=numericas)
-        figura.update_traces(diagonal_visible=False, showupperhalf=False, marker=dict(color="#1A3C2B", opacity=0.7))
+        figura.update_traces(diagonal_visible=False, showupperhalf=False, marker=dict(color="#2DD4BF", size=7, opacity=0.85))
         figura.update_layout(height=max(500, 220 * len(numericas)))
         if mostrar:
             figura.show()
@@ -254,6 +254,12 @@ class EDA(DataFrameBase):
         """Grafica y retorna la matriz de correlación de variables numéricas."""
         numericas = self._seleccionar_numericas(columnas)
         correlacion = self.datos[numericas].corr(method=metodo).round(3)
+        try:
+            from ai_framework.ui.i18n import obtener_idioma
+            lang = obtener_idioma()
+        except Exception:
+            lang = "es"
+        titulo = f"Correlation ({metodo})" if lang == "en" else f"Correlación ({metodo})"
         figura = px.imshow(
             correlacion,
             text_auto=".2f",
@@ -261,7 +267,7 @@ class EDA(DataFrameBase):
             zmin=-1,
             zmax=1,
             aspect="auto",
-            title=f"Correlación ({metodo})",
+            title=titulo,
         )
         figura.update_layout(height=max(400, 60 * len(numericas)))
         if mostrar:

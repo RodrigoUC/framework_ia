@@ -336,6 +336,38 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
                 traza.textfont.color = color_texto
     for traza in _texto_mapa_calor(figura):
         figura.add_trace(traza)
+    try:
+        from ai_framework.ui.i18n import obtener_idioma
+        lang = obtener_idioma()
+    except Exception:
+        lang = "es"
+
+    if lang == "en":
+        titulos_map = {
+            "Plano principal de observaciones": "Principal plane of observations",
+            "Círculo de correlación": "Correlation circle",
+            "Sobreposición de observaciones y variables (Biplot ACP)": "Superposition of observations and variables (PCA Biplot)",
+            "Varianza explicada por el ACP": "Variance explained by PCA",
+            "Valores reales y predichos · prueba": "True vs predicted values · test",
+            "Residuos · prueba": "Residuals · test",
+            "Comparación por validación": "Validation comparison",
+            "Tipos de columna": "Column types",
+            "Tamaños de partición": "Partition sizes",
+        }
+        if figura.layout.title and figura.layout.title.text in titulos_map:
+            figura.layout.title.text = titulos_map[figura.layout.title.text]
+
+        nombres_traza = {
+            "Observaciones": "Observations",
+            "Prueba": "Test",
+            "Predicción ideal": "Ideal prediction",
+            "Residuos": "Residuals",
+            "Individual": "Individual",
+            "Acumulada": "Cumulative",
+        }
+        for traza in figura.data:
+            if getattr(traza, "name", None) in nombres_traza:
+                traza.name = nombres_traza[traza.name]
 
 
 def _mostrar_figura(
