@@ -26,7 +26,7 @@ class VisualContrastFlowTests(unittest.TestCase):
         self.assertEqual(active_identity, self.app.session_state["dataset_identidad"])
         self.assertFalse(self.app.exception)
 
-        # AppTest batches form edits with submit, just like the browser.
+
         self.app.sidebar.text_input(key="fuente_separador").set_value(";")
         self.app.button(
             key="FormSubmitter:form_fuente_datos-Aplicar fuente"
@@ -96,10 +96,10 @@ class VisualContrastFlowTests(unittest.TestCase):
 
     def test_invalid_default_csv_keeps_app_available_for_source_recovery(self):
         def run_with_broken_csv():
-            # AppTest executes this function in an isolated script namespace.
+    
             from unittest.mock import patch
 
-            from framework_ia.ui import streamlit_app
+            from ai_framework.ui import streamlit_app
 
             with patch.object(
                 streamlit_app.CargadorCSV,

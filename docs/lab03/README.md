@@ -186,7 +186,7 @@ procedencia. `--algoritmos`, `--estrategia`, `--folds`, `--validation-size`,
 `--test-size`, `--semilla`, `--incluir-categoricas`, `--sin-escalar` y
 `--sin-imputar` controlan el experimento. RMSE es siempre la métrica de selección.
 
-`framework_ia.exportacion_lab03.construir_archivos_experimento(...)` devuelve
+`framework_ia.exportacion.construir_archivos_experimento(...)` devuelve
 los mismos bytes UTF-8 para CLI e interfaz, sin entrenar ni escribir archivos:
 
 - `configuracion.json`: argumentos, procedencia, hash, versiones y protocolo.

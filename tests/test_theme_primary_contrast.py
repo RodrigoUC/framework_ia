@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from framework_ia.ui import streamlit_app
+from ai_framework.ui import streamlit_app
 
 
 THEME_CONFIG = Path(__file__).parents[1] / ".streamlit" / "config.toml"
@@ -93,8 +93,8 @@ class PrimaryThemeContrastTests(unittest.TestCase):
                     self.assertNotIn("background", rule)
                     self.assertNotIn("color:", rule)
 
-        # The stylesheet no longer overrides Streamlit's native button colors;
-        # both configured primary tokens contrast with white text.
+
+
         for theme_name, primary in (
             ("light", self.theme["primaryColor"]),
             ("dark", self.theme["dark"]["primaryColor"]),

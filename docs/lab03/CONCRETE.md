@@ -27,13 +27,13 @@ pliegues internos; sólo la validación externa es evidencia comparativa.
 
 La ejecución del 21 de octubre de 2026 utilizó Python 3.11.8, numpy 2.4.6,
 pandas 3.0.6, scikit-learn 1.9.1, scipy 1.17.1 y xlrd 2.0.2. El entorno
-completo está fijado en `requirements-lab03-lock.txt`; no sustituye el lock
-histórico de Lab02. `python -m pip check` no detectó requisitos incompatibles.
+completo se instala mediante `requirements.txt`.
+`python -m pip check` no detectó requisitos incompatibles.
 
 Desde la raíz, con el XLS oficial local:
 
 ```powershell
-python -m pip install -r requirements-lab03-lock.txt
+python -m pip install -r requirements.txt
 $env:OMP_NUM_THREADS="2"
 $env:OPENBLAS_NUM_THREADS="2"
 $env:NUMBA_NUM_THREADS="2"

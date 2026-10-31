@@ -18,8 +18,8 @@ académico ni una conclusión clínica.
 
 `python -m pip check` no detectó dependencias incompatibles. Se limitaron
 `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` y `NUMBA_NUM_THREADS` a `2`.
-`requirements-lab02-lock.txt` conserva la evidencia histórica de Lab02; no es
-una captura de este entorno. Versiones futuras o plataformas distintas pueden
+Las dependencias del proyecto están definidas en `requirements.txt`.
+Versiones futuras o plataformas distintas pueden
 cambiar resultados numéricos: conserve las versiones exportadas al entrenar.
 
 ## Reproducción local

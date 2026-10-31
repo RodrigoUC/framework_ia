@@ -9,9 +9,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from framework_ia.datos.eda import EDA
-from framework_ia.ui import streamlit_app
-from framework_ia.visualizacion import (
+from ai_framework.data.eda import EDA
+from ai_framework.ui import streamlit_app
+from ai_framework.utils.visualization import (
     VisualizadorDatos,
     VisualizadorNoSupervisado,
     VisualizadorSupervisado,

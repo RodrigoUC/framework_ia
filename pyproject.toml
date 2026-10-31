@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "framework-ia"
 version = "0.1.0"
-description = "Framework modular para EDA, reducción dimensional y clustering"
+description = "Modular framework for exploratory analysis and machine learning (Nexo AI / AI Framework)"
 readme = "README.md"
 requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
-include = ["framework_ia*", "scripts*"]
+include = ["ai_framework*", "scripts*"]
