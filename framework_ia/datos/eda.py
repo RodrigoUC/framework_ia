@@ -17,9 +17,14 @@ Jerarquía del framework:
     EDA               (este módulo · lógica y gráficos del EDA)
     ├── NoSupervisado (modelos/no_supervisado/)
     │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
-    └── Supervisado   (modelos/supervisado.py)
-           ├── Clasificacion  ->  RF, NR
-           └── Regresion      ->  RLS, RLM, RL
+    ├── Supervisado   (modelos/supervisado.py)
+    │      ├── Clasificacion  ->  RF, NR
+    │      └── Regresion      ->  RLS, RLM, RL
+    └── Pizarra       (agentes/ · estado que comparten los agentes)
+
+    Agente (agentes/base.py, ABC) trabaja sobre una Pizarra:
+           ├── AgenteEDA         ->  perfil, nulos, atípicos, fuga, desbalance
+           └── AgenteClustering  ->  compara K-Means y HAC, recomienda k
 """
 
 from __future__ import annotations

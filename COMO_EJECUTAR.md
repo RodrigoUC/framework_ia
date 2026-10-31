@@ -106,3 +106,18 @@ y Experimentos Lab03 con CV de cinco pliegues.
 
 La preparación no descarga datos ni entrena.
 [Reproducción del informe y resultados observados](docs/lab03/CONCRETE.md).
+
+## Agentes IA
+
+Cada sección tiene su agente: **Exploración de datos → Agente IA** y
+**Clustering → Agente IA**. Elija el modelo de lenguaje (o **Sin LLM**) y pulse
+**Iniciar agente**; en Exploración también puede indicar la variable objetivo.
+Sin interfaz:
+
+```powershell
+python -m scripts.ejecutar_agentes data/lab03/concrete/concrete.csv --target strength
+```
+
+La API key va en `GEMINI_API_KEY` (u otra según el proveedor) o en
+`.streamlit/secrets.toml`, que git ignora. Iniciar un agente no entrena modelos.
+[Arquitectura y proveedores](docs/agentes/README.md).

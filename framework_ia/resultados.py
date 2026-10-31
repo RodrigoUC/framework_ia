@@ -1,4 +1,4 @@
-"""Objetos de resultado compartidos por los análisis no supervisados.
+"""Objetos de resultado compartidos por los análisis y los agentes.
 
 Las clases de este módulo transportan datos entre la lógica de modelos y la
 capa de visualización. No conocen Streamlit ni generan efectos secundarios.
@@ -163,3 +163,33 @@ class ResultadoExperimentoRegresion:
     mejores: dict[str, ResultadoRegresion]
     mejor_algoritmo: str | None
     metadatos: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class Hallazgo:
+    """Observación que un agente registra por iniciativa propia o al reaccionar."""
+
+    agente: str
+    nivel: str  # "info", "aviso" o "critico"
+    mensaje: str
+    detalle: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SugerenciaModelado:
+    """Configuración supervisada que un agente propone; no entrena modelos."""
+
+    tarea: str
+    target: str
+    features: tuple[str, ...]
+    excluidas: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SugerenciaClustering:
+    """Mejor partición que un agente encontró por silhouette."""
+
+    algoritmo: str
+    n_clusters: int
+    silhouette: float
+    tamanos: tuple[int, ...]

@@ -47,8 +47,10 @@ from .lab2 import (
 )
 from .experimentos_lab2 import render_experimentos
 from .perfil_diabetes import render_perfil_diabetes
+from .agentes import render_agente_clustering, render_agente_eda
 from .configuracion_regresion import configuracion_regresion_actual, configurar_regresion
 from .estado_regresion import limpiar_resultados_regresion, sincronizar_contexto_regresion
+from .estado_agentes import limpiar_resultados_agentes
 from .lab3 import preparacion_regresion_segura, render_modelo_regresion, render_resultados_regresion
 from .experimentos_lab3 import render_experimentos_regresion
 from ..utils.configuracion_regresion import ALGORITMOS_LAB3, NOMBRES_REGRESORES
@@ -80,7 +82,7 @@ PALETA_OSCURA = {
 }
 
 
-VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac"}
+VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac", "clustering_agente"}
 VISTAS_CLASIFICADORES = {
     "clasificacion": "RF",
     "clasificacion_knn": "KNN",
@@ -96,6 +98,7 @@ TITULOS_VISTA = {
     "kmeans": "K-Means",
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
+    "clustering_agente": "Agente de clustering",
     "clasificacion": "Random Forest",
     "clasificacion_knn": "KNN",
     "clasificacion_dt": "Árbol de decisión",
@@ -107,6 +110,7 @@ TITULOS_VISTA = {
     "lab2_benchmark": "Experimentos Lab02",
     "lab2_resultados": "Resultados de clasificación",
     "regresion": "Regresión",
+    "eda_agente": "Agente EDA",
 }
 RUTAS_VISTA = {
     "datos": "Datos / Preparación",
@@ -115,6 +119,7 @@ RUTAS_VISTA = {
     "kmeans": "Clustering / K-Means",
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
+    "clustering_agente": "Clustering / Agente IA",
     "clasificacion": "Clasificación / Random Forest",
     "clasificacion_knn": "Clasificación / KNN",
     "clasificacion_dt": "Clasificación / Árbol de decisión",
@@ -126,6 +131,7 @@ RUTAS_VISTA = {
     "lab2_benchmark": "Clasificación / Experimentos Lab02",
     "lab2_resultados": "Resultados / Clasificación / Validación y prueba",
     "regresion": "Regresión / Próximamente",
+    "eda_agente": "Exploración / Agente IA",
 }
 
 
@@ -325,6 +331,8 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         vista = "configuracion"
     elif vista in {"tsne", "umap"}:
         vista = "kmeans"
+    elif vista == "agentes":
+        vista = "eda_agente"
     st.session_state["vista_activa"] = vista
     disponibilidades = disponibilidades or {}
 
@@ -353,6 +361,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
         boton("EDA", "eda")
         boton("ACP", "acp")
+        boton("Agente IA", "eda_agente")
 
         st.markdown(
             '<p class="atlas-nav-label">Análisis y modelos</p>',
@@ -364,11 +373,12 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
         boton("Configuración", "configuracion")
         with st.expander(
-            "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac"}
+            "Clustering", expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agente"}
         ):
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
+            boton("Agente IA", "clustering_agente")
 
         with st.expander("Clasificación", expanded=vista in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"}):
             disponible = disponibilidades.get("clasificacion")
@@ -474,6 +484,7 @@ def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
 def _limpiar_resultados() -> None:
     """Descarta resultados que ya no corresponden al dataset activo."""
     limpiar_resultados_regresion(st.session_state)
+    limpiar_resultados_agentes(st.session_state)
     for clave in list(st.session_state):
         if (
             clave.startswith("resultado_")
@@ -1515,6 +1526,9 @@ def main() -> None:
         )
     vista = _seleccionar_vista(disponibilidades)
     _render_encabezado_atlas(datos, etiqueta, vista)
+    if vista == "eda_agente":
+        render_agente_eda(datos, etiqueta)
+        return
     familia = (st.session_state.get("sup_tarea") if vista == "configuracion" else "regresion" if vista in VISTAS_REGRESION else "clasificacion"
                if vista in {*VISTAS_CLASIFICADORES, "clasificacion_configuracion", "lab2_benchmark", "lab2_experimentos", "lab2_resultados"} else None)
     disponibilidad_vista = disponibilidades.get(familia)
@@ -1648,6 +1662,11 @@ def main() -> None:
     elif vista == "hac":
         assert configuracion is not None
         _render_hac(datos, configuracion)
+    elif vista == "clustering_agente":
+        assert configuracion is not None
+        render_agente_clustering(
+            _muestrear(datos, configuracion["filas"]), configuracion, etiqueta, _mostrar_figura
+        )
     else:
         _render_regresion()
 
