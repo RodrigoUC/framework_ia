@@ -1,20 +1,19 @@
-"""Agente de análisis exploratorio construido sobre :class:`Agente`."""
+"""Agente de análisis exploratorio construido sobre :class:`Agent`."""
 
 from __future__ import annotations
 
-from ..resultados import Hallazgo, SugerenciaModelado
-from ..utils import UmbralesEDA
-from ..utils.configuracion_agentes import REGLAS_EXCLUSION_EDA
-from .base import Agente
-from .eventos import DATASET_CARGADO, EDA_LISTO, Evento
-from .herramientas.exploracion import (
+from ai_framework.utils.results import Hallazgo, SugerenciaModelado
+from ai_framework.utils.agents.agent_config import REGLAS_EXCLUSION_EDA, UmbralesEDA
+from ai_framework.agents.agent import Agent
+from ai_framework.agents.events import DATASET_CARGADO, EDA_LISTO, Event
+from ai_framework.agents.tools.eda_tools import (
     HERRAMIENTAS_EXPLORACION,
     parece_identificador,
     perfil_dataset,
 )
 
 
-class AgenteEDA(Agente):
+class EDAAgent(Agent):
     """Perfila el dataset al cargarse, avisa problemas y habilita el modelado."""
 
     nombre = "eda"
@@ -33,10 +32,10 @@ class AgenteEDA(Agente):
         super().__init__(pizarra, llm)
         self.umbrales = umbrales or UmbralesEDA()
 
-    def preparar(self, evento: Evento) -> None:
+    def preparar(self, evento: Event) -> None:
         perfil_dataset.funcion(self.pizarra)
 
-    def proponer(self, evento: Evento) -> list[Hallazgo]:
+    def proponer(self, evento: Event) -> list[Hallazgo]:
         perfil = self.pizarra.resultados["perfil"]
         calidad = perfil["calidad"]
         hallazgos: list[Hallazgo] = []
@@ -79,12 +78,12 @@ class AgenteEDA(Agente):
                       regla="desbalance", clases=clases)
         return hallazgos
 
-    def siguientes(self, evento: Evento) -> list[Evento]:
+    def siguientes(self, evento: Event) -> list[Event]:
         objetivo = self.pizarra.resultados["perfil"].get("target")
         if objetivo is None:
             return []
         return [
-            Evento(
+            Event(
                 EDA_LISTO,
                 {"target": objetivo["nombre"], "tarea": objetivo["tarea"]},
                 origen=self.nombre,

@@ -1,7 +1,7 @@
 """Proveedor para cualquier endpoint compatible con la API de chat de OpenAI.
 
 El SDK ``openai`` se importa sólo al crear el cliente; si falta, se informa con
-:class:`DependenciaOpcionalError`, igual que UMAP en el agrupamiento.
+:class:`OptionalDependencyError`, igual que UMAP en el agrupamiento.
 """
 
 from __future__ import annotations
@@ -10,9 +10,9 @@ import json
 import os
 from typing import Any
 
-from ...modelos.no_supervisado import DependenciaOpcionalError
-from ...utils import PROVEEDOR_SIN_LLM, PROVEEDORES_LLM
-from .proveedor import LlamadaHerramienta, RespuestaLLM
+from ai_framework.models.unsupervised import OptionalDependencyError
+from ai_framework.utils.agents.agent_config import PROVEEDOR_SIN_LLM, PROVEEDORES_LLM
+from ai_framework.agents.llm.provider import LlamadaHerramienta, RespuestaLLM
 
 PISTAS_ESTADO = {
     400: "Puede ser la API key o un parámetro enviado.",
@@ -71,7 +71,7 @@ class ProveedorOpenAICompat:
             try:
                 from openai import OpenAI
             except ImportError as exc:
-                raise DependenciaOpcionalError(
+                raise OptionalDependencyError(
                     "Los agentes con LLM requieren 'openai'. Instale requirements.txt. "
                     f"Detalle técnico: {exc}"
                 ) from exc

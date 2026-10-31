@@ -1,6 +1,7 @@
 """Capa de modelos de estado, disponibilidad y catálogo de vistas para la UI."""
 
 from ai_framework.ui.models import (
+    agents_state,
     availability,
     classification_state,
     diabetes_profile,
@@ -11,6 +12,7 @@ from ai_framework.ui.models import (
 
 catalogo_vistas = view_catalog
 disponibilidad = availability
+estado_agentes = agents_state
 estado_clasificacion = classification_state
 estado_regresion = regression_state
 estado_sesion = session_state
@@ -32,6 +34,11 @@ from ai_framework.ui.models.view_catalog import (
     VISTAS_NO_SUPERVISADAS,
     VISTAS_REGRESION,
     VISTAS_REGRESORES,
+)
+from ai_framework.ui.models.agents_state import (
+    limpiar_resultados_agentes,
+    sincronizar_contexto_agentes,
+    sincronizar_contexto_clustering,
 )
 from ai_framework.ui.models.availability import (
     Disponibilidad,
@@ -100,9 +107,12 @@ __all__ = [
     "hay_evidencia",
     "huella_datos",
     "inicializar_configuracion",
+    "limpiar_resultados_agentes",
     "limpiar_resultados_clasificacion",
     "limpiar_resultados_regresion",
     "sincronizar_contexto",
+    "sincronizar_contexto_agentes",
+    "sincronizar_contexto_clustering",
     "sincronizar_contexto_regresion",
     "sincronizar_ejecucion",
     "state_value",

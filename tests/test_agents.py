@@ -1,4 +1,4 @@
-"""Agentes: bus, pizarra, herramientas, bucle con LLM falso, AgenteEDA y CLI."""
+"""Agentes: bus, pizarra, herramientas, bucle con LLM falso, EDAAgent y CLI."""
 
 import io
 import json
@@ -11,30 +11,30 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from framework_ia.agentes import (
+from ai_framework.agents import (
     DATASET_CARGADO,
     EDA_LISTO,
-    Agente,
-    AgenteEDA,
-    BusEventos,
+    Agent,
+    EDAAgent,
+    EventBus,
     ErrorProveedor,
-    Evento,
-    Pizarra,
+    Event,
+    Blackboard,
     ProveedorFalso,
     ProveedorOpenAICompat,
     RespuestaLLM,
     crear_proveedor,
 )
-from framework_ia.agentes.herramientas.exploracion import tipo_tarea
-from framework_ia.agentes.herramientas.registro import ejecutar, herramienta
-from framework_ia.agentes.llm import LlamadaHerramienta
-from framework_ia.datos.eda import EDA
-from framework_ia.resultados import Hallazgo, SugerenciaModelado
-from framework_ia.ui.estado_agentes import (
+from ai_framework.agents.tools.eda_tools import tipo_tarea
+from ai_framework.agents.tools.registry import ejecutar, herramienta
+from ai_framework.agents.llm import LlamadaHerramienta
+from ai_framework.data.eda import EDA
+from ai_framework.utils.results import Hallazgo, SugerenciaModelado
+from ai_framework.ui.models.agents_state import (
     limpiar_resultados_agentes,
     sincronizar_contexto_agentes,
 )
-from framework_ia.utils import PROVEEDOR_SIN_LLM, UmbralesEDA
+from ai_framework.utils.agents.agent_config import PROVEEDOR_SIN_LLM, UmbralesEDA
 from scripts.ejecutar_agentes import main
 
 
@@ -63,9 +63,9 @@ def datos_desbalanceados():
 
 
 def sistema(datos, target, llm=None):
-    pizarra = Pizarra(datos, target=target)
-    bus = BusEventos()
-    agente = AgenteEDA(pizarra, llm).conectar(bus)
+    pizarra = Blackboard(datos, target=target)
+    bus = EventBus()
+    agente = EDAAgent(pizarra, llm).conectar(bus)
     recibidos = []
     bus.suscribir(EDA_LISTO, recibidos.append)
     return pizarra, bus, agente, recibidos
@@ -89,33 +89,33 @@ def cliente_falso(mensaje=None, error=None):
 
 # ---------------------------------------------------------------- infraestructura
 def test_bus_procesa_eventos_anidados_en_orden_fifo():
-    bus = BusEventos()
+    bus = EventBus()
     orden = []
 
     def primero(evento):
         orden.append("a")
-        bus.emitir(Evento("b"))
+        bus.emitir(Event("b"))
         orden.append("a-fin")
 
     bus.suscribir("a", primero)
     bus.suscribir("b", lambda evento: orden.append("b"))
-    bus.emitir(Evento("a"))
+    bus.emitir(Event("a"))
 
     assert orden == ["a", "a-fin", "b"]
     assert [e.tipo for e in bus.historial] == ["a", "b"]
 
 
 def test_pizarra_es_un_eda_con_estado_compartido(datos_desbalanceados):
-    pizarra = Pizarra(datos_desbalanceados, target="clase")
+    pizarra = Blackboard(datos_desbalanceados, target="clase")
 
     assert isinstance(pizarra, EDA)
     assert pizarra.resumen_calidad()["filas"] == 100
     with pytest.raises(KeyError):
-        Pizarra(datos_desbalanceados, target="z")
+        Blackboard(datos_desbalanceados, target="z")
 
 
 def test_pizarra_no_duplica_hallazgos_ni_envia_filas_al_llm():
-    pizarra = Pizarra(pd.DataFrame({"secreto": ["valor-privado-123"]}))
+    pizarra = Blackboard(pd.DataFrame({"secreto": ["valor-privado-123"]}))
     hallazgo = Hallazgo("eda", "info", "x")
 
     assert pizarra.registrar(hallazgo) and not pizarra.registrar(hallazgo)
@@ -125,7 +125,7 @@ def test_pizarra_no_duplica_hallazgos_ni_envia_filas_al_llm():
 
 def test_agente_es_abstracto(datos_desbalanceados):
     with pytest.raises(TypeError):
-        Agente(Pizarra(datos_desbalanceados))
+        Agent(Blackboard(datos_desbalanceados))
 
 
 # ---------------------------------------------------------------- herramientas
@@ -179,10 +179,10 @@ def test_tipo_tarea(serie, tarea):
     assert tipo_tarea(serie) == tarea
 
 
-# ---------------------------------------------------------------- AgenteEDA sin LLM
+# ---------------------------------------------------------------- EDAAgent sin LLM
 def test_reglas_proactivas_detectan_riesgos_y_habilitan_regresion(datos_regresion):
     pizarra, bus, agente, recibidos = sistema(datos_regresion, "y")
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     reglas = {h.detalle.get("columna"): h.detalle.get("regla") for h in pizarra.hallazgos}
     assert reglas == {
@@ -197,16 +197,16 @@ def test_reglas_proactivas_detectan_riesgos_y_habilitan_regresion(datos_regresio
 
 
 def test_umbrales_configurables(datos_regresion):
-    pizarra = Pizarra(datos_regresion, target="y")
-    AgenteEDA(pizarra, umbrales=UmbralesEDA(nulos=60.0)).conectar(bus := BusEventos())
-    bus.emitir(Evento(DATASET_CARGADO))
+    pizarra = Blackboard(datos_regresion, target="y")
+    EDAAgent(pizarra, umbrales=UmbralesEDA(nulos=60.0)).conectar(bus := EventBus())
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert "nulos" not in {h.detalle.get("regla") for h in pizarra.hallazgos}
 
 
 def test_detecta_desbalance_en_clasificacion(datos_desbalanceados):
     pizarra, bus, _, recibidos = sistema(datos_desbalanceados, "clase")
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert recibidos[0].datos["tarea"] == "clasificacion"
     assert any(h.detalle.get("regla") == "desbalance" for h in pizarra.hallazgos)
@@ -214,7 +214,7 @@ def test_detecta_desbalance_en_clasificacion(datos_desbalanceados):
 
 def test_sin_target_no_emite_eda_listo(datos_desbalanceados):
     pizarra, bus, agente, recibidos = sistema(datos_desbalanceados, None)
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert recibidos == []
     assert agente.sugerir_configuracion() is None
@@ -227,11 +227,11 @@ def test_preguntar_sin_llm_falla_explicitamente(datos_desbalanceados):
         agente.preguntar("¿Qué ves?")
 
 
-# ---------------------------------------------------------------- AgenteEDA con LLM falso
+# ---------------------------------------------------------------- EDAAgent con LLM falso
 def test_bucle_ejecuta_herramienta_y_devuelve_interpretacion(datos_regresion):
     llm = ProveedorFalso([llamada("correlaciones", umbral=0.9), RespuestaLLM(texto="Hay fuga.")])
     pizarra, bus, _, recibidos = sistema(datos_regresion, "y", llm)
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert pizarra.mensajes[-1] == ("eda", "Hay fuga.")
     assert len(recibidos) == 1
@@ -249,14 +249,14 @@ def test_bucle_ejecuta_herramienta_y_devuelve_interpretacion(datos_regresion):
 def test_error_de_herramienta_vuelve_al_llm(datos_desbalanceados):
     llm = ProveedorFalso([llamada("frecuencias_columna", columna="no_existe"), RespuestaLLM(texto="ok")])
     _, bus, _, _ = sistema(datos_desbalanceados, "clase", llm)
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert "KeyError" in json.loads(llm.llamadas[1]["mensajes"][-1]["content"])["error"]
 
 
 def test_falla_del_proveedor_no_detiene_el_flujo(datos_desbalanceados):
     pizarra, bus, _, recibidos = sistema(datos_desbalanceados, "clase", ProveedorFalso([]))
-    bus.emitir(Evento(DATASET_CARGADO))
+    bus.emitir(Event(DATASET_CARGADO))
 
     assert any("LLM no disponible" in h.mensaje for h in pizarra.hallazgos)
     assert len(recibidos) == 1

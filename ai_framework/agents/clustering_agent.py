@@ -1,20 +1,21 @@
-"""Agente de agrupamiento construido sobre :class:`Agente`."""
+"""Agente de agrupamiento construido sobre :class:`Agent`."""
 
 from __future__ import annotations
 
-from ..resultados import Hallazgo, SugerenciaClustering
-from ..utils import UmbralesClustering
-from .base import Agente
-from .eventos import CLUSTERING_LISTO, CLUSTERING_SOLICITADO, Evento
-from .herramientas.agrupamiento import (
+from ai_framework.utils.results import Hallazgo, SugerenciaClustering
+from ai_framework.utils.agents.agent_config import UmbralesClustering
+from ai_framework.utils.unsupervised import evaluar_hac, evaluar_kmeans
+from ai_framework.agents.agent import Agent
+from ai_framework.agents.events import CLUSTERING_LISTO, CLUSTERING_SOLICITADO, Event
+from ai_framework.agents.tools.clustering_tools import (
     HERRAMIENTAS_AGRUPAMIENTO,
     crear_cluster,
     resumir_resultado,
 )
-from .herramientas.exploracion import parece_identificador
+from ai_framework.agents.tools.eda_tools import parece_identificador
 
 
-class AgenteClustering(Agente):
+class ClusteringAgent(Agent):
     """Busca la mejor partición al solicitarse, avisa riesgos y describe los grupos."""
 
     nombre = "clustering"
@@ -46,7 +47,7 @@ class AgenteClustering(Agente):
         self.estandarizar = estandarizar
         self.umbrales = umbrales or UmbralesClustering()
 
-    def preparar(self, evento: Evento) -> None:
+    def preparar(self, evento: Event) -> None:
         """Compara K-Means y HAC-ward; otros métodos suelen premiar grupos degenerados."""
         cluster = crear_cluster(
             self.pizarra,
@@ -54,12 +55,13 @@ class AgenteClustering(Agente):
             incluir_categoricas=self.incluir_categoricas,
             estandarizar=self.estandarizar,
         )
-        filas = len(cluster.preparar_matriz().matriz)
+        matriz = cluster.preparar_matriz().matriz
+        filas = len(matriz)
         if filas < 3:
             raise ValueError("El agrupamiento requiere al menos tres filas.")
         k_max = min(self.umbrales.k_max, filas - 1)
-        kmeans = cluster.evaluar_kmeans(2, k_max)
-        ward = cluster.evaluar_hac(2, k_max, metodos=("ward",)).dropna(subset=["silhouette"])
+        kmeans = evaluar_kmeans(matriz, 2, k_max)
+        ward = evaluar_hac(matriz, 2, k_max, metodos=("ward",)).dropna(subset=["silhouette"])
         mejor_kmeans = kmeans.loc[kmeans["silhouette"].idxmax()]
         if not ward.empty and ward["silhouette"].max() > mejor_kmeans["silhouette"]:
             k = int(ward.loc[ward["silhouette"].idxmax(), "k"])
@@ -73,7 +75,7 @@ class AgenteClustering(Agente):
             clustering=resumir_resultado(resultado),
         )
 
-    def proponer(self, evento: Evento) -> list[Hallazgo]:
+    def proponer(self, evento: Event) -> list[Hallazgo]:
         resultado = self.pizarra.resultados["resultado_cluster"]
         resumen = self.pizarra.resultados["clustering"]
         preparados = resultado.datos_preparados
@@ -117,10 +119,10 @@ class AgenteClustering(Agente):
                           regla="nulos", columna=columna)
         return hallazgos
 
-    def siguientes(self, evento: Evento) -> list[Evento]:
+    def siguientes(self, evento: Event) -> list[Event]:
         resumen = self.pizarra.resultados["clustering"]
         return [
-            Evento(
+            Event(
                 CLUSTERING_LISTO,
                 {"algoritmo": resumen["algoritmo"], "n_clusters": resumen["n_clusters"]},
                 origen=self.nombre,

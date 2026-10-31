@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.agentes import ProveedorFalso, RespuestaLLM
-from framework_ia.utils import PROVEEDOR_SIN_LLM
+from ai_framework.agents import ProveedorFalso, RespuestaLLM
+from ai_framework.utils.agents.agent_config import PROVEEDOR_SIN_LLM
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -40,16 +40,18 @@ def iniciar(app, proveedor=PROVEEDOR_SIN_LLM):
     return app
 
 
-def test_agente_esta_en_exploracion_y_la_ruta_antigua_redirige():
+def test_agente_esta_en_exploracion_y_navegar_no_analiza():
     app = nueva_app()
     assert any("Exploración / Agente IA" in m.value for m in app.markdown)
-    assert not [b for b in app.sidebar.button if b.key == "nav_agentes"]
-    assert "agentes_sesion" not in app.session_state  # navegar no analiza
+    assert "agentes_sesion" not in app.session_state
 
-    app.session_state["vista_activa"] = "agentes"
-    app.run()
+
+def test_vista_traducida_al_ingles():
+    app = nueva_app()
+    app.sidebar.selectbox(key="selector_idioma_global").set_value("en").run()
     assert not app.exception
-    assert app.session_state["vista_activa"] == "eda_agente"
+    assert any("Exploration / AI Agent" in m.value for m in app.markdown)
+    assert any(b.label == "Start agent" for b in app.button)
 
 
 def test_sin_llm_muestra_hallazgos_y_aplica_sugerencia():
@@ -70,7 +72,7 @@ def test_sin_llm_muestra_hallazgos_y_aplica_sugerencia():
 
 def test_con_llm_falso_interpreta_y_responde_preguntas():
     llm = ProveedorFalso([RespuestaLLM(texto="Interpretación inicial"), RespuestaLLM(texto="Sin nulos.")])
-    with patch("framework_ia.ui.agentes.crear_proveedor", return_value=llm):
+    with patch("ai_framework.ui.controllers.agents_controller.crear_proveedor", return_value=llm):
         app = iniciar(nueva_app(), proveedor="gemini")
         assert "Interpretación inicial" in [m.markdown[0].value for m in app.chat_message]
 
@@ -80,7 +82,7 @@ def test_con_llm_falso_interpreta_y_responde_preguntas():
 
 
 def test_error_del_proveedor_se_muestra():
-    with patch("framework_ia.ui.agentes.crear_proveedor", side_effect=ValueError("Defina GEMINI_API_KEY")):
+    with patch("ai_framework.ui.controllers.agents_controller.crear_proveedor", side_effect=ValueError("Defina GEMINI_API_KEY")):
         app = iniciar(nueva_app(), proveedor="gemini")
 
     assert any("GEMINI_API_KEY" in error.value for error in app.error)

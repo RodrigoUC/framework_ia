@@ -1,7 +1,8 @@
 """Invalidación de sesiones de agentes independiente de los widgets."""
 
-from .estado_clasificacion import huella_datos
+from __future__ import annotations
 
+from ai_framework.ui.models.session_state import huella_datos
 
 CLAVES_EDA = ("agentes_sesion", "error_agentes", "agentes_contexto")
 CLAVES_CLUSTERING = (

@@ -38,6 +38,7 @@ jobs:
           python -m scripts.ejecutar_no_supervisado --help
           python -m scripts.ejecutar_clasificacion --help
           python -m scripts.ejecutar_regresion --help
+          python -m scripts.ejecutar_agentes --help
           python -m scripts.preparar_diabetes --help
           python -m scripts.preparar_potabilidad --help
           python -m scripts.preparar_concrete --help

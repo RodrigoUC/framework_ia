@@ -72,3 +72,6 @@ AGENTE_CLUSTERING = ConfiguracionAgente(
     "Compara K-Means y HAC, recomienda el número de clusters y describe cada grupo.",
 )
 REGLAS_EXCLUSION_EDA = frozenset({"constante", "identificador", "fuga"})
+
+ClusteringThresholds = UmbralesClustering
+EDAThresholds = UmbralesEDA

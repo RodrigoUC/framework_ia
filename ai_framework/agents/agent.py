@@ -1,6 +1,6 @@
-"""Agente base: reglas proactivas deterministas + bucle reactivo con LLM.
+"""Agent base: reglas proactivas deterministas + bucle reactivo con LLM.
 
-Ciclo al recibir un evento suscrito (:meth:`Agente.atender`):
+Ciclo al recibir un evento suscrito (:meth:`Agent.atender`):
 
 1. :meth:`preparar` calcula lo indispensable sin LLM (barato y reproducible).
 2. :meth:`proponer` aplica reglas propias y registra hallazgos (proactivo).
@@ -17,14 +17,14 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..resultados import Hallazgo
-from .eventos import PREGUNTA, BusEventos, Evento
-from .herramientas.registro import Herramienta, ejecutar, serializar
-from .llm.proveedor import ProveedorLLM
-from .pizarra import Pizarra
+from ai_framework.utils.results import Hallazgo
+from ai_framework.agents.events import PREGUNTA, EventBus, Event
+from ai_framework.agents.tools.registry import Herramienta, ejecutar, serializar
+from ai_framework.agents.llm.provider import ProveedorLLM
+from ai_framework.agents.blackboard import Blackboard
 
 
-class Agente(ABC):
+class Agent(ABC):
     """Base común: cada subclase define sus reglas proactivas y herramientas."""
 
     nombre: str = "agente"
@@ -33,19 +33,19 @@ class Agente(ABC):
     escucha: frozenset[str] = frozenset()
     max_pasos: int = 6
 
-    def __init__(self, pizarra: Pizarra, llm: ProveedorLLM | None = None) -> None:
+    def __init__(self, pizarra: Blackboard, llm: ProveedorLLM | None = None) -> None:
         self.pizarra = pizarra
         self.llm = llm
-        self.bus: BusEventos | None = None
+        self.bus: EventBus | None = None
 
-    def conectar(self, bus: BusEventos) -> Agente:
+    def conectar(self, bus: EventBus) -> Agent:
         self.bus = bus
         for tipo in self.escucha:
             bus.suscribir(tipo, self.atender)
         return self
 
     # ---------------------------------------------------------- ciclo
-    def atender(self, evento: Evento) -> None:
+    def atender(self, evento: Event) -> None:
         self.preparar(evento)
         nuevos = [h for h in self.proponer(evento) if self.pizarra.registrar(h)]
         texto = None
@@ -66,19 +66,19 @@ class Agente(ABC):
         if self.llm is None:
             raise RuntimeError(f"{self.nombre} necesita un LLM para responder preguntas.")
         self.pizarra.anotar("usuario", texto)
-        respuesta = self.reaccionar(Evento(PREGUNTA, {"texto": texto}))
+        respuesta = self.reaccionar(Event(PREGUNTA, {"texto": texto}))
         self.pizarra.anotar(self.nombre, respuesta)
         return respuesta
 
     # ---------------------------------------------------------- ganchos
-    def preparar(self, evento: Evento) -> None:
+    def preparar(self, evento: Event) -> None:
         """Cálculos deterministas previos; por defecto no hace nada."""
 
     @abstractmethod
-    def proponer(self, evento: Evento) -> list[Hallazgo]:
+    def proponer(self, evento: Event) -> list[Hallazgo]:
         """Reglas proactivas deterministas sobre la pizarra."""
 
-    def siguientes(self, evento: Evento) -> list[Evento]:
+    def siguientes(self, evento: Event) -> list[Event]:
         return []
 
     def resumen_sin_llm(self, nuevos: list[Hallazgo]) -> str:
@@ -87,7 +87,7 @@ class Agente(ABC):
         return "\n".join(f"[{h.nivel}] {h.mensaje}" for h in nuevos)
 
     # ---------------------------------------------------------- LLM
-    def reaccionar(self, evento: Evento) -> str:
+    def reaccionar(self, evento: Event) -> str:
         mensajes: list[dict[str, Any]] = [
             {"role": "system", "content": self.rol},
             {"role": "user", "content": self._instruccion(evento)},
@@ -116,7 +116,7 @@ class Agente(ABC):
                 )
         return f"{self.nombre}: alcancé el límite de {self.max_pasos} pasos sin conclusión."
 
-    def _instruccion(self, evento: Evento) -> str:
+    def _instruccion(self, evento: Event) -> str:
         pedido = evento.datos.get("texto") or f"Ocurrió el evento '{evento.tipo}'."
         return f"{pedido}\n\nContexto (JSON):\n{self.pizarra.resumen_para_llm()}"
 

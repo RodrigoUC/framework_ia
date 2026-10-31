@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ...utils import UmbralesEDA
-from .registro import herramienta
+from ai_framework.utils.agents.agent_config import UmbralesEDA
+from ai_framework.agents.tools.registry import herramienta
 
 MAX_FILAS = 20
 

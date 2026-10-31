@@ -20,26 +20,26 @@ PREGUNTA = "pregunta"
 
 
 @dataclass(frozen=True)
-class Evento:
+class Event:
     tipo: str
     datos: dict[str, Any] = field(default_factory=dict)
     origen: str = "usuario"
 
 
-Manejador = Callable[[Evento], None]
+Manejador = Callable[[Event], None]
 
 
-class BusEventos:
+class EventBus:
     def __init__(self) -> None:
         self._suscriptores: dict[str, list[Manejador]] = defaultdict(list)
-        self._cola: deque[Evento] = deque()
+        self._cola: deque[Event] = deque()
         self._procesando = False
-        self.historial: list[Evento] = []
+        self.historial: list[Event] = []
 
     def suscribir(self, tipo: str, manejador: Manejador) -> None:
         self._suscriptores[tipo].append(manejador)
 
-    def emitir(self, evento: Evento) -> None:
+    def emitir(self, evento: Event) -> None:
         self._cola.append(evento)
         if self._procesando:
             return

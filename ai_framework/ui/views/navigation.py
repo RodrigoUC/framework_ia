@@ -132,6 +132,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
         boton(t("nav_eda", "EDA"), "eda")
         boton(t("nav_acp", "ACP"), "acp")
+        boton(t("nav_agente_ia", "Agente IA"), "eda_agente")
 
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_analisis", "Análisis y modelos")}</p>',
@@ -139,11 +140,13 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
         boton(t("nav_configuracion", "Configuración"), "configuracion")
         with st.expander(
-            t("nav_clustering", "Clustering"), expanded=vista in {"kmeans", "kmedoids", "hac"}
+            t("nav_clustering", "Clustering"),
+            expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agente"},
         ):
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
+            boton(t("nav_agente_ia", "Agente IA"), "clustering_agente")
 
         with st.expander(
             t("nav_clasificacion", "Clasificación"),
@@ -260,6 +263,8 @@ def _titulo_vista(vista: str) -> str:
             "kmeans": "K-Means",
             "kmedoids": "K-Medoids",
             "hac": "Hierarchical Clustering",
+            "eda_agente": "EDA Agent",
+            "clustering_agente": "Clustering Agent",
             "clasificacion": "Random Forest",
             "clasificacion_knn": "KNN",
             "clasificacion_dt": "Decision Tree",
@@ -290,6 +295,8 @@ def _ruta_vista(vista: str, titulo: str) -> str:
             "kmeans": "Clustering / K-Means",
             "kmedoids": "Clustering / K-Medoids",
             "hac": "Clustering / Hierarchical",
+            "eda_agente": "Exploration / AI Agent",
+            "clustering_agente": "Clustering / AI Agent",
             "clasificacion": "Classification / Random Forest",
             "clasificacion_knn": "Classification / KNN",
             "clasificacion_dt": "Classification / Decision Tree",

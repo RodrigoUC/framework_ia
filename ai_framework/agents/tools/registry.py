@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from ..llm.proveedor import LlamadaHerramienta
+from ai_framework.agents.llm.provider import LlamadaHerramienta
 
 _TIPOS_JSON = {str: "string", int: "integer", float: "number", bool: "boolean"}
 

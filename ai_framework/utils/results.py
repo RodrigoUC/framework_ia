@@ -202,3 +202,6 @@ RegressionExperimentResult = ResultadoExperimentoRegresion
 PartitionResult = ResultadoParticion
 ProjectionResult = ResultadoProyeccion
 RegressionResult = ResultadoRegresion
+Finding = Hallazgo
+ModelingSuggestion = SugerenciaModelado
+ClusteringSuggestion = SugerenciaClustering

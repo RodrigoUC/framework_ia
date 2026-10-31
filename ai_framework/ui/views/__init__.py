@@ -1,6 +1,7 @@
 """Capa de vistas de presentación para la interfaz Streamlit."""
 
 from ai_framework.ui.views import (
+    agents_view,
     classification_experiments_view,
     classification_view,
     configuration_view,
@@ -16,6 +17,7 @@ from ai_framework.ui.views import (
 
 navegacion = navigation
 tema = theme
+vista_agentes = agents_view
 vista_clasificacion = classification_view
 vista_configuracion = configuration_view
 vista_controles = controls_view
@@ -26,6 +28,10 @@ vista_no_supervisado = unsupervised_view
 vista_regresion = regression_view
 vista_resultados = results_view
 
+from ai_framework.ui.views.agents_view import (
+    render_agente_clustering,
+    render_agente_eda,
+)
 from ai_framework.ui.views.navigation import (
     _render_encabezado_atlas,
     _resumen_calidad,
@@ -152,6 +158,8 @@ __all__ = [
     "parametros_regresion",
     "preparacion_regresion_segura",
     "preparacion_segura",
+    "render_agente_clustering",
+    "render_agente_eda",
     "render_experimentos",
     "render_experimentos_regresion",
     "render_modelo_individual",

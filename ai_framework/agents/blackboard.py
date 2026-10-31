@@ -2,7 +2,7 @@
 
 Hereda :class:`EDA`, igual que ``Supervisado`` y ``NoSupervisado``: los agentes
 usan sus métodos de análisis sobre una sola copia del dataset. Al LLM sólo se
-le envía :meth:`Pizarra.resumen_para_llm`, nunca las filas.
+le envía :meth:`Blackboard.resumen_para_llm`, nunca las filas.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from typing import Any
 
 import pandas as pd
 
-from ..datos.eda import EDA
-from ..resultados import Hallazgo
+from ai_framework.data.eda import EDA
+from ai_framework.utils.results import Hallazgo
 
 
-class Pizarra(EDA):
+class Blackboard(EDA):
     # Únicos resultados que llegan al LLM; los demás pueden contener objetos o filas.
     CLAVES_CONTEXTO = ("perfil", "clustering")
 

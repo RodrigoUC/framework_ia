@@ -37,7 +37,7 @@ PALETA_OSCURA = {
     "borde": "#556158",
 }
 
-VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac"}
+VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac", "clustering_agente"}
 
 VISTAS_CLASIFICADORES = {
     "clasificacion": "RF",
@@ -55,6 +55,8 @@ TITULOS_VISTA = {
     "kmeans": "K-Means",
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
+    "eda_agente": "Agente EDA",
+    "clustering_agente": "Agente de clustering",
     "clasificacion": "Random Forest",
     "clasificacion_knn": "KNN",
     "clasificacion_dt": "Árbol de decisión",
@@ -78,6 +80,8 @@ RUTAS_VISTA = {
     "kmeans": "Clustering / K-Means",
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
+    "eda_agente": "Exploración / Agente IA",
+    "clustering_agente": "Clustering / Agente IA",
     "clasificacion": "Clasificación / Random Forest",
     "clasificacion_knn": "Clasificación / KNN",
     "clasificacion_dt": "Clasificación / Árbol de decisión",

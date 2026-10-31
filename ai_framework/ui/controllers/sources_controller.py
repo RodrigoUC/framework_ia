@@ -14,6 +14,7 @@ from ai_framework.datasets.diabetes import (
     cargar_diabetes_regresion,
 )
 from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
+from ai_framework.ui.models.agents_state import limpiar_resultados_agentes
 from ai_framework.ui.models.classification_state import (
     limpiar_resultados_clasificacion,
 )
@@ -118,6 +119,7 @@ def _cargar_fuente_csv(
 def _limpiar_resultados() -> None:
     """Descarta resultados que ya no corresponden al dataset activo."""
     limpiar_resultados_regresion(st.session_state)
+    limpiar_resultados_agentes(st.session_state)
     for clave in list(st.session_state):
         if (
             clave.startswith("resultado_")

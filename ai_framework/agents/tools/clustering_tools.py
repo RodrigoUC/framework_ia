@@ -1,24 +1,29 @@
-"""Herramientas de agrupamiento sobre :class:`framework_ia.modelos.no_supervisado.Cluster`.
+"""Herramientas de agrupamiento sobre :class:`ai_framework.models.unsupervised.Clustering`.
 
 Devuelven métricas y perfiles agregados; las etiquetas por fila nunca llegan al LLM.
 """
 
 from __future__ import annotations
 
-from ...modelos.no_supervisado import Cluster
-from ...resultados import ResultadoCluster
-from .registro import herramienta
+from ai_framework.models.unsupervised import Clustering
+from ai_framework.utils.results import ResultadoCluster
+from ai_framework.utils.unsupervised import (
+    ALGORITMOS_CLUSTERING_COMPARACION,
+    despachar_algoritmo,
+    evaluar_hac,
+    evaluar_kmeans,
+)
+from ai_framework.agents.tools.registry import herramienta
 
 MAX_K = 20
 MIN_FILAS_PERFIL = 3  # el promedio de un grupo menor casi revela filas individuales
 MAX_DISTINTIVAS = 3
-ALGORITMOS = ("K-Means", "K-Medoids", "HAC")
 METODOS_HAC = ("ward", "average", "complete", "single")
 
 
-def crear_cluster(pizarra, **configuracion) -> Cluster:
+def crear_cluster(pizarra, **configuracion) -> Clustering:
     """Deja en la pizarra el modelo con la configuración activa del análisis."""
-    cluster = Cluster(dataframe=pizarra.datos, **configuracion)
+    cluster = Clustering(dataframe=pizarra.datos, **configuracion)
     pizarra.resultados["modelo_cluster"] = cluster
     return cluster
 
@@ -65,7 +70,8 @@ def resumir_resultado(resultado: ResultadoCluster) -> dict:
     k_max=f"Mayor número de clusters, hasta {MAX_K}.",
 )
 def evaluar_k(pizarra, k_min: int = 2, k_max: int = 10) -> dict:
-    tabla = pizarra.resultados["modelo_cluster"].evaluar_kmeans(k_min, min(k_max, MAX_K))
+    matriz = pizarra.resultados["modelo_cluster"].preparar_matriz().matriz
+    tabla = evaluar_kmeans(matriz, k_min, min(k_max, MAX_K))
     return {"filas": _tabla(tabla)}
 
 
@@ -78,26 +84,27 @@ def evaluar_k(pizarra, k_min: int = 2, k_max: int = 10) -> dict:
 def evaluar_jerarquico(
     pizarra, k_min: int = 2, k_max: int = 10, metodos: list[str] | None = None
 ) -> dict:
-    tabla = pizarra.resultados["modelo_cluster"].evaluar_hac(
-        k_min, min(k_max, MAX_K), metodos=tuple(metodos or METODOS_HAC)
-    )
+    matriz = pizarra.resultados["modelo_cluster"].preparar_matriz().matriz
+    tabla = evaluar_hac(matriz, k_min, min(k_max, MAX_K), metodos=tuple(metodos or METODOS_HAC))
     return {"filas": _tabla(tabla)}
 
 
 @herramienta(
     "Agrupa con un algoritmo y describe los grupos con métricas y variables distintivas.",
-    algoritmo=f"Uno de {ALGORITMOS}.",
+    algoritmo=f"Uno de {ALGORITMOS_CLUSTERING_COMPARACION}.",
     n_clusters="Número de clusters.",
     metodo_hac=f"Sólo para HAC: uno de {METODOS_HAC}; por defecto ward.",
 )
 def ejecutar_agrupamiento(
     pizarra, algoritmo: str, n_clusters: int, metodo_hac: str | None = None
 ) -> dict:
-    if algoritmo not in ALGORITMOS:
-        raise ValueError(f"Algoritmo no soportado {algoritmo!r}; use {ALGORITMOS}.")
+    if algoritmo not in ALGORITMOS_CLUSTERING_COMPARACION:
+        raise ValueError(
+            f"Algoritmo no soportado {algoritmo!r}; use {ALGORITMOS_CLUSTERING_COMPARACION}."
+        )
     opciones = {"metodo": metodo_hac or "ward"} if algoritmo == "HAC" else {}
-    resultado = pizarra.resultados["modelo_cluster"].ajustar(
-        algoritmo, n_clusters=n_clusters, **opciones
+    resultado = despachar_algoritmo(
+        pizarra.resultados["modelo_cluster"], algoritmo, n_clusters=n_clusters, **opciones
     )
     return resumir_resultado(resultado)
 

@@ -1,4 +1,4 @@
-"""AgenteClustering: búsqueda determinista, reglas, herramientas, vista y CLI."""
+"""ClusteringAgent: búsqueda determinista, reglas, herramientas, vista y CLI."""
 
 import json
 from pathlib import Path
@@ -9,32 +9,32 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.agentes import (
+from ai_framework.agents import (
     CLUSTERING_LISTO,
     CLUSTERING_SOLICITADO,
-    AgenteClustering,
-    BusEventos,
-    Evento,
-    Pizarra,
+    ClusteringAgent,
+    EventBus,
+    Event,
+    Blackboard,
     ProveedorFalso,
     RespuestaLLM,
 )
-from framework_ia.agentes.herramientas.agrupamiento import (
+from ai_framework.agents.tools.clustering_tools import (
     crear_cluster,
     ejecutar_agrupamiento,
     evaluar_jerarquico,
     evaluar_k,
     resumir_resultado,
 )
-from framework_ia.agentes.herramientas.registro import ejecutar
-from framework_ia.agentes.llm import LlamadaHerramienta
-from framework_ia.resultados import SugerenciaClustering
-from framework_ia.ui.estado_agentes import (
+from ai_framework.agents.tools.registry import ejecutar
+from ai_framework.agents.llm import LlamadaHerramienta
+from ai_framework.utils.results import SugerenciaClustering
+from ai_framework.ui.models.agents_state import (
     limpiar_resultados_agentes,
     sincronizar_contexto_agentes,
     sincronizar_contexto_clustering,
 )
-from framework_ia.utils import PROVEEDOR_SIN_LLM, UmbralesClustering
+from ai_framework.utils.agents.agent_config import PROVEEDOR_SIN_LLM, UmbralesClustering
 from scripts.ejecutar_agentes import main
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
@@ -47,9 +47,9 @@ def grupos(n_por_grupo=30, centros=((0, 0), (10, 10), (-10, 10))):
 
 
 def sistema(datos, llm=None, **opciones):
-    pizarra = Pizarra(datos)
-    bus = BusEventos()
-    agente = AgenteClustering(pizarra, llm, **opciones).conectar(bus)
+    pizarra = Blackboard(datos)
+    bus = EventBus()
+    agente = ClusteringAgent(pizarra, llm, **opciones).conectar(bus)
     recibidos = []
     bus.suscribir(CLUSTERING_LISTO, recibidos.append)
     return pizarra, bus, agente, recibidos
@@ -61,7 +61,7 @@ def reglas(pizarra):
 
 def test_encuentra_los_grupos_reales_sin_llm():
     pizarra, bus, agente, recibidos = sistema(grupos())
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     sugerencia = agente.sugerir_agrupamiento()
     assert isinstance(sugerencia, SugerenciaClustering)
@@ -76,7 +76,7 @@ def test_encuentra_los_grupos_reales_sin_llm():
 def test_sin_estructura_avisa_que_es_debil():
     rng = np.random.default_rng(1)
     pizarra, bus, _, _ = sistema(pd.DataFrame(rng.uniform(size=(150, 6))))
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert "estructura_debil" in reglas(pizarra)
 
@@ -84,7 +84,7 @@ def test_sin_estructura_avisa_que_es_debil():
 def test_avisa_cluster_pequeno():
     datos = pd.concat([grupos(100, ((0, 0), (10, 10))), pd.DataFrame({"a": [60.0] * 3, "b": [60.0] * 3})])
     pizarra, bus, agente, _ = sistema(datos.reset_index(drop=True))
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert "cluster_pequeno" in reglas(pizarra)
     assert min(agente.sugerir_agrupamiento().tamanos) == 3
@@ -97,14 +97,14 @@ def test_avisa_riesgos_de_las_variables():
         incompleta=lambda d: d["a"].where(d.index % 2 == 0),
     )
     pizarra, bus, _, _ = sistema(datos, estandarizar=False)
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert {"identificador", "descartadas", "nulos", "sin_escalar"} <= reglas(pizarra)
 
 
 def test_umbrales_configurables():
     pizarra, bus, agente, _ = sistema(grupos(), umbrales=UmbralesClustering(k_max=2))
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert agente.sugerir_agrupamiento().n_clusters == 2
     assert pizarra.resultados["evaluacion_kmeans"]["k"].max() == 2
@@ -116,7 +116,7 @@ def test_columnas_categoricas_sin_codificar_fallan_antes_de_llamar_al_llm():
     _, bus, _, _ = sistema(datos, llm, features=["a", "tipo"])
 
     with pytest.raises(TypeError):
-        bus.emitir(Evento(CLUSTERING_SOLICITADO))
+        bus.emitir(Event(CLUSTERING_SOLICITADO))
     assert llm.llamadas == []
 
 
@@ -124,7 +124,7 @@ def test_resumen_al_llm_no_expone_filas_ni_grupos_diminutos():
     datos = grupos(20, ((0, 0), (10, 10))).assign(a=lambda d: d["a"] + 0.123456789)
     datos.loc[0, ["a", "b"]] = [987654.0, 987654.0]
     pizarra, bus, _, _ = sistema(datos)
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     contexto = pizarra.resumen_para_llm()
     assert "987654" not in contexto
@@ -142,7 +142,7 @@ def test_llm_interpreta_con_contexto_y_herramientas():
         RespuestaLLM(texto="Hay tres grupos."),
     ])
     pizarra, bus, _, _ = sistema(grupos(), llm)
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert pizarra.mensajes[-1] == ("clustering", "Hay tres grupos.")
     primera, segunda = llm.llamadas
@@ -158,7 +158,7 @@ def test_llm_interpreta_con_contexto_y_herramientas():
 
 def test_falla_del_llm_conserva_la_recomendacion():
     pizarra, bus, agente, recibidos = sistema(grupos(), ProveedorFalso([]))
-    bus.emitir(Evento(CLUSTERING_SOLICITADO))
+    bus.emitir(Event(CLUSTERING_SOLICITADO))
 
     assert any("LLM no disponible" in h.mensaje for h in pizarra.hallazgos)
     assert agente.sugerir_agrupamiento().n_clusters == 3
@@ -166,7 +166,7 @@ def test_falla_del_llm_conserva_la_recomendacion():
 
 
 def test_herramientas_de_agrupamiento():
-    pizarra = Pizarra(grupos())
+    pizarra = Blackboard(grupos())
     crear_cluster(pizarra)
 
     assert [f["k"] for f in evaluar_k.funcion(pizarra, 2, 4)["filas"]] == [2, 3, 4]
@@ -184,7 +184,7 @@ def test_herramientas_de_agrupamiento():
     ids=["no-es-clustering", "metodo-invalido", "k-excesivo"],
 )
 def test_herramienta_devuelve_errores_al_llm(argumentos):
-    pizarra = Pizarra(grupos())
+    pizarra = Blackboard(grupos())
     crear_cluster(pizarra)
     llamada = LlamadaHerramienta("1", "ejecutar_agrupamiento", argumentos)
 
@@ -192,7 +192,7 @@ def test_herramienta_devuelve_errores_al_llm(argumentos):
 
 
 def test_resumen_mide_distintivas_en_desviaciones():
-    cluster = crear_cluster(Pizarra(grupos()))
+    cluster = crear_cluster(Blackboard(grupos()))
     resumen = resumir_resultado(cluster.K_means(3))
 
     assert sum(g["tamano"] for g in resumen["grupos"]) == 90
@@ -266,7 +266,7 @@ def test_cambiar_variables_invalida_la_recomendacion():
 
 def test_vista_con_llm_falso_responde_preguntas():
     llm = ProveedorFalso([RespuestaLLM(texto="Tres grupos."), RespuestaLLM(texto="El grupo 0.")])
-    with patch("framework_ia.ui.agentes.crear_proveedor", return_value=llm):
+    with patch("ai_framework.ui.controllers.agents_controller.crear_proveedor", return_value=llm):
         app = iniciar(nueva_app(), proveedor="gemini")
         app.chat_input(key="agente_clustering_pregunta").set_value("¿Cuál es mayor?").run()
 
@@ -275,7 +275,7 @@ def test_vista_con_llm_falso_responde_preguntas():
 
 
 def test_error_de_proveedor_en_la_vista():
-    with patch("framework_ia.ui.agentes.crear_proveedor", side_effect=ValueError("Defina GEMINI_API_KEY")):
+    with patch("ai_framework.ui.controllers.agents_controller.crear_proveedor", side_effect=ValueError("Defina GEMINI_API_KEY")):
         app = iniciar(nueva_app(), proveedor="gemini")
 
     assert any("GEMINI_API_KEY" in error.value for error in app.error)

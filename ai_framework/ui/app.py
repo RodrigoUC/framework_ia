@@ -62,6 +62,10 @@ from ai_framework.ui.views.theme import (
     _mostrar_figura,
     _texto_mapa_calor,
 )
+from ai_framework.ui.views.agents_view import (
+    render_agente_clustering,
+    render_agente_eda,
+)
 from ai_framework.ui.views.classification_view import (
     preparacion_segura,
     render_modelo_individual,
@@ -303,6 +307,8 @@ def main() -> None:
         _render_dataset()
     elif vista == "eda":
         _render_eda(datos)
+    elif vista == "eda_agente":
+        render_agente_eda(datos, etiqueta)
     elif vista == "clasificacion_configuracion":
         if configuracion_clasif is None:
             st.warning(
@@ -355,6 +361,9 @@ def main() -> None:
     elif vista == "hac":
         assert configuracion is not None
         _render_hac(datos, configuracion)
+    elif vista == "clustering_agente":
+        assert configuracion is not None
+        render_agente_clustering(datos, configuracion, etiqueta)
     else:
         _render_regresion()
 

@@ -1,17 +1,25 @@
 """Capa de controladores de aplicación para la interfaz Streamlit."""
 
 from ai_framework.ui.controllers import (
+    agents_controller,
     classification_controller,
     regression_controller,
     sources_controller,
     unsupervised_controller,
 )
 
+controlador_agentes = agents_controller
 controlador_clasificacion = classification_controller
 controlador_regresion = regression_controller
 controlador_fuentes = sources_controller
 controlador_no_supervisado = unsupervised_controller
 
+from ai_framework.ui.controllers.agents_controller import (
+    aplicar_sugerencia_modelado,
+    iniciar_agente_clustering,
+    iniciar_agente_eda,
+    proveedor_por_defecto,
+)
 from ai_framework.ui.controllers.classification_controller import (
     _argumentos_comunes,
     _argumentos_exportacion,
@@ -76,6 +84,7 @@ __all__ = [
     "_muestrear",
     "_sincronizar_dataset",
     "_usar_particion",
+    "aplicar_sugerencia_modelado",
     "argumentos_comunes",
     "comparar_metodos_hac",
     "crear_regresor",
@@ -86,6 +95,9 @@ __all__ = [
     "ejecutar_tsne",
     "ejecutar_umap",
     "evaluar_kmeans_k",
+    "iniciar_agente_clustering",
+    "iniciar_agente_eda",
     "nombre_tasa_verdaderos",
+    "proveedor_por_defecto",
     "snapshot_ejecucion",
 ]

@@ -20,11 +20,11 @@ Jerarquía del framework:
     ├── Supervisado   (modelos/supervisado.py)
     │      ├── Clasificacion  ->  RF, NR
     │      └── Regresion      ->  RLS, RLM, RL
-    └── Pizarra       (agentes/ · estado que comparten los agentes)
+    └── Blackboard    (agents/ · estado que comparten los agentes)
 
-    Agente (agentes/base.py, ABC) trabaja sobre una Pizarra:
-           ├── AgenteEDA         ->  perfil, nulos, atípicos, fuga, desbalance
-           └── AgenteClustering  ->  compara K-Means y HAC, recomienda k
+    Agent (agents/agent.py, ABC) trabaja sobre una Blackboard:
+           ├── EDAAgent          ->  perfil, nulos, atípicos, fuga, desbalance
+           └── ClusteringAgent   ->  compara K-Means y HAC, recomienda k
 """
 
 from __future__ import annotations
