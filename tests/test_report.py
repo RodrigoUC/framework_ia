@@ -319,8 +319,8 @@ def test_referencias_citadas_y_mayoria_de_articulos_arbitrados(caso_informe):
     assert r"\begin{tikzpicture}" in documento
     assert r"\mathrm{MAE}" in documento and r"\mathrm{RMSE}" in documento
     assert r"\mathrm{MSE}" in documento and "R^2" in documento
-    assert "no demuestra generalización" in documento
-    assert "No se reajusta en cada pliegue interno" in documento
+    assert "no permite confirmar" in documento
+    assert "no se reajusta dentro de cada pliegue interno" in documento
 
 
 def test_bloque_reproduccion_python_usa_fuente_y_original_correctos(caso_informe):

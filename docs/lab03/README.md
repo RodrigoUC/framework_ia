@@ -1,5 +1,11 @@
 # Lab03: regresión y benchmarking
 
+## Estructura de la entrega académica
+
+El siguiente diagrama muestra las carpetas y archivos del paquete de entrega de Concrete, incluida la separación MVC de la interfaz Streamlit. La imagen documenta el ZIP preparado para Lab03; no representa todos los archivos del repositorio.
+
+![Estructura completa de la entrega de Lab03](images/estructura_entrega_lab03.png)
+
 El núcleo de regresión conserva la jerarquía `Supervisado → Regresion` y separa
 los modelos de la interfaz. `Progresion` sigue siendo un alias compatible.
 
