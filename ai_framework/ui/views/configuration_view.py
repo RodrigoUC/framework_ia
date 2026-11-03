@@ -23,8 +23,8 @@ from ai_framework.ui.models.regression_state import (
 from ai_framework.ui.models.session_state import inicializar_configuracion
 
 
-def configurar_supervisado(datos: pd.DataFrame) -> None:
-    """Renderiza los controles de preparación y protocolo para tareas supervisadas."""
+def configure_supervised(datos: pd.DataFrame) -> None:
+    """Render preparation and protocol controls for supervised tasks."""
     tarea = st.radio(
         t("cfg_tarea", "Tarea"),
         list(TAREAS),
@@ -133,20 +133,20 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
         st.checkbox(etiqueta, key=f"sup_{clave}", persist_state="session")
 
 
-def configurar_clasificacion(
+def configure_classification(
     datos: pd.DataFrame, mostrar_figura: Callable | None = None
 ) -> dict | None:
     """Display shared supervised configuration and return classification configuration."""
     del mostrar_figura
     inicializar_configuracion(datos, st.session_state)
-    configurar_supervisado(datos)
+    configure_supervised(datos)
     return configuracion_clasificacion_actual(datos, st.session_state)
 
 
-def configurar_regresion(datos: pd.DataFrame) -> dict | None:
+def configure_regression(datos: pd.DataFrame) -> dict | None:
     """Display shared supervised configuration and return regression configuration."""
     inicializar_configuracion(datos, st.session_state)
-    configurar_supervisado(datos)
+    configure_supervised(datos)
     return configuracion_regresion_actual(datos, st.session_state)
 
 
@@ -220,3 +220,8 @@ def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
     ):
         st.session_state["vista_activa"] = "clasificacion_configuracion"
         st.rerun()
+
+# Backward compatibility aliases
+configurar_supervisado = configure_supervised
+configurar_clasificacion = configure_classification
+configurar_regresion = configure_regression

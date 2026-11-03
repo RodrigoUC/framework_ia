@@ -41,7 +41,7 @@ def preparacion_regresion_segura() -> bool:
     return True
 
 
-def mostrar_resultado_modelo(
+def display_model_result(
     snapshot, mostrar_figura, *, clave: str
 ) -> None:
     """Render metrics, fit plots, and downloads for regression model."""
@@ -249,3 +249,5 @@ def render_resultados_regresion(
         mensaje_sin_datos="Todavía no hay modelos entrenados en este contexto.",
         clave_contexto="regresion",
     )
+
+mostrar_resultado_modelo = display_model_result

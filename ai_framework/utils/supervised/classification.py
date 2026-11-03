@@ -32,7 +32,7 @@ from .classification_config import (
 )
 
 
-def normalizar_algoritmo(algoritmo: str) -> str:
+def normalize_algorithm(algoritmo: str) -> str:
     """Support class names and aliases from the pythonic interface."""
     aliases = {
         "knn": "KNN",
@@ -66,7 +66,7 @@ def normalizar_algoritmo(algoritmo: str) -> str:
         ) from exc
 
 
-def configuraciones_lab2() -> dict[str, list[dict[str, Any]]]:
+def classification_lab2_configs() -> dict[str, list[dict[str, Any]]]:
     """Standard configuration catalog for classification experimentation."""
     return configuraciones_experimento()
 
@@ -102,7 +102,7 @@ class _XGBoostEtiquetas:
         return self.estimador.feature_importances_
 
 
-def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
+def create_model(algoritmo: str, random_state: int, parametros: dict):
     """Instantiate corresponding classification estimator based on algorithm."""
     parametros = dict(parametros)
     if algoritmo == "KNN":
@@ -138,7 +138,7 @@ def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
     )
 
 
-def validar_datos_clasificacion(base: pd.DataFrame, target: str) -> pd.DataFrame:
+def validate_classification_data(base: pd.DataFrame, target: str) -> pd.DataFrame:
     """Validate that data is suitable for supervised classification."""
     base = base.replace([np.inf, -np.inf], np.nan).dropna(subset=[target])
     if base.empty:
@@ -158,7 +158,7 @@ def validar_datos_clasificacion(base: pd.DataFrame, target: str) -> pd.DataFrame
     return base
 
 
-def ajustar_clasificacion(
+def fit_classification(
     base: pd.DataFrame,
     train: pd.Index,
     features: list[str],
@@ -192,7 +192,7 @@ def ajustar_clasificacion(
     return modelo, preparados
 
 
-def ordenar_labels(real: pd.Series, predicho: pd.Series):
+def order_labels(real: pd.Series, predicho: pd.Series):
     """Genera orden determinista para las etiquetas de clase."""
     etiquetas = list(
         dict.fromkeys(pd.concat([pd.Series(real), pd.Series(predicho)]).tolist())
@@ -203,7 +203,7 @@ def ordenar_labels(real: pd.Series, predicho: pd.Series):
         return etiquetas
 
 
-def metricas_clasificacion(
+def classification_metrics(
     y_train: pd.Series,
     y_true: pd.Series,
     y_pred: pd.Series,
@@ -308,7 +308,7 @@ def metricas_clasificacion(
     }
 
 
-def crear_resultado_clasificacion(
+def create_classification_result(
     base: pd.DataFrame,
     train: pd.Index,
     evaluacion: pd.Index,
@@ -354,11 +354,12 @@ def crear_resultado_clasificacion(
         },
     )
 
-# English aliases
-normalize_algorithm = normalizar_algoritmo
-create_model = crear_modelo
-validate_classification_data = validar_datos_clasificacion
-fit_classification = ajustar_clasificacion
-order_labels = ordenar_labels
-classification_metrics = metricas_clasificacion
-create_classification_result = crear_resultado_clasificacion
+# Backward compatibility aliases
+normalizar_algoritmo = normalize_algorithm
+configuraciones_lab2 = classification_lab2_configs
+crear_modelo = create_model
+validar_datos_clasificacion = validate_classification_data
+ajustar_clasificacion = fit_classification
+ordenar_labels = order_labels
+metricas_clasificacion = classification_metrics
+crear_resultado_clasificacion = create_classification_result

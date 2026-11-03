@@ -365,7 +365,7 @@ def _validar_dataset(datos, csv, procedencia, dataset, contenido):
     )
 
 
-def cargar_evidencia(resultados: Path, csv: Path, procedencia: Path) -> EvidenciaRegresion:
+def load_evidence(resultados: Path, csv: Path, procedencia: Path) -> EvidenciaRegresion:
     """Valida CSV, procedencia y los 39 artefactos de un benchmark completo.
 
     El protocolo académico es semilla 42, prueba 25% y CV externa de cinco
@@ -558,5 +558,5 @@ def _cargar(resultados, csv, ruta_procedencia):
         datos, configuracion, comparacion, mejores, predicciones, procedencia, hashes
     )
 
-# English aliases
-load_evidence = cargar_evidencia
+# Backward compatibility aliases
+cargar_evidencia = load_evidence

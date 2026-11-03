@@ -52,7 +52,7 @@ def _json(datos) -> str:
     return json.dumps(datos, ensure_ascii=False, indent=2, default=str)
 
 
-def nombre_tasa_verdaderos(etiqueta, etiquetas) -> str:
+def true_rate_name(etiqueta, etiquetas) -> str:
     """Retorna el nombre descriptivo de la tasa de verdaderos para una clase."""
     etiquetas_lista = list(etiquetas)
     if len(etiquetas_lista) == 2:
@@ -138,3 +138,5 @@ def _argumentos_exportacion(
         **fuente["lectura"],
         "fuente": fuente["fuente"],
     }
+
+nombre_tasa_verdaderos = true_rate_name

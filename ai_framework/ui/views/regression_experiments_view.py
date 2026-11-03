@@ -46,7 +46,7 @@ def _sanear_tabla_regresion(tabla: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def mostrar_experimento_guardado(
+def display_saved_experiment(
     mostrar_figura, *, solo_comparacion=False
 ) -> None:
     """Presenta los resultados de validación, el ganador y los paquetes de descarga."""
@@ -302,3 +302,5 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
             mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
     else:
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
+
+mostrar_experimento_guardado = display_saved_experiment

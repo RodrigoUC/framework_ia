@@ -9,10 +9,11 @@ import pandas as pd
 if TYPE_CHECKING:
     from ai_framework.models.unsupervised import Cluster
 
-ALGORITMOS_CLUSTERING_COMPARACION = ("K-Means", "K-Medoids", "HAC")
+CLUSTERING_COMPARISON_ALGORITHMS = ("K-Means", "K-Medoids", "HAC")
+ALGORITMOS_CLUSTERING_COMPARACION = CLUSTERING_COMPARISON_ALGORITHMS
 
 
-def despachar_algoritmo(cluster: Cluster, algoritmo: str = "KMEANS", **kwargs) -> Any:
+def dispatch_algorithm(cluster: Cluster, algoritmo: str = "KMEANS", **kwargs) -> Any:
     """Dispatch execution of the requested algorithm on the clustering instance."""
     metodos = {
         "KMEANS": cluster.K_means,
@@ -28,7 +29,7 @@ def despachar_algoritmo(cluster: Cluster, algoritmo: str = "KMEANS", **kwargs) -
     return metodos[clave](**kwargs)
 
 
-def comparar_algoritmos_clustering(
+def compare_clustering_algorithms(
     cluster: Cluster,
     n_clusters: int = 3,
     algoritmos: tuple[str, ...] | list[str] | None = None,
@@ -51,7 +52,7 @@ def comparar_algoritmos_clustering(
 
     return pd.DataFrame(filas)
 
-# English aliases
-CLUSTERING_COMPARISON_ALGORITHMS = ALGORITMOS_CLUSTERING_COMPARACION
-dispatch_algorithm = despachar_algoritmo
-compare_clustering_algorithms = comparar_algoritmos_clustering
+# Backward compatibility aliases
+ALGORITMOS_CLUSTERING_COMPARACION = CLUSTERING_COMPARISON_ALGORITHMS
+despachar_algoritmo = dispatch_algorithm
+comparar_algoritmos_clustering = compare_clustering_algorithms

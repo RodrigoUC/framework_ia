@@ -53,7 +53,7 @@ def _crear_cluster(datos: pd.DataFrame, configuracion: dict) -> Cluster:
     )
 
 
-def ejecutar_acp(
+def run_pca(
     datos: pd.DataFrame, configuracion: dict, n_componentes: int = 2
 ) -> ResultadoACP:
     """Execute principal component analysis according to configuration."""
@@ -62,7 +62,7 @@ def ejecutar_acp(
     return modelo.ACP(n_componentes=n_componentes)
 
 
-def ejecutar_kmeans(
+def run_kmeans(
     datos: pd.DataFrame, configuracion: dict, clusters: int
 ) -> ResultadoCluster:
     """Execute K-Means algorithm with the configured sample."""
@@ -71,7 +71,7 @@ def ejecutar_kmeans(
     return modelo.K_means(clusters)
 
 
-def evaluar_kmeans_k(
+def evaluate_kmeans_k(
     datos: pd.DataFrame, configuracion: dict, k_min: int = 2, k_max: int = 10
 ) -> pd.DataFrame:
     """Evalúa valores de k para K-Means mediante inercia y silhouette."""
@@ -84,7 +84,7 @@ def evaluar_kmeans_k(
     return evaluar_kmeans(matriz, k_min=k_min, k_max=limite)
 
 
-def ejecutar_kmedoids(
+def run_kmedoids(
     datos: pd.DataFrame, configuracion: dict, clusters: int
 ) -> ResultadoCluster:
     """Execute K-Medoids algorithm with the configured sample."""
@@ -93,7 +93,7 @@ def ejecutar_kmedoids(
     return modelo.K_medoids(clusters)
 
 
-def ejecutar_hac(
+def run_hac(
     datos: pd.DataFrame,
     configuracion: dict,
     clusters: int,
@@ -106,7 +106,7 @@ def ejecutar_hac(
     return modelo.HAC(clusters, metodo=metodo)
 
 
-def comparar_metodos_hac(
+def compare_hac_methods(
     datos: pd.DataFrame,
     configuracion: dict,
     filas_hac: int = 800,
@@ -125,7 +125,7 @@ def comparar_metodos_hac(
     return evaluar_hac(matriz, k_min=k_min, k_max=limite)
 
 
-def ejecutar_tsne(
+def run_tsne(
     datos: pd.DataFrame,
     configuracion: dict,
     filas: int = 2000,
@@ -143,7 +143,7 @@ def ejecutar_tsne(
     return modelo.TSNE(perplexity=perplexity, max_iter=iteraciones)
 
 
-def ejecutar_umap(
+def run_umap(
     datos: pd.DataFrame,
     configuracion: dict,
     filas: int = 3000,
@@ -159,3 +159,13 @@ def ejecutar_umap(
     )
     modelo = _crear_reductor(muestra, configuracion)
     return modelo.UMAP(n_neighbors=vecinos, min_dist=distancia)
+
+# Backward compatibility aliases
+ejecutar_acp = run_pca
+ejecutar_kmeans = run_kmeans
+evaluar_kmeans_k = evaluate_kmeans_k
+ejecutar_kmedoids = run_kmedoids
+ejecutar_hac = run_hac
+comparar_metodos_hac = compare_hac_methods
+ejecutar_tsne = run_tsne
+ejecutar_umap = run_umap

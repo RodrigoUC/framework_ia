@@ -34,3 +34,5 @@ def crear_tsne(
 
 create_dense_encoder = crear_codificador_denso
 create_tsne = crear_tsne
+
+crear_codificador_denso = create_dense_encoder

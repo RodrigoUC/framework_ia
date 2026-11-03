@@ -535,7 +535,7 @@ DICCIONARIO_CAMPOS_LEGIBLES: dict[str, str] = {
 }
 
 
-def formatear_valor_legible(val: object) -> str:
+def format_readable_value(val: object) -> str:
     """Convierte cualquier valor a una representación textual clara y comprensible."""
     if val is None:
         return "Por defecto (None)"
@@ -601,3 +601,5 @@ def render_tabla_clave_valor(
         filas.append(f"| **{nombre_legible}** | {valor_formateado} |")
 
     st.markdown("\n".join(filas))
+
+formatear_valor_legible = format_readable_value

@@ -120,7 +120,7 @@ def _archivos_analisis(
     return archivos
 
 
-def construir_archivos_experimento_clasificacion(
+def build_experiment_files_classification(
     resultado: ResultadoExperimentoClasificacion,
     *,
     argumentos: Mapping[str, Any],
@@ -189,7 +189,7 @@ def construir_archivos_experimento_clasificacion(
     return archivos
 
 
-def construir_archivos_modelo(
+def build_model_files(
     resultado: ResultadoRegresion,
     *,
     argumentos: Mapping[str, Any],
@@ -231,7 +231,7 @@ def construir_archivos_modelo(
     return archivos
 
 
-def construir_archivos_experimento_regresion(
+def build_experiment_files_regression(
     resultado: ResultadoExperimentoRegresion,
     *,
     argumentos: Mapping[str, Any],
@@ -279,7 +279,7 @@ def construir_archivos_experimento_regresion(
     return archivos
 
 
-def construir_archivos_experimento(
+def build_experiment_files(
     resultado: ResultadoExperimentoClasificacion | ResultadoExperimentoRegresion,
     *,
     argumentos: Mapping[str, Any],
@@ -300,7 +300,7 @@ def construir_archivos_experimento(
     )
 
 
-def construir_zip_experimento(archivos: Mapping[str, bytes]) -> bytes:
+def build_experiment_zip(archivos: Mapping[str, bytes]) -> bytes:
     """Agrupa los mismos archivos sin escribir al disco ni volver a entrenar."""
     memoria = BytesIO()
     with ZipFile(memoria, "w", compression=ZIP_DEFLATED, compresslevel=9) as salida:
@@ -322,9 +322,9 @@ def construir_zip_experimento(archivos: Mapping[str, bytes]) -> bytes:
             salida.writestr(informacion, archivos[nombre], compresslevel=9)
     return memoria.getvalue()
 
-# English aliases
-build_experiment_files_classification = construir_archivos_experimento_clasificacion
-build_model_files = construir_archivos_modelo
-build_experiment_files_regression = construir_archivos_experimento_regresion
-build_experiment_files = construir_archivos_experimento
-build_experiment_zip = construir_zip_experimento
+# Backward compatibility aliases
+construir_archivos_experimento_clasificacion = build_experiment_files_classification
+construir_archivos_modelo = build_model_files
+construir_archivos_experimento_regresion = build_experiment_files_regression
+construir_archivos_experimento = build_experiment_files
+construir_zip_experimento = build_experiment_zip

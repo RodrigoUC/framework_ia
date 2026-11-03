@@ -11,7 +11,7 @@ import streamlit as st
 from ai_framework.ui.models.view_catalog import OPCIONES_COMUNES
 
 
-def huella_datos(datos: pd.DataFrame) -> str:
+def data_fingerprint(datos: pd.DataFrame) -> str:
     """Detecta cambios de valores, orden, índice, nombres y tipos de columna."""
     firma = hashlib.sha256(
         pd.util.hash_pandas_object(datos, index=True).values.tobytes()
@@ -46,7 +46,7 @@ def firma_preparacion(estado) -> tuple:
     )
 
 
-def inicializar_configuracion(datos: pd.DataFrame, estado) -> None:
+def initialize_configuration(datos: pd.DataFrame, estado) -> None:
     """Initialize shared supervised configuration without inferring task."""
     if not estado.get("sup_inicializada"):
         ruta = estado.get("vista_activa", "")
@@ -140,3 +140,7 @@ def _recuperar_resultado(clave: str, firma: tuple):
     if contenedor and contenedor["firma"] == firma:
         return contenedor["resultado"]
     return None
+
+# Backward compatibility aliases
+huella_datos = data_fingerprint
+inicializar_configuracion = initialize_configuration

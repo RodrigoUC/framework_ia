@@ -627,12 +627,12 @@ TEXTOS = {
 }
 
 
-def obtener_idioma() -> str:
+def get_language() -> str:
     """Devuelve el código de idioma activo ('es' o 'en')."""
     return st.session_state.get("idioma", "es")
 
 
-def cambiar_idioma(nuevo_idioma: str) -> None:
+def set_language(nuevo_idioma: str) -> None:
     """Establece el idioma en la sesión."""
     if nuevo_idioma in IDIOMAS:
         st.session_state["idioma"] = nuevo_idioma
@@ -654,9 +654,9 @@ def t(clave: str, fallback: str | None = None, **kwargs: Any) -> str:
     return texto
 
 
-def render_selector_idioma() -> None:
-    """Renderiza el conmutador de idioma en la barra lateral."""
-    idioma_actual = obtener_idioma()
+def render_language_selector() -> None:
+    """Render the language switcher in the sidebar."""
+    idioma_actual = get_language()
     opciones = list(IDIOMAS.keys())
     indice = opciones.index(idioma_actual) if idioma_actual in opciones else 0
     
@@ -668,10 +668,10 @@ def render_selector_idioma() -> None:
         key="selector_idioma_global",
     )
     if nuevo_idioma != idioma_actual:
-        cambiar_idioma(nuevo_idioma)
+        set_language(nuevo_idioma)
         st.rerun()
 
-# English aliases
-get_language = obtener_idioma
-set_language = cambiar_idioma
-render_language_selector = render_selector_idioma
+# Backward compatibility aliases
+obtener_idioma = get_language
+cambiar_idioma = set_language
+render_selector_idioma = render_language_selector

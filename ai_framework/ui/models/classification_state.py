@@ -74,7 +74,7 @@ def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | No
     }
 
 
-def sincronizar_contexto(
+def sync_context(
     estado: MutableMapping[str, Any], datos: pd.DataFrame, configuracion: dict
 ) -> tuple:
     """Descarta resultados anteriores al cambiar datos, target, atributos o split."""
@@ -102,7 +102,7 @@ def sincronizar_contexto(
     return firma
 
 
-def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
+def clear_classification_results(estado: MutableMapping[str, Any]) -> None:
     """Clear classification evidence when active data is not configurable."""
     for clave in tuple(estado):
         if clave.startswith(
@@ -121,7 +121,7 @@ def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
     estado.pop("clasificacion_contexto", None)
 
 
-def sincronizar_ejecucion(
+def sync_execution(
     estado: MutableMapping[str, Any], tipo: str, firma: str
 ) -> None:
     """Invalida solo la ejecución cuyos parámetros han cambiado."""
@@ -129,3 +129,8 @@ def sincronizar_ejecucion(
     if estado.get(clave) != firma:
         estado.pop(f"resultado_lab2_{tipo}", None)
         estado[clave] = firma
+
+# Backward compatibility aliases
+sincronizar_contexto = sync_context
+limpiar_resultados_clasificacion = clear_classification_results
+sincronizar_ejecucion = sync_execution

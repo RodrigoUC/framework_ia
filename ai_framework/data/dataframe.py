@@ -305,3 +305,24 @@ class DataFrame:
             "filas_outliers": filas_outliers,
             "filas_con_algun_outlier": self.datos.loc[mascara_global].copy(),
         }
+
+    # Canonical English aliases
+    load_csv = cargar_csv
+    save_csv = guardar_csv
+    show = mostrar
+    head = primeras_filas
+    tail = ultimas_filas
+    shape = dimensiones
+    columns = nombres_columnas
+    dtypes = tipos_datos
+    missing_count = contar_nulos
+    column_summary = resumen_columnas
+    drop_duplicates = eliminar_duplicados
+    drop_columns = eliminar_columnas
+    impute_missing = imputar_nulos
+    normalize = normalizar
+    standardize = estandarizar
+    select_features = seleccionar_variables
+    variable_distribution = distribucion_variables
+    frequencies = frecuencias
+    detect_outliers = detectar_outliers

@@ -273,3 +273,10 @@ class EDA(DataFrameBase):
         if mostrar:
             figura.show()
         return figura, correlacion
+
+    # Canonical English aliases
+    prepare_dataset = preparar_dataset
+    quality_summary = resumen_calidad
+    target_balance = balance_objetivo
+    histograms = histogramas
+    heat_map = mapa_calor

@@ -7,12 +7,12 @@ import tempfile
 from pathlib import Path
 
 
-def configurar_cache_numba() -> Path:
-    """Devuelve un directorio escribible para la caché de Numba.
+def configure_numba_cache() -> Path:
+    """Return a writable directory for Numba cache.
 
-    Algunas sesiones de Streamlit heredan ``NUMBA_CACHE_DIR`` desde el
-    sistema. Si esa ruta no se puede crear o escribir, conservarla impide
-    importar UMAP aunque exista una carpeta temporal disponible.
+    Some Streamlit sessions inherit ``NUMBA_CACHE_DIR`` from the system.
+    If that path cannot be created or written to, keeping it prevents importing
+    UMAP even if a temporary directory is available.
     """
     configurado = os.environ.get("NUMBA_CACHE_DIR")
     if configurado:
@@ -30,4 +30,5 @@ def configurar_cache_numba() -> Path:
     os.environ["NUMBA_CACHE_DIR"] = str(directorio)
     return directorio
 
-configure_numba_cache = configurar_cache_numba
+
+configurar_cache_numba = configure_numba_cache

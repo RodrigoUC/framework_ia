@@ -21,7 +21,7 @@ from .regression_algorithms import (
 )
 
 
-def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]:
+def regression_metrics(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]:
     """Calculate errors in original units and R² with at least two rows."""
     if len(y_true) < 2:
         raise ValueError("La evaluación necesita al menos dos filas para calcular R².")
@@ -34,7 +34,7 @@ def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]
     }
 
 
-def validar_objetivo(y: pd.Series) -> None:
+def validate_target(y: pd.Series) -> None:
     """Verify that target variable is a continuous and valid numerical series."""
     if (
         not pd.api.types.is_numeric_dtype(y)
@@ -52,13 +52,13 @@ def validar_objetivo(y: pd.Series) -> None:
         )
 
 
-def validar_datos_regresion(base: pd.DataFrame, target: str) -> pd.DataFrame:
+def validate_regression_data(base: pd.DataFrame, target: str) -> pd.DataFrame:
     """Validate tabular data for regression."""
     validar_objetivo(base[target])
     return base
 
 
-def validar_predictoras(features: list[str], base: pd.DataFrame, algoritmo: str) -> None:
+def validate_predictors(features: list[str], base: pd.DataFrame, algoritmo: str) -> None:
     """Validate feature requirements based on algorithm."""
     if algoritmo not in ALGORITMOS_REGRESION:
         raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}")
@@ -78,7 +78,7 @@ def validar_predictoras(features: list[str], base: pd.DataFrame, algoritmo: str)
         raise ValueError("RLM requiere al menos dos variables predictoras.")
 
 
-def ajustar_regresion(
+def fit_regression(
     base: pd.DataFrame,
     train: pd.Index,
     features: list[str],
@@ -107,7 +107,7 @@ def ajustar_regresion(
     return modelo, preparados
 
 
-def crear_resultado_regresion(
+def create_regression_result(
     base: pd.DataFrame,
     train: pd.Index,
     evaluacion: pd.Index,
@@ -151,10 +151,10 @@ def crear_resultado_regresion(
         },
     )
 
-# English aliases
-regression_metrics = metricas_regresion
-validate_target = validar_objetivo
-validate_regression_data = validar_datos_regresion
-validate_predictors = validar_predictoras
-fit_regression = ajustar_regresion
-create_regression_result = crear_resultado_regresion
+# Backward compatibility aliases
+metricas_regresion = regression_metrics
+validar_objetivo = validate_target
+validar_datos_regresion = validate_regression_data
+validar_predictoras = validate_predictors
+ajustar_regresion = fit_regression
+crear_resultado_regresion = create_regression_result

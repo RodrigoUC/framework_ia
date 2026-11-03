@@ -42,7 +42,7 @@ _ALIASES.update(
 )
 
 
-def normalizar_algoritmo(algoritmo: str) -> str:
+def normalize_algorithm(algoritmo: str) -> str:
     """Accept catalog identifiers and pythonic methods."""
     try:
         return _ALIASES[algoritmo.strip().lower()]
@@ -50,7 +50,7 @@ def normalizar_algoritmo(algoritmo: str) -> str:
         raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}") from exc
 
 
-def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
+def create_model(algoritmo: str, random_state: int, parametros: dict):
     """Construye un estimador nuevo; CV interna usa cinco pliegues reproducibles."""
     algoritmo = normalizar_algoritmo(algoritmo)
     opciones = dict(parametros)
@@ -74,7 +74,7 @@ def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
     return _ESTIMADORES[algoritmo](**opciones)
 
 
-def parametros_regresion(modelo) -> dict:
+def regression_parameters(modelo) -> dict:
     """Describe KFold y arrays de alpha sin objetos ni direcciones de memoria."""
     parametros = modelo.get_params()
     cv = parametros.get("cv")
@@ -90,7 +90,7 @@ def parametros_regresion(modelo) -> dict:
     return parametros
 
 
-def metadatos_regresion(modelo) -> dict:
+def regression_metadata(modelo) -> dict:
     """Explicita la selección interna sin confundirla con validación externa."""
     if not isinstance(modelo, (LassoCV, RidgeCV)):
         return {}
@@ -106,8 +106,8 @@ def metadatos_regresion(modelo) -> dict:
         },
     }
 
-# English aliases
-normalize_algorithm = normalizar_algoritmo
-create_model = crear_modelo
-regression_parameters = parametros_regresion
-regression_metadata = metadatos_regresion
+# Backward compatibility aliases
+normalizar_algoritmo = normalize_algorithm
+crear_modelo = create_model
+parametros_regresion = regression_parameters
+metadatos_regresion = regression_metadata

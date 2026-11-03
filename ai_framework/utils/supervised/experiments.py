@@ -692,23 +692,23 @@ ExperimentoClasificacion = ClassificationExperiment
 ExperimentoRegresion = RegressionExperiment
 
 
-def ejecutar_experimento_clasificacion(*args, **kwargs) -> ResultadoExperimentoClasificacion:
+def run_classification_experiment(*args, **kwargs) -> ResultadoExperimentoClasificacion:
     """Convenience function to execute classification benchmark."""
     return ExperimentoClasificacion().ejecutar(*args, **kwargs)
 
 
-def ejecutar_experimento_regresion(*args, **kwargs) -> ResultadoExperimentoRegresion:
+def run_regression_experiment(*args, **kwargs) -> ResultadoExperimentoRegresion:
     """Convenience function to execute regression benchmark."""
     return ExperimentoRegresion().ejecutar(*args, **kwargs)
 
 
-def ejecutar_experimento(modelo, *args, **kwargs):
+def run_experiment(modelo, *args, **kwargs):
     """Enrutador de benchmark supervisado según el tipo de modelo."""
     if hasattr(modelo, "_datos_clasificacion") or getattr(modelo, "_tipo_target", lambda: "")() == "clasificacion":
         return ejecutar_experimento_clasificacion(modelo, *args, **kwargs)
     return ejecutar_experimento_regresion(modelo, *args, **kwargs)
 
-# English aliases
-run_classification_experiment = ejecutar_experimento_clasificacion
-run_regression_experiment = ejecutar_experimento_regresion
-run_experiment = ejecutar_experimento
+# Backward compatibility aliases
+ejecutar_experimento_clasificacion = run_classification_experiment
+ejecutar_experimento_regresion = run_regression_experiment
+ejecutar_experimento = run_experiment

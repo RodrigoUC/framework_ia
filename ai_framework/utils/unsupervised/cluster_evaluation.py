@@ -11,7 +11,7 @@ from sklearn.metrics import silhouette_score
 from ..results import DatosPreparados, ResultadoCluster
 
 
-def validar_numero_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:
+def validate_num_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:
     """Check that the number of clusters is valid for the matrix size."""
     if not 2 <= n_clusters < len(matriz):
         raise ValueError(
@@ -19,14 +19,14 @@ def validar_numero_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:
         )
 
 
-def calcular_centroides(matriz: pd.DataFrame, etiquetas) -> pd.DataFrame:
+def calculate_centroids(matriz: pd.DataFrame, etiquetas) -> pd.DataFrame:
     """Calculate average cluster profiles in feature space."""
     temporal = matriz.copy()
     temporal["cluster"] = etiquetas
     return temporal.groupby("cluster", sort=True).mean()
 
 
-def evaluar_kmeans(
+def evaluate_kmeans(
     matriz: pd.DataFrame,
     k_min: int = 2,
     k_max: int = 10,
@@ -57,7 +57,7 @@ def evaluar_kmeans(
     return pd.DataFrame(filas)
 
 
-def evaluar_hac(
+def evaluate_hac(
     matriz: pd.DataFrame,
     k_min: int = 2,
     k_max: int = 10,
@@ -82,7 +82,7 @@ def evaluar_hac(
     return pd.DataFrame(filas)
 
 
-def construir_resultado_cluster(
+def build_cluster_result(
     *,
     algoritmo: str,
     preparados: DatosPreparados,
@@ -118,9 +118,9 @@ def construir_resultado_cluster(
         matriz_vinculacion=matriz_vinculacion,
     )
 
-# English aliases
-validate_num_clusters = validar_numero_clusters
-calculate_centroids = calcular_centroides
-evaluate_kmeans = evaluar_kmeans
-evaluate_hac = evaluar_hac
-build_cluster_result = construir_resultado_cluster
+# Backward compatibility aliases
+validar_numero_clusters = validate_num_clusters
+calcular_centroides = calculate_centroids
+evaluar_kmeans = evaluate_kmeans
+evaluar_hac = evaluate_hac
+construir_resultado_cluster = build_cluster_result

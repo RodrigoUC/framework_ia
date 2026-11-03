@@ -358,8 +358,8 @@ def _traducir_mensaje_faltante(mensaje: str) -> str:
     return msg
 
 
-def mostrar_faltantes(disponibilidad: Disponibilidad) -> None:
-    """Presenta advertencias para cada prerrequisito faltante en la vista."""
+def show_missing_data(disponibilidad: Disponibilidad) -> None:
+    """Present warnings for each missing prerequisite in the view."""
     for mensaje in disponibilidad.faltantes:
         st.warning(_traducir_mensaje_faltante(mensaje))
 
@@ -369,10 +369,10 @@ def ir_a(destino: str) -> None:
     st.session_state["vista_activa"] = destino
 
 
-def mostrar_guia(
+def show_workflow_guide(
     vista, familia=None, disponibilidad=None, configuracion=None
 ) -> None:
-    """Muestra la orientación contextual de la etapa actual y acciones siguientes."""
+    """Show contextual guidance for current stage and next actions."""
     del configuracion
     if familia is None:
         if vista == "configuracion":
@@ -411,7 +411,7 @@ def mostrar_guia(
 
     if disponibilidad is not None and not disponibilidad.lista:
         if configurando or consultando:
-            mostrar_faltantes(disponibilidad)
+            show_missing_data(disponibilidad)
 
     if configurando:
         if disponibilidad is not None:
@@ -444,3 +444,7 @@ def mostrar_guia(
                     on_click=ir_a,
                     args=(destino_res,),
                 )
+
+# Backward compatibility aliases
+mostrar_faltantes = show_missing_data
+mostrar_guia = show_workflow_guide

@@ -76,8 +76,8 @@ def firma_regresion(configuracion: dict) -> tuple:
     )
 
 
-def limpiar_resultados_regresion(estado) -> None:
-    """Limpia snapshots, intentos y errores sin alterar controles ni particiones."""
+def clear_regression_results(estado) -> None:
+    """Clear snapshots, attempts, and errors without altering controls or splits."""
     for clave in tuple(estado):
         if clave.startswith(
             ("resultado_lab3_", "contexto_lab3_", "error_lab3_", "lab3_firma_")
@@ -86,7 +86,7 @@ def limpiar_resultados_regresion(estado) -> None:
     estado.pop("regresion_contexto", None)
 
 
-def sincronizar_contexto_regresion(estado, datos, configuracion: dict) -> tuple:
+def sync_regression_context(estado, datos, configuracion: dict) -> tuple:
     """Synchronize regression context and invalidate obsolete executions."""
     firma = (
         estado.get("dataset_identidad"),
@@ -95,6 +95,10 @@ def sincronizar_contexto_regresion(estado, datos, configuracion: dict) -> tuple:
         *firma_regresion(configuracion),
     )
     if estado.get("regresion_contexto") != firma:
-        limpiar_resultados_regresion(estado)
+        clear_regression_results(estado)
         estado["regresion_contexto"] = firma
     return firma
+
+# Backward compatibility aliases
+limpiar_resultados_regresion = clear_regression_results
+sincronizar_contexto_regresion = sync_regression_context

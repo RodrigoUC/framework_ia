@@ -258,7 +258,7 @@ def _parametros_registrados(efectivos: dict, solicitados: dict) -> dict:
     return pr(efectivos, solicitados)
 
 
-def ejecutar_experimento_cv(
+def run_cv_experiment(
     clasificador,
     *,
     algoritmos=None,
@@ -473,5 +473,5 @@ def ejecutar_experimento_cv(
         metadatos=metadatos,
     )
 
-# English aliases
-run_cv_experiment = ejecutar_experimento_cv
+# Backward compatibility aliases
+ejecutar_experimento_cv = run_cv_experiment

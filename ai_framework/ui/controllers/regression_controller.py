@@ -27,7 +27,7 @@ def argumentos_comunes(configuracion: dict) -> dict:
     }
 
 
-def crear_regresor(datos, configuracion, *, algoritmo=None) -> Regresion:
+def create_regressor(datos, configuracion, *, algoritmo=None) -> Regresion:
     """Instantiate regression domain model with corresponding predictors."""
     features = (
         [configuracion["feature_simple"]]
@@ -62,3 +62,5 @@ def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
         "dataset": fuente,
         "firma_parametros": firma_parametros(parametros),
     }
+
+crear_regresor = create_regressor
