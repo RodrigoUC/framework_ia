@@ -7,9 +7,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from ai_framework.data.sources import CargadorCSV as CSVLoader
-from ai_framework.models.supervised import Clasificacion as Classification
-from ai_framework.utils.data import ConfiguracionCSV as CSVConfig
+from ai_framework.data.sources import CSVLoader, CargadorCSV
+from ai_framework.models.supervised import Classification, Clasificacion
+from ai_framework.utils.data import CSVConfig, ConfiguracionCSV
 from ai_framework.utils.supervised.export import (
     _json_seguro,
     construir_archivos_experimento as build_experiment_files,

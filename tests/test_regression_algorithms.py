@@ -13,12 +13,12 @@ from sklearn.model_selection import KFold
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 
-from ai_framework import Regresion
+from ai_framework import Regression, Regresion
 from ai_framework.utils.supervised.regression_algorithms import (
     crear_modelo,
     normalizar_algoritmo,
 )
-from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.data.preprocessing import SupervisedPreprocessor, SupervisedPreprocessor
 from ai_framework.utils import (
     ALGORITMOS_LAB3,
     CONFIGURACIONES_REGRESION,
@@ -52,7 +52,7 @@ class RegressionEstimatorTests(unittest.TestCase):
             results = []
             for method in (canonical, pythonic):
                 with self.subTest(method=method):
-                    model = Regresion(
+                    model = Regression(
                         dataframe=self.data,
                         features=["a"] if canonical == "RLS" else None,
                     )
@@ -80,7 +80,7 @@ class RegressionEstimatorTests(unittest.TestCase):
             )
             for candidate in candidates:
                 with self.subTest(algorithm=algorithm, name=candidate["nombre"]):
-                    result = Regresion(
+                    result = Regression(
                         dataframe=self.data,
                         features=["a"] if algorithm == "RLS" else None,
                     ).entrenar(algoritmo=algorithm, **candidate["parametros"])
@@ -123,14 +123,14 @@ class RegressionEstimatorTests(unittest.TestCase):
         for algorithm, constructor in (("LassoCV", LassoCV), ("RidgeCV", RidgeCV)):
             with self.subTest(algorithm=algorithm):
                 fit_calls = []
-                original = PreprocesadorSupervisado.fit
+                original = SupervisedPreprocessor.fit
 
                 def track(preprocessor, X, y=None, calls=fit_calls, fit=original):
                     calls.append(X.index.tolist())
                     return fit(preprocessor, X, y)
 
-                with patch.object(PreprocesadorSupervisado, "fit", track):
-                    result = Regresion(dataframe=self.data).entrenar(
+                with patch.object(SupervisedPreprocessor, "fit", track):
+                    result = Regression(dataframe=self.data).entrenar(
                         algoritmo=algorithm, random_state=17
                     )
                 self.assertEqual(fit_calls, [result.metadatos["train_indices"]])
@@ -168,23 +168,23 @@ class RegressionEstimatorTests(unittest.TestCase):
     def test_seeds_custom_parameters_and_single_feature_non_linear_models(self):
         for algorithm in ("Lasso", "LassoCV", "Ridge", "DT", "RF"):
             with self.subTest(algorithm=algorithm):
-                result = Regresion(dataframe=self.data, features=["a"]).entrenar(
+                result = Regression(dataframe=self.data, features=["a"]).entrenar(
                     algoritmo=algorithm, random_state=9
                 )
                 self.assertEqual(result.parametros["random_state"], 9)
-        result = Regresion(dataframe=self.data).ridge(alpha=2.5, fit_intercept=False)
+        result = Regression(dataframe=self.data).ridge(alpha=2.5, fit_intercept=False)
         self.assertEqual(result.parametros["alpha"], 2.5)
         self.assertFalse(result.parametros["fit_intercept"])
-        result = Regresion(dataframe=self.data).svr(C=10, epsilon=0.2, kernel="linear")
+        result = Regression(dataframe=self.data).svr(C=10, epsilon=0.2, kernel="linear")
         self.assertEqual(
             (result.parametros["C"], result.parametros["epsilon"]), (10, 0.2)
         )
-        result = Regresion(dataframe=self.data).lasso_cv(alphas=np.array([0.1, 1.0]))
+        result = Regression(dataframe=self.data).lasso_cv(alphas=np.array([0.1, 1.0]))
         self.assertEqual(result.parametros["alphas"], [0.1, 1.0])
         json.dumps(result.parametros)
 
     def test_invalid_configuration_and_small_cv_preserve_previous_success(self):
-        model = Regresion(dataframe=self.data)
+        model = Regression(dataframe=self.data)
         previous = model.RLM()
         for algorithm, parameters in (
             ("Lasso", {"alpha": -1}),
@@ -203,7 +203,7 @@ class RegressionEstimatorTests(unittest.TestCase):
                 self.assertIs(model.evaluar(), previous)
         for algorithm in ("LassoCV", "RidgeCV"):
             with self.subTest(algorithm=algorithm), self.assertRaises(ValueError):
-                Regresion(dataframe=self.data.iloc[:6]).entrenar(algoritmo=algorithm)
+                Regression(dataframe=self.data.iloc[:6]).entrenar(algoritmo=algorithm)
         self.assertEqual(normalizar_algoritmo(" ridge_cv "), "RidgeCV")
         with self.assertRaises(ValueError):
             normalizar_algoritmo(None)
@@ -211,10 +211,10 @@ class RegressionEstimatorTests(unittest.TestCase):
     def test_holdout_changes_cannot_affect_cv_alpha_or_forest_training(self):
         for algorithm in ("LassoCV", "RidgeCV", "RF"):
             with self.subTest(algorithm=algorithm):
-                first = Regresion(dataframe=self.data).entrenar(algoritmo=algorithm)
+                first = Regression(dataframe=self.data).entrenar(algoritmo=algorithm)
                 changed = self.data.copy()
                 changed.loc[first.y_true.index, ["a", "b", "target"]] *= 1000
-                second = Regresion(dataframe=changed).entrenar(algoritmo=algorithm)
+                second = Regression(dataframe=changed).entrenar(algoritmo=algorithm)
                 assert_series_equal(first.y_pred_train, second.y_pred_train)
                 if algorithm.endswith("CV"):
                     self.assertEqual(first.modelo.alpha_, second.modelo.alpha_)

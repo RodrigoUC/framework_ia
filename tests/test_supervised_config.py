@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
-from ai_framework.models.supervised import Clasificacion, Regresion
+from ai_framework.models.supervised import Classification, Regression, Clasificacion, Regresion
 from ai_framework.ui.models.classification_state import (
     configuracion_clasificacion_actual,
 )
@@ -32,8 +32,8 @@ def nueva_app():
 
 def test_task_is_explicit_and_common_configuration_is_unique_without_fitting():
     with (
-        patch.object(Clasificacion, "entrenar") as clasificar,
-        patch.object(Regresion, "entrenar") as regresar,
+        patch.object(Classification, "entrenar") as clasificar,
+        patch.object(Regression, "entrenar") as regresar,
     ):
         app = nueva_app()
         assert not app.exception
@@ -144,7 +144,7 @@ def test_legacy_configuration_routes_share_one_destination_without_changing_task
     app = nueva_app()
     app.sidebar.button(key="nav_configuracion").click().run()
     app.radio(key="sup_tarea").set_value("regresion").run()
-    with patch.object(Regresion, "entrenar") as entrenar:
+    with patch.object(Regression, "entrenar") as entrenar:
         for ruta in (
             "regresion",
             "regresion_configuracion",

@@ -17,11 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ai_framework.data.partition import Particionador
-from ai_framework.data.preprocessing import PreprocesadorSupervisado
-from ai_framework.models.supervised import Clasificacion, Supervisado
+from ai_framework.data.partition import DataSplitter, Particionador
+from ai_framework.data.preprocessing import SupervisedPreprocessor, PreprocesadorSupervisado
+from ai_framework.models.supervised import Classification, Clasificacion, Supervised, Supervisado
 from ai_framework.models.supervised.classification import configuraciones_lab2
-from ai_framework.utils.results import ResultadoParticion
+from ai_framework.utils.results import PartitionResult, ResultadoParticion
 from ai_framework.utils import (
     CONFIGURACIONES_MODELO,
     ConfiguracionParticion,
@@ -64,12 +64,12 @@ def partition(data, train, test, validation=None):
     )
 
 
-class ClasificacionTests(unittest.TestCase):
+class ClassificationTests(unittest.TestCase):
     def setUp(self):
         self.data = synthetic()
 
     def test_algorithms_and_pythonic_aliases_preserve_numeric_labels(self):
-        self.assertTrue(issubclass(Clasificacion, Supervisado))
+        self.assertTrue(issubclass(Classification, Supervised))
         for method in (
             "knn",
             "arbol_decision",
@@ -79,7 +79,7 @@ class ClasificacionTests(unittest.TestCase):
             "naive_bayes",
         ):
             with self.subTest(method=method):
-                c = Clasificacion(dataframe=self.data, target="target")
+                c = Classification(dataframe=self.data, target="target")
                 kwargs = (
                     {"n_estimators": 8}
                     if method in ("random_forest", "xgboost", "adaboost")
@@ -123,7 +123,7 @@ class ClasificacionTests(unittest.TestCase):
             with self.subTest(mapping=mapping):
                 data = synthetic(classes=3)
                 data["target"] = data.target.map(mapping)
-                c = Clasificacion(dataframe=data, target="target")
+                c = Classification(dataframe=data, target="target")
                 result = c.xgboost(n_estimators=8, max_depth=2)
                 self.assertEqual(set(result.labels), set(mapping.values()))
                 pred = c.predecir(data.drop(columns="target").iloc[:6])
@@ -144,7 +144,7 @@ class ClasificacionTests(unittest.TestCase):
             }
         )
         split = partition(data, [0, 1, 2, 3], [4, 5])
-        c = Clasificacion(dataframe=data, target="target")
+        c = Classification(dataframe=data, target="target")
         result = c.DT(particion=split, incluir_categoricas=True)
         pre = c._preparados.transformador
         numeric = pre.transformador_.named_transformers_["numericas"]
@@ -165,7 +165,7 @@ class ClasificacionTests(unittest.TestCase):
         self.assertEqual(len(c.predecir(data.iloc[4:].drop(columns="target"))), 2)
 
     def test_inference_cleans_infinities_with_training_imputer(self):
-        c = Clasificacion(dataframe=self.data, target="target")
+        c = Classification(dataframe=self.data, target="target")
         c.DT()
         new = self.data.iloc[:3].drop(columns="target").copy()
         new.iloc[0, 0] = np.inf
@@ -178,17 +178,17 @@ class ClasificacionTests(unittest.TestCase):
     def test_preprocessor_rejects_missing_without_imputation_and_category_opt_out(self):
         data = pd.DataFrame({"x": [1.0, np.nan, 3.0], "s": ["a", "b", "a"]})
         with self.assertRaisesRegex(ValueError, "faltantes"):
-            PreprocesadorSupervisado(imputar=False).fit(data[["x"]])
+            SupervisedPreprocessor(imputar=False).fit(data[["x"]])
         with self.assertRaisesRegex(TypeError, "categóricas"):
-            PreprocesadorSupervisado().fit(data)
+            SupervisedPreprocessor().fit(data)
         with self.assertRaisesRegex(ValueError, "variación"):
-            PreprocesadorSupervisado().fit(pd.DataFrame({"x": [np.nan, np.nan]}))
+            SupervisedPreprocessor().fit(pd.DataFrame({"x": [np.nan, np.nan]}))
 
     def test_feature_selection_keeps_k_columns_learned_only_from_train(self):
         rng = np.random.default_rng(0)
         X = pd.DataFrame(rng.normal(size=(80, 6)), columns=list("uvwxyz"))
         y = (X["u"] + 0.1 * rng.normal(size=80) > 0).astype(int)
-        selector = PreprocesadorSupervisado(seleccion_k=2, random_state=0).fit(X, y)
+        selector = SupervisedPreprocessor(seleccion_k=2, random_state=0).fit(X, y)
         nombres = list(selector.get_feature_names_out())
         self.assertEqual(len(nombres), 2)
         self.assertIn("numericas__u", nombres)
@@ -196,12 +196,12 @@ class ClasificacionTests(unittest.TestCase):
         ranking = selector.puntajes_informacion_mutua()
         self.assertEqual(ranking.index[0], "numericas__u")
         with self.assertRaisesRegex(ValueError, "objetivo"):
-            PreprocesadorSupervisado(seleccion_k=2).fit(X)
+            SupervisedPreprocessor(seleccion_k=2).fit(X)
 
     def test_balanced_class_weights_are_registered_and_rejected_for_knn(self):
         data = synthetic()
         data.loc[data.index[:40], "target"] = 0
-        c = Clasificacion(dataframe=data, target="target")
+        c = Classification(dataframe=data, target="target")
         tabla = c.experimentar(
             algoritmos=["DT", "KNN"],
             configuraciones={
@@ -221,7 +221,7 @@ class ClasificacionTests(unittest.TestCase):
         data = self.data.copy()
         data["target"] = data.target.astype(float)
         data.loc[data.index[0], "target"] = np.nan
-        c = Clasificacion(dataframe=data, target="target")
+        c = Classification(dataframe=data, target="target")
         preview = c.previsualizar_particion(random_state=19)
         result = c.RF(n_estimators=5, random_state=19)
         self.assertEqual(preview["test_indices"], result.metadatos["test_indices"])
@@ -232,7 +232,7 @@ class ClasificacionTests(unittest.TestCase):
         self.assertEqual(result.metadatos["filas_objetivo_nulo"], 1)
 
     def test_validation_partition_is_reused_exactly(self):
-        split = Particionador(
+        split = DataSplitter(
             ConfiguracionParticion(
                 porcentaje_test=0.2,
                 porcentaje_validacion=0.2,
@@ -240,7 +240,7 @@ class ClasificacionTests(unittest.TestCase):
                 semilla=10,
             )
         ).dividir(self.data)
-        result = Clasificacion(dataframe=self.data, target="target").experimentar(
+        result = Classification(dataframe=self.data, target="target").experimentar(
             algoritmos=["DT"],
             particion=split,
         )
@@ -252,14 +252,14 @@ class ClasificacionTests(unittest.TestCase):
         self.assertTrue(result.metadatos["validacion_externa"])
 
     def test_external_train_test_gets_validation_only_from_train(self):
-        split = Particionador(
+        split = DataSplitter(
             ConfiguracionParticion(
                 porcentaje_test=0.25,
                 columna_estratificacion="target",
                 semilla=10,
             )
         ).dividir(self.data)
-        result = Clasificacion(dataframe=self.data, target="target").experimentar(
+        result = Classification(dataframe=self.data, target="target").experimentar(
             algoritmos=["DT"], particion=split
         )
         meta = result.metadatos
@@ -298,7 +298,7 @@ class ClasificacionTests(unittest.TestCase):
                 self.subTest(message=message),
                 self.assertRaisesRegex(ValueError, message),
             ):
-                Clasificacion(dataframe=self.data, target="target").DT(particion=split)
+                Classification(dataframe=self.data, target="target").DT(particion=split)
 
     def test_data_validation_rejects_continuous_single_class_and_duplicate_indices(
         self,
@@ -308,26 +308,26 @@ class ClasificacionTests(unittest.TestCase):
             self.data.assign(target=0),
         ):
             with self.assertRaises((ValueError, TypeError)):
-                Clasificacion(dataframe=invalid, target="target").DT()
+                Classification(dataframe=invalid, target="target").DT()
         duplicated = self.data.copy()
         duplicated.index = [0] * len(duplicated)
         with self.assertRaisesRegex(ValueError, "índices únicos"):
-            Clasificacion(dataframe=duplicated, target="target").DT()
+            Classification(dataframe=duplicated, target="target").DT()
         with self.assertRaisesRegex(ValueError, "target"):
-            Clasificacion(
+            Classification(
                 dataframe=self.data, target="target", features=["a", "target"]
             ).DT()
         with self.assertRaisesRegex(ValueError, "No hay datos"):
-            Clasificacion(dataframe=pd.DataFrame()).DT()
+            Classification(dataframe=pd.DataFrame()).DT()
 
     def test_unseen_holdout_class_and_too_few_stratification_rows_fail_explicitly(self):
         data = pd.DataFrame({"x": range(6), "target": [0, 1, 0, 1, 2, 2]})
         split = partition(data, [0, 1, 2, 3], [4, 5])
         with self.assertRaisesRegex(ValueError, "ausentes"):
-            Clasificacion(dataframe=data, target="target").DT(particion=split)
+            Classification(dataframe=data, target="target").DT(particion=split)
         data.loc[5, "target"] = 3
         with self.assertRaisesRegex(ValueError, "partición"):
-            Clasificacion(dataframe=data, target="target").DT()
+            Classification(dataframe=data, target="target").DT()
 
     def test_default_catalog_has_standard_and_single_change_variants(self):
         first = configuraciones_lab2()
@@ -356,10 +356,10 @@ class ClasificacionTests(unittest.TestCase):
         self.assertNotIn("sentinel", configuraciones_lab2()["RF"][0]["parametros"])
 
     def test_benchmark_all_five_reproducible_and_exports_effective_parameters(self):
-        first = Clasificacion(dataframe=self.data, target="target").experimentar(
+        first = Classification(dataframe=self.data, target="target").experimentar(
             random_state=23
         )
-        second = Clasificacion(dataframe=self.data, target="target").experimentar(
+        second = Classification(dataframe=self.data, target="target").experimentar(
             random_state=23
         )
         assert_frame_equal(first.tabla, second.tabla)
@@ -381,7 +381,7 @@ class ClasificacionTests(unittest.TestCase):
             self.assertIn("metricas_validacion", result.metadatos)
 
     def test_test_mutation_cannot_change_validation_scores_selection_or_training(self):
-        split = Particionador(
+        split = DataSplitter(
             ConfiguracionParticion(
                 porcentaje_test=0.2,
                 porcentaje_validacion=0.2,
@@ -389,7 +389,7 @@ class ClasificacionTests(unittest.TestCase):
                 semilla=9,
             )
         ).dividir(self.data)
-        first = Clasificacion(dataframe=self.data, target="target").experimentar(
+        first = Classification(dataframe=self.data, target="target").experimentar(
             algoritmos=["KNN", "DT"], particion=split
         )
         changed = self.data.copy()
@@ -398,7 +398,7 @@ class ClasificacionTests(unittest.TestCase):
         )
         changed.loc[split.test.index, "a"] *= 10000
         split2 = replace(split, test=changed.loc[split.test.index].copy())
-        second = Clasificacion(dataframe=changed, target="target").experimentar(
+        second = Classification(dataframe=changed, target="target").experimentar(
             algoritmos=["KNN", "DT"], particion=split2
         )
         assert_frame_equal(first.tabla, second.tabla)
@@ -408,7 +408,7 @@ class ClasificacionTests(unittest.TestCase):
         )
 
     def test_all_validation_candidates_are_evaluated_before_any_test(self):
-        c = Clasificacion(dataframe=self.data, target="target")
+        c = Classification(dataframe=self.data, target="target")
         calls = []
         original = c._resultado
 
@@ -425,7 +425,7 @@ class ClasificacionTests(unittest.TestCase):
         self.assertEqual(calls, ["validacion"] * candidatos + ["test"] * 2)
 
     def test_candidate_failures_are_isolated_and_clear_old_success(self):
-        c = Clasificacion(dataframe=self.data, target="target")
+        c = Classification(dataframe=self.data, target="target")
         c.DT()
         result = c.experimentar(
             algoritmos=["KNN", "DT"],
@@ -477,7 +477,7 @@ class ClasificacionTests(unittest.TestCase):
                 self.subTest(kwargs=kwargs),
                 self.assertRaises((ValueError, TypeError)),
             ):
-                Clasificacion(dataframe=self.data, target="target").experimentar(
+                Classification(dataframe=self.data, target="target").experimentar(
                     **kwargs
                 )
 
@@ -488,7 +488,7 @@ class ValidacionCruzadaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data = synthetic(n=150)
-        cls.result = Clasificacion(dataframe=cls.data, target="target").experimentar(
+        cls.result = Classification(dataframe=cls.data, target="target").experimentar(
             estrategia="cv", algoritmos=["KNN", "DT"], folds=3, random_state=5
         )
 
@@ -530,12 +530,12 @@ class ValidacionCruzadaTests(unittest.TestCase):
             )
 
     def test_test_labels_do_not_change_cv_table(self):
-        split = Particionador(
+        split = DataSplitter(
             ConfiguracionParticion(
                 porcentaje_test=0.25, columna_estratificacion="target", semilla=3
             )
         ).dividir(self.data)
-        first = Clasificacion(dataframe=self.data, target="target").experimentar(
+        first = Classification(dataframe=self.data, target="target").experimentar(
             estrategia="cv", algoritmos=["KNN", "DT"], folds=3, particion=split
         )
         changed = self.data.copy()
@@ -543,7 +543,7 @@ class ValidacionCruzadaTests(unittest.TestCase):
             1 - changed.loc[split.test.index, "target"]
         )
         changed.loc[split.test.index, "a"] *= 1000
-        second = Clasificacion(dataframe=changed, target="target").experimentar(
+        second = Classification(dataframe=changed, target="target").experimentar(
             estrategia="cv",
             algoritmos=["KNN", "DT"],
             folds=3,

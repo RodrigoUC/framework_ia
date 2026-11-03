@@ -19,7 +19,7 @@ from ai_framework.datasets.diabetes import (
     preparar_diabetes,
     validar_preparacion_diabetes,
 )
-from ai_framework.models.supervised import Regresion
+from ai_framework.models.supervised import Regression, Regresion
 from ai_framework.ui import streamlit_app
 from ai_framework.ui.controllers.regression_controller import snapshot_ejecucion
 from scripts.preparar_diabetes import crear_parser, ejecutar, main
@@ -263,8 +263,8 @@ def test_source_selection_only_applies_on_confirmation_and_never_trains():
     app = nueva_app()
     app.session_state["resultado_lab3_modelo_RLM"] = {"stale": True}
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
-        patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "experimentar", side_effect=AssertionError("auto-fit")),
     ):
         app.sidebar.radio(key="fuente_origen").set_value(REFERENCIA).run()
         assert app.session_state["fuente_aplicada"][2] == "arbitrario"

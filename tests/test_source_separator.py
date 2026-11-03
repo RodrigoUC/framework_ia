@@ -1,5 +1,5 @@
 import pandas as pd
-from ai_framework.data.sources import ConfiguracionCSV
+from ai_framework.data.sources import CSVConfig, ConfiguracionCSV
 from ai_framework.ui.views.data_view import (
     _formatear_error_fuente,
     _verificar_calidad_carga_csv,
@@ -7,7 +7,7 @@ from ai_framework.ui.views.data_view import (
 
 
 def test_formatear_error_fuente_parser_error():
-    cfg = ConfiguracionCSV(separador=";")
+    cfg = CSVConfig(separador=";")
     exc = pd.errors.ParserError("Error tokenizing data. C error: Expected 12 fields in line 3, saw 13")
     msg = _formatear_error_fuente(exc, cfg)
     assert "Error tokenizing data" not in msg
@@ -16,7 +16,7 @@ def test_formatear_error_fuente_parser_error():
 
 
 def test_formatear_error_fuente_empty_data():
-    cfg = ConfiguracionCSV(separador=",")
+    cfg = CSVConfig(separador=",")
     exc = pd.errors.EmptyDataError("No columns to parse from file")
     msg = _formatear_error_fuente(exc, cfg)
     assert "vacío" in msg or "registros" in msg

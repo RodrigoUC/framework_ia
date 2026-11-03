@@ -37,11 +37,11 @@ class ClassificationPanelTests(unittest.TestCase):
         resultado_nr = app.session_state["resultado_lab2_modelo_NR"]
         with (
             patch(
-                "ai_framework.models.supervised.classification.Clasificacion.entrenar",
+                "ai_framework.models.supervised.classification.Classification.entrenar",
                 side_effect=AssertionError("Results navigation must not train"),
             ) as entrenar,
             patch(
-                "ai_framework.models.supervised.classification.Clasificacion.experimentar",
+                "ai_framework.models.supervised.classification.Classification.experimentar",
                 side_effect=AssertionError("Results navigation must not compare"),
             ) as experimentar,
         ):

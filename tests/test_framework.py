@@ -19,10 +19,12 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 from ai_framework.data.eda import EDA
-from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
-from ai_framework.data.splitting import ConfiguracionParticion, Particionador
+from ai_framework.data.sources import CSVLoader, CargadorCSV, CSVConfig, ConfiguracionCSV
+from ai_framework.data.splitting import PartitionConfig, ConfiguracionParticion, DataSplitter, Particionador
 from ai_framework.data.preprocessing import (
+    PreprocessingConfig,
     ConfiguracionPreprocesamiento,
+    UnsupervisedPreprocessor,
     PreprocesadorNoSupervisado,
 )
 from ai_framework.models.unsupervised import (
@@ -35,10 +37,10 @@ from ai_framework.models.supervised import (
     Regresion,
     Supervisado,
 )
-from ai_framework.utils.visualization import VisualizadorNoSupervisado
+from ai_framework.utils.visualization import UnsupervisedVisualizer, VisualizadorNoSupervisado
 
 
-class FrameworkNoSupervisadoTests(unittest.TestCase):
+class FrameworkUnsupervisedTests(unittest.TestCase):
     """Comprueba que un dataset nuevo recorra el framework completo."""
 
     def setUp(self) -> None:
@@ -52,22 +54,22 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
 
     def test_carga_csv_configurable(self) -> None:
         contenido = b"indice;valor\na;1,5\nb;2,5\n"
-        configuracion = ConfiguracionCSV(
+        configuracion = CSVConfig(
             separador=";",
             decimal=",",
             usar_primera_columna_como_indice=True,
         )
-        resultado = CargadorCSV.cargar_bytes(contenido, configuracion)
+        resultado = CSVLoader.cargar_bytes(contenido, configuracion)
         self.assertEqual(resultado.index.tolist(), ["a", "b"])
         self.assertAlmostEqual(resultado.loc["a", "valor"], 1.5)
 
     def test_preparacion_admite_nulos_y_categorias(self) -> None:
-        configuracion = ConfiguracionPreprocesamiento(
+        configuracion = PreprocessingConfig(
             columnas=("x", "y", "categoria"),
             incluir_categoricas=True,
             estandarizar=True,
         )
-        resultado = PreprocesadorNoSupervisado(configuracion).ajustar_transformar(
+        resultado = UnsupervisedPreprocessor(configuracion).ajustar_transformar(
             self.datos
         )
         self.assertFalse(resultado.matriz.isna().any().any())
@@ -86,9 +88,9 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
         ).ACP(n_componentes=2)
         self.assertEqual(resultado.coordenadas.shape, (30, 2))
         self.assertEqual(resultado.cargas.shape, (3, 2))
-        figura = VisualizadorNoSupervisado.circulo_correlacion(resultado)
+        figura = UnsupervisedVisualizer.circulo_correlacion(resultado)
         self.assertIsInstance(figura, go.Figure)
-        biplot = VisualizadorNoSupervisado.sobreposicion_acp(resultado)
+        biplot = UnsupervisedVisualizer.sobreposicion_acp(resultado)
         self.assertIsInstance(biplot, go.Figure)
 
     def test_acp_overlay_preserves_scores_and_spreads_left_right_labels(self) -> None:
@@ -112,7 +114,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
                 },
                 index=variables,
             )
-            figura = VisualizadorNoSupervisado.sobreposicion_acp(
+            figura = UnsupervisedVisualizer.sobreposicion_acp(
                 replace(resultado, cargas=cargas)
             )
 
@@ -153,7 +155,7 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
                     )
                 )
 
-            circulo = VisualizadorNoSupervisado.circulo_correlacion(resultado)
+            circulo = UnsupervisedVisualizer.circulo_correlacion(resultado)
             geometria = next(
                 shape for shape in circulo.layout.shapes if shape.type == "circle"
             )
@@ -274,13 +276,13 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
             eda.eliminar_columnas(list(eda.datos.columns))
 
     def test_particionador_divide_train_test_validacion_estratificado(self) -> None:
-        configuracion = ConfiguracionParticion(
+        configuracion = PartitionConfig(
             porcentaje_test=0.2,
             porcentaje_validacion=0.2,
             columna_estratificacion="categoria",
             semilla=1,
         )
-        resultado = Particionador(configuracion).dividir(self.datos)
+        resultado = DataSplitter(configuracion).dividir(self.datos)
         self.assertEqual(len(resultado.train), 18)
         self.assertEqual(len(resultado.test), 6)
         self.assertIsNotNone(resultado.validacion)
@@ -302,8 +304,8 @@ class FrameworkNoSupervisadoTests(unittest.TestCase):
                 "target": ["clase_a", "clase_b"] * 20,
             }
         )
-        particion = Particionador(
-            ConfiguracionParticion(
+        particion = DataSplitter(
+            PartitionConfig(
                 porcentaje_test=0.25,
                 columna_estratificacion="target",
                 semilla=7,

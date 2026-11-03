@@ -7,9 +7,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from ai_framework.data.sources import CargadorCSV as CSVLoader
-from ai_framework.models.supervised import Regresion as Regression
-from ai_framework.utils.data import ConfiguracionCSV as CSVConfig
+from ai_framework.data.sources import CSVLoader, CargadorCSV
+from ai_framework.models.supervised import Regression, Regresion
+from ai_framework.utils.data import CSVConfig, ConfiguracionCSV
 from ai_framework.utils.supervised.regression_config import ALGORITMOS_LAB3
 from ai_framework.utils.supervised.export import (
     construir_archivos_experimento as build_experiment_files,

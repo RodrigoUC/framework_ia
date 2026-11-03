@@ -22,7 +22,7 @@ try:
 except ModuleNotFoundError:
     AppTestError = Exception
 
-from ai_framework.models.supervised import Clasificacion
+from ai_framework.models.supervised import Classification, Clasificacion
 from ai_framework.ui.models.classification_state import huella_datos, sincronizar_contexto
 from ai_framework.ui.controllers.classification_controller import _metricas_porcentuales
 from ai_framework.utils import configuraciones_experimento
@@ -119,7 +119,7 @@ def test_navigation_comparison_is_read_only_and_never_experiments():
             side_effect=AssertionError("individual diagnostic in results"),
         ),
         patch.object(
-            Clasificacion, "entrenar", side_effect=AssertionError("comparison trained")
+            Classification, "entrenar", side_effect=AssertionError("comparison trained")
         ),
         patch.object(
             Clasificacion,
@@ -186,7 +186,7 @@ def test_failed_rf_attempt_keeps_last_successful_criterion():
     app.button(key="lab2_entrenar_RF").click().run()
     saved = app.session_state["resultado_lab2_modelo_RF_criterios"]["gini"]["resultado"]
     with patch.object(
-        Clasificacion, "entrenar", side_effect=ValueError("synthetic failure")
+        Classification, "entrenar", side_effect=ValueError("synthetic failure")
     ):
         app.button(key="lab2_entrenar_RF").click().run()
     assert (
@@ -435,13 +435,13 @@ def test_shared_classification_setup_applies_to_models_and_invalidates_them():
 
 
 def test_reused_global_partition_is_shared_across_classifier_routes():
-    from ai_framework.data.partition import Particionador
-    from ai_framework.utils import ConfiguracionParticion
+    from ai_framework.data.partition import DataSplitter, Particionador
+    from ai_framework.utils import PartitionConfig, ConfiguracionParticion
 
     app = nueva_app()
     datos = app.session_state["dataset_preparado"]
-    particion = Particionador(
-        ConfiguracionParticion(
+    particion = DataSplitter(
+        PartitionConfig(
             porcentaje_test=0.25,
             columna_estratificacion="clase",
             semilla=31,
@@ -572,7 +572,7 @@ def resultado_benchmark():
     )
     datos = pd.DataFrame(X, columns=["a", "b", "c", "d"])
     datos["clase"] = y
-    return Clasificacion(dataframe=datos, target="clase").experimentar()
+    return Classification(dataframe=datos, target="clase").experimentar()
 
 
 def _abrir_experimentos(app, estrategia="holdout"):
@@ -594,9 +594,9 @@ def test_benchmark_usa_validacion_cruzada_por_defecto_y_la_ejecuta():
     app.sidebar.button(key="nav_lab2_benchmark").click().run()
     assert app.radio(key="lab2_benchmark_estrategia").value == "cv"
     assert not any(widget.key == "lab2_benchmark_validacion" for widget in app.slider)
-    original = Clasificacion.experimentar
+    original = Classification.experimentar
     with patch.object(
-        Clasificacion, "experimentar", autospec=True, side_effect=original
+        Classification, "experimentar", autospec=True, side_effect=original
     ) as llamada:
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
@@ -614,7 +614,7 @@ def test_benchmark_usa_validacion_cruzada_por_defecto_y_la_ejecuta():
 
 def _guardar_benchmark(app, resultado):
     _abrir_experimentos(app)
-    with patch.object(Clasificacion, "experimentar", return_value=resultado) as llamada:
+    with patch.object(Classification, "experimentar", return_value=resultado) as llamada:
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
     assert llamada.call_count == 1
@@ -625,7 +625,7 @@ def test_benchmark_navigation_catalog_and_shared_setup_do_not_train():
     app = nueva_app()
     with (
         patch.object(
-            Clasificacion, "entrenar", side_effect=AssertionError("navigation trained")
+            Classification, "entrenar", side_effect=AssertionError("navigation trained")
         ) as entrenamiento,
         patch.object(
             Clasificacion,
@@ -656,9 +656,9 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
     app.multiselect(key="sup_features").set_value(["a", "b", "c"]).run()
     app.number_input(key="sup_random_state").set_value(19).run()
     _abrir_experimentos(app)
-    original = Clasificacion.experimentar
+    original = Classification.experimentar
     with patch.object(
-        Clasificacion, "experimentar", autospec=True, side_effect=original
+        Classification, "experimentar", autospec=True, side_effect=original
     ) as llamada:
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
@@ -703,7 +703,7 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
         assert "KNN/predicciones_test.csv" in archivo.namelist()
     with (
         patch.object(
-            Clasificacion, "entrenar", side_effect=AssertionError("results trained")
+            Classification, "entrenar", side_effect=AssertionError("results trained")
         ),
         patch.object(
             Clasificacion,
@@ -726,12 +726,12 @@ def test_benchmark_button_runs_once_with_shared_config_and_exports_real_result()
 
 @pytest.mark.parametrize("validacion", [0.0, 0.2])
 def test_benchmark_reuses_global_validation_or_splits_only_global_train(validacion):
-    from ai_framework.data.partition import Particionador
-    from ai_framework.utils import ConfiguracionParticion
+    from ai_framework.data.partition import DataSplitter, Particionador
+    from ai_framework.utils import PartitionConfig, ConfiguracionParticion
 
     app = nueva_app()
-    particion = Particionador(
-        ConfiguracionParticion(
+    particion = DataSplitter(
+        PartitionConfig(
             porcentaje_test=0.25,
             porcentaje_validacion=validacion,
             columna_estratificacion="clase",
@@ -745,9 +745,9 @@ def test_benchmark_reuses_global_validation_or_splits_only_global_train(validaci
     assert any(widget.key == "lab2_benchmark_validacion" for widget in app.slider) == (
         validacion == 0.0
     )
-    original = Clasificacion.experimentar
+    original = Classification.experimentar
     with patch.object(
-        Clasificacion, "experimentar", autospec=True, side_effect=original
+        Classification, "experimentar", autospec=True, side_effect=original
     ) as llamada:
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
@@ -777,13 +777,13 @@ def test_benchmark_dirty_controls_and_failed_retry_preserve_executed_evidence(
     guardado = _guardar_benchmark(app, resultado_benchmark)
     evidencia = guardado["zip"]
     with patch.object(
-        Clasificacion, "experimentar", side_effect=AssertionError("widget trained")
+        Classification, "experimentar", side_effect=AssertionError("widget trained")
     ):
         app.selectbox(key="lab2_benchmark_metrica").set_value("accuracy").run()
     assert app.session_state["resultado_lab2_experimento"] is guardado
     assert any("Las opciones cambiaron" in aviso.value for aviso in app.info)
     with patch.object(
-        Clasificacion, "experimentar", side_effect=ValueError("fallo sintético")
+        Classification, "experimentar", side_effect=ValueError("fallo sintético")
     ):
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
@@ -842,7 +842,7 @@ def test_benchmark_no_winners_keeps_previous_success_and_shows_attempt_errors(
     fallido = replace(
         resultado_benchmark, tabla=tabla, mejores={}, mejor_algoritmo=None
     )
-    with patch.object(Clasificacion, "experimentar", return_value=fallido):
+    with patch.object(Classification, "experimentar", return_value=fallido):
         app.button(key="lab2_benchmark_ejecutar").click().run()
     assert not app.exception
     assert app.session_state["resultado_lab2_experimento"] is guardado
@@ -882,7 +882,7 @@ def test_benchmark_global_imputation_blocks_execution():
     app = nueva_app()
     app.session_state["dataset_preparacion"] = {"imputar": True, "escalado": "Ninguno"}
     with patch.object(
-        Clasificacion, "experimentar", side_effect=AssertionError("unsafe experiment")
+        Classification, "experimentar", side_effect=AssertionError("unsafe experiment")
     ):
         _abrir_experimentos(app)
     assert app.button(key="lab2_benchmark_ejecutar").disabled
@@ -891,14 +891,14 @@ def test_benchmark_global_imputation_blocks_execution():
 
 def test_applied_csv_provenance_tracks_exact_bytes_and_read_options(tmp_path):
     from ai_framework.ui import streamlit_app
-    from ai_framework.utils import ConfiguracionCSV
+    from ai_framework.utils import CSVConfig, ConfiguracionCSV
 
     primero = tmp_path / "primero.csv"
     segundo = tmp_path / "segundo.csv"
     primero.write_bytes(b"x;clase\n1,5;0\n2,5;1\n")
     segundo.write_bytes(b"x;clase\n9,5;0\n8,5;1\n")
     estado = {}
-    lectura = ConfiguracionCSV(separador=";", decimal=",", encoding="utf-8")
+    lectura = CSVConfig(separador=";", decimal=",", encoding="utf-8")
     with patch.object(streamlit_app.st, "session_state", estado):
         streamlit_app._cargar_fuente_csv(
             primero, lectura, fuente="referencia del profesor"
@@ -969,21 +969,21 @@ def test_reapplied_local_csv_with_preserved_timestamp_updates_data_and_evidence(
     import os
 
     from ai_framework.ui import streamlit_app
-    from ai_framework.utils import ConfiguracionCSV
+    from ai_framework.utils import CSVConfig, ConfiguracionCSV
 
     csv = tmp_path / "mismo.csv"
     csv.write_bytes(b"x,clase\n1,0\n2,1\n")
     fecha = csv.stat()
     estado = {}
     with patch.object(streamlit_app.st, "session_state", estado):
-        streamlit_app._cargar_fuente_csv(csv, ConfiguracionCSV())
+        streamlit_app._cargar_fuente_csv(csv, CSVConfig())
         datos, _, identidad = estado["fuente_aplicada"]
         streamlit_app._sincronizar_dataset(datos, identidad)
         estado["resultado_lab2_experimento"] = {"evidencia": "anterior"}
         csv.write_bytes(b"x,clase\n9,0\n8,1\n")
         os.utime(csv, ns=(fecha.st_atime_ns, fecha.st_mtime_ns))
         assert csv.stat().st_mtime_ns == fecha.st_mtime_ns
-        streamlit_app._cargar_fuente_csv(csv, ConfiguracionCSV())
+        streamlit_app._cargar_fuente_csv(csv, CSVConfig())
         datos_nuevos, _, identidad_nueva = estado["fuente_aplicada"]
         streamlit_app._sincronizar_dataset(datos_nuevos, identidad_nueva)
     assert identidad_nueva != identidad
@@ -1050,9 +1050,9 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
     tmp_path,
 ):
     from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
-    from ai_framework.data.partition import Particionador
+    from ai_framework.data.partition import DataSplitter, Particionador
     from ai_framework.ui.models import perfil_diabetes
-    from ai_framework.utils import ConfiguracionParticion
+    from ai_framework.utils import PartitionConfig, ConfiguracionParticion
 
     datos, _, digest, _, procedencia = _fuentes_diabetes_sinteticas(tmp_path)
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
@@ -1060,8 +1060,8 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
         assert app.sidebar.button(key="nav_lab2_benchmark").disabled
         app.session_state["lab2_benchmark_validacion"] = 30
         app.session_state["lab2_benchmark_metrica"] = "accuracy"
-        particion = Particionador(
-            ConfiguracionParticion(
+        particion = DataSplitter(
+            PartitionConfig(
                 porcentaje_test=0.3, columna_estratificacion="diabetes", semilla=9
             )
         ).dividir(datos)
@@ -1077,8 +1077,8 @@ def test_diabetes_preset_applies_native_features_before_widgets_and_never_trains
         app.session_state["resultado_lab2_modelo_KNN"] = {"anterior": True}
         app.session_state["error_lab2_experimento"] = "error anterior"
         with (
-            patch.object(Clasificacion, "entrenar") as entrenar,
-            patch.object(Clasificacion, "experimentar") as experimentar,
+            patch.object(Classification, "entrenar") as entrenar,
+            patch.object(Classification, "experimentar") as experimentar,
         ):
             app.button(key="aplicar_configuracion_diabetes_lab02").click().run()
             assert not app.exception
@@ -1117,7 +1117,7 @@ def test_original_diabetes_is_blocked_until_the_prepared_source_is_applied(tmp_p
     )
     with patch.object(perfil_diabetes, "RUTA_PROCEDENCIA", procedencia):
         app = _app_fuente_diabetes(original, original_sha)
-        with patch.object(Clasificacion, "experimentar") as experimentar:
+        with patch.object(Classification, "experimentar") as experimentar:
             assert app.sidebar.button(key="nav_lab2_benchmark").disabled
             app.session_state["vista_activa"] = "lab2_benchmark"
             app.run()

@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_framework import Regresion
+from ai_framework import Regression, Regresion
 from ai_framework.datasets.concrete import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
 from ai_framework.utils.supervised.evidence import cargar_evidencia
 from scripts import ejecutar_regresion
@@ -133,7 +133,7 @@ def test_informe_refleja_catorce_candidatos_y_metricas_reales_sin_entrenar(
     evidencia = leer_evidencia(caso_informe)
     datos_antes = archivos(caso_informe)
     args = argumentos(caso_informe, caso_informe.parent / "informe")
-    with patch.object(Regresion, "_ajustar", side_effect=AssertionError("No entrenar")):
+    with patch.object(Regression, "_ajustar", side_effect=AssertionError("No entrenar")):
         salida = generar_fixture(args)
     contenido = (salida / "main.tex").read_text(encoding="utf-8")
     assert "nueve modelos de regresión y catorce configuraciones" in contenido

@@ -9,9 +9,9 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from ai_framework.data.partition import ConfiguracionParticion, Particionador
-from ai_framework.models.supervised import Clasificacion, Regresion
-from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.data.partition import PartitionConfig, DataSplitter, ConfiguracionParticion, Particionador
+from ai_framework.models.supervised import Classification, Regression, Clasificacion, Regresion
+from ai_framework.data.preprocessing import SupervisedPreprocessor, SupervisedPreprocessor
 from ai_framework.ui.models.classification_state import (
     configuracion_clasificacion_actual,
 )
@@ -38,10 +38,10 @@ def test_readiness_is_pure_does_not_require_optional_steps_and_never_fits(datos)
     antes = datos.copy(deep=True)
     configuracion = config(datos)
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("fit")),
-        patch.object(Clasificacion, "entrenar", side_effect=AssertionError("fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("fit")),
+        patch.object(Classification, "entrenar", side_effect=AssertionError("fit")),
         patch.object(
-            PreprocesadorSupervisado, "fit", side_effect=AssertionError("fit")
+            SupervisedPreprocessor, "fit", side_effect=AssertionError("fit")
         ),
     ):
         disponible = disponibilidad_supervisada(datos, configuracion, "regresion")
@@ -113,7 +113,7 @@ def test_single_feature_only_blocks_multiple_regression_not_other_models(datos):
 
 
 def test_partition_snapshot_integrity_and_regression_fold_requirements(datos):
-    particion = Particionador(ConfiguracionParticion(porcentaje_test=0.25)).dividir(
+    particion = DataSplitter(PartitionConfig(porcentaje_test=0.25)).dividir(
         datos
     )
     configuracion = config(datos)
@@ -177,10 +177,10 @@ def app_con_datos(datos):
 
 def test_navigation_and_next_steps_follow_actual_dependencies_without_fitting(datos):
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
-        patch.object(Clasificacion, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Classification, "entrenar", side_effect=AssertionError("auto-fit")),
         patch.object(
-            PreprocesadorSupervisado, "fit", side_effect=AssertionError("auto-fit")
+            SupervisedPreprocessor, "fit", side_effect=AssertionError("auto-fit")
         ),
     ):
         app = app_con_datos(datos)
@@ -209,7 +209,7 @@ def test_success_enables_results_immediately_and_context_change_revokes_them(dat
     app = app_con_datos(datos)
     app.sidebar.button(key="nav_regresion_ridge").click().run()
     with patch.object(
-        Regresion, "entrenar", autospec=True, side_effect=Regresion.entrenar
+        Regression, "entrenar", autospec=True, side_effect=Regression.entrenar
     ) as entrenar:
         app.button(key="lab3_entrenar_Ridge").click().run()
     assert not app.exception
@@ -231,7 +231,7 @@ def test_direct_route_cannot_bypass_target_requirements_and_correction_is_availa
     app = app_con_datos(datos)
     app.session_state["sup_tarea"] = "clasificacion"
     app.session_state["vista_activa"] = "clasificacion_knn"
-    with patch.object(Clasificacion, "entrenar") as entrenar:
+    with patch.object(Classification, "entrenar") as entrenar:
         app.run()
         assert not app.exception
         assert app.button(key="lab2_entrenar_KNN").disabled

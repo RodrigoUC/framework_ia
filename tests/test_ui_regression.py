@@ -12,9 +12,9 @@ import pytest
 from sklearn.datasets import make_regression
 from streamlit.testing.v1 import AppTest
 
-from ai_framework.data.partition import ConfiguracionParticion, Particionador
+from ai_framework.data.partition import PartitionConfig, DataSplitter, ConfiguracionParticion, Particionador
 from ai_framework.utils.supervised.export import construir_archivos_modelo
-from ai_framework.models.supervised import Regresion
+from ai_framework.models.supervised import Regression, Regresion
 from ai_framework.ui import streamlit_app
 from ai_framework.ui.models.regression_state import configuracion_regresion_actual
 from ai_framework.ui.models.regression_state import (
@@ -22,7 +22,7 @@ from ai_framework.ui.models.regression_state import (
     sincronizar_contexto_regresion,
 )
 from ai_framework.ui.streamlit_app import APP_NAME, VISTAS_REGRESORES
-from ai_framework.utils.visualization import VisualizadorRegresion
+from ai_framework.utils.visualization import RegressionVisualizer, VisualizadorRegresion
 
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 
@@ -58,7 +58,7 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
     ruta, algoritmo
 ):
     app = nueva_app()
-    with patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")):
+    with patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")):
         navegar(app, ruta)
     assert not any(item.value.startswith("### ") for item in app.markdown)
     app.button(key=f"lab3_entrenar_{algoritmo}").click().run()
@@ -78,13 +78,13 @@ def test_nine_models_train_explicitly_and_export_saved_numeric_evidence(
         == app.session_state["fuente_metadata"]["sha256"]
     )
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")),
         patch(
             "ai_framework.ui.views.regression_view.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in comparison"),
         ),
         patch.object(
-            Regresion, "experimentar", side_effect=AssertionError("auto-benchmark")
+            Regression, "experimentar", side_effect=AssertionError("auto-benchmark")
         ),
     ):
         app.session_state["vista_activa"] = "lab3_comparacion"
@@ -109,7 +109,7 @@ def test_parameter_edits_and_failure_keep_success_and_do_not_touch_classificatio
     app.number_input(key="lab3_param_Ridge_alpha").set_value(10.0).run()
     assert app.session_state["resultado_lab3_modelo_Ridge"] is previo
     assert any("sin ejecutar" in aviso.value for aviso in app.info)
-    with patch.object(Regresion, "entrenar", side_effect=ValueError("fallo sintético")):
+    with patch.object(Regression, "entrenar", side_effect=ValueError("fallo sintético")):
         app.button(key="lab3_entrenar_Ridge").click().run()
     assert not app.exception
     assert app.session_state["resultado_lab3_modelo_Ridge"] is previo
@@ -151,7 +151,7 @@ def test_benchmark_partial_winner_failure_and_total_failure_keep_previous_succes
             "errores_prueba": {ganador: "fallo final sintético"},
         },
     )
-    with patch.object(Regresion, "experimentar", return_value=parcial):
+    with patch.object(Regression, "experimentar", return_value=parcial):
         app.button(key="lab3_ejecutar_experimento").click().run()
     assert not app.exception
     assert app.session_state["resultado_lab3_experimento"] is previo
@@ -160,14 +160,14 @@ def test_benchmark_partial_winner_failure_and_total_failure_keep_previous_succes
     )
     assert any("falta la evaluación" in aviso.value for aviso in app.warning)
     with patch.object(
-        Regresion, "experimentar", side_effect=ValueError("ningún candidato")
+        Regression, "experimentar", side_effect=ValueError("ningún candidato")
     ):
         app.button(key="lab3_ejecutar_experimento").click().run()
     assert not app.exception
     assert app.session_state["resultado_lab3_experimento"] is previo
     assert any("ningún candidato" in error.value for error in app.error)
     with patch.object(
-        Regresion, "experimentar", side_effect=AssertionError("auto-fit")
+        Regression, "experimentar", side_effect=AssertionError("auto-fit")
     ):
         navegar(app, "lab3_resultados")
 
@@ -175,8 +175,8 @@ def test_benchmark_partial_winner_failure_and_total_failure_keep_previous_succes
 def test_shared_partition_preprocessing_guard_and_source_reset():
     app = nueva_app()
     datos = app.session_state["dataset_preparado"]
-    particion = Particionador(
-        ConfiguracionParticion(
+    particion = DataSplitter(
+        PartitionConfig(
             porcentaje_test=0.25, porcentaje_validacion=0.2, semilla=13
         )
     ).dividir(datos)
@@ -233,7 +233,7 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     assert resultado.mejor_algoritmo in resultado.mejores
     assert resultado.metadatos["metrica_seleccion"] == "rmse"
     with (
-        patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "experimentar", side_effect=AssertionError("auto-fit")),
         patch(
             "ai_framework.ui.views.regression_experiments_view.mostrar_resultado_modelo",
             side_effect=AssertionError("individual diagnostic in results"),
@@ -252,7 +252,7 @@ def test_individual_regression_page_keeps_only_its_own_diagnostic():
     for ruta, algoritmo in (("regresion_rls", "RLS"), ("regresion_ridge", "Ridge")):
         navegar(app, ruta)
         app.button(key=f"lab3_entrenar_{algoritmo}").click().run()
-    with patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")):
+    with patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")):
         navegar(app, "regresion_rls")
     assert not app.exception
     assert len(app.metric) == 4
@@ -303,8 +303,8 @@ def test_regression_figures_use_shared_theme_renderer_with_keys_and_alt(tema):
         residuos=pd.Series([-0.1, 0.1, -0.2]),
     )
     for figura in (
-        VisualizadorRegresion.real_predicho(resultado),
-        VisualizadorRegresion.residuos(resultado),
+        RegressionVisualizer.real_predicho(resultado),
+        RegressionVisualizer.residuos(resultado),
     ):
         with (
             patch.object(

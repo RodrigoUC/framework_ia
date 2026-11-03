@@ -102,7 +102,7 @@ class VisualContrastFlowTests(unittest.TestCase):
             from ai_framework.ui import streamlit_app
 
             with patch.object(
-                streamlit_app.CargadorCSV,
+                streamlit_app.CSVLoader,
                 "cargar_bytes",
                 side_effect=ValueError("invalid CSV fixture"),
             ):
