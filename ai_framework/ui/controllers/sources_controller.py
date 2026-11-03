@@ -1,4 +1,4 @@
-"""Controlador de carga de fuentes, sincronización de datos y presets."""
+"""Controller for source loading, data synchronization, and presets."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from ai_framework.ui.models.diabetes_profile import estado_fuente_diabetes
 
 
 def _cargar_referencia_regresion() -> None:
-    """Prepara la fuente local de referencia para regresión y su preset asociado."""
+    """Prepare local reference source for regression and its associated preset."""
     cargador = cargar_diabetes_regresion
     for mod_name in (
         "ai_framework.ui.streamlit_app",
@@ -56,7 +56,7 @@ def _cargar_referencia_regresion() -> None:
 
 
 def _aplicar_preset_regresion(identidad: str) -> None:
-    """Aplica el preset de regresión una sola vez tras confirmar la fuente local."""
+    """Apply regression preset once after confirming local source."""
     preset = st.session_state.pop("fuente_preset_regresion", None)
     if preset is None or preset["identidad"] != identidad:
         return

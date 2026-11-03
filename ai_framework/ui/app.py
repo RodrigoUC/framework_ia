@@ -1,4 +1,4 @@
-"""Punto de entrada y enrutador principal de la interfaz Streamlit."""
+"""Streamlit UI entry point and primary router."""
 
 from __future__ import annotations
 

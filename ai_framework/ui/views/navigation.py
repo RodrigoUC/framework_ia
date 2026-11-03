@@ -1,4 +1,4 @@
-"""Navegación lateral, encabezado de ruta, indicadores de calidad y guía de flujo."""
+"""Sidebar navigation, route header, quality indicators, and workflow guide."""
 
 from __future__ import annotations
 

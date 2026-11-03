@@ -1,4 +1,4 @@
-"""Lectura y comprobación de evidencia de experimentos sin volver a entrenar modelos."""
+"""Read and verify experiment evidence without retraining models."""
 
 from __future__ import annotations
 
@@ -557,3 +557,6 @@ def _cargar(resultados, csv, ruta_procedencia):
     return EvidenciaRegresion(
         datos, configuracion, comparacion, mejores, predicciones, procedencia, hashes
     )
+
+# English aliases
+load_evidence = cargar_evidencia

@@ -1,7 +1,7 @@
-"""Objetos de resultado compartidos por los análisis no supervisados y supervisados.
+"""Result objects shared by unsupervised and supervised analyses.
 
-Las clases de este módulo transportan datos entre la lógica de modelos y la
-capa de visualización. No conocen Streamlit ni generan efectos secundarios.
+Classes in this module transfer data between model logic and the
+visualization layer without Streamlit dependencies or side effects.
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ ResultadoProyeccion = ProjectionResult
 
 @dataclass(frozen=True)
 class ClusterResult:
-    """Resultado uniforme para algoritmos de agrupamiento."""
+    """Uniform result container for clustering algorithms."""
 
     algoritmo: str
     etiquetas: pd.Series
@@ -161,11 +161,11 @@ ResultadoCluster = ClusterResult
 
 @dataclass(frozen=True)
 class PartitionResult:
-    """Partición reproducible de un dataset en train/test y validación opcional.
+    """Reproducible dataset partition into train/test and optional validation.
 
-    Se calcula una sola vez sobre el dataset activo (vista Datos) y puede
-    reutilizarse en Clasificación o Regresión en lugar de generar una
-    partición aleatoria distinta en cada vista.
+    Computed once on the active dataset (Data view) and reusable across
+    Classification or Regression rather than generating different random
+    partitions in each view.
     """
 
     train: pd.DataFrame
@@ -226,7 +226,7 @@ ResultadoParticion = PartitionResult
 
 @dataclass(frozen=True)
 class ClassificationResult:
-    """Salida de entrenamiento y evaluación supervisada para clasificación."""
+    """Supervised training and evaluation output for classification."""
 
     algoritmo: str
     target: str
@@ -272,10 +272,10 @@ ResultadoClasificacion = ClassificationResult
 
 @dataclass(frozen=True)
 class ClassificationExperimentResult:
-    """Selección por validación y evaluación final de los ganadores en prueba.
+    """Validation-based selection and test set evaluation of winning models.
 
-    ``tabla`` nunca contiene métricas de prueba de candidatos descartados.
-    ``mejor_algoritmo`` se decide exclusivamente por la métrica de validación.
+    ``tabla`` never contains test metrics for discarded candidates.
+    ``best_algorithm`` is determined exclusively by validation metrics.
     """
 
     tabla: pd.DataFrame

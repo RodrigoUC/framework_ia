@@ -1,4 +1,4 @@
-"""Capa de controladores de aplicación para la interfaz Streamlit."""
+"""Application controller layer for Streamlit user interface."""
 
 from ai_framework.ui.controllers import (
     classification_controller,

@@ -1,4 +1,4 @@
-"""Vistas de selección de fuente, preparación del dataset, partición y perfil de datos."""
+"""Source selection, dataset preparation, partitioning, and data profile views."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def _obtener_base_dir() -> Path:
 
 
 def _obtener_cargador_csv():
-    """Obtiene la función de carga de CSV permitiendo sustitución en pruebas."""
+    """Obtain CSV loading function allowing mock substitution in tests."""
     for mod_name in (
         "ai_framework.ui.streamlit_app",
         "ai_framework.ui.app",
@@ -573,7 +573,7 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
 def _resumen_dataset_modulo(
     datos: pd.DataFrame, objetivo: str | None = None
 ) -> None:
-    """Muestra el resumen reutilizable del dataset activo desde cada módulo."""
+    """Display reusable summary of active dataset from each module."""
     eda = EDA(dataframe=datos)
     resumen = eda.resumen_calidad()
     numericas = _columnas_numericas(datos)

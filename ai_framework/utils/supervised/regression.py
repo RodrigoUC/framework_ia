@@ -1,4 +1,4 @@
-"""Funciones de utilidad, estimadores y cálculo de métricas para regresión."""
+"""Utility functions, estimators, and metric computation for regression."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .regression_algorithms import (
 
 
 def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]:
-    """Calcula errores en unidades originales y R² con al menos dos filas."""
+    """Calculate errors in original units and R² with at least two rows."""
     if len(y_true) < 2:
         raise ValueError("La evaluación necesita al menos dos filas para calcular R².")
     mse = float(mean_squared_error(y_true, y_pred))
@@ -35,7 +35,7 @@ def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]
 
 
 def validar_objetivo(y: pd.Series) -> None:
-    """Verifica que la variable objetivo sea numérica continua y válida."""
+    """Verify that target variable is a continuous and valid numerical series."""
     if (
         not pd.api.types.is_numeric_dtype(y)
         or pd.api.types.is_bool_dtype(y)
@@ -53,13 +53,13 @@ def validar_objetivo(y: pd.Series) -> None:
 
 
 def validar_datos_regresion(base: pd.DataFrame, target: str) -> pd.DataFrame:
-    """Valida los datos tabulares para regresión."""
+    """Validate tabular data for regression."""
     validar_objetivo(base[target])
     return base
 
 
 def validar_predictoras(features: list[str], base: pd.DataFrame, algoritmo: str) -> None:
-    """Valida los requisitos de características según el algoritmo."""
+    """Validate feature requirements based on algorithm."""
     if algoritmo not in ALGORITMOS_REGRESION:
         raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}")
     if algoritmo == "RLS":
@@ -88,7 +88,7 @@ def ajustar_regresion(
     opciones: dict[str, Any],
     parametros: dict[str, Any],
 ):
-    """Ajusta preprocesamiento y modelo de regresión en el conjunto de entrenamiento."""
+    """Fit preprocessing and regression model on training set."""
     validar_predictoras(features, base, algoritmo)
     if len(train) < 2:
         raise ValueError("Entrenamiento necesita al menos dos filas.")
@@ -118,7 +118,7 @@ def crear_resultado_regresion(
     preparados: Any,
     metadatos: dict[str, Any],
 ) -> ResultadoRegresion:
-    """Construye el contenedor ResultadoRegresion con predicciones y residuos."""
+    """Build the RegressionResult container with predictions and residuals."""
     def predecir(indices):
         X = preparados.transformador.transform(base.loc[indices, features])
         return pd.Series(modelo.predict(X), index=indices, name="prediccion")
@@ -150,3 +150,11 @@ def crear_resultado_regresion(
             "columnas_descartadas": list(preparados.columnas_descartadas),
         },
     )
+
+# English aliases
+regression_metrics = metricas_regresion
+validate_target = validar_objetivo
+validate_regression_data = validar_datos_regresion
+validate_predictors = validar_predictoras
+fit_regression = ajustar_regresion
+create_regression_result = crear_resultado_regresion

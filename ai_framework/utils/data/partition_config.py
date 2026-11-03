@@ -1,4 +1,4 @@
-"""Configuración para dividir un dataset en train/test/validación."""
+"""Configuration for splitting a dataset into train/test/validation."""
 
 from __future__ import annotations
 

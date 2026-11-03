@@ -1,4 +1,4 @@
-"""Catálogo de rutas, vistas, paletas y opciones de configuración de la interfaz."""
+"""Catalog of routes, views, palettes, and UI configuration options."""
 
 from __future__ import annotations
 

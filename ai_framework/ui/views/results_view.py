@@ -1,4 +1,4 @@
-"""Componentes reutilizables y unificados para las vistas de Resultados (Clasificación y Regresión)."""
+"""Reusable unified components for Results views (Classification and Regression)."""
 
 from __future__ import annotations
 

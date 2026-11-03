@@ -1,4 +1,4 @@
-"""Capa de vistas de presentación para la interfaz Streamlit."""
+"""Presentation view layer for Streamlit user interface."""
 
 from ai_framework.ui.views import (
     classification_experiments_view,

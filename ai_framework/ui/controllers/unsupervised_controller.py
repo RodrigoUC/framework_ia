@@ -1,4 +1,4 @@
-"""Controlador de casos de uso y muestreo para aprendizaje no supervisado."""
+"""Controller for use cases and sampling in unsupervised learning."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def _crear_cluster(datos: pd.DataFrame, configuracion: dict) -> Cluster:
 def ejecutar_acp(
     datos: pd.DataFrame, configuracion: dict, n_componentes: int = 2
 ) -> ResultadoACP:
-    """Ejecuta el análisis de componentes principales según la configuración."""
+    """Execute principal component analysis according to configuration."""
     muestra = _muestrear(datos, configuracion["filas"])
     modelo = _crear_reductor(muestra, configuracion)
     return modelo.ACP(n_componentes=n_componentes)
@@ -65,7 +65,7 @@ def ejecutar_acp(
 def ejecutar_kmeans(
     datos: pd.DataFrame, configuracion: dict, clusters: int
 ) -> ResultadoCluster:
-    """Ejecuta el algoritmo K-Means con la muestra configurada."""
+    """Execute K-Means algorithm with the configured sample."""
     muestra = _muestrear(datos, configuracion["filas"])
     modelo = _crear_cluster(muestra, configuracion)
     return modelo.K_means(clusters)
@@ -87,7 +87,7 @@ def evaluar_kmeans_k(
 def ejecutar_kmedoids(
     datos: pd.DataFrame, configuracion: dict, clusters: int
 ) -> ResultadoCluster:
-    """Ejecuta el algoritmo K-Medoids con la muestra configurada."""
+    """Execute K-Medoids algorithm with the configured sample."""
     muestra = _muestrear(datos, configuracion["filas"])
     modelo = _crear_cluster(muestra, configuracion)
     return modelo.K_medoids(clusters)
@@ -113,7 +113,7 @@ def comparar_metodos_hac(
     k_min: int = 2,
     k_max: int = 8,
 ) -> pd.DataFrame:
-    """Compara los métodos de vinculación de HAC para un rango de clusters."""
+    """Compare HAC linkage methods across a range of cluster counts."""
     muestra = _muestrear(datos, filas_hac)
     modelo = _crear_cluster(muestra, configuracion)
     limite = min(k_max, len(muestra) - 1)

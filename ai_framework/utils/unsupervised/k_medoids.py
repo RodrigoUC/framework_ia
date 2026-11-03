@@ -1,4 +1,4 @@
-"""Estimador de K-Medoids mediante actualización alternante de medoides."""
+"""K-Medoids estimator via alternating medoid updates."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class KMedoidsModel:
         self.n_iter_: int = 0
 
     def fit(self, datos) -> "KMedoidsModel":
-        """Ajusta medoides minimizando la distancia interna de cada grupo."""
+        """Fit medoids by minimizing internal distances within each cluster."""
         matriz = np.asarray(datos, dtype=float)
         if matriz.ndim != 2 or len(matriz) == 0:
             raise ValueError("K-Medoids requiere una matriz bidimensional no vacía.")

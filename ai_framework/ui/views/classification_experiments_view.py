@@ -1,4 +1,4 @@
-"""Vista de ejecución y evidencia experimental de clasificación."""
+"""Execution view and experimental evidence for classification."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ from ai_framework.utils.visualization import VisualizadorSupervisado
 def render_experimentos(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
-    """Renderiza los controles y ejecuta el benchmark de clasificación."""
+    """Render controls and execute classification benchmark."""
     contexto = _contexto_ejecucion(configuracion)
     segura = preparacion_segura()
     original_diabetes = (
@@ -298,7 +298,7 @@ def render_resultado_experimento(
     prefijo: str = "lab2_resultados_experimento",
     solo_comparacion: bool = False,
 ) -> None:
-    """Renderiza el snapshot experimental de clasificación sin reentrenar modelos."""
+    """Render experimental classification snapshot without retraining models."""
     guardado = st.session_state.get("resultado_lab2_experimento")
     intento = st.session_state.get("resultado_lab2_intento_experimento")
     error = st.session_state.get("error_lab2_experimento")

@@ -1,4 +1,4 @@
-"""Controlador de instanciación, contexto de ejecución y métricas de clasificación."""
+"""Controller for instantiation, execution context, and classification metrics."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from ai_framework.utils import ALGORITMOS_LAB2
 
 
 def _argumentos_comunes(configuracion: dict) -> dict:
-    """Construye los argumentos comunes de partición y preprocesamiento para clasificación."""
+    """Build common partition and preprocessing arguments for classification."""
     return {
         "test_size": configuracion["test_size"],
         "random_state": configuracion["random_state"],
@@ -27,7 +27,7 @@ def _argumentos_comunes(configuracion: dict) -> dict:
 
 
 def _modelo(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
-    """Instancia el modelo de dominio de clasificación para el dataset activo."""
+    """Instantiate classification domain model for the active dataset."""
     return Clasificacion(
         dataframe=datos,
         target=configuracion["target"],
@@ -36,7 +36,7 @@ def _modelo(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
 
 
 def _contexto_ejecucion(configuracion: dict) -> dict:
-    """Congela el contexto de ejecución de clasificación para trazabilidad."""
+    """Freeze classification execution context for traceability."""
     return {
         "dataset": st.session_state.get("fuente_aplicada", (None, "", ""))[1],
         **{

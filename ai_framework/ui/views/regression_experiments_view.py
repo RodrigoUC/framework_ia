@@ -1,4 +1,4 @@
-"""Vista de ejecución y evidencia experimental de regresión."""
+"""Execution view and experimental evidence for regression."""
 
 from __future__ import annotations
 
@@ -180,7 +180,7 @@ def mostrar_experimento_guardado(
 
 
 def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
-    """Renderiza los controles y ejecuta el benchmark de regresión."""
+    """Render controls and execute regression benchmark."""
     st.caption(t("sup_14_configs_9_algs", "14 configuraciones · 9 algoritmos"))
     segura = preparacion_regresion_segura()
     algoritmos = st.multiselect(

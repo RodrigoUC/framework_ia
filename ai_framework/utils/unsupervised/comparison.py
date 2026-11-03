@@ -1,4 +1,4 @@
-"""Comparación de modelos y despacho de algoritmos no supervisados."""
+"""Model comparison and dispatching for unsupervised algorithms."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ ALGORITMOS_CLUSTERING_COMPARACION = ("K-Means", "K-Medoids", "HAC")
 
 
 def despachar_algoritmo(cluster: Cluster, algoritmo: str = "KMEANS", **kwargs) -> Any:
-    """Despacha la ejecución del algoritmo solicitado en la instancia de clustering."""
+    """Dispatch execution of the requested algorithm on the clustering instance."""
     metodos = {
         "KMEANS": cluster.K_means,
         "KMEDOIDS": cluster.K_medoids,
@@ -34,7 +34,7 @@ def comparar_algoritmos_clustering(
     algoritmos: tuple[str, ...] | list[str] | None = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """Ejecuta y compara múltiples algoritmos de agrupamiento sobre el mismo conjunto de datos."""
+    """Run and compare multiple clustering algorithms on the same dataset."""
     candidatos = algoritmos if algoritmos is not None else ALGORITMOS_CLUSTERING_COMPARACION
     filas = []
 
@@ -50,3 +50,8 @@ def comparar_algoritmos_clustering(
         )
 
     return pd.DataFrame(filas)
+
+# English aliases
+CLUSTERING_COMPARISON_ALGORITHMS = ALGORITMOS_CLUSTERING_COMPARACION
+dispatch_algorithm = despachar_algoritmo
+compare_clustering_algorithms = comparar_algoritmos_clustering

@@ -1,4 +1,4 @@
-"""Controlador de instanciación y snapshots de ejecución para regresión."""
+"""Controller for instantiation and execution snapshots for regression."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from ai_framework.ui.models.session_state import firma_parametros, huella_datos
 
 
 def argumentos_comunes(configuracion: dict) -> dict:
-    """Construye los argumentos comunes de partición y preprocesamiento para regresión."""
+    """Build common partition and preprocessing arguments for regression."""
     return {
         **{
             clave: configuracion[clave]
@@ -28,7 +28,7 @@ def argumentos_comunes(configuracion: dict) -> dict:
 
 
 def crear_regresor(datos, configuracion, *, algoritmo=None) -> Regresion:
-    """Instancia el modelo de dominio de regresión con los predictores correspondientes."""
+    """Instantiate regression domain model with corresponding predictors."""
     features = (
         [configuracion["feature_simple"]]
         if algoritmo == "RLS"
@@ -40,7 +40,7 @@ def crear_regresor(datos, configuracion, *, algoritmo=None) -> Regresion:
 
 
 def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
-    """Congela contexto y procedencia de una ejecución de regresión para exportación."""
+    """Freeze context and provenance of a regression execution for export."""
     argumentos = {
         clave: deepcopy(valor)
         for clave, valor in configuracion.items()

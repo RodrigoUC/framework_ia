@@ -1,4 +1,4 @@
-"""Estado y firmas de clasificación supervisada independientes de los widgets."""
+"""Supervised classification state and signatures independent from widgets."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from ai_framework.ui.models.session_state import (
 
 
 def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
-    """Construye la firma específica para resultados de clasificación supervisada."""
+    """Build specific signature for supervised classification results."""
     particion = configuracion.get("particion_global")
     return (
         configuracion.get("tarea"),
@@ -34,7 +34,7 @@ def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
 
 
 def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | None:
-    """Construye la configuración efectiva de clasificación desde los controles guardados."""
+    """Build effective classification configuration from saved controls."""
     estado = estado_para_familia(estado, "clasificacion")
     if len(datos.columns) < 2:
         return None
@@ -103,7 +103,7 @@ def sincronizar_contexto(
 
 
 def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
-    """Elimina la evidencia de clasificación cuando los datos activos no son configurables."""
+    """Clear classification evidence when active data is not configurable."""
     for clave in tuple(estado):
         if clave.startswith(
             (

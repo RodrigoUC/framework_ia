@@ -670,3 +670,8 @@ def render_selector_idioma() -> None:
     if nuevo_idioma != idioma_actual:
         cambiar_idioma(nuevo_idioma)
         st.rerun()
+
+# English aliases
+get_language = obtener_idioma
+set_language = cambiar_idioma
+render_language_selector = render_selector_idioma

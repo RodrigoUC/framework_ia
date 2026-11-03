@@ -1,4 +1,4 @@
-"""Modelo de validación de procedencia para el CSV preparado de Diabetes."""
+"""Provenance validation model for the prepared Diabetes CSV."""
 
 from __future__ import annotations
 
@@ -73,3 +73,5 @@ def estado_fuente_diabetes(datos: pd.DataFrame, estado) -> str | None:
     if any(pd.api.types.is_numeric_dtype(datos[columna]) for columna in _CATEGORICAS):
         return None
     return "preparado"
+
+diabetes_source_state = estado_fuente_diabetes

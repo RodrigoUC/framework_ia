@@ -1,4 +1,4 @@
-"""Gestión de estado de sesión, huellas de datos y firmas de ejecución."""
+"""Session state management, data fingerprints, and execution signatures."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def firma_parametros(parametros: dict) -> str:
 
 
 def firma_preparacion(estado) -> tuple:
-    """Construye la firma de configuración supervisada compartida."""
+    """Build signature for shared supervised configuration."""
     return tuple(
         tuple(estado.get(f"sup_{clave}", []))
         if clave == "features"
@@ -47,7 +47,7 @@ def firma_preparacion(estado) -> tuple:
 
 
 def inicializar_configuracion(datos: pd.DataFrame, estado) -> None:
-    """Inicializa la configuración supervisada compartida sin deducir la tarea."""
+    """Initialize shared supervised configuration without inferring task."""
     if not estado.get("sup_inicializada"):
         ruta = estado.get("vista_activa", "")
         tarea = estado.get("sup_tarea")
@@ -135,7 +135,7 @@ def _guardar_resultado(clave: str, firma: tuple, resultado) -> None:
 
 
 def _recuperar_resultado(clave: str, firma: tuple):
-    """Retorna el resultado únicamente si coincide con la configuración actual."""
+    """Return result only if it matches current configuration."""
     contenedor = st.session_state.get(clave)
     if contenedor and contenedor["firma"] == firma:
         return contenedor["resultado"]

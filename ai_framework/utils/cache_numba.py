@@ -1,4 +1,4 @@
-"""Configuración del directorio de caché de Numba (requerido por UMAP)."""
+"""Numba cache directory configuration (required by UMAP)."""
 
 from __future__ import annotations
 
@@ -29,3 +29,5 @@ def configurar_cache_numba() -> Path:
     directorio.mkdir(parents=True, exist_ok=True)
     os.environ["NUMBA_CACHE_DIR"] = str(directorio)
     return directorio
+
+configure_numba_cache = configurar_cache_numba

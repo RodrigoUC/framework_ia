@@ -1,4 +1,4 @@
-"""Vistas de configuración para flujos supervisados y no supervisados."""
+"""Configuration views for supervised and unsupervised workflows."""
 
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
 def configurar_clasificacion(
     datos: pd.DataFrame, mostrar_figura: Callable | None = None
 ) -> dict | None:
-    """Muestra la configuración supervisada compartida y retorna la configuración de clasificación."""
+    """Display shared supervised configuration and return classification configuration."""
     del mostrar_figura
     inicializar_configuracion(datos, st.session_state)
     configurar_supervisado(datos)
@@ -144,14 +144,14 @@ def configurar_clasificacion(
 
 
 def configurar_regresion(datos: pd.DataFrame) -> dict | None:
-    """Muestra la configuración supervisada compartida y retorna la configuración de regresión."""
+    """Display shared supervised configuration and return regression configuration."""
     inicializar_configuracion(datos, st.session_state)
     configurar_supervisado(datos)
     return configuracion_regresion_actual(datos, st.session_state)
 
 
 def _configurar_modelos(datos: pd.DataFrame) -> dict:
-    """Recopila una configuración común para todos los modelos no supervisados."""
+    """Collect common configuration for all unsupervised models."""
     st.markdown(f"### {t('cfg_analisis_titulo', 'Configuración del análisis')}")
     incluir_categoricas = st.checkbox(
         "Codificar variables categóricas",
@@ -199,7 +199,7 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
 
 
 def _render_regresion() -> None:
-    """Orienta hacia las vistas de configuración y modelos de regresión."""
+    """Guide toward regression configuration and model views."""
     st.info(
         "Abra Configuración para elegir target y predictores; "
         "después seleccione un modelo o Experimentos en la navegación."
@@ -207,7 +207,7 @@ def _render_regresion() -> None:
 
 
 def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
-    """Ofrece un acceso directo cuando falta configurar variables de clasificación."""
+    """Provide direct shortcut when classification variables are unconfigured."""
     st.info(
         "Seleccione al menos una variable predictora en Configuración."
         if sin_features

@@ -1,4 +1,4 @@
-"""Funciones de evaluación, validación y métricas para algoritmos de agrupamiento."""
+"""Evaluation, validation, and metric functions for clustering algorithms."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ..results import DatosPreparados, ResultadoCluster
 
 
 def validar_numero_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:
-    """Comprueba que el número de clusters sea válido para el tamaño de la matriz."""
+    """Check that the number of clusters is valid for the matrix size."""
     if not 2 <= n_clusters < len(matriz):
         raise ValueError(
             "n_clusters debe ser al menos 2 y menor que el número de filas."
@@ -20,7 +20,7 @@ def validar_numero_clusters(matriz: pd.DataFrame, n_clusters: int) -> None:
 
 
 def calcular_centroides(matriz: pd.DataFrame, etiquetas) -> pd.DataFrame:
-    """Calcula los perfiles promedio por cluster en el espacio de características."""
+    """Calculate average cluster profiles in feature space."""
     temporal = matriz.copy()
     temporal["cluster"] = etiquetas
     return temporal.groupby("cluster", sort=True).mean()
@@ -33,7 +33,7 @@ def evaluar_kmeans(
     *,
     random_state: int = 42,
 ) -> pd.DataFrame:
-    """Compara inercia y silhouette para un intervalo de valores de k en K-Means."""
+    """Compare inertia and silhouette score across a range of k values in K-Means."""
     limite = min(k_max, len(matriz) - 1)
     if k_min > limite:
         raise ValueError("No hay suficientes filas para evaluar ese intervalo.")
@@ -64,7 +64,7 @@ def evaluar_hac(
     *,
     metodos: tuple[str, ...] = ("ward", "average", "complete", "single"),
 ) -> pd.DataFrame:
-    """Compara coeficiente de silhouette para métodos jerárquicos y cantidades de k."""
+    """Compare silhouette coefficient for hierarchical methods across k values."""
     limite = min(k_max, len(matriz) - 1)
     if k_min > limite:
         raise ValueError("No hay suficientes filas para evaluar el rango de clusters en HAC.")
@@ -117,3 +117,10 @@ def construir_resultado_cluster(
         inercia=inercia,
         matriz_vinculacion=matriz_vinculacion,
     )
+
+# English aliases
+validate_num_clusters = validar_numero_clusters
+calculate_centroids = calcular_centroides
+evaluate_kmeans = evaluar_kmeans
+evaluate_hac = evaluar_hac
+build_cluster_result = construir_resultado_cluster

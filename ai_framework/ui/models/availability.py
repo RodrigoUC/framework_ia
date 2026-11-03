@@ -1,4 +1,4 @@
-"""Prerrequisitos derivados de datos y configuración para flujos supervisados."""
+"""Derived data and configuration prerequisites for supervised workflows."""
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def _pliegues_clasificacion(modelo, base, config, opciones):
 
 
 def _candidato_regresion_disponible(datos, base, config, pliegues, test, opciones) -> None:
-    """Verifica que al menos un candidato del benchmark de regresión sea viable."""
+    """Verify that at least one candidate in regression benchmark is viable."""
     errores = []
     algoritmos = opciones.get("algoritmos", ALGORITMOS_LAB3)
     if not algoritmos:
@@ -150,7 +150,7 @@ def disponibilidad_supervisada(
     parametros=None,
     experimento=None,
 ) -> Disponibilidad:
-    """Detecta bloqueos deterministas de datos y configuración supervisada."""
+    """Detect deterministic data blockages and supervised configuration issues."""
     faltantes = []
     preparacion = preparacion or {}
     if (

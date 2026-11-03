@@ -1,4 +1,4 @@
-"""Capa de modelos de estado, disponibilidad y catálogo de vistas para la UI."""
+"""State models, availability, and view catalog layer for UI."""
 
 from ai_framework.ui.models import (
     availability,

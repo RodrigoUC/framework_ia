@@ -1,4 +1,4 @@
-"""Selección de modelos con validación cruzada estratificada sobre train."""
+"""Model selection with stratified cross-validation on train data."""
 
 from __future__ import annotations
 
@@ -274,7 +274,7 @@ def ejecutar_experimento_cv(
     folds=5,
     seleccion_k="auto",
 ) -> ResultadoExperimentoClasificacion:
-    """Ejecuta validación cruzada estratificada sobre train para clasificación."""
+    """Execute stratified cross-validation on train data for classification."""
     if metrica not in METRICAS_SELECCION:
         raise ValueError(f"Métrica de selección no soportada: {metrica}.")
     if not isinstance(folds, int) or folds < 2:
@@ -472,3 +472,6 @@ def ejecutar_experimento_cv(
         mejor_algoritmo=mejor_algoritmo,
         metadatos=metadatos,
     )
+
+# English aliases
+run_cv_experiment = ejecutar_experimento_cv

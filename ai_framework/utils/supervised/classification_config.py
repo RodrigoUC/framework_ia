@@ -1,4 +1,4 @@
-"""Configuración compartida para clasificación supervisada."""
+"""Shared configuration for supervised classification."""
 
 from __future__ import annotations
 

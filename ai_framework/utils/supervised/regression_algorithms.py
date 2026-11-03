@@ -1,4 +1,4 @@
-"""Construcción de estimadores nativos de regresión y registro de sus parámetros efectivos."""
+"""Construction of native regression estimators and recording of effective parameters."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ _ALIASES.update(
 
 
 def normalizar_algoritmo(algoritmo: str) -> str:
-    """Acepta identificadores del catálogo y métodos pythonicos."""
+    """Accept catalog identifiers and pythonic methods."""
     try:
         return _ALIASES[algoritmo.strip().lower()]
     except (KeyError, AttributeError) as exc:
@@ -105,3 +105,9 @@ def metadatos_regresion(modelo) -> dict:
             "uso": "seleccion_alpha_solo_train",
         },
     }
+
+# English aliases
+normalize_algorithm = normalizar_algoritmo
+create_model = crear_modelo
+regression_parameters = parametros_regresion
+regression_metadata = metadatos_regresion

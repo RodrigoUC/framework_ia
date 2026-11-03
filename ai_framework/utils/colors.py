@@ -1,4 +1,4 @@
-"""Utilidades de color para gráficos."""
+"""Color utilities for charts and plots."""
 
 from __future__ import annotations
 
@@ -22,3 +22,5 @@ def color_texto_por_luminancia(color) -> str:
         )
         / (min(luminancia_rgb(candidatos[foreground]), luminancia_celda) + 0.05),
     )
+
+text_color_by_luminance = color_texto_por_luminancia

@@ -1,4 +1,4 @@
-"""Catálogo de regresión compartido por modelos, experimentos e interfaz."""
+"""Regression catalog shared across models, experiments, and UI."""
 
 from __future__ import annotations
 
@@ -145,3 +145,9 @@ def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
         ]
         for algoritmo, candidatos in _CONFIGURACIONES_EXPERIMENTO.items()
     }
+
+# English aliases
+REGRESSION_ALGORITHMS = ALGORITMOS_REGRESION
+REGRESSION_ALPHAS = ALPHAS_REGRESION
+INTERNAL_FOLDS = PLIEGUES_INTERNOS
+regression_experiment_configs = configuraciones_experimento_regresion

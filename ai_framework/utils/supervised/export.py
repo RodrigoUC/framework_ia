@@ -1,8 +1,8 @@
-"""Exportación unificada de evidencia de modelos y experimentos supervisados.
+"""Unified export of model and experiment evidence for supervised learning.
 
-La construcción y el ZIP trabajan sólo en memoria. Los llamadores conservan
-la procedencia y la huella de los bytes originales del CSV en ``dataset``;
-ninguna función descarga datos, entrena modelos ni escribe al disco.
+Artifact construction and ZIP bundling operate strictly in memory. Callers
+preserve provenance and original CSV byte digests in ``dataset``; functions do
+not download data, retrain models, or write directly to disk.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ __all__ = [
 
 
 def _json_seguro(valor: Any) -> Any:
-    """Convierte tipos científicos sin introducir NaN/Infinity en JSON."""
+    """Convert scientific data types without introducing NaN or Infinity into JSON."""
     if isinstance(valor, Mapping):
         return {str(k): _json_seguro(v) for k, v in valor.items()}
     if isinstance(valor, (list, tuple, np.ndarray, pd.Index)):
@@ -127,7 +127,7 @@ def construir_archivos_experimento_clasificacion(
     dataset: Mapping[str, Any],
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
-    """Serializa un experimento de clasificación sin modificar sus tablas ni metadatos."""
+    """Serialize classification experiment without altering tables or metadata."""
     archivos = {
         "configuracion.json": _bytes_json(
             {
@@ -286,7 +286,7 @@ def construir_archivos_experimento(
     dataset: Mapping[str, Any],
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
-    """Serializa un experimento supervisado (clasificación o regresión) según su tipo."""
+    """Serialize supervised experiment (classification or regression) by type."""
     if isinstance(resultado, ResultadoExperimentoRegresion) or (
         not isinstance(resultado, ResultadoExperimentoClasificacion)
         and hasattr(resultado, "mejores")
@@ -321,3 +321,10 @@ def construir_zip_experimento(archivos: Mapping[str, bytes]) -> bytes:
             informacion.external_attr = 0o100644 << 16
             salida.writestr(informacion, archivos[nombre], compresslevel=9)
     return memoria.getvalue()
+
+# English aliases
+build_experiment_files_classification = construir_archivos_experimento_clasificacion
+build_model_files = construir_archivos_modelo
+build_experiment_files_regression = construir_archivos_experimento_regresion
+build_experiment_files = construir_archivos_experimento
+build_experiment_zip = construir_zip_experimento

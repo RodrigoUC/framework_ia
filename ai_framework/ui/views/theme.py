@@ -1,4 +1,4 @@
-"""Estilos CSS de la aplicación, cálculo de contraste y renderizado de figuras Plotly."""
+"""Application CSS styles, contrast calculation, and Plotly figure rendering."""
 
 from __future__ import annotations
 

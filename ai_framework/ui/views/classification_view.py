@@ -1,4 +1,4 @@
-"""Vistas de clasificación individual, diagnóstico y comparación de resultados."""
+"""Individual classification, diagnostic, and comparison result views."""
 
 from __future__ import annotations
 
@@ -287,7 +287,7 @@ def render_resultados(
 def _diagnostico(
     resultado, mostrar_figura: MostrarFigura, prefijo: str
 ) -> None:
-    """Presenta métricas, matriz de confusión y predicciones del modelo de clasificación."""
+    """Display metrics, confusion matrix, and predictions for classification model."""
     st.markdown(f"#### {resultado.algoritmo}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Accuracy", f"{resultado.metricas['accuracy']:.1%}")

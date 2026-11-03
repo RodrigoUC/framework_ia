@@ -1,4 +1,4 @@
-"""Vistas de entrenamiento individual y consulta de resultados de regresión."""
+"""Individual training and result consultation views for regression."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def preparacion_regresion_segura() -> bool:
 def mostrar_resultado_modelo(
     snapshot, mostrar_figura, *, clave: str
 ) -> None:
-    """Renderiza métricas, gráficos de ajuste y descargas del modelo de regresión."""
+    """Render metrics, fit plots, and downloads for regression model."""
     resultado = snapshot["resultado"]
     st.markdown(
         f"#### {NOMBRES_REGRESORES[resultado.algoritmo]}"

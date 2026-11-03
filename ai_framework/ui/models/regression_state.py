@@ -1,4 +1,4 @@
-"""Estado y firmas de regresión supervisada independientes de los widgets."""
+"""Supervised regression state and signatures independent from widgets."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ai_framework.ui.models.session_state import (
 
 
 def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
-    """Construye la configuración efectiva de regresión desde los controles guardados."""
+    """Build effective regression configuration from saved controls."""
     estado = estado_para_familia(estado, "regresion")
     if len(datos.columns) < 2:
         return None
@@ -52,7 +52,7 @@ def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
 
 
 def firma_regresion(configuracion: dict) -> tuple:
-    """Construye la firma de regresión incluyendo los índices reales de partición."""
+    """Build regression signature including actual partition indices."""
     particion = configuracion.get("particion_global")
     indices = None
     if particion is not None:
@@ -87,7 +87,7 @@ def limpiar_resultados_regresion(estado) -> None:
 
 
 def sincronizar_contexto_regresion(estado, datos, configuracion: dict) -> tuple:
-    """Sincroniza el contexto de regresión e invalida ejecuciones obsoletas."""
+    """Synchronize regression context and invalidate obsolete executions."""
     firma = (
         estado.get("dataset_identidad"),
         huella_datos(datos),

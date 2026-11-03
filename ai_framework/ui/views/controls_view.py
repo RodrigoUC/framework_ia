@@ -1,4 +1,4 @@
-"""Controles reutilizables de entrada e hiperparámetros para la interfaz."""
+"""Reusable input controls and hyperparameter widgets for the UI."""
 
 from __future__ import annotations
 import json
@@ -66,7 +66,7 @@ def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
 
 
 def parametros_individuales(algoritmo: str) -> dict:
-    """Renderiza los controles de hiperparámetros para un modelo de clasificación."""
+    """Render hyperparameter controls for a classification model."""
     if algoritmo == "NR":
         return {}
     criterio_rf = None
@@ -128,7 +128,7 @@ def parametros_individuales(algoritmo: str) -> dict:
 
 
 def parametros_regresion(algoritmo: str) -> dict | None:
-    """Renderiza los controles de hiperparámetros para un modelo de regresión."""
+    """Render hyperparameter controls for a regression model."""
     modo = st.radio(
         t("sup_configuracion_modelo", "Configuración del modelo"),
         ["Estándar", "Personalizada"],

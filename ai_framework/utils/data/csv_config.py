@@ -1,4 +1,4 @@
-"""Configuración para la lectura de archivos CSV."""
+"""Configuration for reading CSV files."""
 
 from __future__ import annotations
 

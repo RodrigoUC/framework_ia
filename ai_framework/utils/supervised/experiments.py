@@ -1,4 +1,4 @@
-"""Mecanismo unificado de experimentación y selección de modelos supervisados."""
+"""Unified experimentation and model selection mechanism for supervised learning."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def _candidatos_clasificacion(algoritmos, configuraciones):
 
 
 def _evaluar(regresor, base, pliegues, algoritmo, random_state, opciones, parametros):
-    """Evalúa pliegues de validación para regresión."""
+    """Evaluate validation folds for regression."""
     metricas = []
     modelo = preparados = None
     for numero, (train, validacion) in enumerate(pliegues, start=1):
@@ -117,7 +117,7 @@ def _particiones(
     estrategia,
     folds,
 ):
-    """Genera pliegues y valida estrategia de partición para regresión."""
+    """Generate folds and validate partition strategy for regression."""
     train, test, validacion = regresor._indices(
         base, particion=particion, test_size=test_size, random_state=random_state
     )
@@ -693,12 +693,12 @@ ExperimentoRegresion = RegressionExperiment
 
 
 def ejecutar_experimento_clasificacion(*args, **kwargs) -> ResultadoExperimentoClasificacion:
-    """Función de conveniencia para ejecutar benchmark de clasificación."""
+    """Convenience function to execute classification benchmark."""
     return ExperimentoClasificacion().ejecutar(*args, **kwargs)
 
 
 def ejecutar_experimento_regresion(*args, **kwargs) -> ResultadoExperimentoRegresion:
-    """Función de conveniencia para ejecutar benchmark de regresión."""
+    """Convenience function to execute regression benchmark."""
     return ExperimentoRegresion().ejecutar(*args, **kwargs)
 
 
@@ -707,3 +707,8 @@ def ejecutar_experimento(modelo, *args, **kwargs):
     if hasattr(modelo, "_datos_clasificacion") or getattr(modelo, "_tipo_target", lambda: "")() == "clasificacion":
         return ejecutar_experimento_clasificacion(modelo, *args, **kwargs)
     return ejecutar_experimento_regresion(modelo, *args, **kwargs)
+
+# English aliases
+run_classification_experiment = ejecutar_experimento_clasificacion
+run_regression_experiment = ejecutar_experimento_regresion
+run_experiment = ejecutar_experimento

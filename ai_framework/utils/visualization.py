@@ -1,4 +1,4 @@
-"""Visualizaciones de resultados independientes de Streamlit, en Plotly."""
+"""Plotly result visualizations independent from Streamlit."""
 
 from __future__ import annotations
 
@@ -594,7 +594,7 @@ class DataVisualizer:
 
     @staticmethod
     def tamanos_particion(resultado: ResultadoParticion) -> go.Figure:
-        """Compara el tamaño de train, test y validación (si existe)."""
+        """Compare sizes of train, test, and validation sets."""
         conteos = {"Train": len(resultado.train), "Test": len(resultado.test)}
         if resultado.validacion is not None:
             conteos["Validación"] = len(resultado.validacion)
@@ -614,7 +614,7 @@ class DataVisualizer:
 
     @staticmethod
     def distribucion_particion(resultado: ResultadoParticion) -> go.Figure | None:
-        """Compara la distribución de la columna de estratificación por subconjunto."""
+        """Compare stratification column distribution across subsets."""
         if resultado.columna_estratificacion is None:
             return None
         subconjuntos = {"Train": resultado.distribucion_train, "Test": resultado.distribucion_test}
@@ -631,6 +631,10 @@ class DataVisualizer:
             barmode="group",
         )
         return figura
+
+    column_types = tipos_columnas
+    partition_sizes = tamanos_particion
+    partition_distribution = distribucion_particion
 
 
 VisualizadorSupervisado = SupervisedVisualizer

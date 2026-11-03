@@ -1,4 +1,4 @@
-"""Configuración del preprocesamiento para algoritmos no supervisados."""
+"""Preprocessing configuration for unsupervised and supervised algorithms."""
 
 from __future__ import annotations
 

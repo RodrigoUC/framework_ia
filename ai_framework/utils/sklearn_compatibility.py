@@ -1,4 +1,4 @@
-"""Constructores de objetos sklearn compatibles con distintas versiones."""
+"""Sklearn object constructors compatible across multiple versions."""
 
 from __future__ import annotations
 
@@ -31,3 +31,6 @@ def crear_tsne(
         if "max_iter" not in str(exc):
             raise
         return TSNE(n_iter=max_iter, **parametros)
+
+create_dense_encoder = crear_codificador_denso
+create_tsne = crear_tsne
