@@ -29,11 +29,20 @@ from ..utils.sklearn_compatibility import crear_codificador_denso
 from ..utils.data.preprocessing_config import ConfiguracionPreprocesamiento
 
 
-class PreprocesadorNoSupervisado:
-    """Construye matrices numéricas sin acoplarse a un algoritmo específico."""
+class UnsupervisedPreprocessor:
+    """Builds numerical matrices without coupling to a specific algorithm."""
 
     def __init__(self, configuracion: ConfiguracionPreprocesamiento) -> None:
         self._configuracion = configuracion
+
+    @property
+    def configuration(self):
+        """English alias for ``_configuracion``."""
+        return self._configuracion
+
+    def fit_transform(self, datos: pd.DataFrame) -> DatosPreparados:
+        """Fit and transform the selected dataset."""
+        return self.ajustar_transformar(datos)
 
     def ajustar_transformar(self, datos: pd.DataFrame) -> DatosPreparados:
         """Valida, limpia y transforma el dataset seleccionado."""
@@ -140,11 +149,10 @@ class PreprocesadorNoSupervisado:
         return seleccionadas
 
 
-class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
-    """Transformador sklearn ajustable y clonable, con índices preservados.
+class SupervisedPreprocessor(TransformerMixin, BaseEstimator):
+    """Fittable and cloneable sklearn transformer preserving indices and features.
 
-    ``seleccion_k`` conserva los ``k`` atributos transformados con mayor
-    información mutua respecto del objetivo. Requiere ``y`` en ``fit``.
+    ``seleccion_k`` retains the top ``k`` features with highest mutual information.
     """
 
     def __init__(
@@ -295,7 +303,7 @@ class PreprocesadorSupervisado(TransformerMixin, BaseEstimator):
         )
 
 
-SupervisedPreprocessor = PreprocesadorSupervisado
-UnsupervisedPreprocessor = PreprocesadorNoSupervisado
+PreprocesadorSupervisado = SupervisedPreprocessor
+PreprocesadorNoSupervisado = UnsupervisedPreprocessor
 PreprocessingConfig = ConfiguracionPreprocesamiento
 

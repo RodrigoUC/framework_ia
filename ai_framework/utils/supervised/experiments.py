@@ -156,8 +156,8 @@ def _particiones(
     return train, test, validacion, estrategia, pliegues
 
 
-class ExperimentoSupervisado:
-    """Base común para la ejecución de benchmarks y comparación de modelos."""
+class SupervisedExperiment:
+    """Base class for running benchmarks and comparing supervised models."""
 
     def _normalizar_catalogo(
         self,
@@ -225,8 +225,8 @@ class ExperimentoSupervisado:
         return resultado
 
 
-class ExperimentoClasificacion(ExperimentoSupervisado):
-    """Ejecución de experimentos comparativos para clasificación."""
+class ClassificationExperiment(SupervisedExperiment):
+    """Comparative experiment execution for classification."""
 
     def _catalogo_base_clasificacion(self) -> dict[str, list[dict[str, Any]]]:
         catalogo = configuraciones_lab2()
@@ -454,8 +454,8 @@ class ExperimentoClasificacion(ExperimentoSupervisado):
         )
 
 
-class ExperimentoRegresion(ExperimentoSupervisado):
-    """Ejecución de experimentos comparativos para regresión."""
+class RegressionExperiment(SupervisedExperiment):
+    """Comparative experiment execution for regression."""
 
     def _predictora_simple(self, regresor, base, feature_simple):
         numericas = [
@@ -685,6 +685,11 @@ class ExperimentoRegresion(ExperimentoSupervisado):
             mejor_algoritmo=mejor_algoritmo,
             metadatos=metadatos,
         )
+
+
+ExperimentoSupervisado = SupervisedExperiment
+ExperimentoClasificacion = ClassificationExperiment
+ExperimentoRegresion = RegressionExperiment
 
 
 def ejecutar_experimento_clasificacion(*args, **kwargs) -> ResultadoExperimentoClasificacion:

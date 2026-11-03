@@ -9,11 +9,22 @@ from .classification_config import ParametroModelo
 
 
 @dataclass(frozen=True)
-class ConfiguracionRegresion:
-    """Identidad y controles de un regresor sin dependencias de Streamlit."""
+class RegressionConfig:
+    """Identity and controls of a regressor without Streamlit dependencies."""
 
     etiqueta: str
     parametros: tuple[ParametroModelo, ...]
+
+    @property
+    def label(self) -> str:
+        return self.etiqueta
+
+    @property
+    def parameters(self) -> tuple[ParametroModelo, ...]:
+        return self.parametros
+
+
+ConfiguracionRegresion = RegressionConfig
 
 
 ALGORITMOS_REGRESION = (

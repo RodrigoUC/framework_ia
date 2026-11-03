@@ -97,7 +97,7 @@ def comprobar_clases(y_train, *evaluaciones):
             )
 
 
-class Particionador:
+class DataSplitter:
     """Divide un DataFrame en train/test (y validación opcional) por filas."""
 
     huella_datos = staticmethod(huella_datos)
@@ -107,6 +107,15 @@ class Particionador:
 
     def __init__(self, configuracion: ConfiguracionParticion) -> None:
         self._configuracion = configuracion
+
+    @property
+    def configuration(self):
+        """English alias for ``_configuracion``."""
+        return self._configuracion
+
+    def split(self, datos: pd.DataFrame) -> ResultadoParticion:
+        """Split dataset into train, test, and optional validation partitions."""
+        return self.dividir(datos)
 
     def dividir(self, datos: pd.DataFrame) -> ResultadoParticion:
         """Calcula la partición y sus metadatos sobre el dataset recibido."""
@@ -209,5 +218,5 @@ class Particionador:
 
 
 PartitionConfig = ConfiguracionParticion
-DataSplitter = Particionador
+Particionador = DataSplitter
 

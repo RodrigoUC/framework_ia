@@ -34,6 +34,7 @@ from ai_framework.ui.models.view_catalog import (
     VISTAS_REGRESORES,
 )
 from ai_framework.ui.models.availability import (
+    Availability,
     Disponibilidad,
     disponibilidad_supervisada,
     hay_evidencia,
@@ -69,6 +70,7 @@ from ai_framework.ui.models.diabetes_profile import (
 
 __all__ = [
     "APP_NAME",
+    "Availability",
     "BASE_DIR",
     "Disponibilidad",
     "ESTRATEGIAS",

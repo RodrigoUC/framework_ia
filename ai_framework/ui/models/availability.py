@@ -15,15 +15,26 @@ from ai_framework.utils.supervised.regression_config import ALGORITMOS_LAB3
 
 
 @dataclass(frozen=True)
-class Disponibilidad:
-    """Resultado de verificar si una vista o ejecución está lista para usarse."""
+class Availability:
+    """Result of checking whether a view or execution is ready for use."""
 
     faltantes: tuple[str, ...] = ()
+
+    @property
+    def missing(self) -> tuple[str, ...]:
+        return self.faltantes
+
+    @property
+    def ready(self) -> bool:
+        return not self.faltantes
 
     @property
     def lista(self) -> bool:
         """Indica si todos los prerrequisitos se cumplen."""
         return not self.faltantes
+
+
+Disponibilidad = Availability
 
 
 def _predictoras(base, features, train, evaluaciones, configuracion) -> None:

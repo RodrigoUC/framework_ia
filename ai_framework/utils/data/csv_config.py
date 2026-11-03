@@ -6,13 +6,22 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ConfiguracionCSV:
-    """Parámetros explícitos para interpretar un archivo CSV."""
+class CSVConfig:
+    """Explicit parameters to parse a CSV file."""
 
     separador: str = ","
     decimal: str = "."
     encoding: str = "utf-8"
     usar_primera_columna_como_indice: bool = False
 
-CSVConfig = ConfiguracionCSV
-__all__ = ['ConfiguracionCSV', 'CSVConfig']
+    @property
+    def separator(self) -> str:
+        return self.separador
+
+    @property
+    def use_first_column_as_index(self) -> bool:
+        return self.usar_primera_columna_como_indice
+
+
+ConfiguracionCSV = CSVConfig
+__all__ = ['CSVConfig', 'ConfiguracionCSV']

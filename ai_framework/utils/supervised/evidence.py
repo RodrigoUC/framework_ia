@@ -31,8 +31,8 @@ _COLUMNAS_JSON = (
 
 
 @dataclass(frozen=True)
-class EvidenciaRegresion:
-    """Snapshots validados para elaborar el informe y la verificación de resultados."""
+class RegressionEvidence:
+    """Validated snapshots to build reports and verify experimental results."""
 
     datos: pd.DataFrame
     configuracion: dict[str, Any]
@@ -42,7 +42,32 @@ class EvidenciaRegresion:
     procedencia: dict[str, Any]
     hashes: dict[str, str]
 
+    @property
+    def data(self) -> pd.DataFrame:
+        return self.datos
 
+    @property
+    def configuration(self) -> dict[str, Any]:
+        return self.configuracion
+
+    @property
+    def comparison(self) -> pd.DataFrame:
+        return self.comparacion
+
+    @property
+    def best(self) -> dict[str, Any]:
+        return self.mejores
+
+    @property
+    def predictions(self) -> dict[str, dict[str, pd.DataFrame]]:
+        return self.predicciones
+
+    @property
+    def provenance(self) -> dict[str, Any]:
+        return self.procedencia
+
+
+EvidenciaRegresion = RegressionEvidence
 EvidenciaLab03 = EvidenciaRegresion
 
 

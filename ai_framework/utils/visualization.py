@@ -34,8 +34,8 @@ def _lang_vis() -> str:
 
 
 
-class VisualizadorRegresion:
-    """Diagnósticos numéricos sobre evidencia guardada, sin recalcular modelos."""
+class RegressionVisualizer:
+    """Numerical diagnostics over saved evidence without recalculating models."""
 
     @staticmethod
     def real_predicho(resultado) -> go.Figure:
@@ -107,8 +107,8 @@ class VisualizadorRegresion:
         )
 
 
-class VisualizadorNoSupervisado:
-    """Fábrica de figuras Plotly para los resultados no supervisados."""
+class UnsupervisedVisualizer:
+    """Plotly figures factory for unsupervised analysis results."""
 
     @staticmethod
     def plano_acp(resultado: ResultadoACP) -> go.Figure:
@@ -480,8 +480,8 @@ class VisualizadorNoSupervisado:
             raise ValueError("La visualización requiere al menos dos componentes.")
 
 
-class VisualizadorSupervisado(VisualizadorRegresion):
-    """Visualizaciones Plotly unificadas para flujos supervisados (clasificación y regresión)."""
+class SupervisedVisualizer(RegressionVisualizer):
+    """Unified Plotly visualizations for supervised workflows (classification and regression)."""
 
     @staticmethod
     def matriz_confusion(resultado: ResultadoClasificacion) -> go.Figure:
@@ -551,8 +551,8 @@ class VisualizadorSupervisado(VisualizadorRegresion):
         return figura
 
 
-class VisualizadorDatos:
-    """Visualizaciones Plotly para la vista de Datos y preparación."""
+class DataVisualizer:
+    """Plotly visualizations for the Data view and dataset preparation."""
 
     @staticmethod
     def tipos_columnas(tabla: pd.DataFrame) -> go.Figure:
@@ -633,8 +633,8 @@ class VisualizadorDatos:
         return figura
 
 
-SupervisedVisualizer = VisualizadorSupervisado
-ClassificationVisualizer = VisualizadorSupervisado
-DataVisualizer = VisualizadorDatos
-UnsupervisedVisualizer = VisualizadorNoSupervisado
-RegressionVisualizer = VisualizadorRegresion
+VisualizadorSupervisado = SupervisedVisualizer
+ClassificationVisualizer = SupervisedVisualizer
+VisualizadorDatos = DataVisualizer
+VisualizadorNoSupervisado = UnsupervisedVisualizer
+VisualizadorRegresion = RegressionVisualizer
