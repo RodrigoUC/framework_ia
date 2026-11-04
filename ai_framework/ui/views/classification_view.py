@@ -28,7 +28,7 @@ from ai_framework.utils.visualization import VisualizadorSupervisado
 
 
 def safe_preparation(*, mostrar_guia: bool = False) -> bool:
-    """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
+    """Verify that previous preparation has not imputed or scaled before the split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -56,7 +56,7 @@ def render_single_model(
     *,
     algoritmo: str,
 ) -> None:
-    """Entrenamiento exploratorio de un único modelo con parámetros visibles."""
+    """Exploratory training of a single model with visible parameters."""
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
     segura = safe_preparation()
     parametros = parametros_individuales(algoritmo)
@@ -204,7 +204,7 @@ def _render_single_models(individuales: list) -> None:
 def render_classification_results(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
-    """Compara métricas de prueba de modelos individuales y del benchmark experimental."""
+    """Compare test metrics of individual models and experimental benchmark."""
     hay_experimento = bool(
         st.session_state.get("resultado_lab2_experimento") is not None
         or st.session_state.get("resultado_lab2_intento_experimento") is not None

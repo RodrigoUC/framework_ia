@@ -28,7 +28,7 @@ from ai_framework.utils.visualization import VisualizadorRegresion
 
 
 def safe_regression_preparation() -> bool:
-    """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
+    """Verify that previous preparation has not imputed or scaled before the split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -125,7 +125,7 @@ def display_model_result(
 def render_regression_model(
     datos, configuracion, mostrar_figura, *, algoritmo: str
 ) -> None:
-    """Renderiza los controles y ejecuta el entrenamiento de un regresor individual."""
+    """Render controls and execute training of an individual regressor."""
     segura = safe_regression_preparation()
     parametros = parametros_regresion(algoritmo)
     disponibilidad = disponibilidad_supervisada(
@@ -192,7 +192,7 @@ def render_regression_model(
 def render_regression_results(
     mostrar_figura, *, incluir_experimentos=False
 ) -> None:
-    """Muestra la comparación de regresores entrenados y evidencia experimental."""
+    """Display comparison of trained regressors and experimental evidence."""
     hay_experimento = incluir_experimentos and any(
         st.session_state.get(clave)
         for clave in (

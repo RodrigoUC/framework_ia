@@ -25,7 +25,7 @@ def _select_integer(
     *,
     key: str,
 ) -> int:
-    """Renderiza un control deslizante entero o un texto fijo si el rango es unitario."""
+    """Render integer slider or fixed text if range has a single value."""
     if minimo == maximo:
         st.caption(f"{etiqueta}: {minimo}")
         return minimo
@@ -39,7 +39,7 @@ def _select_integer(
 
 
 def _sanitize_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
-    """Evita fallos de serialización de PyArrow convirtiendo columnas de tipo dict/list a JSON/string."""
+    """Avoid PyArrow serialization failures by converting dict/list columns to JSON/string."""
     if not isinstance(data, pd.DataFrame) or data.empty:
         return data
     modificado = False
@@ -60,7 +60,7 @@ def _sanitize_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def _display_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
-    """Muestra una descripción accesible junto a la tabla de datos."""
+    """Display accessible description alongside data table."""
     st.caption(alt)
     st.dataframe(_sanitize_dataframe_arrow(data), **opciones)
 

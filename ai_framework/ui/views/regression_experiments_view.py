@@ -31,7 +31,7 @@ from ai_framework.utils.supervised.regression_config import (
 from ai_framework.utils.visualization import VisualizadorRegresion
 
 def _sanitize_regression_table(tabla: pd.DataFrame) -> pd.DataFrame:
-    """Prepara la tabla para serialización segura en Arrow sin fallos de tipo."""
+    """Prepare table for safe Arrow serialization without type failures."""
     if not isinstance(tabla, pd.DataFrame) or tabla.empty:
         return tabla
     vista = tabla.copy()
@@ -49,7 +49,7 @@ def _sanitize_regression_table(tabla: pd.DataFrame) -> pd.DataFrame:
 def display_saved_experiment(
     mostrar_figura, *, solo_comparacion=False
 ) -> None:
-    """Presenta los resultados de validación, el ganador y los paquetes de descarga."""
+    """Present validation results, winner, and download bundles."""
     intento = st.session_state.get("resultado_lab3_intento_experimento")
     if intento:
         st.warning(

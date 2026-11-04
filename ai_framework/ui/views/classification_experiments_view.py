@@ -461,7 +461,7 @@ def render_experiment_result(
 
 
 def _validation_table(tabla: pd.DataFrame) -> None:
-    """Muestra la tabla de candidatos evaluados en validación con parámetros serializados."""
+    """Display candidate table evaluated during validation with serialized parameters."""
     vista = tabla.copy()
     vista["parametros"] = vista["parametros"].map(_json)
     _mostrar_dataframe(

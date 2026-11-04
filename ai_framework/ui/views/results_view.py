@@ -16,7 +16,7 @@ def render_individual_models_panel(
     *,
     titulo: str | None = None,
 ) -> None:
-    """Renderiza de forma unificada la tabla de modelos individuales y el visor de hiperparámetros."""
+    """Render unified individual models table and hyperparameter inspector."""
     titulo_texto = titulo if titulo is not None else t("res_modelos_ind", "Modelos entrenados individualmente")
     st.markdown(f"#### {titulo_texto}")
     st.dataframe(df_metricas, hide_index=True, width="stretch")
@@ -52,7 +52,7 @@ def render_results_layout(
     mensaje_sin_datos: str | None = None,
     clave_contexto: str = "general",
 ) -> None:
-    """Organiza la página de resultados con dos botones para conmutar entre modelos individuales y evaluación comparativa."""
+    """Organize results page with two buttons to toggle between individual models and comparative benchmark."""
     if not hay_individuales and not hay_comparativa:
         msg = mensaje_sin_datos or t("res_sin_datos", "Todavía no hay modelos entrenados ni evaluaciones guardadas en este contexto.")
         st.info(msg)

@@ -19,7 +19,7 @@ MostrarFigura = Callable[..., None]
 
 
 def _apply_atlas_styles() -> None:
-    """Instala la hoja de estilos compartida de la interfaz según el tema activo."""
+    """Install shared UI stylesheet according to active theme."""
     oscuro = st.context.theme.type == "dark"
     focus_color = "#9effbf" if oscuro else "#1a3c2b"
     chip_background = "#9effbf" if oscuro else "#1a3c2b"
@@ -69,7 +69,7 @@ def _apply_atlas_styles() -> None:
 
 
 def _rgb_color(color: str) -> tuple[int, int, int] | None:
-    """Convierte colores hexadecimales o rgb() a canales RGB."""
+    """Convert hex or rgb() colors to RGB channels."""
     if not isinstance(color, str):
         return None
     color = color.strip()
@@ -116,7 +116,7 @@ def _rgb_color(color: str) -> tuple[int, int, int] | None:
 
 
 def _luminance(color: str) -> float | None:
-    """Calcula la luminancia relativa sRGB para etiquetas sobre celdas Plotly."""
+    """Compute relative sRGB luminance for labels over Plotly cells."""
     canales = _rgb_color(color)
     if canales is None:
         return None
@@ -130,7 +130,7 @@ def _luminance(color: str) -> float | None:
 
 
 def _cell_text_color(color: str) -> str:
-    """Elige negro o blanco para mantener contraste en cada celda del mapa."""
+    """Choose black or white to maintain contrast in each heatmap cell."""
     luminancia = _luminance(color)
     if luminancia is None:
         return "#172019"
@@ -140,7 +140,7 @@ def _cell_text_color(color: str) -> str:
 
 
 def _sector_text_color(color: str, predeterminado: str) -> str:
-    """Elige texto AA para una sección circular con color explícito."""
+    """Choose AA text for a pie sector with explicit color."""
     luminancia = _luminance(color)
     if luminancia is None:
         return predeterminado
@@ -148,7 +148,7 @@ def _sector_text_color(color: str, predeterminado: str) -> str:
 
 
 def _adjust_trace_color(color, oscuro: bool):
-    """Eleva el contraste de colores de marcas y líneas sin perder su matiz."""
+    """Enhance contrast of mark and line colors without losing hue."""
     if isinstance(color, (list, tuple)):
         return [_adjust_trace_color(valor, oscuro) for valor in color]
     canales = _rgb_color(color)
@@ -374,7 +374,7 @@ def _apply_figure_theme(figura: go.Figure, oscuro: bool) -> None:
 def _display_figure(
     figura: go.Figure, key: str | None = None, *, alt: str | None = None
 ) -> None:
-    """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
+    """Render Plotly figure aligned with active light/dark theme."""
     _apply_figure_theme(figura, st.context.theme.type == "dark")
     opciones = {"width": "stretch"}
     if alt is not None:
@@ -536,7 +536,7 @@ DICCIONARIO_CAMPOS_LEGIBLES: dict[str, str] = {
 
 
 def format_readable_value(val: object) -> str:
-    """Convierte cualquier valor a una representación textual clara y comprensible."""
+    """Convert any value to a clear and understandable textual representation."""
     if val is None:
         return "Por defecto (None)"
     if isinstance(val, bool):
@@ -566,7 +566,7 @@ def format_readable_value(val: object) -> str:
 
 
 def _get_tabs(titulos: list[str]) -> list:
-    """Devuelve contenedores de pestañas seguros frente a entornos donde st está mockeado."""
+    """Return tab containers safe against environments where st is mocked."""
     resultado = st.tabs(titulos)
     if isinstance(resultado, (list, tuple)) and len(resultado) == len(titulos):
         return list(resultado)
@@ -580,7 +580,7 @@ def render_key_value_table(
     columna_valor: str = "Valor",
     vacio_mensaje: str = "No hay registros disponibles.",
 ) -> None:
-    """Renderiza un diccionario o mapeo como una tabla clara y estilizada para cualquier usuario."""
+    """Render dictionary or mapping as a clear and styled table for any user."""
     if not isinstance(datos, dict) or not datos:
         if datos is None or (isinstance(datos, dict) and not datos):
             st.caption(vacio_mensaje)

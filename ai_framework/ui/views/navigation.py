@@ -43,7 +43,7 @@ def _regressor_name(algoritmo: str) -> str:
 
 
 def _resumen_calidad(datos: pd.DataFrame) -> None:
-    """Muestra indicadores básicos de calidad del dataset activo."""
+    """Display basic quality indicators of active dataset."""
     resumen = EDA(dataframe=datos).resumen_calidad()
     numericas = _columnas_numericas(datos)
     resumen["outliers_criticos"] = (
@@ -80,7 +80,7 @@ def _resumen_calidad(datos: pd.DataFrame) -> None:
 
 
 def _select_view(disponibilidades=None) -> str:
-    """Renderiza la navegación multinivel y devuelve la vista activa."""
+    """Render multi-level navigation and return active view."""
     vista = st.session_state.setdefault("vista_activa", "datos")
     if vista in {"comparacion", "lab2_experimentos"}:
         vista = "lab2_resultados"
@@ -309,7 +309,7 @@ def _view_path(vista: str, titulo: str) -> str:
 def _render_atlas_header(
     datos: pd.DataFrame, etiqueta: str, vista: str
 ) -> None:
-    """Muestra el encabezado del dataset activo y el resumen de calidad en vistas exploratorias."""
+    """Display active dataset header and quality summary in exploratory views."""
     titulo = _view_title(vista)
     ruta = _view_path(vista, titulo)
     nombre_dataset = escape(etiqueta)
@@ -366,7 +366,7 @@ def show_missing_data(disponibilidad: Disponibilidad) -> None:
 
 
 def go_to(destino: str) -> None:
-    """Actualiza la vista activa en la sesión de Streamlit."""
+    """Update active view in Streamlit session."""
     st.session_state["vista_activa"] = destino
 
 

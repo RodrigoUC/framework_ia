@@ -40,7 +40,7 @@ from ai_framework.utils.visualization import VisualizadorDatos
 
 
 def _get_base_dir() -> Path:
-    """Obtiene el directorio raíz del proyecto permitiendo sustitución en pruebas."""
+    """Get project root directory allowing substitution in tests."""
     for mod_name in (
         "ai_framework.ui.streamlit_app",
         "ai_framework.ui.app",
@@ -75,7 +75,7 @@ def _get_csv_loader():
 
 
 def _format_source_error(exc: Exception, configuracion: ConfiguracionCSV | None = None) -> str:
-    """Convierte excepciones internas de lectura en mensajes de error controlados y claros."""
+    """Convert internal read exceptions into clear controlled error messages."""
     lang = obtener_idioma()
     exc_str = str(exc)
     separador = configuracion.separador if configuracion else ""
@@ -125,7 +125,7 @@ def _format_source_error(exc: Exception, configuracion: ConfiguracionCSV | None 
 
 
 def _verify_csv_load_quality(datos: pd.DataFrame | None, separador: str) -> str | None:
-    """Verifica si el dataset parece haber sido cargado con un separador erróneo."""
+    """Verify if dataset appears to have been loaded with an incorrect delimiter."""
     if datos is None or datos.empty or datos.shape[1] > 1:
         return None
 
@@ -159,7 +159,7 @@ def _verify_csv_load_quality(datos: pd.DataFrame | None, separador: str) -> str 
 
 
 def _select_source() -> tuple[pd.DataFrame | None, str, str]:
-    """Permite preparar una fuente y aplicarla al confirmar el formulario."""
+    """Allow preparing a source and applying it upon form confirmation."""
     directorio_datos = _get_base_dir() / "data"
     archivos = sorted(
         directorio_datos.rglob("*.csv"),
@@ -310,7 +310,7 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
 
 
 def _render_dataset() -> None:
-    """Permite preparar, restaurar y exportar el dataset persistente."""
+    """Allow preparing, restoring, and exporting persistent dataset."""
     fuente_actual = st.session_state.get("fuente_aplicada")
     if fuente_actual and fuente_actual[0] is not None and fuente_actual[0].shape[1] > 1:
         st.session_state.pop("advertencia_fuente", None)
@@ -438,7 +438,7 @@ def _render_dataset() -> None:
 
 
 def _render_partition(datos: pd.DataFrame, configuracion: dict) -> None:
-    """Calcula una partición train/test/validación reutilizable en el framework."""
+    """Calculate reusable train/test/validation partition across the framework."""
     st.markdown(f"#### {t('prep_division_titulo', 'División en entrenamiento y prueba')}")
     st.caption(
         "La partición calculada aquí queda disponible para Clasificación y "
@@ -601,7 +601,7 @@ def _dataset_module_summary(
 
 
 def render_diabetes_profile(datos: pd.DataFrame) -> None:
-    """Ofrece el perfil únicamente para el CSV preparado reconocido e intacto."""
+    """Provide profile only for recognized and intact prepared CSV."""
     perfil = estado_fuente_diabetes(datos, st.session_state)
     if perfil == "original":
         st.warning(
