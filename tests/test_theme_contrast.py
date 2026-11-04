@@ -9,12 +9,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from framework_ia.datos.eda import EDA
-from framework_ia.ui import streamlit_app
-from framework_ia.visualizacion import (
-    VisualizadorDatos,
-    VisualizadorNoSupervisado,
-    VisualizadorSupervisado,
+from ai_framework.data.eda import EDA
+from ai_framework.ui import streamlit_app
+from ai_framework.utils.visualization import (
+    DataVisualizer,
+    UnsupervisedVisualizer,
+    SupervisedVisualizer,
 )
 
 
@@ -216,8 +216,8 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
         )
         figuras = (
             figura_correlacion,
-            VisualizadorNoSupervisado.perfiles_cluster(perfiles),
-            VisualizadorSupervisado.matriz_confusion(confusion),
+            UnsupervisedVisualizer.perfiles_cluster(perfiles),
+            SupervisedVisualizer.matriz_confusion(confusion),
         )
         for figura in figuras:
             with self.subTest(titulo=figura.layout.title.text):
@@ -263,7 +263,7 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
             (True, streamlit_app.PALETA_OSCURA["superficie"]),
         ):
             with self.subTest(oscuro=oscuro):
-                figura = VisualizadorDatos.tipos_columnas(
+                figura = DataVisualizer.tipos_columnas(
                     pd.DataFrame({"tipo": ["Numérica", "Categórica", "Numérica"]})
                 )
                 traza = figura.data[0]
@@ -282,7 +282,7 @@ class ContrasteTemaPlotlyTests(unittest.TestCase):
                     self.assertNotIn(color.lower(), ("#000000", "#ffffff"))
 
     def test_figura_pie_se_mantiene_legible_al_cambiar_de_tema(self):
-        figura = VisualizadorDatos.tipos_columnas(
+        figura = DataVisualizer.tipos_columnas(
             pd.DataFrame({"tipo": ["Numérica", "Categórica"]})
         )
         for oscuro in (True, False, True):

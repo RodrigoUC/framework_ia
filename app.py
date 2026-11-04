@@ -1,6 +1,6 @@
 """Punto de entrada de Streamlit."""
 
-from framework_ia.ui.streamlit_app import main
+from ai_framework.ui.streamlit_app import main
 
 
 if __name__ == "__main__":

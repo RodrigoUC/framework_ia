@@ -12,16 +12,16 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from framework_ia.datasets.diabetes import (
+from ai_framework.datasets.diabetes import (
     COLUMNAS_ORIGINALES,
     PREDICTORAS_DIABETES,
     cargar_diabetes_regresion,
     preparar_diabetes,
     validar_preparacion_diabetes,
 )
-from framework_ia.modelos.supervisado import Regresion
-from framework_ia.ui import streamlit_app
-from framework_ia.ui.controladores.controlador_regresion import snapshot_ejecucion
+from ai_framework.models.supervised import Regression, Regresion
+from ai_framework.ui import streamlit_app
+from ai_framework.ui.controllers.regression_controller import snapshot_ejecucion
 from scripts.preparar_diabetes import crear_parser, ejecutar, main
 
 REFERENCIA = "Diabetes (referencia)"
@@ -263,8 +263,8 @@ def test_source_selection_only_applies_on_confirmation_and_never_trains():
     app = nueva_app()
     app.session_state["resultado_lab3_modelo_RLM"] = {"stale": True}
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
-        patch.object(Regresion, "experimentar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "experimentar", side_effect=AssertionError("auto-fit")),
     ):
         app.sidebar.radio(key="fuente_origen").set_value(REFERENCIA).run()
         assert app.session_state["fuente_aplicada"][2] == "arbitrario"

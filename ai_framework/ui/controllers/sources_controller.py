@@ -1,0 +1,199 @@
+"""Controller for source loading, data synchronization, and presets."""
+
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+from ai_framework.datasets.diabetes import (
+    PREDICTORAS_DIABETES,
+    cargar_diabetes_regresion,
+)
+from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
+from ai_framework.ui.models.classification_state import (
+    limpiar_resultados_clasificacion,
+)
+from ai_framework.ui.models.regression_state import (
+    limpiar_resultados_regresion,
+)
+from ai_framework.ui.models.session_state import firma_preparacion
+from ai_framework.ui.models.diabetes_profile import estado_fuente_diabetes
+
+
+def _load_regression_reference() -> None:
+    """Prepare local reference source for regression and its associated preset."""
+    cargador = cargar_diabetes_regresion
+    for mod_name in (
+        "ai_framework.ui.streamlit_app",
+        "ai_framework.ui.app",
+    ):
+        if mod_name in sys.modules:
+            mod = sys.modules[mod_name]
+            if hasattr(mod, "cargar_diabetes_regresion"):
+                candidate = getattr(mod, "cargar_diabetes_regresion")
+                if candidate is not cargar_diabetes_regresion:
+                    cargador = candidate
+                    break
+    else:
+        modulo_app = (
+            sys.modules.get("framework_ia.ui.streamlit_app")
+            or sys.modules.get("ai_framework.ui.streamlit_app")
+            or sys.modules.get("ai_framework.ui.app")
+        )
+        cargador = getattr(modulo_app, "cargar_diabetes_regresion", cargar_diabetes_regresion)
+    datos, _, metadata = cargador()
+    identidad = f"builtin:sklearn-diabetes:{metadata['sha256']}"
+    st.session_state["fuente_aplicada"] = (datos, metadata["archivo"], identidad)
+    st.session_state["fuente_metadata"] = {**metadata, "identidad": identidad}
+    st.session_state["fuente_preset_regresion"] = {
+        "identidad": identidad,
+        **metadata["preset_regresion"],
+    }
+
+
+def _apply_regression_preset(identidad: str) -> None:
+    """Apply regression preset once after confirming local source."""
+    preset = st.session_state.pop("fuente_preset_regresion", None)
+    if preset is None or preset["identidad"] != identidad:
+        return
+    limpiar_resultados_regresion(st.session_state)
+    st.session_state.update(
+        {
+            "sup_tarea": "regresion",
+            "sup_target": preset["target"],
+            "sup_features": list(preset["features"]),
+            "sup_feature_simple": preset["feature_simple"],
+            "sup_test_size": int(preset["test_size"] * 100),
+            "sup_random_state": preset["random_state"],
+            "sup_usar_particion_global": False,
+            "sup_incluir_categoricas": False,
+            "sup_imputar": True,
+            "sup_escalar": True,
+        }
+    )
+
+
+def _save_source_metadata(
+    contenido: bytes,
+    configuracion: ConfiguracionCSV,
+    fuente: str | None = None,
+) -> None:
+    """Record metadata and cryptographic digest of applied data source."""
+    datos, nombre, identidad = st.session_state["fuente_aplicada"]
+    st.session_state["fuente_metadata"] = {
+        "archivo": nombre,
+        "identidad": identidad,
+        "sha256": hashlib.sha256(contenido).hexdigest(),
+        "fuente": fuente.strip() if fuente and fuente.strip() else None,
+        "filas": len(datos),
+        "columnas": list(datos.columns),
+        "lectura": {
+            "separador": configuracion.separador,
+            "decimal": configuracion.decimal,
+            "encoding": configuracion.encoding,
+            "usar_primera_columna_como_indice": configuracion.usar_primera_columna_como_indice,
+        },
+    }
+
+
+def _load_csv_source(
+    seleccion: Path,
+    configuracion: ConfiguracionCSV,
+    *,
+    fuente: str | None = None,
+) -> None:
+    """Load local CSV file and preserve its file identity and reading config."""
+    contenido = seleccion.read_bytes()
+    datos = CargadorCSV.cargar_bytes(contenido, configuracion)
+    digest = hashlib.sha256(contenido).hexdigest()
+    identidad = f"local:{seleccion.resolve()}:{digest}:{configuracion}"
+    st.session_state["fuente_aplicada"] = (datos, seleccion.name, identidad)
+    _save_source_metadata(contenido, configuracion, fuente)
+
+
+def _clear_results() -> None:
+    """Discard results that no longer correspond to active dataset."""
+    limpiar_resultados_regresion(st.session_state)
+    for clave in list(st.session_state):
+        if (
+            clave.startswith("resultado_")
+            or clave.startswith("benchmark_")
+            or clave.startswith("preview_")
+            or clave.startswith("comparacion_")
+        ):
+            del st.session_state[clave]
+    st.session_state.pop("particion_global", None)
+    st.session_state.pop("clasificacion_contexto", None)
+    st.session_state.pop("lab2_firma_experimento", None)
+    st.session_state.pop("lab2_firma_modelo", None)
+    st.session_state.pop("error_lab2_experimento", None)
+
+
+def _sync_dataset(datos: pd.DataFrame, identidad: str) -> None:
+    """Reset results only when file or its reading configuration changes."""
+    if st.session_state.get("dataset_identidad") == identidad:
+        return
+    st.session_state["dataset_identidad"] = identidad
+    st.session_state["dataset_original"] = datos.copy()
+    st.session_state["dataset_preparado"] = datos.copy()
+    _clear_results()
+    st.session_state.pop("dataset_preparacion", None)
+    for clave in list(st.session_state):
+        if (
+            clave.startswith(
+                ("modelo_", "clasif_", "reg_", "sup_", "lab3_", "dataset_")
+            )
+            and clave
+            not in {"dataset_original", "dataset_preparado", "dataset_identidad"}
+        ):
+            del st.session_state[clave]
+
+
+def _apply_diabetes_configuration() -> None:
+    """Apply recommended settings for prepared Diabetes CSV."""
+    datos = st.session_state.get("dataset_preparado")
+    if datos is None or estado_fuente_diabetes(datos, st.session_state) != "preparado":
+        return
+    st.session_state.update(
+        sup_tarea="clasificacion",
+        sup_target="diabetes",
+        sup_features=list(PREDICTORAS_DIABETES),
+        sup_incluir_categoricas=True,
+        sup_imputar=True,
+        sup_escalar=True,
+        sup_random_state=42,
+        sup_test_size=25,
+        sup_strat=True,
+        sup_usar_particion_global=False,
+        lab2_benchmark_validacion=20,
+        lab2_benchmark_metrica="f1_macro",
+    )
+    limpiar_resultados_clasificacion(st.session_state)
+    st.session_state.pop("errores_lab2_modelo_RF", None)
+    st.session_state["perfil_diabetes_aplicado"] = st.session_state["fuente_aplicada"][
+        2
+    ]
+
+
+def _use_partition() -> None:
+    """Synchronize supervised controls with calculated global partition."""
+    particion = st.session_state.get("particion_global")
+    if particion is not None and st.session_state.get("sup_usar_particion_global"):
+        st.session_state["sup_test_size"] = round(particion.porcentaje_test * 100)
+        st.session_state["sup_random_state"] = particion.semilla
+        st.session_state["sup_strat"] = particion.columna_estratificacion is not None
+        st.session_state["sup_particion_firma"] = firma_preparacion(st.session_state)
+
+# Backward compatibility aliases
+_cargar_referencia_regresion = _load_regression_reference
+_aplicar_preset_regresion = _apply_regression_preset
+_guardar_metadatos_fuente = _save_source_metadata
+_cargar_fuente_csv = _load_csv_source
+_limpiar_resultados = _clear_results
+_sincronizar_dataset = _sync_dataset
+_aplicar_configuracion_diabetes = _apply_diabetes_configuration
+_usar_particion = _use_partition
