@@ -82,7 +82,7 @@ def _save_source_metadata(
     configuracion: ConfiguracionCSV,
     fuente: str | None = None,
 ) -> None:
-    """Registra los metadatos y la huella criptográfica de la fuente aplicada."""
+    """Record metadata and cryptographic digest of applied data source."""
     datos, nombre, identidad = st.session_state["fuente_aplicada"]
     st.session_state["fuente_metadata"] = {
         "archivo": nombre,
@@ -106,7 +106,7 @@ def _load_csv_source(
     *,
     fuente: str | None = None,
 ) -> None:
-    """Carga un archivo CSV local y conserva su identidad de archivo y lectura."""
+    """Load local CSV file and preserve its file identity and reading config."""
     contenido = seleccion.read_bytes()
     datos = CargadorCSV.cargar_bytes(contenido, configuracion)
     digest = hashlib.sha256(contenido).hexdigest()
@@ -116,7 +116,7 @@ def _load_csv_source(
 
 
 def _clear_results() -> None:
-    """Descarta resultados que ya no corresponden al dataset activo."""
+    """Discard results that no longer correspond to active dataset."""
     limpiar_resultados_regresion(st.session_state)
     for clave in list(st.session_state):
         if (
@@ -134,7 +134,7 @@ def _clear_results() -> None:
 
 
 def _sync_dataset(datos: pd.DataFrame, identidad: str) -> None:
-    """Reinicia resultados únicamente cuando cambia el archivo o su lectura."""
+    """Reset results only when file or its reading configuration changes."""
     if st.session_state.get("dataset_identidad") == identidad:
         return
     st.session_state["dataset_identidad"] = identidad
@@ -154,7 +154,7 @@ def _sync_dataset(datos: pd.DataFrame, identidad: str) -> None:
 
 
 def _apply_diabetes_configuration() -> None:
-    """Aplica las opciones recomendadas para el CSV preparado de Diabetes."""
+    """Apply recommended settings for prepared Diabetes CSV."""
     datos = st.session_state.get("dataset_preparado")
     if datos is None or estado_fuente_diabetes(datos, st.session_state) != "preparado":
         return
@@ -180,7 +180,7 @@ def _apply_diabetes_configuration() -> None:
 
 
 def _use_partition() -> None:
-    """Sincroniza los controles supervisados con la partición global calculada."""
+    """Synchronize supervised controls with calculated global partition."""
     particion = st.session_state.get("particion_global")
     if particion is not None and st.session_state.get("sup_usar_particion_global"):
         st.session_state["sup_test_size"] = round(particion.porcentaje_test * 100)

@@ -47,63 +47,63 @@ def _execution_context(configuracion: dict) -> dict:
     }
 
 
-def _json(datos) -> str:
-    """Serializa parámetros u objetos de resultados en formato JSON legible."""
-    return json.dumps(datos, ensure_ascii=False, indent=2, default=str)
+def _json(data) -> str:
+    """Serialize parameter or result objects into readable JSON format."""
+    return json.dumps(data, ensure_ascii=False, indent=2, default=str)
 
 
-def true_rate_name(etiqueta, etiquetas) -> str:
-    """Retorna el nombre descriptivo de la tasa de verdaderos para una clase."""
-    etiquetas_lista = list(etiquetas)
-    if len(etiquetas_lista) == 2:
-        str_set = {str(e).strip().casefold() for e in etiquetas_lista}
-        str_etiq = str(etiqueta).strip().casefold()
+def true_rate_name(label, labels) -> str:
+    """Return descriptive name of true rate for a class."""
+    labels_list = list(labels)
+    if len(labels_list) == 2:
+        str_set = {str(e).strip().casefold() for e in labels_list}
+        str_label = str(label).strip().casefold()
         if str_set in ({"0", "1"}, {"n", "y"}, {"false", "true"}, {"no", "si"}, {"no", "sí"}):
-            es_positivo = str_etiq in {"1", "y", "true", "si", "sí"}
-            tipo = "Positivos" if es_positivo else "Negativos"
-            etiq_fmt = str(etiqueta).upper() if str_set == {"n", "y"} else str(etiqueta)
-            return f"Tasa de Verdaderos {tipo} ({etiq_fmt}) (%)"
-    return f"Tasa de Verdaderos ({etiqueta}) (%)"
+            is_positive = str_label in {"1", "y", "true", "si", "sí"}
+            kind = "Positivos" if is_positive else "Negativos"
+            label_fmt = str(label).upper() if str_set == {"n", "y"} else str(label)
+            return f"Tasa de Verdaderos {kind} ({label_fmt}) (%)"
+    return f"Tasa de Verdaderos ({label}) (%)"
 
 
-def _metrics_by_class(resultado) -> dict[str, float | str]:
-    """Calcula la tasa de verdaderos porcentual por clase real sobre las predicciones de prueba."""
-    y_true = resultado.y_true
-    y_pred = resultado.y_pred
-    etiquetas = list(resultado.labels)
+def _metrics_by_class(result) -> dict[str, float | str]:
+    """Calculate percentage true rate by actual class on test predictions."""
+    y_true = result.y_true
+    y_pred = result.y_pred
+    labels = list(result.labels)
     recalls = {}
-    for etiqueta in etiquetas:
-        nombre = nombre_tasa_verdaderos(etiqueta, etiquetas)
-        reales = y_true == etiqueta
-        soporte = int(reales.sum())
-        recalls[nombre] = (
-            100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte
-            if soporte
+    for label in labels:
+        name = true_rate_name(label, labels)
+        actual = y_true == label
+        support = int(actual.sum())
+        recalls[name] = (
+            100.0 * int((y_pred[actual] == label).sum()) / support
+            if support
             else "Sin casos evaluados"
         )
     return recalls
 
 
-def _percentage_metrics(resultado) -> dict[str, float | str]:
-    """Combina el accuracy porcentual general con la tasa de verdaderos por clase real."""
+def _percentage_metrics(result) -> dict[str, float | str]:
+    """Combine overall percentage accuracy with true rate by actual class."""
     return {
-        "Accuracy general (%)": 100.0 * float(resultado.metricas["accuracy"]),
-        **_metricas_por_clase(resultado),
+        "Accuracy general (%)": 100.0 * float(result.metricas["accuracy"]),
+        **_metrics_by_class(result),
     }
 
 
-def _executed_source(datos: pd.DataFrame) -> dict:
-    """Reconstruye los metadatos de la fuente de datos empleada en el experimento."""
-    fuente = st.session_state.get("fuente_aplicada", (None, "", ""))
+def _executed_source(data: pd.DataFrame) -> dict:
+    """Reconstruct metadata of data source used in the experiment."""
+    source = st.session_state.get("fuente_aplicada", (None, "", ""))
     metadata = st.session_state.get("fuente_metadata", {})
-    if metadata.get("identidad") != fuente[2]:
+    if metadata.get("identidad") != source[2]:
         metadata = {}
     return {
-        "archivo": fuente[1],
+        "archivo": source[1],
         "sha256": metadata.get("sha256"),
         "fuente": metadata.get("fuente"),
-        "filas": len(datos),
-        "columnas": list(datos.columns),
+        "filas": len(data),
+        "columnas": list(data.columns),
         "filas_archivo": metadata.get("filas"),
         "columnas_archivo": metadata.get("columnas"),
         "lectura": deepcopy(metadata.get("lectura", {})),
@@ -114,29 +114,29 @@ def _executed_source(datos: pd.DataFrame) -> dict:
 
 
 def _export_arguments(
-    configuracion: dict,
-    opciones: dict,
-    fuente: dict,
+    config: dict,
+    options: dict,
+    source: dict,
 ) -> dict:
-    """Construye el diccionario de argumentos de reproducibilidad para exportación."""
+    """Build reproducibility arguments dictionary for export."""
     return {
-        "csv": fuente["archivo"],
-        "target": configuracion["target"],
-        "features": list(configuracion["features"]),
-        "semilla": configuracion["random_state"],
-        "test_size": configuracion["test_size"],
-        "validation_size": opciones["validation_size"],
-        "estrategia": opciones.get("estrategia", "holdout"),
-        "folds": FOLDS_LAB2 if opciones.get("estrategia") == "cv" else None,
-        "metrica": opciones["metrica"],
+        "csv": source["archivo"],
+        "target": config["target"],
+        "features": list(config["features"]),
+        "semilla": config["random_state"],
+        "test_size": config["test_size"],
+        "validation_size": options["validation_size"],
+        "estrategia": options.get("estrategia", "holdout"),
+        "folds": FOLDS_LAB2 if options.get("estrategia") == "cv" else None,
+        "metrica": options["metrica"],
         "algoritmos": list(ALGORITMOS_LAB2),
-        "incluir_categoricas": configuracion["incluir_categoricas"],
-        "sin_imputar": not configuracion["imputar"],
-        "sin_escalar": not configuracion["estandarizar"],
-        "estratificar": configuracion["estratificar"],
-        "particion_externa": configuracion.get("particion_global") is not None,
-        **fuente["lectura"],
-        "fuente": fuente["fuente"],
+        "incluir_categoricas": config["incluir_categoricas"],
+        "sin_imputar": not config["imputar"],
+        "sin_escalar": not config["estandarizar"],
+        "estratificar": config["estratificar"],
+        "particion_externa": config.get("particion_global") is not None,
+        **source["lectura"],
+        "fuente": source["fuente"],
     }
 
 nombre_tasa_verdaderos = true_rate_name

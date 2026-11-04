@@ -6,159 +6,179 @@ import pandas as pd
 
 from ai_framework.models.unsupervised import Cluster
 from ai_framework.utils.results import (
+    PCAResult,
+    ClusterResult,
+    ProjectionResult,
     ResultadoACP,
     ResultadoCluster,
     ResultadoProyeccion,
 )
 from ai_framework.utils.unsupervised import (
+    evaluate_hac,
+    evaluate_kmeans,
     evaluar_hac,
     evaluar_kmeans,
 )
 
 
-def _numeric_columns(datos: pd.DataFrame) -> list[str]:
-    """Retorna las variables numéricas del DataFrame activo."""
-    return datos.select_dtypes(include="number").columns.tolist()
+def _numeric_columns(data: pd.DataFrame) -> list[str]:
+    """Return numeric variables of active DataFrame."""
+    return data.select_dtypes(include="number").columns.tolist()
 
 
-def _categorical_columns(datos: pd.DataFrame) -> list[str]:
-    """Retorna las variables categóricas del DataFrame activo."""
-    return datos.select_dtypes(exclude="number").columns.tolist()
+def _categorical_columns(data: pd.DataFrame) -> list[str]:
+    """Return categorical variables of active DataFrame."""
+    return data.select_dtypes(exclude="number").columns.tolist()
 
 
-def _sample_data(datos: pd.DataFrame, cantidad: int) -> pd.DataFrame:
-    """Limita análisis costosos de forma reproducible."""
-    if len(datos) <= cantidad:
-        return datos.copy()
-    return datos.sample(n=cantidad, random_state=42).sort_index()
+def _sample_data(data: pd.DataFrame, count: int) -> pd.DataFrame:
+    """Limit expensive analysis reproducibly."""
+    if len(data) <= count:
+        return data.copy()
+    return data.sample(n=count, random_state=42).sort_index()
 
 
-def _create_reducer(datos: pd.DataFrame, configuracion: dict) -> Cluster:
-    """Construye el modelo usado para ACP, t-SNE y UMAP desde la interfaz."""
+def _create_reducer(data: pd.DataFrame, config: dict) -> Cluster:
+    """Build model used for PCA, t-SNE, and UMAP from UI."""
     return Cluster(
-        dataframe=datos,
-        features=configuracion["features"],
-        incluir_categoricas=configuracion["incluir_categoricas"],
-        estandarizar=configuracion["estandarizar"],
+        dataframe=data,
+        features=config["features"],
+        incluir_categoricas=config["incluir_categoricas"],
+        estandarizar=config["estandarizar"],
     )
 
 
-def _create_cluster(datos: pd.DataFrame, configuracion: dict) -> Cluster:
-    """Construye un modelo de agrupamiento sin lógica específica de Streamlit."""
+def _create_cluster(data: pd.DataFrame, config: dict) -> Cluster:
+    """Build clustering model without Streamlit-specific logic."""
     return Cluster(
-        dataframe=datos,
-        features=configuracion["features"],
-        incluir_categoricas=configuracion["incluir_categoricas"],
-        estandarizar=configuracion["estandarizar"],
+        dataframe=data,
+        features=config["features"],
+        incluir_categoricas=config["incluir_categoricas"],
+        estandarizar=config["estandarizar"],
     )
 
 
 def run_pca(
-    datos: pd.DataFrame, configuracion: dict, n_componentes: int = 2
-) -> ResultadoACP:
+    data: pd.DataFrame, config: dict, n_components: int = 2, **kwargs
+) -> PCAResult:
     """Execute principal component analysis according to configuration."""
-    muestra = _sample_data(datos, configuracion["filas"])
-    modelo = _create_reducer(muestra, configuracion)
-    return modelo.ACP(n_componentes=n_componentes)
+    n_comp = kwargs.get("n_componentes", n_components)
+    sample = _sample_data(data, config["filas"])
+    model = _create_reducer(sample, config)
+    return model.ACP(n_componentes=n_comp)
 
 
 def run_kmeans(
-    datos: pd.DataFrame, configuracion: dict, clusters: int
-) -> ResultadoCluster:
+    data: pd.DataFrame, config: dict, clusters: int
+) -> ClusterResult:
     """Execute K-Means algorithm with the configured sample."""
-    muestra = _sample_data(datos, configuracion["filas"])
-    modelo = _create_cluster(muestra, configuracion)
-    return modelo.K_means(clusters)
+    sample = _sample_data(data, config["filas"])
+    model = _create_cluster(sample, config)
+    return model.K_means(clusters)
 
 
 def evaluate_kmeans_k(
-    datos: pd.DataFrame, configuracion: dict, k_min: int = 2, k_max: int = 10
+    data: pd.DataFrame, config: dict, k_min: int = 2, k_max: int = 10
 ) -> pd.DataFrame:
-    """Evalúa valores de k para K-Means mediante inercia y silhouette."""
-    muestra = _sample_data(datos, configuracion["filas"])
-    modelo = _create_cluster(muestra, configuracion)
-    limite = min(k_max, len(muestra) - 1)
-    if k_min > limite:
-        raise ValueError("No hay suficientes filas para evaluar el rango de clusters.")
-    matriz = modelo.preparar_matriz().matriz
-    return evaluar_kmeans(matriz, k_min=k_min, k_max=limite)
+    """Evaluate k values for K-Means using inertia and silhouette."""
+    sample = _sample_data(data, config["filas"])
+    model = _create_cluster(sample, config)
+    limit = min(k_max, len(sample) - 1)
+    if k_min > limit:
+        raise ValueError("Not enough rows to evaluate cluster range.")
+    matrix = model.preparar_matriz().matriz
+    return evaluate_kmeans(matrix, k_min=k_min, k_max=limit)
 
 
 def run_kmedoids(
-    datos: pd.DataFrame, configuracion: dict, clusters: int
-) -> ResultadoCluster:
+    data: pd.DataFrame, config: dict, clusters: int
+) -> ClusterResult:
     """Execute K-Medoids algorithm with the configured sample."""
-    muestra = _sample_data(datos, configuracion["filas"])
-    modelo = _create_cluster(muestra, configuracion)
-    return modelo.K_medoids(clusters)
+    sample = _sample_data(data, config["filas"])
+    model = _create_cluster(sample, config)
+    return model.K_medoids(clusters)
 
 
 def run_hac(
-    datos: pd.DataFrame,
-    configuracion: dict,
+    data: pd.DataFrame,
+    config: dict,
     clusters: int,
-    metodo: str = "ward",
-    filas_hac: int = 800,
-) -> ResultadoCluster:
-    """Ejecuta clustering jerárquico aglomerativo sobre la muestra acotada."""
-    muestra = _sample_data(datos, filas_hac)
-    modelo = _create_cluster(muestra, configuracion)
-    return modelo.HAC(clusters, metodo=metodo)
+    method: str = "ward",
+    rows_hac: int = 800,
+    **kwargs,
+) -> ClusterResult:
+    """Execute hierarchical agglomerative clustering on bounded sample."""
+    metodo = kwargs.get("metodo", method)
+    filas = kwargs.get("filas_hac", rows_hac)
+    sample = _sample_data(data, filas)
+    model = _create_cluster(sample, config)
+    return model.HAC(clusters, metodo=metodo)
 
 
 def compare_hac_methods(
-    datos: pd.DataFrame,
-    configuracion: dict,
-    filas_hac: int = 800,
+    data: pd.DataFrame,
+    config: dict,
+    rows_hac: int = 800,
     k_min: int = 2,
     k_max: int = 8,
+    **kwargs,
 ) -> pd.DataFrame:
     """Compare HAC linkage methods across a range of cluster counts."""
-    muestra = _sample_data(datos, filas_hac)
-    modelo = _create_cluster(muestra, configuracion)
-    limite = min(k_max, len(muestra) - 1)
-    if k_min > limite:
+    filas = kwargs.get("filas_hac", rows_hac)
+    sample = _sample_data(data, filas)
+    model = _create_cluster(sample, config)
+    limit = min(k_max, len(sample) - 1)
+    if k_min > limit:
         raise ValueError(
-            "No hay suficientes filas para evaluar el rango de clusters en HAC."
+            "Not enough rows to evaluate cluster range in HAC."
         )
-    matriz = modelo.preparar_matriz().matriz
-    return evaluar_hac(matriz, k_min=k_min, k_max=limite)
+    matrix = model.preparar_matriz().matriz
+    return evaluate_hac(matrix, k_min=k_min, k_max=limit)
 
 
 def run_tsne(
-    datos: pd.DataFrame,
-    configuracion: dict,
-    filas: int = 2000,
+    data: pd.DataFrame,
+    config: dict,
+    rows: int = 2000,
     perplexity: float = 30.0,
-    iteraciones: int = 1000,
-    etiquetas=None,
-) -> ResultadoProyeccion:
-    """Ejecuta t-SNE sobre el conjunto de variables seleccionadas."""
-    muestra = (
-        datos.loc[etiquetas.index[:filas]]
+    iterations: int = 1000,
+    labels=None,
+    **kwargs,
+) -> ProjectionResult:
+    """Execute t-SNE over selected set of variables."""
+    filas = kwargs.get("filas", rows)
+    iteraciones = kwargs.get("iteraciones", iterations)
+    etiquetas = kwargs.get("etiquetas", labels)
+    sample = (
+        data.loc[etiquetas.index[:filas]]
         if etiquetas is not None
-        else _sample_data(datos, filas)
+        else _sample_data(data, filas)
     )
-    modelo = _create_reducer(muestra, configuracion)
-    return modelo.TSNE(perplexity=perplexity, max_iter=iteraciones)
+    model = _create_reducer(sample, config)
+    return model.TSNE(perplexity=perplexity, max_iter=iteraciones)
 
 
 def run_umap(
-    datos: pd.DataFrame,
-    configuracion: dict,
-    filas: int = 3000,
-    vecinos: int = 15,
-    distancia: float = 0.1,
-    etiquetas=None,
-) -> ResultadoProyeccion:
-    """Ejecuta UMAP sobre el conjunto de variables seleccionadas."""
-    muestra = (
-        datos.loc[etiquetas.index[:filas]]
+    data: pd.DataFrame,
+    config: dict,
+    rows: int = 3000,
+    neighbors: int = 15,
+    distance: float = 0.1,
+    labels=None,
+    **kwargs,
+) -> ProjectionResult:
+    """Execute UMAP over selected set of variables."""
+    filas = kwargs.get("filas", rows)
+    vecinos = kwargs.get("vecinos", neighbors)
+    distancia = kwargs.get("distancia", distance)
+    etiquetas = kwargs.get("etiquetas", labels)
+    sample = (
+        data.loc[etiquetas.index[:filas]]
         if etiquetas is not None
-        else _sample_data(datos, filas)
+        else _sample_data(data, filas)
     )
-    modelo = _create_reducer(muestra, configuracion)
-    return modelo.UMAP(n_neighbors=vecinos, min_dist=distancia)
+    model = _create_reducer(sample, config)
+    return model.UMAP(n_neighbors=vecinos, min_dist=distancia)
 
 # Backward compatibility aliases
 ejecutar_acp = run_pca
