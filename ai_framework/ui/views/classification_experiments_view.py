@@ -11,15 +11,22 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
+    build_experiment_files,
+    build_experiment_zip,
     construir_archivos_experimento,
     construir_zip_experimento,
 )
 from ai_framework.ui.controllers.classification_controller import (
+    _common_arguments,
+    _export_arguments,
+    _execution_context,
+    _executed_source,
+    _json,
+    _create_model,
     _argumentos_comunes,
     _argumentos_exportacion,
     _contexto_ejecucion,
     _fuente_ejecutada,
-    _json,
     _modelo,
 )
 from ai_framework.ui.models.view_catalog import (
@@ -27,34 +34,58 @@ from ai_framework.ui.models.view_catalog import (
     FOLDS_LAB2,
     TOTAL_CANDIDATOS,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.models.diabetes_profile import estado_fuente_diabetes
-from ai_framework.ui.views.navigation import ir_a, mostrar_faltantes
-from ai_framework.ui.views.theme import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.models.diabetes_profile import (
+    diabetes_source_state,
+    estado_fuente_diabetes,
+)
+from ai_framework.ui.views.navigation import (
+    go_to,
+    show_missing_data,
+    ir_a,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    MostrarFigura,
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 from ai_framework.ui.views.classification_view import (
     _diagnostico,
+    safe_preparation,
     preparacion_segura,
 )
-from ai_framework.ui.views.controls_view import _mostrar_dataframe
+from ai_framework.ui.views.controls_view import (
+    _display_dataframe,
+    _mostrar_dataframe,
+)
 from ai_framework.utils import (
     ALGORITMOS_LAB2,
     METRICAS_SELECCION,
-    configuraciones_experimento,
+    experiment_configurations,
 )
-from ai_framework.utils.visualization import VisualizadorSupervisado
+from ai_framework.utils.visualization import SupervisedVisualizer
 
 
 def render_classification_experiments(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
     """Render controls and execute classification benchmark."""
-    contexto = _contexto_ejecucion(configuracion)
-    segura = preparacion_segura()
+    contexto = _execution_context(configuracion)
+    segura = safe_preparation()
     original_diabetes = (
-        estado_fuente_diabetes(datos, st.session_state) == "original"
+        diabetes_source_state(datos, st.session_state) == "original"
     )
-    catalogo = configuraciones_experimento()
+    catalogo = experiment_configurations()
     with st.expander(
         t(
             "cat_modelos_expander",
@@ -63,7 +94,7 @@ def render_classification_experiments(
             familias=5,
         )
     ):
-        _mostrar_dataframe(
+        _display_dataframe(
             pd.DataFrame(
                 [
                     {
