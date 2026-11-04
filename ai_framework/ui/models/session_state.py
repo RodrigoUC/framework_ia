@@ -11,27 +11,27 @@ import streamlit as st
 from ai_framework.ui.models.view_catalog import OPCIONES_COMUNES
 
 
-def data_fingerprint(datos: pd.DataFrame) -> str:
-    """Detecta cambios de valores, orden, índice, nombres y tipos de columna."""
-    firma = hashlib.sha256(
-        pd.util.hash_pandas_object(datos, index=True).values.tobytes()
+def data_fingerprint(data: pd.DataFrame) -> str:
+    """Detect changes in values, ordering, index, names, and column types."""
+    sig = hashlib.sha256(
+        pd.util.hash_pandas_object(data, index=True).values.tobytes()
     )
-    firma.update(repr(tuple(zip(datos.columns, datos.dtypes.astype(str)))).encode())
-    return firma.hexdigest()
+    sig.update(repr(tuple(zip(data.columns, data.dtypes.astype(str)))).encode())
+    return sig.hexdigest()
 
 
-def parameters_fingerprint(parametros: dict) -> str:
-    """Normaliza configuraciones anidadas para comparar resultados vigentes."""
-    return json.dumps(parametros, sort_keys=True, ensure_ascii=False, default=str)
+def parameters_fingerprint(parameters: dict) -> str:
+    """Normalize nested configurations to compare valid results."""
+    return json.dumps(parameters, sort_keys=True, ensure_ascii=False, default=str)
 
 
-def preparation_fingerprint(estado) -> tuple:
+def preparation_fingerprint(state) -> tuple:
     """Build signature for shared supervised configuration."""
     return tuple(
-        tuple(estado.get(f"sup_{clave}", []))
-        if clave == "features"
-        else estado.get(f"sup_{clave}")
-        for clave in (
+        tuple(state.get(f"sup_{key}", []))
+        if key == "features"
+        else state.get(f"sup_{key}")
+        for key in (
             "tarea",
             "target",
             "features",
@@ -46,35 +46,35 @@ def preparation_fingerprint(estado) -> tuple:
     )
 
 
-def initialize_configuration(datos: pd.DataFrame, estado) -> None:
+def initialize_configuration(data: pd.DataFrame, state) -> None:
     """Initialize shared supervised configuration without inferring task."""
-    if not estado.get("sup_inicializada"):
-        ruta = estado.get("vista_activa", "")
-        tarea = estado.get("sup_tarea")
-        if tarea is None and ruta in {"regresion", "regresion_configuracion"}:
-            tarea = "regresion"
-        elif tarea is None and ruta == "clasificacion_configuracion":
-            tarea = "clasificacion"
-        estado["sup_tarea"] = tarea
-        prefijo = "reg" if tarea == "regresion" else "clasif"
-        for opcion in (*OPCIONES_COMUNES, "feature_simple", "strat"):
-            antigua = f"{prefijo}_{opcion}"
-            if tarea is not None and antigua in estado:
-                estado.setdefault(f"sup_{opcion}", estado[antigua])
-        estado["sup_inicializada"] = True
-    if len(datos.columns) < 2:
+    if not state.get("sup_inicializada"):
+        route = state.get("vista_activa", "")
+        task = state.get("sup_tarea")
+        if task is None and route in {"regresion", "regresion_configuracion"}:
+            task = "regresion"
+        elif task is None and route == "clasificacion_configuracion":
+            task = "clasificacion"
+        state["sup_tarea"] = task
+        prefix = "reg" if task == "regresion" else "clasif"
+        for opt in (*OPCIONES_COMUNES, "feature_simple", "strat"):
+            old = f"{prefix}_{opt}"
+            if task is not None and old in state:
+                state.setdefault(f"sup_{opt}", state[old])
+        state["sup_inicializada"] = True
+    if len(data.columns) < 2:
         return
-    if estado.get("sup_target") not in datos:
-        estado["sup_target"] = datos.columns[-1]
-    disponibles = [col for col in datos if col != estado["sup_target"]]
-    if "sup_features" not in estado or any(
-        col not in disponibles for col in estado["sup_features"]
+    if state.get("sup_target") not in data:
+        state["sup_target"] = data.columns[-1]
+    available = [col for col in data if col != state["sup_target"]]
+    if "sup_features" not in state or any(
+        col not in available for col in state["sup_features"]
     ):
-        estado["sup_features"] = disponibles
-    simples = datos[estado["sup_features"]].select_dtypes(include="number").columns
-    if estado.get("sup_feature_simple") not in simples:
-        estado["sup_feature_simple"] = simples[0] if len(simples) else None
-    for opcion, valor in {
+        state["sup_features"] = available
+    simples = data[state["sup_features"]].select_dtypes(include="number").columns
+    if state.get("sup_feature_simple") not in simples:
+        state["sup_feature_simple"] = simples[0] if len(simples) else None
+    for opt, val in {
         "test_size": 25,
         "random_state": 42,
         "incluir_categoricas": False,
@@ -83,62 +83,62 @@ def initialize_configuration(datos: pd.DataFrame, estado) -> None:
         "usar_particion_global": False,
         "strat": True,
     }.items():
-        estado.setdefault(f"sup_{opcion}", valor)
-    if estado.get("particion_global") is not None:
-        firma = preparation_fingerprint(estado)
-        anterior = estado.get("sup_particion_firma")
-        if anterior is not None and anterior != firma:
-            estado.pop("particion_global", None)
-            estado.pop("sup_particion_firma", None)
-            estado["sup_usar_particion_global"] = False
-            estado["sup_aviso_particion"] = (
+        state.setdefault(f"sup_{opt}", val)
+    if state.get("particion_global") is not None:
+        sig = preparation_fingerprint(state)
+        previous = state.get("sup_particion_firma")
+        if previous is not None and previous != sig:
+            state.pop("particion_global", None)
+            state.pop("sup_particion_firma", None)
+            state["sup_usar_particion_global"] = False
+            state["sup_aviso_particion"] = (
                 "La configuración cambió. Se descartó la partición anterior; use división automática o calcule otra."
             )
         else:
-            estado["sup_particion_firma"] = firma
+            state["sup_particion_firma"] = sig
 
 
-def state_for_family(estado, familia: str):
-    """Proyecta el estado canónico sobre las claves específicas de cada familia."""
-    if not estado.get("sup_inicializada") and not any(
-        f"sup_{opcion}" in estado for opcion in OPCIONES_COMUNES
+def state_for_family(state, family: str):
+    """Project canonical state onto family-specific keys."""
+    if not state.get("sup_inicializada") and not any(
+        f"sup_{opt}" in state for opt in OPCIONES_COMUNES
     ):
-        return estado
-    prefijo = "reg" if familia == "regresion" else "clasif"
-    proyectado = dict(estado)
-    for opcion in (*OPCIONES_COMUNES, "feature_simple", "strat"):
-        clave = f"sup_{opcion}"
-        if clave in estado:
-            proyectado[f"{prefijo}_{opcion}"] = estado[clave]
-    return proyectado
+        return state
+    prefix = "reg" if family == "regresion" else "clasif"
+    projected = dict(state)
+    for opt in (*OPCIONES_COMUNES, "feature_simple", "strat"):
+        key = f"sup_{opt}"
+        if key in state:
+            projected[f"{prefix}_{opt}"] = state[key]
+    return projected
 
 
-def state_value(estado, clave: str, predeterminado):
-    """Lee un valor del estado de sesión con respaldo en el valor predeterminado."""
-    return estado.get(clave, predeterminado)
+def state_value(state, key: str, default):
+    """Read value from session state with fallback to default."""
+    return state.get(key, default)
 
 
-def _fingerprint(configuracion: dict, *parametros) -> tuple:
-    """Identifica cuándo un resultado no supervisado sigue correspondiendo a los controles."""
+def _fingerprint(config: dict, *parameters) -> tuple:
+    """Identify whether unsupervised result still corresponds to controls."""
     return (
-        tuple(configuracion["features"]),
-        configuracion["incluir_categoricas"],
-        configuracion["estandarizar"],
-        configuracion["filas"],
-        *parametros,
+        tuple(config["features"]),
+        config["incluir_categoricas"],
+        config["estandarizar"],
+        config["filas"],
+        *parameters,
     )
 
 
-def _save_result(clave: str, firma: tuple, resultado) -> None:
-    """Persiste un resultado entre los reruns de Streamlit."""
-    st.session_state[clave] = {"firma": firma, "resultado": resultado}
+def _save_result(key: str, signature: tuple, result) -> None:
+    """Persist result across Streamlit reruns."""
+    st.session_state[key] = {"firma": signature, "resultado": result}
 
 
-def _retrieve_result(clave: str, firma: tuple):
+def _retrieve_result(key: str, signature: tuple):
     """Return result only if it matches current configuration."""
-    contenedor = st.session_state.get(clave)
-    if contenedor and contenedor["firma"] == firma:
-        return contenedor["resultado"]
+    container = st.session_state.get(key)
+    if container and container["firma"] == signature:
+        return container["resultado"]
     return None
 
 # Backward compatibility aliases

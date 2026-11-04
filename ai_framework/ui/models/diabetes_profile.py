@@ -14,63 +14,63 @@ RUTA_PROCEDENCIA = BASE_DIR / "data" / "lab02" / "procedencia.json"
 _CATEGORICAS = ("location", "gender", "frame")
 
 
-def diabetes_source_state(datos: pd.DataFrame, estado) -> str | None:
-    """Reconoce los bytes registrados de la fuente sin inferir perfiles por nombre."""
-    fuente = estado.get("fuente_aplicada")
-    metadata = estado.get("fuente_metadata", {})
-    if fuente is None or metadata.get("identidad") != fuente[2]:
+def diabetes_source_state(data: pd.DataFrame, state) -> str | None:
+    """Recognize recorded source bytes without inferring profiles by filename."""
+    source = state.get("fuente_aplicada")
+    metadata = state.get("fuente_metadata", {})
+    if source is None or metadata.get("identidad") != source[2]:
         return None
     digest = metadata.get("sha256")
     if not digest:
         return None
     try:
-        perfil = json.loads(RUTA_PROCEDENCIA.read_text(encoding="utf-8"))["diabetes"]
+        profile = json.loads(RUTA_PROCEDENCIA.read_text(encoding="utf-8"))["diabetes"]
     except (OSError, ValueError, KeyError, TypeError):
         return None
-    if not isinstance(perfil, dict):
+    if not isinstance(profile, dict):
         return None
-    original = perfil.get("original", {})
-    derivacion = perfil.get("derivacion", {})
-    if not isinstance(original, dict) or not isinstance(derivacion, dict):
+    original = profile.get("original", {})
+    derivation = profile.get("derivacion", {})
+    if not isinstance(original, dict) or not isinstance(derivation, dict):
         return None
-    regla = derivacion.get("regla", {})
-    if not isinstance(regla, dict):
+    rule = derivation.get("regla", {})
+    if not isinstance(rule, dict):
         return None
     original = original.get("sha256")
     if original and digest == original:
         return "original"
-    if digest != perfil.get("sha256"):
+    if digest != profile.get("sha256"):
         return None
-    preparacion = estado.get("dataset_preparacion", {})
+    preparation = state.get("dataset_preparacion", {})
     if (
-        preparacion.get("imputar")
-        or preparacion.get("escalado", "Ninguno") != "Ninguno"
+        preparation.get("imputar")
+        or preparation.get("escalado", "Ninguno") != "Ninguno"
     ):
         return None
-    requeridas = (*PREDICTORAS_DIABETES, "diabetes")
+    required = (*PREDICTORAS_DIABETES, "diabetes")
     if (
-        datos.empty
-        or not datos.index.is_unique
-        or not datos.columns.is_unique
-        or not set(requeridas).issubset(datos.columns)
-        or not datos.equals(fuente[0])
+        data.empty
+        or not data.index.is_unique
+        or not data.columns.is_unique
+        or not set(required).issubset(data.columns)
+        or not data.equals(source[0])
     ):
         return None
-    objetivo = datos["diabetes"]
-    if objetivo.isna().any() or objetivo.nunique() != 2:
+    target = data["diabetes"]
+    if target.isna().any() or target.nunique() != 2:
         return None
-    etiquetas = (regla.get("positiva"), regla.get("negativa"))
+    labels = (rule.get("positiva"), rule.get("negativa"))
     if (
-        all(etiqueta is not None for etiqueta in etiquetas)
-        and not objetivo.isin(etiquetas).all()
+        all(label is not None for label in labels)
+        and not target.isin(labels).all()
     ):
         return None
-    numericas = [
-        columna for columna in PREDICTORAS_DIABETES if columna not in _CATEGORICAS
+    numeric = [
+        col for col in PREDICTORAS_DIABETES if col not in _CATEGORICAS
     ]
-    if any(not pd.api.types.is_numeric_dtype(datos[columna]) for columna in numericas):
+    if any(not pd.api.types.is_numeric_dtype(data[col]) for col in numeric):
         return None
-    if any(pd.api.types.is_numeric_dtype(datos[columna]) for columna in _CATEGORICAS):
+    if any(pd.api.types.is_numeric_dtype(data[col]) for col in _CATEGORICAS):
         return None
     return "preparado"
 

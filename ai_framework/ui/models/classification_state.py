@@ -75,16 +75,16 @@ def current_classification_configuration(datos: pd.DataFrame, estado) -> dict | 
 
 
 def sync_context(
-    estado: MutableMapping[str, Any], datos: pd.DataFrame, configuracion: dict
+    state: MutableMapping[str, Any], data: pd.DataFrame, config: dict
 ) -> tuple:
-    """Descarta resultados anteriores al cambiar datos, target, atributos o split."""
-    firma = (
-        estado.get("dataset_identidad"),
-        huella_datos(datos),
-        *classification_fingerprint(configuracion),
+    """Discard previous results when data, target, features, or split change."""
+    sig = (
+        state.get("dataset_identidad"),
+        huella_datos(data),
+        *classification_fingerprint(config),
     )
-    if estado.get("clasificacion_contexto") != firma:
-        for clave in (
+    if state.get("clasificacion_contexto") != sig:
+        for key in (
             "resultado_modelos_clasificacion",
             "preview_clasificacion",
             "resultado_lab2_experimento",
@@ -94,18 +94,18 @@ def sync_context(
             "lab2_firma_experimento",
             "lab2_firma_modelo",
         ):
-            estado.pop(clave, None)
-        for clave in tuple(estado):
-            if clave.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
-                estado.pop(clave, None)
-        estado["clasificacion_contexto"] = firma
-    return firma
+            state.pop(key, None)
+        for key in tuple(state):
+            if key.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
+                state.pop(key, None)
+        state["clasificacion_contexto"] = sig
+    return sig
 
 
-def clear_classification_results(estado: MutableMapping[str, Any]) -> None:
+def clear_classification_results(state: MutableMapping[str, Any]) -> None:
     """Clear classification evidence when active data is not configurable."""
-    for clave in tuple(estado):
-        if clave.startswith(
+    for key in tuple(state):
+        if key.startswith(
             (
                 "resultado_modelos_clasificacion",
                 "resultado_lab2_modelo",
@@ -117,18 +117,18 @@ def clear_classification_results(estado: MutableMapping[str, Any]) -> None:
                 "lab2_firma_experimento",
             )
         ):
-            estado.pop(clave, None)
-    estado.pop("clasificacion_contexto", None)
+            state.pop(key, None)
+    state.pop("clasificacion_contexto", None)
 
 
 def sync_execution(
-    estado: MutableMapping[str, Any], tipo: str, firma: str
+    state: MutableMapping[str, Any], kind: str, signature: str
 ) -> None:
-    """Invalida solo la ejecución cuyos parámetros han cambiado."""
-    clave = f"lab2_firma_{tipo}"
-    if estado.get(clave) != firma:
-        estado.pop(f"resultado_lab2_{tipo}", None)
-        estado[clave] = firma
+    """Invalidate only the execution whose parameters have changed."""
+    key = f"lab2_firma_{kind}"
+    if state.get(key) != signature:
+        state.pop(f"resultado_lab2_{kind}", None)
+        state[key] = signature
 
 # Backward compatibility aliases
 sincronizar_contexto = sync_context
