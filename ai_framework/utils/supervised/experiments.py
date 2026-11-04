@@ -69,7 +69,7 @@ COLUMNAS_TABLA_REGRESION = (
 )
 
 
-def _parametros_registrados(efectivos: dict, solicitados: dict) -> dict:
+def _recorded_parameters(efectivos: dict, solicitados: dict) -> dict:
     """Parámetros del estimador más las opciones propias del framework."""
     registrados = dict(efectivos)
     if solicitados.get("balancear_clases"):
@@ -77,12 +77,12 @@ def _parametros_registrados(efectivos: dict, solicitados: dict) -> dict:
     return registrados
 
 
-def _candidatos_clasificacion(algoritmos, configuraciones):
+def _classification_candidates(algoritmos, configuraciones):
     exp = ExperimentoClasificacion()
-    return exp._normalizar_catalogo(
+    return exp._normalize_catalog(
         algoritmos=algoritmos,
         configuraciones=configuraciones,
-        catalogo_base=exp._catalogo_base_clasificacion(),
+        catalogo_base=exp._base_classification_catalog(),
         normalizador_fn=normalizar_clasificacion,
         algoritmos_defecto=ALGORITMOS_CLASIFICACION_DEFECTO,
     )
@@ -106,7 +106,7 @@ def _evaluar(regresor, base, pliegues, algoritmo, random_state, opciones, parame
     return metricas, modelo, preparados
 
 
-def _particiones(
+def _partitions(
     regresor,
     base,
     *,
@@ -159,7 +159,7 @@ def _particiones(
 class SupervisedExperiment:
     """Base class for running benchmarks and comparing supervised models."""
 
-    def _normalizar_catalogo(
+    def _normalize_catalog(
         self,
         *,
         algoritmos: list[str] | str | None,
@@ -228,13 +228,13 @@ class SupervisedExperiment:
 class ClassificationExperiment(SupervisedExperiment):
     """Comparative experiment execution for classification."""
 
-    def _catalogo_base_clasificacion(self) -> dict[str, list[dict[str, Any]]]:
+    def _base_classification_catalog(self) -> dict[str, list[dict[str, Any]]]:
         catalogo = configuraciones_lab2()
         catalogo["NR"] = [{"nombre": "estandar", "parametros": {}}]
         catalogo["RL"] = [{"nombre": "estandar", "parametros": {}}]
         return catalogo
 
-    def ejecutar(
+    def execute(
         self,
         clasificador,
         *,
@@ -277,10 +277,10 @@ class ClassificationExperiment(SupervisedExperiment):
             )
         if estrategia != "holdout":
             raise ValueError("estrategia debe ser 'holdout' o 'cv'.")
-        catalogo = self._normalizar_catalogo(
+        catalogo = self._normalize_catalog(
             algoritmos=algoritmos,
             configuraciones=configuraciones,
-            catalogo_base=self._catalogo_base_clasificacion(),
+            catalogo_base=self._base_classification_catalog(),
             normalizador_fn=normalizar_clasificacion,
             algoritmos_defecto=ALGORITMOS_CLASIFICACION_DEFECTO,
         )
@@ -383,7 +383,7 @@ class ClassificationExperiment(SupervisedExperiment):
                         preparados,
                         {"conjunto_evaluacion": "validacion"},
                     )
-                    fila["parametros"] = _parametros_registrados(
+                    fila["parametros"] = _recorded_parameters(
                         validado.parametros, config["parametros"]
                     )
                     scores = {
@@ -454,10 +454,14 @@ class ClassificationExperiment(SupervisedExperiment):
         )
 
 
+    # Backward compatibility alias
+    ejecutar = execute
+
+
 class RegressionExperiment(SupervisedExperiment):
     """Comparative experiment execution for regression."""
 
-    def _predictora_simple(self, regresor, base, feature_simple):
+    def _simple_predictor(self, regresor, base, feature_simple):
         numericas = [
             columna
             for columna in regresor.features
@@ -471,7 +475,7 @@ class RegressionExperiment(SupervisedExperiment):
             )
         return feature_simple if feature_simple is not None else next(iter(numericas), None)
 
-    def ejecutar(
+    def execute(
         self,
         regresor,
         *,
@@ -489,15 +493,15 @@ class RegressionExperiment(SupervisedExperiment):
         estandarizar=True,
     ) -> ResultadoExperimentoRegresion:
         base = regresor._datos_regresion()
-        catalogo = self._normalizar_catalogo(
+        catalogo = self._normalize_catalog(
             algoritmos=algoritmos,
             configuraciones=configuraciones,
             catalogo_base=configuraciones_experimento_regresion(),
             normalizador_fn=normalizar_regresion,
             algoritmos_defecto=ALGORITMOS_REGRESION_DEFECTO,
         )
-        simple = self._predictora_simple(regresor, base, feature_simple)
-        train, test, validacion, estrategia, pliegues = _particiones(
+        simple = self._simple_predictor(regresor, base, feature_simple)
+        train, test, validacion, estrategia, pliegues = _partitions(
             regresor,
             base,
             particion=particion,
@@ -686,6 +690,9 @@ class RegressionExperiment(SupervisedExperiment):
             metadatos=metadatos,
         )
 
+    # Backward compatibility alias
+    ejecutar = execute
+
 
 ExperimentoSupervisado = SupervisedExperiment
 ExperimentoClasificacion = ClassificationExperiment
@@ -712,3 +719,9 @@ def run_experiment(modelo, *args, **kwargs):
 ejecutar_experimento_clasificacion = run_classification_experiment
 ejecutar_experimento_regresion = run_regression_experiment
 ejecutar_experimento = run_experiment
+
+# Backward compatibility aliases
+_parametros_registrados = _recorded_parameters
+_candidatos_clasificacion = _classification_candidates
+_evaluate = _evaluar
+_particiones = _partitions

@@ -20,12 +20,12 @@ def data_fingerprint(datos: pd.DataFrame) -> str:
     return firma.hexdigest()
 
 
-def firma_parametros(parametros: dict) -> str:
+def parameters_fingerprint(parametros: dict) -> str:
     """Normaliza configuraciones anidadas para comparar resultados vigentes."""
     return json.dumps(parametros, sort_keys=True, ensure_ascii=False, default=str)
 
 
-def firma_preparacion(estado) -> tuple:
+def preparation_fingerprint(estado) -> tuple:
     """Build signature for shared supervised configuration."""
     return tuple(
         tuple(estado.get(f"sup_{clave}", []))
@@ -85,7 +85,7 @@ def initialize_configuration(datos: pd.DataFrame, estado) -> None:
     }.items():
         estado.setdefault(f"sup_{opcion}", valor)
     if estado.get("particion_global") is not None:
-        firma = firma_preparacion(estado)
+        firma = preparation_fingerprint(estado)
         anterior = estado.get("sup_particion_firma")
         if anterior is not None and anterior != firma:
             estado.pop("particion_global", None)
@@ -98,7 +98,7 @@ def initialize_configuration(datos: pd.DataFrame, estado) -> None:
             estado["sup_particion_firma"] = firma
 
 
-def estado_para_familia(estado, familia: str):
+def state_for_family(estado, familia: str):
     """Proyecta el estado canónico sobre las claves específicas de cada familia."""
     if not estado.get("sup_inicializada") and not any(
         f"sup_{opcion}" in estado for opcion in OPCIONES_COMUNES
@@ -118,7 +118,7 @@ def state_value(estado, clave: str, predeterminado):
     return estado.get(clave, predeterminado)
 
 
-def _firma(configuracion: dict, *parametros) -> tuple:
+def _fingerprint(configuracion: dict, *parametros) -> tuple:
     """Identifica cuándo un resultado no supervisado sigue correspondiendo a los controles."""
     return (
         tuple(configuracion["features"]),
@@ -129,12 +129,12 @@ def _firma(configuracion: dict, *parametros) -> tuple:
     )
 
 
-def _guardar_resultado(clave: str, firma: tuple, resultado) -> None:
+def _save_result(clave: str, firma: tuple, resultado) -> None:
     """Persiste un resultado entre los reruns de Streamlit."""
     st.session_state[clave] = {"firma": firma, "resultado": resultado}
 
 
-def _recuperar_resultado(clave: str, firma: tuple):
+def _retrieve_result(clave: str, firma: tuple):
     """Return result only if it matches current configuration."""
     contenedor = st.session_state.get(clave)
     if contenedor and contenedor["firma"] == firma:
@@ -144,3 +144,11 @@ def _recuperar_resultado(clave: str, firma: tuple):
 # Backward compatibility aliases
 huella_datos = data_fingerprint
 inicializar_configuracion = initialize_configuration
+
+# Backward compatibility aliases
+firma_parametros = parameters_fingerprint
+firma_preparacion = preparation_fingerprint
+estado_para_familia = state_for_family
+_firma = _fingerprint
+_guardar_resultado = _save_result
+_recuperar_resultado = _retrieve_result

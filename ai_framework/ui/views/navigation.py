@@ -24,7 +24,7 @@ from ai_framework.ui.models.availability import Disponibilidad, hay_evidencia
 from ai_framework.utils.supervised.regression_config import NOMBRES_REGRESORES
 from ai_framework.ui.i18n import t, render_selector_idioma, obtener_idioma
 
-def _nombre_regresor(algoritmo: str) -> str:
+def _regressor_name(algoritmo: str) -> str:
     lang = obtener_idioma()
     if lang == "en":
         nombres_en = {
@@ -79,7 +79,7 @@ def _resumen_calidad(datos: pd.DataFrame) -> None:
             columna.metric(etiqueta, valor)
 
 
-def _seleccionar_vista(disponibilidades=None) -> str:
+def _select_view(disponibilidades=None) -> str:
     """Renderiza la navegación multinivel y devuelve la vista activa."""
     vista = st.session_state.setdefault("vista_activa", "datos")
     if vista in {"comparacion", "lab2_experimentos"}:
@@ -99,8 +99,9 @@ def _seleccionar_vista(disponibilidades=None) -> str:
     st.session_state["vista_activa"] = vista
     disponibilidades = disponibilidades or {}
 
-    def navegar(destino: str) -> None:
+    def navigate(destino: str) -> None:
         st.session_state["vista_activa"] = destino
+    navegar = navigate
 
     def boton(
         etiqueta: str,
@@ -205,7 +206,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                     and disponibilidades.get("RLS", disponible).lista
                 )
                 boton(
-                    _nombre_regresor(algoritmo),
+                    _regressor_name(algoritmo),
                     destino,
                     disabled=bloqueo_modelo,
                     help=motivo,
@@ -235,14 +236,14 @@ def _seleccionar_vista(disponibilidades=None) -> str:
     return st.session_state["vista_activa"]
 
 
-def _titulo_vista(vista: str) -> str:
+def _view_title(vista: str) -> str:
     lang = obtener_idioma()
     if vista == "configuracion":
         return t("nav_configuracion", "Configuración")
     if vista in VISTAS_REGRESION:
         titulos_regresion = {
             **{
-                ruta: _nombre_regresor(alg)
+                ruta: _regressor_name(alg)
                 for ruta, alg in VISTAS_REGRESORES.items()
             },
             "regresion": t("nav_configuracion", "Configuración"),
@@ -275,7 +276,7 @@ def _titulo_vista(vista: str) -> str:
     return TITULOS_VISTA.get(vista, vista)
 
 
-def _ruta_vista(vista: str, titulo: str) -> str:
+def _view_path(vista: str, titulo: str) -> str:
     lang = obtener_idioma()
     if vista == "configuracion":
         return t("nav_configuracion", "Configuración")
@@ -305,12 +306,12 @@ def _ruta_vista(vista: str, titulo: str) -> str:
     return RUTAS_VISTA.get(vista, f"Análisis / {titulo}")
 
 
-def _render_encabezado_atlas(
+def _render_atlas_header(
     datos: pd.DataFrame, etiqueta: str, vista: str
 ) -> None:
     """Muestra el encabezado del dataset activo y el resumen de calidad en vistas exploratorias."""
-    titulo = _titulo_vista(vista)
-    ruta = _ruta_vista(vista, titulo)
+    titulo = _view_title(vista)
+    ruta = _view_path(vista, titulo)
     nombre_dataset = escape(etiqueta)
     lbl_dataset = t("dataset_activo", "Dataset activo")
     st.markdown(
@@ -324,10 +325,10 @@ def _render_encabezado_atlas(
         unsafe_allow_html=True,
     )
     if vista in {"datos", "eda"}:
-        _resumen_calidad(datos)
+        _quality_summary(datos)
 
 
-def _traducir_mensaje_faltante(mensaje: str) -> str:
+def _translate_missing_message(mensaje: str) -> str:
     if obtener_idioma() != "en":
         return mensaje
     msg = mensaje
@@ -361,10 +362,10 @@ def _traducir_mensaje_faltante(mensaje: str) -> str:
 def show_missing_data(disponibilidad: Disponibilidad) -> None:
     """Present warnings for each missing prerequisite in the view."""
     for mensaje in disponibilidad.faltantes:
-        st.warning(_traducir_mensaje_faltante(mensaje))
+        st.warning(_translate_missing_message(mensaje))
 
 
-def ir_a(destino: str) -> None:
+def go_to(destino: str) -> None:
     """Actualiza la vista activa en la sesión de Streamlit."""
     st.session_state["vista_activa"] = destino
 
@@ -448,3 +449,13 @@ def show_workflow_guide(
 # Backward compatibility aliases
 mostrar_faltantes = show_missing_data
 mostrar_guia = show_workflow_guide
+
+# Backward compatibility aliases
+_nombre_regresor = _regressor_name
+_quality_summary = _resumen_calidad
+_seleccionar_vista = _select_view
+_titulo_vista = _view_title
+_ruta_vista = _view_path
+_render_encabezado_atlas = _render_atlas_header
+_traducir_mensaje_faltante = _translate_missing_message
+ir_a = go_to

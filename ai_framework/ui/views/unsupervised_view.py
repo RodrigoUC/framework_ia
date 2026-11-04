@@ -150,7 +150,7 @@ def _render_eda(datos: pd.DataFrame) -> None:
                 st.dataframe(tabla_mostrada, width="stretch")
 
 
-def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
+def _render_pca(datos: pd.DataFrame, configuracion: dict) -> None:
     """Ejecuta y muestra el análisis de componentes principales."""
     st.markdown(f"### {t('acp_titulo', 'Análisis de componentes principales')}")
     if len(datos) < 2 or len(configuracion["features"]) < 2:
@@ -195,7 +195,7 @@ def _render_acp(datos: pd.DataFrame, configuracion: dict) -> None:
         _mostrar_figura(VisualizadorNoSupervisado.sobreposicion_acp(resultado))
 
 
-def _render_particional(
+def _render_partitional(
     datos: pd.DataFrame, configuracion: dict, algoritmo: str
 ) -> None:
     """Renderiza una técnica particional con el flujo común de resultados."""
@@ -426,3 +426,7 @@ def _render_umap(
             VisualizadorNoSupervisado.proyeccion(resultado, grupos)
         )
         st.dataframe(resultado.coordenadas, width="stretch")
+
+# Backward compatibility aliases
+_render_acp = _render_pca
+_render_particional = _render_partitional

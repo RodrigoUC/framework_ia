@@ -10,7 +10,7 @@ from ai_framework.ui.i18n import t
 from ai_framework.ui.views.theme import _obtener_pestanas, render_tabla_clave_valor
 
 
-def render_panel_modelos_individuales(
+def render_individual_models_panel(
     df_metricas: pd.DataFrame,
     modelos_params: list[tuple[str, dict]],
     *,
@@ -43,7 +43,7 @@ def render_panel_modelos_individuales(
                         )
 
 
-def render_layout_resultados(
+def render_results_layout(
     *,
     hay_individuales: bool,
     hay_comparativa: bool,
@@ -103,3 +103,7 @@ def render_layout_resultados(
         render_individuales_fn()
     else:
         render_comparativa_fn()
+
+# Backward compatibility aliases
+render_panel_modelos_individuales = render_individual_models_panel
+render_layout_resultados = render_results_layout

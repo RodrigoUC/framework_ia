@@ -30,7 +30,7 @@ from ai_framework.utils.supervised.regression_config import (
 )
 from ai_framework.utils.visualization import VisualizadorRegresion
 
-def _sanear_tabla_regresion(tabla: pd.DataFrame) -> pd.DataFrame:
+def _sanitize_regression_table(tabla: pd.DataFrame) -> pd.DataFrame:
     """Prepara la tabla para serialización segura en Arrow sin fallos de tipo."""
     if not isinstance(tabla, pd.DataFrame) or tabla.empty:
         return tabla
@@ -62,7 +62,7 @@ def display_saved_experiment(
                 columna_clave="Familia / Algoritmo",
                 columna_valor="Detalle del error",
             )
-        st.dataframe(_sanear_tabla_regresion(intento["resultado"].tabla), hide_index=True, width="stretch")
+        st.dataframe(_sanitize_regression_table(intento["resultado"].tabla), hide_index=True, width="stretch")
     error = st.session_state.get("error_lab3_experimento")
     if error:
         st.error(
@@ -95,7 +95,7 @@ def display_saved_experiment(
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
     )
     with st.expander(t("sup_val_todas_configs", "Validación · todas las configuraciones")):
-        st.dataframe(_sanear_tabla_regresion(resultado.tabla), hide_index=True, width="stretch")
+        st.dataframe(_sanitize_regression_table(resultado.tabla), hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
     if errores:
         st.warning(
@@ -179,7 +179,7 @@ def display_saved_experiment(
     )
 
 
-def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
+def render_regression_experiments(datos, configuracion, mostrar_figura) -> None:
     """Render controls and execute regression benchmark."""
     st.caption(t("sup_14_configs_9_algs", "14 configuraciones · 9 algoritmos"))
     segura = preparacion_regresion_segura()
@@ -304,3 +304,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
 
 mostrar_experimento_guardado = display_saved_experiment
+
+# Backward compatibility aliases
+_sanear_tabla_regresion = _sanitize_regression_table
+render_experimentos_regresion = render_regression_experiments

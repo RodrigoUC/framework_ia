@@ -15,7 +15,7 @@ from ai_framework.ui.models.session_state import (
 )
 
 
-def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
+def classification_fingerprint(configuracion: dict, *parametros) -> tuple:
     """Build specific signature for supervised classification results."""
     particion = configuracion.get("particion_global")
     return (
@@ -33,7 +33,7 @@ def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
     )
 
 
-def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | None:
+def current_classification_configuration(datos: pd.DataFrame, estado) -> dict | None:
     """Build effective classification configuration from saved controls."""
     estado = estado_para_familia(estado, "clasificacion")
     if len(datos.columns) < 2:
@@ -81,7 +81,7 @@ def sync_context(
     firma = (
         estado.get("dataset_identidad"),
         huella_datos(datos),
-        *firma_clasificacion(configuracion),
+        *classification_fingerprint(configuracion),
     )
     if estado.get("clasificacion_contexto") != firma:
         for clave in (
@@ -134,3 +134,7 @@ def sync_execution(
 sincronizar_contexto = sync_context
 limpiar_resultados_clasificacion = clear_classification_results
 sincronizar_ejecucion = sync_execution
+
+# Backward compatibility aliases
+firma_clasificacion = classification_fingerprint
+configuracion_clasificacion_actual = current_classification_configuration

@@ -136,7 +136,7 @@ _CONFIGURACIONES_EXPERIMENTO = {
 }
 
 
-def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
+def regression_experiment_configs() -> dict[str, list[dict[str, Any]]]:
     """Devuelve catorce candidatos independientes, con formato reproducible."""
     return {
         algoritmo: [
@@ -150,4 +150,4 @@ def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
 REGRESSION_ALGORITHMS = ALGORITMOS_REGRESION
 REGRESSION_ALPHAS = ALPHAS_REGRESION
 INTERNAL_FOLDS = PLIEGUES_INTERNOS
-regression_experiment_configs = configuraciones_experimento_regresion
+configuraciones_experimento_regresion = regression_experiment_configs

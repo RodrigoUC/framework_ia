@@ -37,7 +37,7 @@ class Availability:
 Disponibilidad = Availability
 
 
-def _predictoras(base, features, train, evaluaciones, configuracion) -> None:
+def _validate_predictors(base, features, train, evaluaciones, configuracion) -> None:
     """Valida variación, codificación y nulos en las variables predictoras."""
     datos = base[features].replace([np.inf, -np.inf], np.nan)
     retenidas = [
@@ -67,7 +67,7 @@ def _predictoras(base, features, train, evaluaciones, configuracion) -> None:
             )
 
 
-def _pliegues_clasificacion(modelo, base, config, opciones):
+def _classification_folds(modelo, base, config, opciones):
     """Construye los índices de entrenamiento, prueba y pliegues de validación."""
     train, test, validacion = modelo._indices(
         base,
@@ -106,7 +106,7 @@ def _pliegues_clasificacion(modelo, base, config, opciones):
     return train, test, pliegues
 
 
-def _candidato_regresion_disponible(datos, base, config, pliegues, test, opciones) -> None:
+def _regression_candidate_available(datos, base, config, pliegues, test, opciones) -> None:
     """Verify that at least one candidate in regression benchmark is viable."""
     errores = []
     algoritmos = opciones.get("algoritmos", ALGORITMOS_LAB3)
@@ -120,7 +120,7 @@ def _candidato_regresion_disponible(datos, base, config, pliegues, test, opcione
             if None in features:
                 raise ValueError("RLS necesita un predictor numérico seleccionado.")
             candidato = Regresion(
-                dataframe=datos, target=configuracion_target(config), features=features
+                dataframe=datos, target=get_target_configuration(config), features=features
             )
             candidato._validar_predictoras(base, algoritmo)
             for train, evaluacion in pliegues:
@@ -128,19 +128,19 @@ def _candidato_regresion_disponible(datos, base, config, pliegues, test, opcione
                     raise ValueError(
                         "Se necesitan cinco filas de train para CV interna."
                     )
-                _predictoras(base, features, train, [evaluacion, test], config)
+                _validate_predictors(base, features, train, [evaluacion, test], config)
             return
         except (ValueError, TypeError, KeyError) as exc:
             errores.append(f"{algoritmo}: {exc}")
     raise ValueError("Ningún candidato está preparado. " + " ".join(errores))
 
 
-def configuracion_target(config: dict) -> str:
+def get_target_configuration(config: dict) -> str:
     """Obtiene el nombre de la columna objetivo configurada."""
     return config["target"]
 
 
-def disponibilidad_supervisada(
+def supervised_availability(
     datos,
     configuracion,
     familia,
@@ -216,7 +216,7 @@ def disponibilidad_supervisada(
                     "Prueba necesita al menos dos filas para R². Aumente el tamaño de prueba o aporte más datos."
                 )
         else:
-            train, test, pliegues = _pliegues_clasificacion(
+            train, test, pliegues = _classification_folds(
                 modelo, base, configuracion, experimento
             )
             comprobar_clases(
@@ -243,11 +243,11 @@ def disponibilidad_supervisada(
                         "Reduzca el número de vecinos: supera las filas disponibles en entrenamiento."
                     )
             if familia != "regresion" or experimento is None:
-                _predictoras(
+                _validate_predictors(
                     base, features, entrenamiento, [evaluacion, test], configuracion
                 )
         if familia == "regresion" and experimento is not None:
-            _candidato_regresion_disponible(
+            _regression_candidate_available(
                 datos, base, configuracion, pliegues, test, experimento
             )
     except (ValueError, TypeError, KeyError) as exc:
@@ -261,7 +261,7 @@ def disponibilidad_supervisada(
     return Disponibilidad(tuple(faltantes))
 
 
-def hay_evidencia(estado, familia, *, solo_modelos=False) -> bool:
+def has_evidence(estado, familia, *, solo_modelos=False) -> bool:
     """Indica si existen resultados individuales o de experimentación para la familia."""
     lab = "lab3" if familia == "regresion" else "lab2"
     modelos = any(
@@ -274,3 +274,11 @@ def hay_evidencia(estado, familia, *, solo_modelos=False) -> bool:
         estado.get(f"resultado_{lab}_{sufijo}") is not None
         for sufijo in ("experimento", "intento_experimento")
     )
+
+# Backward compatibility aliases
+_predictoras = _validate_predictors
+_pliegues_clasificacion = _classification_folds
+_candidato_regresion_disponible = _regression_candidate_available
+configuracion_target = get_target_configuration
+disponibilidad_supervisada = supervised_availability
+hay_evidencia = has_evidence

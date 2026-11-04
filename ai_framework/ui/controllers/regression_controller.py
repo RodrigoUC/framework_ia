@@ -10,7 +10,7 @@ from ai_framework.models.supervised import Regresion
 from ai_framework.ui.models.session_state import firma_parametros, huella_datos
 
 
-def argumentos_comunes(configuracion: dict) -> dict:
+def common_arguments(configuracion: dict) -> dict:
     """Build common partition and preprocessing arguments for regression."""
     return {
         **{
@@ -39,7 +39,7 @@ def create_regressor(datos, configuracion, *, algoritmo=None) -> Regresion:
     )
 
 
-def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
+def execution_snapshot(resultado, datos, configuracion, parametros) -> dict:
     """Freeze context and provenance of a regression execution for export."""
     argumentos = {
         clave: deepcopy(valor)
@@ -63,4 +63,9 @@ def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
         "firma_parametros": firma_parametros(parametros),
     }
 
+crear_regresor = create_regressor
+
+# Backward compatibility aliases
+argumentos_comunes = common_arguments
+snapshot_ejecucion = execution_snapshot
 crear_regresor = create_regressor

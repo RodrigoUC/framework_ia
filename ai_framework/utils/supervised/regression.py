@@ -119,13 +119,13 @@ def create_regression_result(
     metadatos: dict[str, Any],
 ) -> ResultadoRegresion:
     """Build the RegressionResult container with predictions and residuals."""
-    def predecir(indices):
+    def predict(indices):
         X = preparados.transformador.transform(base.loc[indices, features])
         return pd.Series(modelo.predict(X), index=indices, name="prediccion")
 
     y_train = base.loc[train, target].rename("real").copy()
     y_true = base.loc[evaluacion, target].rename("real").copy()
-    y_pred_train, y_pred = predecir(train), predecir(evaluacion)
+    y_pred_train, y_pred = predict(train), predict(evaluacion)
     return ResultadoRegresion(
         algoritmo=algoritmo,
         target=target,

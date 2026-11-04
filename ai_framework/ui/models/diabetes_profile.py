@@ -14,7 +14,7 @@ RUTA_PROCEDENCIA = BASE_DIR / "data" / "lab02" / "procedencia.json"
 _CATEGORICAS = ("location", "gender", "frame")
 
 
-def estado_fuente_diabetes(datos: pd.DataFrame, estado) -> str | None:
+def diabetes_source_state(datos: pd.DataFrame, estado) -> str | None:
     """Reconoce los bytes registrados de la fuente sin inferir perfiles por nombre."""
     fuente = estado.get("fuente_aplicada")
     metadata = estado.get("fuente_metadata", {})
@@ -74,4 +74,6 @@ def estado_fuente_diabetes(datos: pd.DataFrame, estado) -> str | None:
         return None
     return "preparado"
 
-diabetes_source_state = estado_fuente_diabetes
+
+# Backward compatibility aliases
+estado_fuente_diabetes = diabetes_source_state

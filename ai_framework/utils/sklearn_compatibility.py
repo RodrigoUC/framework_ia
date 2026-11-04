@@ -6,19 +6,19 @@ from sklearn.manifold import TSNE
 from sklearn.preprocessing import OneHotEncoder
 
 
-def crear_codificador_denso() -> OneHotEncoder:
-    """Crea un codificador one-hot denso compatible con distintas versiones."""
+def create_dense_encoder() -> OneHotEncoder:
+    """Create a dense one-hot encoder compatible across different scikit-learn versions."""
     try:
         return OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     except TypeError:
         return OneHotEncoder(handle_unknown="ignore", sparse=False)
 
 
-def crear_tsne(
+def create_tsne(
     *, perplexity: float, max_iter: int, random_state: int
 ) -> TSNE:
-    """Crea un TSNE bidimensional; scikit-learn >= 1.5 renombró n_iter a max_iter."""
-    parametros = {
+    """Create a 2D TSNE; scikit-learn >= 1.5 renamed n_iter to max_iter."""
+    params = {
         "n_components": 2,
         "perplexity": perplexity,
         "init": "pca",
@@ -26,13 +26,13 @@ def crear_tsne(
         "random_state": random_state,
     }
     try:
-        return TSNE(max_iter=max_iter, **parametros)
+        return TSNE(max_iter=max_iter, **params)
     except TypeError as exc:
         if "max_iter" not in str(exc):
             raise
-        return TSNE(n_iter=max_iter, **parametros)
+        return TSNE(n_iter=max_iter, **params)
 
-create_dense_encoder = crear_codificador_denso
-create_tsne = crear_tsne
 
+# Backward compatibility aliases
 crear_codificador_denso = create_dense_encoder
+crear_tsne = create_tsne

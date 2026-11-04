@@ -210,8 +210,8 @@ class PartitionResult:
         return self.advertencia
 
     @property
-    def huella(self) -> tuple:
-        """Identifica la partición para invalidar resultados dependientes."""
+    def fingerprint(self) -> tuple:
+        """Identifies partition to invalidate dependent results."""
         return (
             tuple(self.train.index),
             tuple(self.test.index),
@@ -219,6 +219,9 @@ class PartitionResult:
             self.columna_estratificacion,
             self.semilla,
         )
+
+    # Backward compatibility alias
+    huella = fingerprint
 
 
 ResultadoParticion = PartitionResult

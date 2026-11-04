@@ -11,7 +11,7 @@ from ai_framework.ui.models.session_state import (
 )
 
 
-def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
+def current_regression_configuration(datos: pd.DataFrame, estado) -> dict | None:
     """Build effective regression configuration from saved controls."""
     estado = estado_para_familia(estado, "regresion")
     if len(datos.columns) < 2:
@@ -51,7 +51,7 @@ def configuracion_regresion_actual(datos: pd.DataFrame, estado) -> dict | None:
     }
 
 
-def firma_regresion(configuracion: dict) -> tuple:
+def regression_fingerprint(configuracion: dict) -> tuple:
     """Build regression signature including actual partition indices."""
     particion = configuracion.get("particion_global")
     indices = None
@@ -92,7 +92,7 @@ def sync_regression_context(estado, datos, configuracion: dict) -> tuple:
         estado.get("dataset_identidad"),
         huella_datos(datos),
         firma_parametros(estado.get("dataset_preparacion", {})),
-        *firma_regresion(configuracion),
+        *regression_fingerprint(configuracion),
     )
     if estado.get("regresion_contexto") != firma:
         clear_regression_results(estado)
@@ -102,3 +102,7 @@ def sync_regression_context(estado, datos, configuracion: dict) -> tuple:
 # Backward compatibility aliases
 limpiar_resultados_regresion = clear_regression_results
 sincronizar_contexto_regresion = sync_regression_context
+
+# Backward compatibility aliases
+configuracion_regresion_actual = current_regression_configuration
+firma_regresion = regression_fingerprint

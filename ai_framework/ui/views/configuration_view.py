@@ -150,7 +150,7 @@ def configure_regression(datos: pd.DataFrame) -> dict | None:
     return configuracion_regresion_actual(datos, st.session_state)
 
 
-def _configurar_modelos(datos: pd.DataFrame) -> dict:
+def _configure_models(datos: pd.DataFrame) -> dict:
     """Collect common configuration for all unsupervised models."""
     st.markdown(f"### {t('cfg_analisis_titulo', 'Configuración del análisis')}")
     incluir_categoricas = st.checkbox(
@@ -198,7 +198,7 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
     }
 
 
-def _render_regresion() -> None:
+def _render_regression() -> None:
     """Guide toward regression configuration and model views."""
     st.info(
         "Abra Configuración para elegir target y predictores; "
@@ -206,7 +206,7 @@ def _render_regresion() -> None:
     )
 
 
-def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
+def _render_required_configuration(*, sin_features: bool = False) -> None:
     """Provide direct shortcut when classification variables are unconfigured."""
     st.info(
         "Seleccione al menos una variable predictora en Configuración."
@@ -225,3 +225,8 @@ def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
 configurar_supervisado = configure_supervised
 configurar_clasificacion = configure_classification
 configurar_regresion = configure_regression
+
+# Backward compatibility aliases
+_configurar_modelos = _configure_models
+_render_regresion = _render_regression
+_render_configuracion_requerida = _render_required_configuration

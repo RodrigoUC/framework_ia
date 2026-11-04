@@ -13,7 +13,7 @@ from ai_framework.ui.models.view_catalog import FOLDS_LAB2
 from ai_framework.utils import ALGORITMOS_LAB2
 
 
-def _argumentos_comunes(configuracion: dict) -> dict:
+def _common_arguments(configuracion: dict) -> dict:
     """Build common partition and preprocessing arguments for classification."""
     return {
         "test_size": configuracion["test_size"],
@@ -26,7 +26,7 @@ def _argumentos_comunes(configuracion: dict) -> dict:
     }
 
 
-def _modelo(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
+def _create_model(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
     """Instantiate classification domain model for the active dataset."""
     return Clasificacion(
         dataframe=datos,
@@ -35,7 +35,7 @@ def _modelo(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
     )
 
 
-def _contexto_ejecucion(configuracion: dict) -> dict:
+def _execution_context(configuracion: dict) -> dict:
     """Freeze classification execution context for traceability."""
     return {
         "dataset": st.session_state.get("fuente_aplicada", (None, "", ""))[1],
@@ -66,7 +66,7 @@ def true_rate_name(etiqueta, etiquetas) -> str:
     return f"Tasa de Verdaderos ({etiqueta}) (%)"
 
 
-def _metricas_por_clase(resultado) -> dict[str, float | str]:
+def _metrics_by_class(resultado) -> dict[str, float | str]:
     """Calcula la tasa de verdaderos porcentual por clase real sobre las predicciones de prueba."""
     y_true = resultado.y_true
     y_pred = resultado.y_pred
@@ -84,7 +84,7 @@ def _metricas_por_clase(resultado) -> dict[str, float | str]:
     return recalls
 
 
-def _metricas_porcentuales(resultado) -> dict[str, float | str]:
+def _percentage_metrics(resultado) -> dict[str, float | str]:
     """Combina el accuracy porcentual general con la tasa de verdaderos por clase real."""
     return {
         "Accuracy general (%)": 100.0 * float(resultado.metricas["accuracy"]),
@@ -92,7 +92,7 @@ def _metricas_porcentuales(resultado) -> dict[str, float | str]:
     }
 
 
-def _fuente_ejecutada(datos: pd.DataFrame) -> dict:
+def _executed_source(datos: pd.DataFrame) -> dict:
     """Reconstruye los metadatos de la fuente de datos empleada en el experimento."""
     fuente = st.session_state.get("fuente_aplicada", (None, "", ""))
     metadata = st.session_state.get("fuente_metadata", {})
@@ -113,7 +113,7 @@ def _fuente_ejecutada(datos: pd.DataFrame) -> dict:
     }
 
 
-def _argumentos_exportacion(
+def _export_arguments(
     configuracion: dict,
     opciones: dict,
     fuente: dict,
@@ -140,3 +140,12 @@ def _argumentos_exportacion(
     }
 
 nombre_tasa_verdaderos = true_rate_name
+
+# Backward compatibility aliases
+_argumentos_comunes = _common_arguments
+_modelo = _create_model
+_contexto_ejecucion = _execution_context
+_metricas_por_clase = _metrics_by_class
+_metricas_porcentuales = _percentage_metrics
+_fuente_ejecutada = _executed_source
+_argumentos_exportacion = _export_arguments

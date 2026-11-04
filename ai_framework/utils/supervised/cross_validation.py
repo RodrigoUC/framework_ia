@@ -48,12 +48,12 @@ COLUMNAS_CV = (
 REPETICIONES_PERMUTACION = 10
 
 
-def _nombre_limpio(nombre: str) -> str:
+def _clean_name(nombre: str) -> str:
     """Quita el prefijo del ColumnTransformer: numericas__ph -> ph."""
     return str(nombre).split("__", 1)[-1]
 
 
-def _metricas(y_true, y_pred, labels) -> dict[str, float]:
+def _metrics(y_true, y_pred, labels) -> dict[str, float]:
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "precision_macro": float(
@@ -68,7 +68,7 @@ def _metricas(y_true, y_pred, labels) -> dict[str, float]:
     }
 
 
-def _evaluar_cv(clasificador, base, pliegues, algoritmo, random_state, opciones, parametros, labels):
+def _evaluate_cv(clasificador, base, pliegues, algoritmo, random_state, opciones, parametros, labels):
     """Devuelve métricas por pliegue y los parámetros efectivos del estimador."""
     filas = []
     modelo = None
@@ -80,12 +80,12 @@ def _evaluar_cv(clasificador, base, pliegues, algoritmo, random_state, opciones,
             base.loc[evaluacion, clasificador.features]
         )
         filas.append(
-            _metricas(base.loc[evaluacion, clasificador.target], modelo.predict(X), labels)
+            _metrics(base.loc[evaluacion, clasificador.target], modelo.predict(X), labels)
         )
     return pd.DataFrame(filas), modelo.get_params()
 
 
-def _fila(etapa, algoritmo, nombre, parametros, seleccion):
+def _row(etapa, algoritmo, nombre, parametros, seleccion):
     fila: dict[str, Any] = {c: None for c in COLUMNAS_CV}
     fila.update(
         etapa=etapa,
@@ -100,7 +100,7 @@ def _fila(etapa, algoritmo, nombre, parametros, seleccion):
     return fila
 
 
-def _completar_fila(fila, tabla_pliegues, metrica, parametros_efectivos):
+def _completar_row(fila, tabla_pliegues, metrica, parametros_efectivos):
     medias = tabla_pliegues.mean()
     fila.update(
         {
@@ -118,13 +118,13 @@ def _completar_fila(fila, tabla_pliegues, metrica, parametros_efectivos):
     )
 
 
-def _clase_positiva(y_train: pd.Series):
+def _positive_class(y_train: pd.Series):
     """La clase menos frecuente de train actúa como positiva en ROC/AUC."""
     conteos = y_train.value_counts()
     return conteos.index[-1] if len(conteos) else None
 
 
-def _analisis(clasificador, base, train, test, modelo, preparados, random_state, labels):
+def _analysis(clasificador, base, train, test, modelo, preparados, random_state, labels):
     """Diagnósticos interpretativos del ganador; no intervienen en la selección."""
     features = clasificador.features
     target = clasificador.target
@@ -135,10 +135,10 @@ def _analisis(clasificador, base, train, test, modelo, preparados, random_state,
     pred_train = modelo.predict(preparados.matriz)
     pred_test = modelo.predict(X_test)
     analisis: dict[str, Any] = {
-        "metricas_train": _metricas(y_train, pred_train, labels),
-        "atributos_usados": [_nombre_limpio(c) for c in preparados.matriz.columns],
+        "metricas_train": _metrics(y_train, pred_train, labels),
+        "atributos_usados": [_clean_name(c) for c in preparados.matriz.columns],
     }
-    positiva = _clase_positiva(y_train)
+    positiva = _positive_class(y_train)
     if len(labels) == 2 and hasattr(modelo, "predict_proba"):
         try:
             probabilidades = np.asarray(modelo.predict_proba(X_test))
@@ -181,7 +181,7 @@ def _analisis(clasificador, base, train, test, modelo, preparados, random_state,
     if internas is not None:
         analisis["importancia_modelo"] = sorted(
             (
-                {"atributo": _nombre_limpio(nombre), "importancia": float(valor)}
+                {"atributo": _clean_name(nombre), "importancia": float(valor)}
                 for nombre, valor in zip(preparados.matriz.columns, internas)
             ),
             key=lambda fila: fila["importancia"],
@@ -191,12 +191,12 @@ def _analisis(clasificador, base, train, test, modelo, preparados, random_state,
         analisis["arbol"] = {
             "profundidad": int(modelo.get_depth()),
             "hojas": int(modelo.get_n_leaves()),
-            "texto": _texto_arbol(modelo, preparados, max_depth=3),
+            "texto": _tree_text(modelo, preparados, max_depth=3),
         }
     return analisis
 
 
-def _escalas_originales(preparados) -> dict[str, tuple[float, float]]:
+def _original_scales(preparados) -> dict[str, tuple[float, float]]:
     """Media y desviación del escalado aprendido en train para cada numérica."""
     transformador = preparados.transformador.transformador_
     numericas = transformador.named_transformers_.get("numericas")
@@ -210,11 +210,11 @@ def _escalas_originales(preparados) -> dict[str, tuple[float, float]]:
     }
 
 
-def _texto_arbol(modelo, preparados, *, max_depth: int = 3) -> str:
+def _tree_text(modelo, preparados, *, max_depth: int = 3) -> str:
     """Reglas del árbol con umbrales devueltos a las unidades originales."""
     arbol = modelo.tree_
     columnas = list(preparados.matriz.columns)
-    escalas = _escalas_originales(preparados)
+    escalas = _original_scales(preparados)
     clases = list(modelo.classes_)
     lineas: list[str] = []
 
@@ -222,13 +222,13 @@ def _texto_arbol(modelo, preparados, *, max_depth: int = 3) -> str:
         columna = columnas[arbol.feature[nodo]]
         umbral = float(arbol.threshold[nodo])
         if columna.startswith("categoricas__"):
-            nombre = _nombre_limpio(columna)
+            nombre = _clean_name(columna)
             return f"{nombre} {'no es' if izquierda else 'es'} verdadero"
         if columna in escalas:
             media, escala = escalas[columna]
             umbral = umbral * escala + media
         operador = "<=" if izquierda else ">"
-        return f"{_nombre_limpio(columna)} {operador} {umbral:.2f}"
+        return f"{_clean_name(columna)} {operador} {umbral:.2f}"
 
     def visitar(nodo: int, profundidad: int) -> None:
         sangria = "|   " * profundidad
@@ -248,13 +248,13 @@ def _texto_arbol(modelo, preparados, *, max_depth: int = 3) -> str:
     return "\n".join(lineas) + "\n"
 
 
-def _candidatos(algoritmos, configuraciones):
-    from .experiments import _candidatos_clasificacion
-    return _candidatos_clasificacion(algoritmos, configuraciones)
+def _candidates(algoritmos, configuraciones):
+    from .experiments import _classification_candidates
+    return _classification_candidates(algoritmos, configuraciones)
 
 
-def _parametros_registrados(efectivos: dict, solicitados: dict) -> dict:
-    from .experiments import _parametros_registrados as pr
+def _recorded_parameters(efectivos: dict, solicitados: dict) -> dict:
+    from .experiments import _recorded_parameters as pr
     return pr(efectivos, solicitados)
 
 
@@ -279,7 +279,7 @@ def run_cv_experiment(
         raise ValueError(f"Métrica de selección no soportada: {metrica}.")
     if not isinstance(folds, int) or folds < 2:
         raise ValueError("folds debe ser un entero mayor o igual que 2.")
-    catalogo = _candidatos(algoritmos, configuraciones)
+    catalogo = _candidates(algoritmos, configuraciones)
     base = clasificador._datos_clasificacion()
     train, test, validacion = clasificador._indices(
         base,
@@ -355,9 +355,9 @@ def run_cv_experiment(
             "seleccion_atributos": {
                 "metodo": "SelectKBest(mutual_info_classif) ajustado en cada pliegue",
                 "k": k,
-                "atributos_transformados": [_nombre_limpio(c) for c in transformados],
+                "atributos_transformados": [_clean_name(c) for c in transformados],
                 "ranking_informacion_mutua_train": {
-                    _nombre_limpio(nombre): float(valor)
+                    _clean_name(nombre): float(valor)
                     for nombre, valor in (ranking.items() if ranking is not None else [])
                 },
             },
@@ -372,13 +372,13 @@ def run_cv_experiment(
     ganadores: dict[str, dict[str, Any]] = {}
     for algoritmo, configs in catalogo.items():
         for config in configs:
-            fila = _fila("configuracion", algoritmo, config["nombre"], config["parametros"], False)
+            fila = _row("configuracion", algoritmo, config["nombre"], config["parametros"], False)
             try:
-                tabla, efectivos = _evaluar_cv(
+                tabla, efectivos = _evaluate_cv(
                     clasificador, base, pliegues, algoritmo, random_state, opciones,
                     config["parametros"], labels,
                 )
-                _completar_fila(fila, tabla, metrica, _parametros_registrados(efectivos, config["parametros"]))
+                _completar_row(fila, tabla, metrica, _recorded_parameters(efectivos, config["parametros"]))
                 anterior = ganadores.get(algoritmo)
                 if anterior is None or fila["puntuacion_validacion"] > anterior["score"]:
                     ganadores[algoritmo] = {
@@ -396,17 +396,17 @@ def run_cv_experiment(
     if k is not None:
         for algoritmo, ganador in ganadores.items():
             config = ganador["config"]
-            fila = _fila(
+            fila = _row(
                 "seleccion_atributos", algoritmo, f"{config['nombre']}+seleccion_k{k}",
                 config["parametros"], True,
             )
             opciones_seleccion = {**opciones, "seleccion_k": k}
             try:
-                tabla, _ = _evaluar_cv(
+                tabla, _ = _evaluate_cv(
                     clasificador, base, pliegues, algoritmo, random_state,
                     opciones_seleccion, config["parametros"], labels,
                 )
-                _completar_fila(fila, tabla, metrica, filas[ganador["fila"]]["parametros"])
+                _completar_row(fila, tabla, metrica, filas[ganador["fila"]]["parametros"])
                 if fila["puntuacion_validacion"] > ganador["score"] + 1e-12:
                     ganador.update(
                         score=fila["puntuacion_validacion"],
@@ -433,7 +433,7 @@ def run_cv_experiment(
                 base, train, algoritmo, random_state, ganador["opciones"],
                 ganador["config"]["parametros"],
             )
-            analisis = _analisis(
+            analisis = _analysis(
                 clasificador, base, train, test, modelo, preparados, random_state, labels
             )
             resultado = clasificador._resultado(

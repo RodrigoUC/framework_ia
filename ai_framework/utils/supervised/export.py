@@ -38,14 +38,14 @@ __all__ = [
 ]
 
 
-def _json_seguro(valor: Any) -> Any:
+def _safe_json(valor: Any) -> Any:
     """Convert scientific data types without introducing NaN or Infinity into JSON."""
     if isinstance(valor, Mapping):
-        return {str(k): _json_seguro(v) for k, v in valor.items()}
+        return {str(k): _safe_json(v) for k, v in valor.items()}
     if isinstance(valor, (list, tuple, np.ndarray, pd.Index)):
-        return [_json_seguro(v) for v in valor]
+        return [_safe_json(v) for v in valor]
     if isinstance(valor, (np.integer, np.floating, np.bool_)):
-        return _json_seguro(valor.item())
+        return _safe_json(valor.item())
     if isinstance(valor, float) and not np.isfinite(valor):
         return None
     if isinstance(valor, Path):
@@ -55,14 +55,14 @@ def _json_seguro(valor: Any) -> Any:
     return valor
 
 
-def _bytes_json(contenido: Any) -> bytes:
+def _json_bytes(contenido: Any) -> bytes:
     texto = json.dumps(
-        _json_seguro(contenido), ensure_ascii=False, indent=2, allow_nan=False
+        _safe_json(contenido), ensure_ascii=False, indent=2, allow_nan=False
     )
     return (texto + "\n").encode("utf-8")
 
 
-def _versiones(
+def _versions(
     resultado: ResultadoExperimentoClasificacion,
     versiones: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
@@ -80,7 +80,7 @@ def _versiones(
     return registradas
 
 
-def _configuracion_regresion(resultado, argumentos, dataset, versiones):
+def _regression_configuration(resultado, argumentos, dataset, versiones):
     return {
         "argumentos": argumentos,
         "dataset": dataset,
@@ -89,7 +89,7 @@ def _configuracion_regresion(resultado, argumentos, dataset, versiones):
     }
 
 
-def _archivos_analisis(
+def _analysis_files(
     algoritmo: str, analisis: Mapping[str, Any] | None
 ) -> dict[str, bytes]:
     """Tablas interpretativas del ganador (sólo existen en la estrategia CV)."""
@@ -129,11 +129,11 @@ def build_experiment_files_classification(
 ) -> dict[str, bytes]:
     """Serialize classification experiment without altering tables or metadata."""
     archivos = {
-        "configuracion.json": _bytes_json(
+        "configuracion.json": _json_bytes(
             {
                 "argumentos": argumentos,
                 "dataset": dataset,
-                "versiones": _versiones(resultado, versiones),
+                "versiones": _versions(resultado, versiones),
                 "experimento": resultado.metadatos,
                 "advertencia": "Resultados educativos; requieren interpretación y no validan uso clínico ni potabilidad real.",
             }
@@ -144,7 +144,7 @@ def build_experiment_files_classification(
         if tabla[columna].map(lambda v: isinstance(v, (dict, list, tuple))).any():
             tabla[columna] = tabla[columna].map(
                 lambda v: (
-                    json.dumps(_json_seguro(v), ensure_ascii=False, allow_nan=False)
+                    json.dumps(_safe_json(v), ensure_ascii=False, allow_nan=False)
                     if isinstance(v, (dict, list, tuple))
                     else v
                 )
@@ -166,7 +166,7 @@ def build_experiment_files_classification(
             .encode("utf-8")
         )
         archivos.update(
-            _archivos_analisis(algoritmo, ganador.metadatos.get("analisis"))
+            _analysis_files(algoritmo, ganador.metadatos.get("analisis"))
         )
         resumen[algoritmo] = {
             "parametros": ganador.parametros,
@@ -175,7 +175,7 @@ def build_experiment_files_classification(
             "muestra_train": ganador.muestra_train,
             "muestra_test": ganador.muestra_test,
         }
-    archivos["mejores_modelos.json"] = _bytes_json(resumen)
+    archivos["mejores_modelos.json"] = _json_bytes(resumen)
     ranking = resultado.metadatos.get("seleccion_atributos", {}).get(
         "ranking_informacion_mutua_train"
     )
@@ -197,7 +197,7 @@ def build_model_files(
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
     """Exporta una ejecución individual sin crear un experimento artificial."""
-    configuracion = _configuracion_regresion(resultado, argumentos, dataset, versiones)
+    configuracion = _regression_configuration(resultado, argumentos, dataset, versiones)
     configuracion["modelo"] = {
         "algoritmo": resultado.algoritmo,
         "target": resultado.target,
@@ -208,8 +208,8 @@ def build_model_files(
         "muestra_test": resultado.muestra_test,
     }
     archivos = {
-        "configuracion.json": _bytes_json(configuracion),
-        "metricas.json": _bytes_json(
+        "configuracion.json": _json_bytes(configuracion),
+        "metricas.json": _json_bytes(
             {"train": resultado.metricas_train, "test": resultado.metricas}
         ),
     }
@@ -239,14 +239,14 @@ def build_experiment_files_regression(
     versiones: Mapping[str, Any] | None = None,
 ) -> dict[str, bytes]:
     """Serializa snapshots con rutas relativas y versiones del ajuste prioritarias."""
-    configuracion = _configuracion_regresion(resultado, argumentos, dataset, versiones)
+    configuracion = _regression_configuration(resultado, argumentos, dataset, versiones)
     configuracion["experimento"] = resultado.metadatos
-    archivos = {"configuracion.json": _bytes_json(configuracion)}
+    archivos = {"configuracion.json": _json_bytes(configuracion)}
     tabla = resultado.tabla.copy(deep=True)
     for columna in tabla.columns:
         tabla[columna] = tabla[columna].map(
             lambda valor: (
-                json.dumps(_json_seguro(valor), ensure_ascii=False, allow_nan=False)
+                json.dumps(_safe_json(valor), ensure_ascii=False, allow_nan=False)
                 if isinstance(valor, (dict, list, tuple))
                 else valor
             )
@@ -275,7 +275,7 @@ def build_experiment_files_regression(
             "muestra_train": ganador.muestra_train,
             "muestra_test": ganador.muestra_test,
         }
-    archivos["mejores_modelos.json"] = _bytes_json(resumen)
+    archivos["mejores_modelos.json"] = _json_bytes(resumen)
     return archivos
 
 
@@ -328,3 +328,10 @@ construir_archivos_modelo = build_model_files
 construir_archivos_experimento_regresion = build_experiment_files_regression
 construir_archivos_experimento = build_experiment_files
 construir_zip_experimento = build_experiment_zip
+
+# Backward compatibility aliases
+_json_seguro = _safe_json
+_bytes_json = _json_bytes
+_versiones = _versions
+_configuracion_regresion = _regression_configuration
+_archivos_analisis = _analysis_files

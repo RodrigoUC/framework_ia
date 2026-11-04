@@ -18,7 +18,7 @@ from ai_framework.ui.models.view_catalog import PALETA, PALETA_OSCURA
 MostrarFigura = Callable[..., None]
 
 
-def _aplicar_estilos_atlas() -> None:
+def _apply_atlas_styles() -> None:
     """Instala la hoja de estilos compartida de la interfaz según el tema activo."""
     oscuro = st.context.theme.type == "dark"
     focus_color = "#9effbf" if oscuro else "#1a3c2b"
@@ -68,7 +68,7 @@ def _aplicar_estilos_atlas() -> None:
     )
 
 
-def _color_rgb(color: str) -> tuple[int, int, int] | None:
+def _rgb_color(color: str) -> tuple[int, int, int] | None:
     """Convierte colores hexadecimales o rgb() a canales RGB."""
     if not isinstance(color, str):
         return None
@@ -115,9 +115,9 @@ def _color_rgb(color: str) -> tuple[int, int, int] | None:
     return colores_css.get(color.lower())
 
 
-def _luminancia(color: str) -> float | None:
+def _luminance(color: str) -> float | None:
     """Calcula la luminancia relativa sRGB para etiquetas sobre celdas Plotly."""
-    canales = _color_rgb(color)
+    canales = _rgb_color(color)
     if canales is None:
         return None
     lineales = [
@@ -129,9 +129,9 @@ def _luminancia(color: str) -> float | None:
     return 0.2126 * lineales[0] + 0.7152 * lineales[1] + 0.0722 * lineales[2]
 
 
-def _color_texto_celda(color: str) -> str:
+def _cell_text_color(color: str) -> str:
     """Elige negro o blanco para mantener contraste en cada celda del mapa."""
-    luminancia = _luminancia(color)
+    luminancia = _luminance(color)
     if luminancia is None:
         return "#172019"
     contraste_oscuro = (luminancia + 0.05) / 0.05
@@ -139,30 +139,30 @@ def _color_texto_celda(color: str) -> str:
     return "#172019" if contraste_oscuro >= contraste_claro else "#ffffff"
 
 
-def _color_texto_sector(color: str, predeterminado: str) -> str:
+def _sector_text_color(color: str, predeterminado: str) -> str:
     """Elige texto AA para una sección circular con color explícito."""
-    luminancia = _luminancia(color)
+    luminancia = _luminance(color)
     if luminancia is None:
         return predeterminado
     return "#000000" if (luminancia + 0.05) / 0.05 >= 4.5 else "#ffffff"
 
 
-def _ajustar_color_traza(color, oscuro: bool):
+def _adjust_trace_color(color, oscuro: bool):
     """Eleva el contraste de colores de marcas y líneas sin perder su matiz."""
     if isinstance(color, (list, tuple)):
-        return [_ajustar_color_traza(valor, oscuro) for valor in color]
-    canales = _color_rgb(color)
+        return [_adjust_trace_color(valor, oscuro) for valor in color]
+    canales = _rgb_color(color)
     if canales is None:
         return color
     fondo = PALETA_OSCURA["superficie"] if oscuro else PALETA["superficie"]
-    luminancia_fondo = _luminancia(fondo)
+    luminancia_fondo = _luminance(fondo)
 
-    def contraste(luminancia: float) -> float:
+    def contrast(luminancia: float) -> float:
         menor, mayor = sorted((luminancia, luminancia_fondo))
         return (mayor + 0.05) / (menor + 0.05)
 
-    luminancia = _luminancia(color)
-    if luminancia is None or contraste(luminancia) >= 3:
+    luminancia = _luminance(color)
+    if luminancia is None or contrast(luminancia) >= 3:
         return color
     destino = (255, 255, 255) if oscuro else (0, 0, 0)
     for paso in range(1, 101):
@@ -172,12 +172,12 @@ def _ajustar_color_traza(color, oscuro: bool):
             for canal, meta in zip(canales, destino)
         )
         hexadecimal = "#" + "".join(f"{canal:02x}" for canal in ajustado)
-        if contraste(_luminancia(hexadecimal)) >= 3:
+        if contrast(_luminance(hexadecimal)) >= 3:
             return hexadecimal
     return "#ffffff" if oscuro else "#000000"
 
 
-def _texto_mapa_calor(figura: go.Figure) -> list[go.Scatter]:
+def _heatmap_text(figura: go.Figure) -> list[go.Scatter]:
     """Superpone etiquetas por celda con colores contrastantes y formato Plotly."""
     etiquetas = []
     for traza in figura.data:
@@ -266,7 +266,7 @@ def _texto_mapa_calor(figura: go.Figure) -> list[go.Scatter]:
                 celdas.append(valor)
                 posiciones.append(posicion)
         colores = [
-            _color_texto_celda(color)
+            _cell_text_color(color)
             for color in sample_colorscale(escala, posiciones)
         ]
         plantilla = re.sub(r"(%\{)z(?=[:}])", r"\1text", traza.texttemplate)
@@ -287,7 +287,7 @@ def _texto_mapa_calor(figura: go.Figure) -> list[go.Scatter]:
     return etiquetas
 
 
-def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
+def _apply_figure_theme(figura: go.Figure, oscuro: bool) -> None:
     """Alinea fondo, ejes, trazas y anotaciones con el tema Streamlit activo."""
     figura.update_layout(
         template="plotly_dark" if oscuro else "plotly_white",
@@ -315,27 +315,27 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
     figura.update_annotations(font_color=color_texto, arrowcolor=color_texto)
     for forma in figura.layout.shapes or ():
         if forma.line.color:
-            forma.line.color = _ajustar_color_traza(forma.line.color, oscuro)
+            forma.line.color = _adjust_trace_color(forma.line.color, oscuro)
     for traza in figura.data:
         for atributo in ("marker", "line"):
             estilo = getattr(traza, atributo, None)
             color = getattr(estilo, "color", None) if estilo is not None else None
             if color is not None:
-                estilo.color = _ajustar_color_traza(color, oscuro)
+                estilo.color = _adjust_trace_color(color, oscuro)
             if estilo is not None and getattr(estilo, "colors", None) is not None:
-                estilo.colors = _ajustar_color_traza(estilo.colors, oscuro)
+                estilo.colors = _adjust_trace_color(estilo.colors, oscuro)
         if getattr(traza, "textfont", None) is not None and not (
             isinstance(traza.meta, str)
             and traza.meta == "plotly-theme-cell-labels"
         ):
             if traza.type == "pie" and traza.marker.colors:
                 traza.textfont.color = [
-                    _color_texto_sector(color, color_texto)
+                    _sector_text_color(color, color_texto)
                     for color in traza.marker.colors
                 ]
             else:
                 traza.textfont.color = color_texto
-    for traza in _texto_mapa_calor(figura):
+    for traza in _heatmap_text(figura):
         figura.add_trace(traza)
     try:
         from ai_framework.ui.i18n import obtener_idioma
@@ -371,11 +371,11 @@ def _aplicar_tema_figura(figura: go.Figure, oscuro: bool) -> None:
                 traza.name = nombres_traza[traza.name]
 
 
-def _mostrar_figura(
+def _display_figure(
     figura: go.Figure, key: str | None = None, *, alt: str | None = None
 ) -> None:
     """Renderiza una figura Plotly alineada con el tema claro/oscuro activo."""
-    _aplicar_tema_figura(figura, st.context.theme.type == "dark")
+    _apply_figure_theme(figura, st.context.theme.type == "dark")
     opciones = {"width": "stretch"}
     if alt is not None:
         st.caption(alt)
@@ -565,7 +565,7 @@ def format_readable_value(val: object) -> str:
     return str(val)
 
 
-def _obtener_pestanas(titulos: list[str]) -> list:
+def _get_tabs(titulos: list[str]) -> list:
     """Devuelve contenedores de pestañas seguros frente a entornos donde st está mockeado."""
     resultado = st.tabs(titulos)
     if isinstance(resultado, (list, tuple)) and len(resultado) == len(titulos):
@@ -573,7 +573,7 @@ def _obtener_pestanas(titulos: list[str]) -> list:
     return [st.container() for _ in titulos]
 
 
-def render_tabla_clave_valor(
+def render_key_value_table(
     datos: object,
     *,
     columna_clave: str = "Campo",
@@ -603,3 +603,16 @@ def render_tabla_clave_valor(
     st.markdown("\n".join(filas))
 
 formatear_valor_legible = format_readable_value
+
+# Backward compatibility aliases
+_aplicar_estilos_atlas = _apply_atlas_styles
+_color_rgb = _rgb_color
+_luminancia = _luminance
+_color_texto_celda = _cell_text_color
+_color_texto_sector = _sector_text_color
+_ajustar_color_traza = _adjust_trace_color
+_texto_mapa_calor = _heatmap_text
+_aplicar_tema_figura = _apply_figure_theme
+_mostrar_figura = _display_figure
+_obtener_pestanas = _get_tabs
+render_tabla_clave_valor = render_key_value_table

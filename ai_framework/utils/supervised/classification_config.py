@@ -183,7 +183,7 @@ _CONFIGURACIONES_EXPERIMENTO = {
 }
 
 
-def configuraciones_experimento() -> dict[str, list[dict[str, Any]]]:
+def experiment_configurations() -> dict[str, list[dict[str, Any]]]:
     """Return fresh experiment candidate configurations for backward compatibility."""
     return {
         algoritmo: [
@@ -192,3 +192,7 @@ def configuraciones_experimento() -> dict[str, list[dict[str, Any]]]:
         ]
         for algoritmo, configuraciones in _CONFIGURACIONES_EXPERIMENTO.items()
     }
+
+
+# Backward compatibility aliases
+configuraciones_experimento = experiment_configurations

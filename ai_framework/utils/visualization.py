@@ -38,7 +38,7 @@ class RegressionVisualizer:
     """Numerical diagnostics over saved evidence without recalculating models."""
 
     @staticmethod
-    def real_predicho(resultado) -> go.Figure:
+    def actual_vs_predicted(resultado) -> go.Figure:
         limites = [
             min(resultado.y_true.min(), resultado.y_pred.min()),
             max(resultado.y_true.max(), resultado.y_pred.max()),
@@ -69,7 +69,7 @@ class RegressionVisualizer:
         return figura
 
     @staticmethod
-    def residuos(resultado) -> go.Figure:
+    def residuals(resultado) -> go.Figure:
         figura = go.Figure(
             go.Scatter(
                 x=resultado.y_pred,
@@ -88,7 +88,7 @@ class RegressionVisualizer:
         return figura
 
     @staticmethod
-    def comparacion_validacion(tabla: pd.DataFrame) -> go.Figure:
+    def validation_comparison(tabla: pd.DataFrame) -> go.Figure:
         disponibles = tabla.dropna(subset=["puntuacion_validacion"])
         return go.Figure(
             go.Bar(
@@ -107,13 +107,20 @@ class RegressionVisualizer:
         )
 
 
+
+    # Backward compatibility aliases
+    real_predicho = actual_vs_predicted
+    residuos = residuals
+    comparacion_validacion = validation_comparison
+
+
 class UnsupervisedVisualizer:
     """Plotly figures factory for unsupervised analysis results."""
 
     @staticmethod
-    def plano_acp(resultado: ResultadoACP) -> go.Figure:
+    def pca_plane(resultado: ResultadoACP) -> go.Figure:
         """Muestra las observaciones sobre los dos primeros componentes."""
-        VisualizadorNoSupervisado._validar_acp_2d(resultado)
+        UnsupervisedVisualizer._validate_pca_2d(resultado)
         datos = resultado.coordenadas
         x, y = datos.columns[:2]
         lang = _lang_vis()
@@ -141,9 +148,9 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def circulo_correlacion(resultado: ResultadoACP, max_variables: int = 30) -> go.Figure:
+    def correlation_circle(resultado: ResultadoACP, max_variables: int = 30) -> go.Figure:
         """Representa las cargas de las variables en los dos primeros ejes."""
-        VisualizadorNoSupervisado._validar_acp_2d(resultado)
+        UnsupervisedVisualizer._validate_pca_2d(resultado)
         cargas = resultado.cargas.iloc[:, :2].copy()
         if len(cargas) > max_variables:
             importancia = cargas.abs().sum(axis=1).nlargest(max_variables).index
@@ -193,11 +200,11 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def sobreposicion_acp(
+    def pca_biplot(
         resultado: ResultadoACP, max_variables: int = 20
     ) -> go.Figure:
         """Superpone observaciones y vectores de variables sobre el círculo de correlación (Biplot)."""
-        VisualizadorNoSupervisado._validar_acp_2d(resultado)
+        UnsupervisedVisualizer._validate_pca_2d(resultado)
         coordenadas = resultado.coordenadas.iloc[:, :2].copy()
         cargas = resultado.cargas.iloc[:, :2].copy()
         if len(cargas) > max_variables:
@@ -293,7 +300,7 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def varianza_acp(resultado: ResultadoACP) -> go.Figure:
+    def pca_variance(resultado: ResultadoACP) -> go.Figure:
         """Grafica varianza individual y acumulada por componente."""
         lang = _lang_vis()
         nom_ind = "Individual"
@@ -359,7 +366,7 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def perfiles_cluster(resultado: ResultadoCluster, max_variables: int = 25) -> go.Figure:
+    def cluster_profiles(resultado: ResultadoCluster, max_variables: int = 25) -> go.Figure:
         """Compara los centroides o perfiles promedio mediante un mapa de calor."""
         perfiles = resultado.centroides.copy()
         if perfiles.shape[1] > max_variables:
@@ -381,7 +388,7 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def dendrograma(resultado: ResultadoCluster, max_etiquetas: int = 80) -> go.Figure:
+    def dendrogram(resultado: ResultadoCluster, max_etiquetas: int = 80) -> go.Figure:
         """Genera el dendrograma de un resultado jerárquico."""
         if resultado.matriz_vinculacion is None:
             raise ValueError("El resultado no contiene una matriz de vinculación.")
@@ -425,7 +432,7 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def curva_evaluacion(tabla: pd.DataFrame, algoritmo: str) -> go.Figure:
+    def evaluation_curve(tabla: pd.DataFrame, algoritmo: str) -> go.Figure:
         """Grafica silhouette y, cuando existe, la inercia del benchmark."""
         if "metodo" in tabla.columns:
             figura = px.line(
@@ -452,7 +459,7 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def proyeccion(resultado: ResultadoProyeccion, etiquetas=None) -> go.Figure:
+    def projection(resultado: ResultadoProyeccion, etiquetas=None) -> go.Figure:
         """Grafica una proyección t-SNE o UMAP, opcionalmente coloreada."""
         datos = resultado.coordenadas.copy()
         columnas = datos.columns
@@ -474,17 +481,30 @@ class UnsupervisedVisualizer:
         return figura
 
     @staticmethod
-    def _validar_acp_2d(resultado: ResultadoACP) -> None:
+    def _validate_pca_2d(resultado: ResultadoACP) -> None:
         """Garantiza que la visualización tenga dos componentes disponibles."""
         if resultado.coordenadas.shape[1] < 2:
             raise ValueError("La visualización requiere al menos dos componentes.")
+
+
+
+    # Backward compatibility aliases
+    plano_acp = pca_plane
+    circulo_correlacion = correlation_circle
+    sobreposicion_acp = pca_biplot
+    varianza_acp = pca_variance
+    perfiles_cluster = cluster_profiles
+    dendrograma = dendrogram
+    curva_evaluacion = evaluation_curve
+    proyeccion = projection
+    _validar_acp_2d = _validate_pca_2d
 
 
 class SupervisedVisualizer(RegressionVisualizer):
     """Unified Plotly visualizations for supervised workflows (classification and regression)."""
 
     @staticmethod
-    def matriz_confusion(resultado: ResultadoClasificacion) -> go.Figure:
+    def confusion_matrix(resultado: ResultadoClasificacion) -> go.Figure:
         """Dibuja una matriz de confusión con formato de tabla."""
         figura = px.imshow(
             resultado.matriz_confusion,
@@ -500,7 +520,7 @@ class SupervisedVisualizer(RegressionVisualizer):
         return figura
 
     @staticmethod
-    def metricas_barras(resultado: ResultadoClasificacion) -> go.Figure | None:
+    def bar_metrics(resultado: ResultadoClasificacion) -> go.Figure | None:
         """Compara precisión, recall y F1 por clase."""
         metricas = resultado.metricas.get("precision", {}).get("por_clase", {})
         if not metricas:
@@ -528,7 +548,7 @@ class SupervisedVisualizer(RegressionVisualizer):
         return figura
 
     @staticmethod
-    def distribucion_estratificada(resultado: ResultadoClasificacion) -> go.Figure | None:
+    def stratified_distribution(resultado: ResultadoClasificacion) -> go.Figure | None:
         """Compara la distribución de clases en el conjunto real y predicho."""
         metricas = resultado.metricas.get("distribucion", {})
         reales = pd.Series(metricas.get("real", {}))
@@ -550,12 +570,16 @@ class SupervisedVisualizer(RegressionVisualizer):
         )
         return figura
 
+    # Backward compatibility aliases
+    matriz_confusion = confusion_matrix
+    metricas_barras = bar_metrics
+    distribucion_estratificada = stratified_distribution
 
 class DataVisualizer:
     """Plotly visualizations for the Data view and dataset preparation."""
 
     @staticmethod
-    def tipos_columnas(tabla: pd.DataFrame) -> go.Figure:
+    def column_types(tabla: pd.DataFrame) -> go.Figure:
         """Grafica la cantidad de columnas numéricas frente a categóricas."""
         conteo = tabla["tipo"].value_counts()
         try:
@@ -593,7 +617,7 @@ class DataVisualizer:
         return figura
 
     @staticmethod
-    def tamanos_particion(resultado: ResultadoParticion) -> go.Figure:
+    def partition_sizes(resultado: ResultadoParticion) -> go.Figure:
         """Compare sizes of train, test, and validation sets."""
         conteos = {"Train": len(resultado.train), "Test": len(resultado.test)}
         if resultado.validacion is not None:
@@ -613,7 +637,7 @@ class DataVisualizer:
         return figura
 
     @staticmethod
-    def distribucion_particion(resultado: ResultadoParticion) -> go.Figure | None:
+    def partition_distribution(resultado: ResultadoParticion) -> go.Figure | None:
         """Compare stratification column distribution across subsets."""
         if resultado.columna_estratificacion is None:
             return None
@@ -632,9 +656,10 @@ class DataVisualizer:
         )
         return figura
 
-    column_types = tipos_columnas
-    partition_sizes = tamanos_particion
-    partition_distribution = distribucion_particion
+    # Backward compatibility aliases
+    tipos_columnas = column_types
+    tamanos_particion = partition_sizes
+    distribucion_particion = partition_distribution
 
 
 VisualizadorSupervisado = SupervisedVisualizer

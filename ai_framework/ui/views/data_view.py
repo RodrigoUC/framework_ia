@@ -39,7 +39,7 @@ from ai_framework.ui.views.theme import _mostrar_figura
 from ai_framework.utils.visualization import VisualizadorDatos
 
 
-def _obtener_base_dir() -> Path:
+def _get_base_dir() -> Path:
     """Obtiene el directorio raíz del proyecto permitiendo sustitución en pruebas."""
     for mod_name in (
         "ai_framework.ui.streamlit_app",
@@ -58,7 +58,7 @@ def _obtener_base_dir() -> Path:
     return getattr(mod, "BASE_DIR", BASE_DIR)
 
 
-def _obtener_cargador_csv():
+def _get_csv_loader():
     """Obtain CSV loading function allowing mock substitution in tests."""
     for mod_name in (
         "ai_framework.ui.streamlit_app",
@@ -74,7 +74,7 @@ def _obtener_cargador_csv():
 
 
 
-def _formatear_error_fuente(exc: Exception, configuracion: ConfiguracionCSV | None = None) -> str:
+def _format_source_error(exc: Exception, configuracion: ConfiguracionCSV | None = None) -> str:
     """Convierte excepciones internas de lectura en mensajes de error controlados y claros."""
     lang = obtener_idioma()
     exc_str = str(exc)
@@ -124,7 +124,7 @@ def _formatear_error_fuente(exc: Exception, configuracion: ConfiguracionCSV | No
     return exc_str
 
 
-def _verificar_calidad_carga_csv(datos: pd.DataFrame | None, separador: str) -> str | None:
+def _verify_csv_load_quality(datos: pd.DataFrame | None, separador: str) -> str | None:
     """Verifica si el dataset parece haber sido cargado con un separador erróneo."""
     if datos is None or datos.empty or datos.shape[1] > 1:
         return None
@@ -158,9 +158,9 @@ def _verificar_calidad_carga_csv(datos: pd.DataFrame | None, separador: str) -> 
     return "El archivo se cargó con una sola columna. Verifique el separador."
 
 
-def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
+def _select_source() -> tuple[pd.DataFrame | None, str, str]:
     """Permite preparar una fuente y aplicarla al confirmar el formulario."""
-    directorio_datos = _obtener_base_dir() / "data"
+    directorio_datos = _get_base_dir() / "data"
     archivos = sorted(
         directorio_datos.rglob("*.csv"),
         key=lambda ruta: (
@@ -168,7 +168,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
             str(ruta.relative_to(directorio_datos)).casefold(),
         ),
     )
-    cargar_csv = _obtener_cargador_csv()
+    cargar_csv = _get_csv_loader()
     error_inicio = None
     if "fuente_aplicada" not in st.session_state and archivos:
         try:
@@ -296,7 +296,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                             "Seleccione un archivo CSV antes de aplicarlo."
                         )
                     if datos is not None:
-                        adv = _verificar_calidad_carga_csv(datos, separador)
+                        adv = _verify_csv_load_quality(datos, separador)
                         st.session_state["advertencia_fuente"] = adv
                         if adv:
                             st.warning(adv)
@@ -304,7 +304,7 @@ def _seleccionar_fuente() -> tuple[pd.DataFrame | None, str, str]:
                             st.session_state.pop("advertencia_fuente", None)
                 except Exception as exc:
                     st.session_state.pop("advertencia_fuente", None)
-                    mensaje = _formatear_error_fuente(exc, configuracion)
+                    mensaje = _format_source_error(exc, configuracion)
                     st.error(f"No fue posible aplicar la fuente: {mensaje}")
     return st.session_state.get("fuente_aplicada", (None, "", ""))
 
@@ -437,7 +437,7 @@ def _render_dataset() -> None:
     )
 
 
-def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
+def _render_partition(datos: pd.DataFrame, configuracion: dict) -> None:
     """Calcula una partición train/test/validación reutilizable en el framework."""
     st.markdown(f"#### {t('prep_division_titulo', 'División en entrenamiento y prueba')}")
     st.caption(
@@ -570,7 +570,7 @@ def _render_particion(datos: pd.DataFrame, configuracion: dict) -> None:
         )
 
 
-def _resumen_dataset_modulo(
+def _dataset_module_summary(
     datos: pd.DataFrame, objetivo: str | None = None
 ) -> None:
     """Display reusable summary of active dataset from each module."""
@@ -600,7 +600,7 @@ def _resumen_dataset_modulo(
             st.markdown(linea)
 
 
-def render_perfil_diabetes(datos: pd.DataFrame) -> None:
+def render_diabetes_profile(datos: pd.DataFrame) -> None:
     """Ofrece el perfil únicamente para el CSV preparado reconocido e intacto."""
     perfil = estado_fuente_diabetes(datos, st.session_state)
     if perfil == "original":
@@ -628,3 +628,13 @@ def render_perfil_diabetes(datos: pd.DataFrame) -> None:
             st.caption(
                 "Configuración aplicada. Revise las opciones y ejecute los experimentos cuando esté listo."
             )
+
+# Backward compatibility aliases
+_obtener_base_dir = _get_base_dir
+_obtener_cargador_csv = _get_csv_loader
+_formatear_error_fuente = _format_source_error
+_verificar_calidad_carga_csv = _verify_csv_load_quality
+_seleccionar_fuente = _select_source
+_render_particion = _render_partition
+_resumen_dataset_modulo = _dataset_module_summary
+render_perfil_diabetes = render_diabetes_profile

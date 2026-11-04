@@ -27,7 +27,7 @@ from ai_framework.utils.supervised.regression_config import (
 from ai_framework.utils.visualization import VisualizadorRegresion
 
 
-def preparacion_regresion_segura() -> bool:
+def safe_regression_preparation() -> bool:
     """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
@@ -122,11 +122,11 @@ def display_model_result(
     )
 
 
-def render_modelo_regresion(
+def render_regression_model(
     datos, configuracion, mostrar_figura, *, algoritmo: str
 ) -> None:
     """Renderiza los controles y ejecuta el entrenamiento de un regresor individual."""
-    segura = preparacion_regresion_segura()
+    segura = safe_regression_preparation()
     parametros = parametros_regresion(algoritmo)
     disponibilidad = disponibilidad_supervisada(
         datos,
@@ -189,7 +189,7 @@ def render_modelo_regresion(
         )
 
 
-def render_resultados_regresion(
+def render_regression_results(
     mostrar_figura, *, incluir_experimentos=False
 ) -> None:
     """Muestra la comparación de regresores entrenados y evidencia experimental."""
@@ -218,7 +218,7 @@ def render_resultados_regresion(
         mostrar_experimento_guardado,
     )
 
-    def _render_tabla_regresion():
+    def _render_regression_table():
         filas = []
         modelos_params = []
         for alg, snap in snapshots.items():
@@ -244,10 +244,15 @@ def render_resultados_regresion(
     render_layout_resultados(
         hay_individuales=bool(snapshots),
         hay_comparativa=hay_experimento,
-        render_individuales_fn=_render_tabla_regresion,
+        render_individuales_fn=_render_regression_table,
         render_comparativa_fn=lambda: mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay modelos entrenados en este contexto.",
         clave_contexto="regresion",
     )
 
 mostrar_resultado_modelo = display_model_result
+
+# Backward compatibility aliases
+preparacion_regresion_segura = safe_regression_preparation
+render_modelo_regresion = render_regression_model
+render_resultados_regresion = render_regression_results

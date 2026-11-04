@@ -27,7 +27,7 @@ from ai_framework.ui.views.controls_view import (
 from ai_framework.utils.visualization import VisualizadorSupervisado
 
 
-def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
+def safe_preparation(*, mostrar_guia: bool = False) -> bool:
     """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
@@ -49,7 +49,7 @@ def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
     return True
 
 
-def render_modelo_individual(
+def render_single_model(
     datos: pd.DataFrame,
     configuracion: dict,
     mostrar_figura: MostrarFigura,
@@ -58,7 +58,7 @@ def render_modelo_individual(
 ) -> None:
     """Entrenamiento exploratorio de un único modelo con parámetros visibles."""
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
-    segura = preparacion_segura()
+    segura = safe_preparation()
     parametros = parametros_individuales(algoritmo)
     disponibilidad = disponibilidad_supervisada(
         datos,
@@ -137,7 +137,7 @@ def render_modelo_individual(
                 st.info(
                     t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
                 )
-            _diagnostico(
+            _diagnostic(
                 actual_rf["resultado"],
                 mostrar_figura,
                 prefijo=f"lab2_{algoritmo}_{criterio_rf}",
@@ -149,14 +149,14 @@ def render_modelo_individual(
             st.info(
                 t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
             )
-        _diagnostico(
+        _diagnostic(
             resultado_previo,
             mostrar_figura,
             prefijo=f"lab2_{algoritmo}",
         )
 
 
-def _render_modelos_individuales(individuales: list) -> None:
+def _render_single_models(individuales: list) -> None:
     from ai_framework.ui.views.results_view import render_panel_modelos_individuales
 
     filas_comparativa = []
@@ -201,7 +201,7 @@ def _render_modelos_individuales(individuales: list) -> None:
     )
 
 
-def render_resultados(
+def render_classification_results(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
     """Compara métricas de prueba de modelos individuales y del benchmark experimental."""
@@ -277,14 +277,14 @@ def render_resultados(
     render_layout_resultados(
         hay_individuales=bool(individuales),
         hay_comparativa=hay_experimento,
-        render_individuales_fn=lambda: _render_modelos_individuales(individuales),
+        render_individuales_fn=lambda: _render_single_models(individuales),
         render_comparativa_fn=lambda: render_resultado_experimento(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación.",
         clave_contexto="clasificacion",
     )
 
 
-def _diagnostico(
+def _diagnostic(
     resultado, mostrar_figura: MostrarFigura, prefijo: str
 ) -> None:
     """Display metrics, confusion matrix, and predictions for classification model."""
@@ -363,3 +363,10 @@ def _diagnostico(
         "text/csv",
         key=f"{prefijo}_predicciones",
     )
+
+# Backward compatibility aliases
+preparacion_segura = safe_preparation
+render_modelo_individual = render_single_model
+_render_modelos_individuales = _render_single_models
+render_resultados = render_classification_results
+_diagnostico = _diagnostic

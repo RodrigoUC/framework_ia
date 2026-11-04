@@ -45,7 +45,7 @@ from ai_framework.utils import (
 from ai_framework.utils.visualization import VisualizadorSupervisado
 
 
-def render_experimentos(
+def render_classification_experiments(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
     """Render controls and execute classification benchmark."""
@@ -287,12 +287,12 @@ def render_experimentos(
                 args=("lab2_resultados",),
             )
         with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
-            render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
+            render_experiment_result(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
     else:
-        render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
+        render_experiment_result(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
 
 
-def render_resultado_experimento(
+def render_experiment_result(
     mostrar_figura: MostrarFigura,
     *,
     prefijo: str = "lab2_resultados_experimento",
@@ -312,12 +312,12 @@ def render_resultado_experimento(
         st.warning(
             "El último intento no produjo ganadores evaluados en prueba."
         )
-        _tabla_validacion(intento["resultado"].tabla)
+        _validation_table(intento["resultado"].tabla)
         for algoritmo, detalle in (
             intento["resultado"].metadatos.get("errores_prueba", {}).items()
         ):
             st.error(f"Prueba de {algoritmo}: {detalle}")
-        _descargas(intento, f"{prefijo}_intento", es_intento=True)
+        _render_downloads(intento, f"{prefijo}_intento", es_intento=True)
         if guardado is not None:
             st.caption("A continuación se conserva la última ejecución exitosa.")
     if guardado is None:
@@ -431,7 +431,7 @@ def render_resultado_experimento(
         st.caption(
             "Configuraciones y parámetros efectivos, métricas de validación, selección, estado y errores"
         )
-        _tabla_validacion(resultado.tabla)
+        _validation_table(resultado.tabla)
     if not solo_comparacion:
         with st.expander(
             "Diagnóstico del ganador · matriz de confusión y predicciones"
@@ -457,10 +457,10 @@ def render_resultado_experimento(
                     key=f"{prefijo}_{algoritmo}_clases",
                     alt="Precisión, tasa de verdaderos y F1 por clase del ganador en prueba",
                 )
-    _descargas(guardado, prefijo)
+    _render_downloads(guardado, prefijo)
 
 
-def _tabla_validacion(tabla: pd.DataFrame) -> None:
+def _validation_table(tabla: pd.DataFrame) -> None:
     """Muestra la tabla de candidatos evaluados en validación con parámetros serializados."""
     vista = tabla.copy()
     vista["parametros"] = vista["parametros"].map(_json)
@@ -472,7 +472,7 @@ def _tabla_validacion(tabla: pd.DataFrame) -> None:
     )
 
 
-def _descargas(
+def _render_downloads(
     guardado: dict, prefijo: str, *, es_intento: bool = False
 ) -> None:
     """Genera los botones de descarga del paquete ZIP, CSV y JSON del experimento."""
@@ -536,3 +536,9 @@ def _descargas(
         st.error(
             f"La ejecución se conserva, pero no fue posible preparar la descarga: {exc}"
         )
+
+# Backward compatibility aliases
+render_experimentos = render_classification_experiments
+render_resultado_experimento = render_experiment_result
+_tabla_validacion = _validation_table
+_descargas = _render_downloads
