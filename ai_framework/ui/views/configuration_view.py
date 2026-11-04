@@ -9,18 +9,27 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.data.eda import EDA
-from ai_framework.ui.controllers.sources_controller import _usar_particion
+from ai_framework.ui.controllers.sources_controller import (
+    _use_partition,
+    _usar_particion,
+)
 from ai_framework.ui.controllers.unsupervised_controller import (
+    _numeric_columns,
     _columnas_numericas,
 )
 from ai_framework.ui.models.view_catalog import TAREAS
 from ai_framework.ui.models.classification_state import (
+    current_classification_configuration,
     configuracion_clasificacion_actual,
 )
 from ai_framework.ui.models.regression_state import (
+    current_regression_configuration,
     configuracion_regresion_actual,
 )
-from ai_framework.ui.models.session_state import inicializar_configuracion
+from ai_framework.ui.models.session_state import (
+    initialize_configuration,
+    inicializar_configuracion,
+)
 
 
 def configure_supervised(datos: pd.DataFrame) -> None:
@@ -138,16 +147,16 @@ def configure_classification(
 ) -> dict | None:
     """Display shared supervised configuration and return classification configuration."""
     del mostrar_figura
-    inicializar_configuracion(datos, st.session_state)
+    initialize_configuration(datos, st.session_state)
     configure_supervised(datos)
-    return configuracion_clasificacion_actual(datos, st.session_state)
+    return current_classification_configuration(datos, st.session_state)
 
 
 def configure_regression(datos: pd.DataFrame) -> dict | None:
     """Display shared supervised configuration and return regression configuration."""
-    inicializar_configuracion(datos, st.session_state)
+    initialize_configuration(datos, st.session_state)
     configure_supervised(datos)
-    return configuracion_regresion_actual(datos, st.session_state)
+    return current_regression_configuration(datos, st.session_state)
 
 
 def _configure_models(datos: pd.DataFrame) -> dict:
@@ -162,7 +171,7 @@ def _configure_models(datos: pd.DataFrame) -> dict:
         opciones = datos.columns.tolist()
         predeterminadas = datos.columns.tolist()
     else:
-        opciones = _columnas_numericas(datos)
+        opciones = _numeric_columns(datos)
         predeterminadas = opciones
     guardadas = st.session_state.get("modelo_features", [])
     if any(columna not in opciones for columna in guardadas):

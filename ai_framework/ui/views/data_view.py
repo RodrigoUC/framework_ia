@@ -12,10 +12,28 @@ from ai_framework.ui.i18n import t, obtener_idioma
 
 from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
 from ai_framework.data.eda import EDA
-from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
-from ai_framework.data.partition import ConfiguracionParticion, Particionador
-from ai_framework.utils.results import ResultadoParticion
+from ai_framework.data.sources import (
+    CSVLoader,
+    CSVConfig,
+    CargadorCSV,
+    ConfiguracionCSV,
+)
+from ai_framework.data.partition import (
+    PartitionConfig,
+    DataSplitter,
+    ConfiguracionParticion,
+    Particionador,
+)
+from ai_framework.utils.results import (
+    PartitionResult,
+    ResultadoParticion,
+)
 from ai_framework.ui.controllers.sources_controller import (
+    _apply_diabetes_configuration,
+    _load_csv_source,
+    _load_regression_reference,
+    _save_source_metadata,
+    _clear_results,
     _aplicar_configuracion_diabetes,
     _cargar_fuente_csv,
     _cargar_referencia_regresion,
@@ -23,20 +41,33 @@ from ai_framework.ui.controllers.sources_controller import (
     _limpiar_resultados,
 )
 from ai_framework.ui.controllers.unsupervised_controller import (
+    _categorical_columns,
+    _numeric_columns,
     _columnas_categoricas,
     _columnas_numericas,
 )
 from ai_framework.ui.models.view_catalog import BASE_DIR
 from ai_framework.ui.models.regression_state import (
+    clear_regression_results,
     limpiar_resultados_regresion,
 )
-from ai_framework.ui.models.session_state import firma_preparacion
+from ai_framework.ui.models.session_state import (
+    preparation_fingerprint,
+    firma_preparacion,
+)
 from ai_framework.ui.models.diabetes_profile import (
     RUTA_PROCEDENCIA,
+    diabetes_source_state,
     estado_fuente_diabetes,
 )
-from ai_framework.ui.views.theme import _mostrar_figura
-from ai_framework.utils.visualization import VisualizadorDatos
+from ai_framework.ui.views.theme import (
+    _display_figure,
+    _mostrar_figura,
+)
+from ai_framework.utils.visualization import (
+    DataVisualizer,
+    VisualizadorDatos,
+)
 
 
 def _get_base_dir() -> Path:
@@ -261,7 +292,7 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
                 try:
                     if origen in ("Diabetes (referencia)", "Diabetes · referencia Lab03"):
                         st.session_state.pop("advertencia_fuente", None)
-                        _cargar_referencia_regresion()
+                        _load_regression_reference()
                         return st.session_state["fuente_aplicada"]
                     configuracion = ConfiguracionCSV(
                         separador=separador,
@@ -288,7 +319,7 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
                             archivo.name,
                             f"upload:{digest}:{configuracion}",
                         )
-                        _guardar_metadatos_fuente(
+                        _save_source_metadata(
                             contenido, configuracion, referencia
                         )
                     else:
@@ -334,7 +365,7 @@ def _render_dataset() -> None:
         else:
             st.dataframe(tabla_tipos, width="stretch")
     with grafico_col:
-        _mostrar_figura(VisualizadorDatos.tipos_columnas(tabla_tipos))
+        _display_figure(DataVisualizer.tipos_columnas(tabla_tipos))
 
     st.markdown(f"#### {t('prep_limpieza', 'Preparación y limpieza')}")
     columnas_eliminar = st.multiselect(
@@ -409,7 +440,7 @@ def _render_dataset() -> None:
                 "imputar": imputar_nulos,
                 "escalado": escalado,
             }
-            _limpiar_resultados()
+            _clear_results()
             st.success("La preparación se aplicó correctamente.")
             st.rerun()
         except Exception as exc:
@@ -418,7 +449,7 @@ def _render_dataset() -> None:
     if restaurar.button(t("prep_restaurar", "Restaurar dataset original")):
         st.session_state["dataset_preparado"] = original.copy()
         st.session_state.pop("dataset_preparacion", None)
-        _limpiar_resultados()
+        _clear_results()
         st.success("Se restauró el contenido original.")
         st.rerun()
 
@@ -485,11 +516,11 @@ def _render_partition(datos: pd.DataFrame, configuracion: dict) -> None:
             st.session_state["particion_global"] = Particionador(cfg).dividir(
                 datos
             )
-            st.session_state["sup_particion_firma"] = firma_preparacion(
+            st.session_state["sup_particion_firma"] = preparation_fingerprint(
                 st.session_state
             )
             st.session_state.pop("sup_aviso_particion", None)
-            limpiar_resultados_regresion(st.session_state)
+            clear_regression_results(st.session_state)
 
             for clave in (
                 "resultado_modelos_clasificacion",
@@ -532,13 +563,13 @@ def _render_partition(datos: pd.DataFrame, configuracion: dict) -> None:
 
     grafico_izq, grafico_der = st.columns(2)
     with grafico_izq:
-        _mostrar_figura(VisualizadorDatos.tamanos_particion(particion))
+        _display_figure(DataVisualizer.tamanos_particion(particion))
     with grafico_der:
-        grafico_distribucion = VisualizadorDatos.distribucion_particion(
+        grafico_distribucion = DataVisualizer.distribucion_particion(
             particion
         )
         if grafico_distribucion is not None:
-            _mostrar_figura(grafico_distribucion)
+            _display_figure(grafico_distribucion)
 
     vista_train, vista_test = st.columns(2)
     with vista_train:
@@ -576,8 +607,8 @@ def _dataset_module_summary(
     """Display reusable summary of active dataset from each module."""
     eda = EDA(dataframe=datos)
     resumen = eda.resumen_calidad()
-    numericas = _columnas_numericas(datos)
-    categoricas = _columnas_categoricas(datos)
+    numericas = _numeric_columns(datos)
+    categoricas = _categorical_columns(datos)
     outliers = 0
     if numericas:
         outliers = len(
@@ -602,7 +633,7 @@ def _dataset_module_summary(
 
 def render_diabetes_profile(datos: pd.DataFrame) -> None:
     """Provide profile only for recognized and intact prepared CSV."""
-    perfil = estado_fuente_diabetes(datos, st.session_state)
+    perfil = diabetes_source_state(datos, st.session_state)
     if perfil == "original":
         st.warning(
             "Este es el CSV original de Diabetes. "

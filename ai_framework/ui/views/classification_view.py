@@ -7,24 +7,50 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.ui.controllers.classification_controller import (
+    _common_arguments,
+    _execution_context,
+    _json,
+    _metrics_by_class,
+    _percentage_metrics,
+    _create_model,
+    true_rate_name,
     _argumentos_comunes,
     _contexto_ejecucion,
-    _json,
     _metricas_por_clase,
     _metricas_porcentuales,
     _modelo,
     nombre_tasa_verdaderos,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.views.navigation import mostrar_faltantes
-from ai_framework.ui.views.theme import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.views.navigation import (
+    show_missing_data,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    MostrarFigura,
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 from ai_framework.ui.views.controls_view import (
     NOMBRES_MODELOS,
+    _display_dataframe,
     _mostrar_dataframe,
+    individual_parameters,
     parametros_individuales,
 )
-from ai_framework.utils.visualization import VisualizadorSupervisado
+from ai_framework.utils.visualization import (
+    SupervisedVisualizer,
+    VisualizadorSupervisado,
+)
 
 
 def safe_preparation(*, mostrar_guia: bool = False) -> bool:
@@ -59,8 +85,8 @@ def render_single_model(
     """Exploratory training of a single model with visible parameters."""
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
     segura = safe_preparation()
-    parametros = parametros_individuales(algoritmo)
-    disponibilidad = disponibilidad_supervisada(
+    parametros = individual_parameters(algoritmo)
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "clasificacion",
@@ -68,8 +94,8 @@ def render_single_model(
         parametros=parametros,
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
-    firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
+    show_missing_data(disponibilidad)
+    firma = parameters_fingerprint({"algoritmo": algoritmo, "parametros": parametros})
     estado_modelo = f"modelo_{algoritmo}"
     resultado_modelo = f"resultado_lab2_{estado_modelo}"
     criterio_rf = (
@@ -90,12 +116,12 @@ def render_single_model(
     ):
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
-                resultado = _modelo(datos, configuracion).entrenar(
+                resultado = _create_model(datos, configuracion).entrenar(
                     algoritmo=algoritmo,
-                    **_argumentos_comunes(configuracion),
+                    **_common_arguments(configuracion),
                     **parametros,
                 )
-            contexto = _contexto_ejecucion(configuracion)
+            contexto = _execution_context(configuracion)
             if algoritmo == "RF":
                 guardados = dict(st.session_state.get(clave_criterios_rf, {}))
                 guardados[criterio_rf] = {
@@ -157,7 +183,7 @@ def render_single_model(
 
 
 def _render_single_models(individuales: list) -> None:
-    from ai_framework.ui.views.results_view import render_panel_modelos_individuales
+    from ai_framework.ui.views.results_view import render_individual_models_panel, render_panel_modelos_individuales
 
     filas_comparativa = []
     modelos_params = []
@@ -182,7 +208,7 @@ def _render_single_models(individuales: list) -> None:
         for etiqueta in etiquetas_lista:
             reales = y_true == etiqueta
             soporte = int(reales.sum())
-            col_nombre = nombre_tasa_verdaderos(etiqueta, etiquetas_lista)
+            col_nombre = true_rate_name(etiqueta, etiquetas_lista)
             fila[col_nombre] = (
                 round(100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte, 2)
                 if soporte
@@ -194,7 +220,7 @@ def _render_single_models(individuales: list) -> None:
         )
         modelos_params.append((nombre, params_dict))
 
-    render_panel_modelos_individuales(
+    render_individual_models_panel(
         pd.DataFrame(filas_comparativa),
         modelos_params,
         titulo="Modelos entrenados individualmente",
@@ -269,16 +295,17 @@ def render_classification_results(
         )
         return
 
-    from ai_framework.ui.views.results_view import render_layout_resultados
+    from ai_framework.ui.views.results_view import render_results_layout, render_layout_resultados
     from ai_framework.ui.views.classification_experiments_view import (
+        render_experiment_result,
         render_resultado_experimento,
     )
 
-    render_layout_resultados(
+    render_results_layout(
         hay_individuales=bool(individuales),
         hay_comparativa=hay_experimento,
         render_individuales_fn=lambda: _render_single_models(individuales),
-        render_comparativa_fn=lambda: render_resultado_experimento(mostrar_figura, solo_comparacion=True),
+        render_comparativa_fn=lambda: render_experiment_result(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación.",
         clave_contexto="clasificacion",
     )
@@ -294,7 +321,7 @@ def _diagnostic(
     c2.metric("Precisión macro", f"{resultado.metricas['precision']['macro']:.4f}")
     c3.metric("Tasa de verdaderos macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
-    metricas_clase = _metricas_por_clase(resultado)
+    metricas_clase = _metrics_by_class(resultado)
     st.markdown(f"**{t('sup_tasa_verdaderos', 'Tasa de verdaderos por clase')}**")
     st.dataframe(
         pd.DataFrame(
@@ -330,18 +357,18 @@ def _diagnostic(
                 key=f"{prefijo}_distribucion_estratificada",
             )
     with st.expander("Parámetros y metadatos"):
-        tab_params, tab_meta = _obtener_pestanas(
+        tab_params, tab_meta = _get_tabs(
             ["Parámetros del modelo", "Metadatos de ejecución"]
         )
         with tab_params:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 getattr(resultado, "parametros", resultado.modelo.get_params()),
                 columna_clave="Parámetro",
                 columna_valor="Valor configurado",
                 vacio_mensaje="No se registraron parámetros específicos para este modelo.",
             )
         with tab_meta:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 getattr(resultado, "metadatos", {}),
                 columna_clave="Metadato",
                 columna_valor="Detalle",

@@ -7,24 +7,49 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
+    build_model_files,
+    build_experiment_zip,
     construir_archivos_modelo,
     construir_zip_experimento,
 )
 from ai_framework.ui.controllers.regression_controller import (
+    common_arguments,
+    create_regressor,
+    execution_snapshot,
     argumentos_comunes,
     crear_regresor,
     snapshot_ejecucion,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.views.navigation import mostrar_faltantes
-from ai_framework.ui.views.theme import _obtener_pestanas, render_tabla_clave_valor
-from ai_framework.ui.views.controls_view import parametros_regresion
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.views.navigation import (
+    show_missing_data,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
+from ai_framework.ui.views.controls_view import (
+    regression_parameters,
+    parametros_regresion,
+)
 from ai_framework.utils.supervised.regression_config import (
     ALGORITMOS_LAB3,
     NOMBRES_REGRESORES,
 )
-from ai_framework.utils.visualization import VisualizadorRegresion
+from ai_framework.utils.visualization import (
+    RegressionVisualizer,
+    VisualizadorRegresion,
+)
 
 
 def safe_regression_preparation() -> bool:
@@ -59,17 +84,17 @@ def display_model_result(
         width="stretch",
     )
     mostrar_figura(
-        VisualizadorRegresion.real_predicho(resultado),
+        RegressionVisualizer.real_predicho(resultado),
         key=f"{clave}_real",
         alt="Dispersión de valores reales y predichos en prueba; la diagonal indica predicción perfecta.",
     )
     mostrar_figura(
-        VisualizadorRegresion.residuos(resultado),
+        RegressionVisualizer.residuos(resultado),
         key=f"{clave}_residuos",
         alt="Residuos frente a predicción en prueba, con referencia horizontal en cero.",
     )
     with st.expander("Contexto ejecutado, parámetros y trazabilidad"):
-        tab_params, tab_meta, tab_args, tab_data = _obtener_pestanas(
+        tab_params, tab_meta, tab_args, tab_data = _get_tabs(
             [
                 "Parámetros del modelo",
                 "Metadatos",
@@ -78,37 +103,37 @@ def display_model_result(
             ]
         )
         with tab_params:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 resultado.parametros,
                 columna_clave="Parámetro",
                 columna_valor="Valor configurado",
             )
         with tab_meta:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 resultado.metadatos,
                 columna_clave="Metadato",
                 columna_valor="Detalle",
             )
         with tab_args:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 snapshot.get("argumentos", {}),
                 columna_clave="Argumento",
                 columna_valor="Valor",
             )
         with tab_data:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 snapshot.get("dataset", {}),
                 columna_clave="Propiedad",
                 columna_valor="Detalle",
             )
-    archivos = construir_archivos_modelo(
+    archivos = build_model_files(
         resultado,
         argumentos=snapshot["argumentos"],
         dataset=snapshot["dataset"],
     )
     st.download_button(
         t("sup_descargar_evidencia", "Descargar evidencia del modelo (ZIP)"),
-        construir_zip_experimento(archivos),
+        build_experiment_zip(archivos),
         file_name=f"lab03_{resultado.algoritmo}.zip",
         mime="application/zip",
         key=f"{clave}_zip",
@@ -127,8 +152,8 @@ def render_regression_model(
 ) -> None:
     """Render controls and execute training of an individual regressor."""
     segura = safe_regression_preparation()
-    parametros = parametros_regresion(algoritmo)
-    disponibilidad = disponibilidad_supervisada(
+    parametros = regression_parameters(algoritmo)
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "regresion",
@@ -136,7 +161,7 @@ def render_regression_model(
         parametros=parametros,
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
+    show_missing_data(disponibilidad)
     clave = f"resultado_lab3_modelo_{algoritmo}"
     error = f"error_lab3_modelo_{algoritmo}"
     sin_simple = algoritmo == "RLS" and configuracion["feature_simple"] is None
@@ -156,14 +181,14 @@ def render_regression_model(
     ):
         try:
             with st.spinner("Ajustando regresión solo con entrenamiento…"):
-                resultado = crear_regresor(
+                resultado = create_regressor(
                     datos, configuracion, algoritmo=algoritmo
                 ).entrenar(
                     algoritmo=algoritmo,
-                    **argumentos_comunes(configuracion),
+                    **common_arguments(configuracion),
                     **parametros,
                 )
-            st.session_state[clave] = snapshot_ejecucion(
+            st.session_state[clave] = execution_snapshot(
                 resultado, datos, configuracion, parametros
             )
             st.session_state.pop(error, None)
@@ -176,11 +201,11 @@ def render_regression_model(
         )
     snapshot = st.session_state.get(clave)
     if snapshot:
-        if snapshot["firma_parametros"] != firma_parametros(parametros):
+        if snapshot["firma_parametros"] != parameters_fingerprint(parametros):
             st.info(
                 "Parámetros modificados sin ejecutar. Se muestra la última ejecución exitosa, no estos ajustes pendientes."
             )
-        mostrar_resultado_modelo(
+        display_model_result(
             snapshot, mostrar_figura, clave=f"lab3_{algoritmo}"
         )
     else:
@@ -211,10 +236,13 @@ def render_regression_results(
         return
 
     from ai_framework.ui.views.results_view import (
+        render_results_layout,
         render_layout_resultados,
+        render_individual_models_panel,
         render_panel_modelos_individuales,
     )
     from ai_framework.ui.views.regression_experiments_view import (
+        display_saved_experiment,
         mostrar_experimento_guardado,
     )
 
@@ -235,17 +263,17 @@ def render_regression_results(
             )
             modelos_params.append((nombre, getattr(res, "parametros", {})))
 
-        render_panel_modelos_individuales(
+        render_individual_models_panel(
             pd.DataFrame(filas),
             modelos_params,
             titulo="Modelos entrenados individualmente",
         )
 
-    render_layout_resultados(
+    render_results_layout(
         hay_individuales=bool(snapshots),
         hay_comparativa=hay_experimento,
         render_individuales_fn=_render_regression_table,
-        render_comparativa_fn=lambda: mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True),
+        render_comparativa_fn=lambda: display_saved_experiment(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay modelos entrenados en este contexto.",
         clave_contexto="regresion",
     )

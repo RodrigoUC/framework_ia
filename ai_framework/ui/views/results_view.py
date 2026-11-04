@@ -7,7 +7,12 @@ import pandas as pd
 import streamlit as st
 
 from ai_framework.ui.i18n import t
-from ai_framework.ui.views.theme import _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.views.theme import (
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 
 
 def render_individual_models_panel(
@@ -27,16 +32,16 @@ def render_individual_models_panel(
             col_param = t("res_parametro", "Hiperparámetro")
             col_val = t("res_valor", "Valor configurado")
             if len(nombres) == 1:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     modelos_params[0][1],
                     columna_clave=col_param,
                     columna_valor=col_val,
                 )
             else:
-                tabs = _obtener_pestanas(nombres)
+                tabs = _get_tabs(nombres)
                 for tab, (nombre, params) in zip(tabs, modelos_params):
                     with tab:
-                        render_tabla_clave_valor(
+                        render_key_value_table(
                             params,
                             columna_clave=col_param,
                             columna_valor=col_val,

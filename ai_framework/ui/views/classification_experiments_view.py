@@ -235,15 +235,15 @@ def render_classification_experiments(
         "validation_size": validation_size,
         "estrategia": estrategia,
     }
-    firma = firma_parametros(opciones)
-    disponibilidad = disponibilidad_supervisada(
+    firma = parameters_fingerprint(opciones)
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "clasificacion",
         experimento={**opciones, "folds": FOLDS_LAB2},
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
+    show_missing_data(disponibilidad)
     ejecutar = st.button(
         t("res_ejecutar_evaluacion", "Ejecutar evaluación comparativa"),
         key="lab2_benchmark_ejecutar",
@@ -259,26 +259,26 @@ def render_classification_experiments(
                 "Evaluando y comparando modelos con validación cruzada…"
             ):
                 argumentos = {
-                    **_argumentos_comunes(configuracion),
+                    **_common_arguments(configuracion),
                     "metrica": metrica,
                 }
                 if estrategia == "cv":
                     argumentos.update(estrategia="cv", folds=FOLDS_LAB2)
                 elif validation_size is not None:
                     argumentos["validation_size"] = validation_size
-                resultado = _modelo(datos, configuracion).experimentar(
+                resultado = _create_model(datos, configuracion).experimentar(
                     algoritmos=list(ALGORITMOS_LAB2),
                     configuraciones=catalogo,
                     **argumentos,
                 )
-            fuente = _fuente_ejecutada(datos)
+            fuente = _executed_source(datos)
             snapshot = {
                 "resultado": resultado,
                 "contexto": deepcopy(contexto),
                 "firma": firma,
                 "opciones": opciones,
                 "fuente": fuente,
-                "argumentos": _argumentos_exportacion(
+                "argumentos": _export_arguments(
                     configuracion, opciones, fuente
                 ),
                 "versiones": {
@@ -314,7 +314,7 @@ def render_classification_experiments(
                 t("btn_ir_a_res_clasif", "Ir a Resultados de clasificación"),
                 key="btn_ir_a_resultados_clasificacion",
                 type="primary",
-                on_click=ir_a,
+                on_click=go_to,
                 args=("lab2_resultados",),
             )
         with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
@@ -400,7 +400,7 @@ def render_experiment_result(
             f"**Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
         )
     st.markdown(f"#### {t('sup_test_reservada', 'Prueba reservada · ganadores seleccionados')}")
-    _mostrar_dataframe(
+    _display_dataframe(
         pd.DataFrame(
             [
                 {
@@ -495,7 +495,7 @@ def _validation_table(tabla: pd.DataFrame) -> None:
     """Display candidate table evaluated during validation with serialized parameters."""
     vista = tabla.copy()
     vista["parametros"] = vista["parametros"].map(_json)
-    _mostrar_dataframe(
+    _display_dataframe(
         vista,
         alt="Configuraciones y parámetros efectivos, métricas de validación, selección, estado y errores",
         hide_index=True,
@@ -514,13 +514,13 @@ def _render_downloads(
     )
     try:
         if "archivos" not in guardado:
-            archivos = construir_archivos_experimento(
+            archivos = build_experiment_files(
                 guardado["resultado"],
                 argumentos=guardado["argumentos"],
                 dataset=guardado["fuente"],
                 versiones=guardado["versiones"],
             )
-            zip_evidencia = construir_zip_experimento(archivos)
+            zip_evidencia = build_experiment_zip(archivos)
             guardado.update(archivos=archivos, zip=zip_evidencia)
         archivos = guardado["archivos"]
         st.download_button(
@@ -548,17 +548,17 @@ def _render_downloads(
             "ZIP con configuración, comparación, ganadores y matrices/predicciones de prueba. Usa el mismo formato que la CLI."
         )
         with st.expander("Configuración ejecutada y reproducibilidad"):
-            tab_meta, tab_fuente = _obtener_pestanas(
+            tab_meta, tab_fuente = _get_tabs(
                 ["Metadatos del experimento", "Fuente de datos"]
             )
             with tab_meta:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     guardado["resultado"].metadatos,
                     columna_clave="Metadato",
                     columna_valor="Detalle",
                 )
             with tab_fuente:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     guardado.get("fuente", {}),
                     columna_clave="Propiedad",
                     columna_valor="Detalle",

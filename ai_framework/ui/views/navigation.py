@@ -384,7 +384,7 @@ def show_workflow_guide(
             st.button(
                 t("configurar_tarea", "Configurar tarea"),
                 key="flujo_configurar",
-                on_click=ir_a,
+                on_click=go_to,
                 args=("configuracion",),
             )
         return
@@ -421,7 +421,7 @@ def show_workflow_guide(
                 t("flujo_continuar_modelo", "Continuar a un modelo"),
                 key="flujo_continuar",
                 disabled=not disponibilidad.lista,
-                on_click=ir_a,
+                on_click=go_to,
                 args=(destino,),
             )
     else:
@@ -431,7 +431,7 @@ def show_workflow_guide(
             st.button(
                 t("flujo_revisar_config", "Revisar configuración"),
                 key="flujo_corregir",
-                on_click=ir_a,
+                on_click=go_to,
                 args=("configuracion",),
             )
         if not consultando and hay_evidencia(st.session_state, familia):
@@ -442,7 +442,7 @@ def show_workflow_guide(
                 st.button(
                     t("flujo_revisar_resultados", "Revisar resultados guardados"),
                     key="flujo_resultados",
-                    on_click=ir_a,
+                    on_click=go_to,
                     args=(destino_res,),
                 )
 
