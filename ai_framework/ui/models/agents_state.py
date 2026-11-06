@@ -1,46 +1,72 @@
-"""Invalidación de sesiones de agentes independiente de los widgets."""
+"""Invalidation of agent sessions, independent of the widgets."""
 
 from __future__ import annotations
 
-from ai_framework.ui.models.session_state import huella_datos
+from ai_framework.ui.models.session_state import firma_parametros, huella_datos
 
-CLAVES_EDA = ("agentes_sesion", "error_agentes", "agentes_contexto")
-CLAVES_CLUSTERING = (
-    "agente_clustering_sesion",
-    "error_agente_clustering",
-    "agente_clustering_contexto",
+EDA_KEYS = ("agent_eda_session", "agent_eda_error", "agent_eda_context")
+CLUSTERING_KEYS = (
+    "agent_clustering_session",
+    "agent_clustering_error",
+    "agent_clustering_context",
 )
+SUPERVISED_KEYS = {
+    family: (f"agent_{family}_session", f"agent_{family}_error", f"agent_{family}_context")
+    for family in ("regression", "classification")
+}
 
 
-def _limpiar(estado, claves) -> None:
-    for clave in claves:
-        estado.pop(clave, None)
+def _clear(state, keys) -> None:
+    for key in keys:
+        state.pop(key, None)
 
 
-def limpiar_resultados_agentes(estado) -> None:
-    """Descarta pizarras, hallazgos y conversaciones sin alterar los controles."""
-    _limpiar(estado, (*CLAVES_EDA, *CLAVES_CLUSTERING))
+def clear_agent_results(state) -> None:
+    """Discards blackboards, findings and conversations without touching the controls."""
+    _clear(state, (*EDA_KEYS, *CLUSTERING_KEYS, *(k for keys in SUPERVISED_KEYS.values() for k in keys)))
 
 
-def sincronizar_contexto_agentes(estado, datos) -> tuple:
-    """Una sesión de agentes sólo es válida para el dataset con que se inició."""
-    firma = (estado.get("dataset_identidad"), huella_datos(datos))
-    if estado.get("agentes_contexto") != firma:
-        _limpiar(estado, CLAVES_EDA)
-        estado["agentes_contexto"] = firma
-    return firma
+def sync_eda_agent_context(state, data) -> tuple:
+    """An EDA agent session is only valid for the dataset it was started with."""
+    signature = (state.get("dataset_identidad"), huella_datos(data))
+    if state.get("agent_eda_context") != signature:
+        _clear(state, EDA_KEYS)
+        state["agent_eda_context"] = signature
+    return signature
 
 
-def sincronizar_contexto_clustering(estado, datos, configuracion: dict) -> tuple:
-    """Cambiar variables, escalado o muestra invalida la partición recomendada."""
-    firma = (
-        estado.get("dataset_identidad"),
-        huella_datos(datos),
-        tuple(configuracion["features"]),
-        configuracion["incluir_categoricas"],
-        configuracion["estandarizar"],
+def sync_clustering_agent_context(state, data, config: dict) -> tuple:
+    """Changing variables, scaling or the sample invalidates the recommended partition."""
+    signature = (
+        state.get("dataset_identidad"),
+        huella_datos(data),
+        tuple(config["features"]),
+        config["incluir_categoricas"],
+        config["estandarizar"],
     )
-    if estado.get("agente_clustering_contexto") != firma:
-        _limpiar(estado, CLAVES_CLUSTERING)
-        estado["agente_clustering_contexto"] = firma
-    return firma
+    if state.get("agent_clustering_context") != signature:
+        _clear(state, CLUSTERING_KEYS)
+        state["agent_clustering_context"] = signature
+    return signature
+
+
+def _config_signature(config: dict) -> tuple:
+    """Every control plus the indices of an external partition, if one is used."""
+    partition = config.get("particion_global")
+    indices = None
+    if partition is not None:
+        indices = tuple(
+            tuple(getattr(partition, name).index) if getattr(partition, name) is not None else ()
+            for name in ("train", "test", "validacion")
+        )
+    return firma_parametros({k: v for k, v in config.items() if k != "particion_global"}), indices
+
+
+def sync_supervised_agent_context(state, data, config: dict, family: str) -> tuple:
+    """Changing the target, features or split invalidates the recommended model."""
+    session_key, _, context_key = SUPERVISED_KEYS[family]
+    signature = (state.get("dataset_identidad"), huella_datos(data), _config_signature(config))
+    if state.get(context_key) != signature:
+        _clear(state, SUPERVISED_KEYS[family])
+        state[context_key] = signature
+    return signature

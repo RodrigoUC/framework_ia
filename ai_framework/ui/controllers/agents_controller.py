@@ -1,4 +1,4 @@
-"""Controlador de casos de uso de los agentes de IA de cada sección."""
+"""Use-case controller for the AI agents of each section."""
 
 from __future__ import annotations
 
@@ -7,64 +7,121 @@ import os
 import pandas as pd
 
 from ai_framework.agents import (
-    CLUSTERING_SOLICITADO,
-    DATASET_CARGADO,
+    CLASSIFICATION_REQUESTED,
+    CLUSTERING_REQUESTED,
+    DATASET_LOADED,
+    REGRESSION_REQUESTED,
     Blackboard,
+    ClassificationAgent,
     ClusteringAgent,
     EDAAgent,
     Event,
     EventBus,
-    crear_proveedor,
+    RegressionAgent,
+    create_provider,
 )
-from ai_framework.utils.agents import PROVEEDOR_SIN_LLM, PROVEEDORES_LLM
-from ai_framework.utils.results import SugerenciaModelado
+from ai_framework.utils.agents import LLM_PROVIDERS, RULES_ONLY
+from ai_framework.utils.results import ModelingSuggestion
 
 
-def proveedor_por_defecto() -> str:
-    """El primer proveedor con key en el entorno; si no hay, sólo reglas."""
-    for codigo, proveedor in PROVEEDORES_LLM.items():
-        if proveedor.variable_clave and os.environ.get(proveedor.variable_clave):
-            return codigo
-    return PROVEEDOR_SIN_LLM
+def default_provider() -> str:
+    """The first provider with a key in the environment; rules only if there is none."""
+    for code, provider in LLM_PROVIDERS.items():
+        if provider.key_variable and os.environ.get(provider.key_variable):
+            return code
+    return RULES_ONLY
 
 
-def iniciar_agente_eda(datos: pd.DataFrame, etiqueta: str, opciones: dict) -> dict:
-    """Ejecuta el agente de exploración y devuelve su sesión, sin la API key."""
-    llm = crear_proveedor(opciones["proveedor"], opciones["modelo"], opciones["api_key"])
-    # El origen llega al LLM: sólo el nombre del archivo, nunca la ruta local.
-    pizarra = Blackboard(datos, target=opciones["target"], origen=etiqueta)
+def start_eda_agent(
+    data: pd.DataFrame, label: str, options: dict, *, language: str = "es", on_progress=None
+) -> dict:
+    """Runs the exploration agent and returns its session, without the API key."""
+    llm = create_provider(options["provider"], options["model"], options["api_key"])
+    # The source reaches the LLM: only the file name, never the local path.
+    blackboard = Blackboard(data, target=options["target"], source=label)
     bus = EventBus()
-    agente = EDAAgent(pizarra, llm).conectar(bus)
-    bus.emitir(Event(DATASET_CARGADO))
+    agent = EDAAgent(blackboard, llm, language=language, on_progress=on_progress).connect(bus)
+    bus.emit(Event(DATASET_LOADED))
     return {
-        "opciones": {k: v for k, v in opciones.items() if k != "api_key"},
-        "pizarra": pizarra,
-        "agente": agente,
+        "options": {k: v for k, v in options.items() if k != "api_key"},
+        "blackboard": blackboard,
+        "agent": agent,
         "bus": bus,
     }
 
 
-def iniciar_agente_clustering(
-    muestra: pd.DataFrame, configuracion: dict, etiqueta: str, opciones: dict
+def start_clustering_agent(
+    sample: pd.DataFrame, config: dict, label: str, options: dict, *, language: str = "es",
+    on_progress=None,
 ) -> dict:
-    """Ejecuta el agente de agrupamiento con la configuración de la sección Clustering."""
-    llm = crear_proveedor(opciones["proveedor"], opciones["modelo"], opciones["api_key"])
-    pizarra = Blackboard(muestra, origen=etiqueta)
+    """Runs the clustering agent with the settings of the Clustering section."""
+    llm = create_provider(options["provider"], options["model"], options["api_key"])
+    blackboard = Blackboard(sample, source=label)
     bus = EventBus()
-    agente = ClusteringAgent(
-        pizarra,
+    agent = ClusteringAgent(
+        blackboard,
         llm,
-        features=configuracion["features"],
-        incluir_categoricas=configuracion["incluir_categoricas"],
-        estandarizar=configuracion["estandarizar"],
-    ).conectar(bus)
-    bus.emitir(Event(CLUSTERING_SOLICITADO))
-    return {"pizarra": pizarra, "agente": agente, "bus": bus}
+        features=config["features"],
+        include_categorical=config["incluir_categoricas"],
+        standardize=config["estandarizar"],
+        language=language,
+        on_progress=on_progress,
+    ).connect(bus)
+    bus.emit(Event(CLUSTERING_REQUESTED))
+    return {"blackboard": blackboard, "agent": agent, "bus": bus}
 
 
-def aplicar_sugerencia_modelado(estado, sugerencia: SugerenciaModelado) -> None:
-    """Lleva la sugerencia a Configuración; no entrena modelos."""
-    estado["sup_tarea"] = sugerencia.tarea
-    estado["sup_target"] = sugerencia.target
-    estado["sup_features"] = list(sugerencia.features)
-    estado["vista_activa"] = "configuracion"
+def apply_modeling_suggestion(state, suggestion: ModelingSuggestion) -> None:
+    """Carries the suggestion over to Settings; it does not train models."""
+    state["sup_tarea"] = suggestion.task
+    state["sup_target"] = suggestion.target
+    state["sup_features"] = list(suggestion.features)
+    state["vista_activa"] = "configuracion"
+
+
+def _supervised_options(config: dict) -> dict:
+    """Maps the shared Settings controls onto the supervised agents' arguments."""
+    return {
+        "features": config["features"],
+        "test_size": config["test_size"],
+        "random_state": config["random_state"],
+        "include_categorical": config["incluir_categoricas"],
+        "impute": config["imputar"],
+        "standardize": config["estandarizar"],
+        "partition": config.get("particion_global"),
+    }
+
+
+def _start_supervised_agent(
+    agent_class, event_type, data, config, label, options, *, language="es", on_progress=None,
+    **extra,
+) -> dict:
+    llm = create_provider(options["provider"], options["model"], options["api_key"])
+    blackboard = Blackboard(data, target=config["target"], source=label)
+    bus = EventBus()
+    agent = agent_class(
+        blackboard, llm, language=language, on_progress=on_progress,
+        **_supervised_options(config), **extra,
+    ).connect(bus)
+    bus.emit(Event(event_type))
+    return {"blackboard": blackboard, "agent": agent, "bus": bus}
+
+
+def start_regression_agent(
+    data: pd.DataFrame, config: dict, label: str, options: dict, **progress
+) -> dict:
+    """Runs the regression agent with the target, features and split from Settings."""
+    return _start_supervised_agent(
+        RegressionAgent, REGRESSION_REQUESTED, data, config, label, options,
+        simple_feature=config.get("feature_simple"), **progress,
+    )
+
+
+def start_classification_agent(
+    data: pd.DataFrame, config: dict, label: str, options: dict, **progress
+) -> dict:
+    """Runs the classification agent with the target, features and split from Settings."""
+    return _start_supervised_agent(
+        ClassificationAgent, CLASSIFICATION_REQUESTED, data, config, label, options,
+        stratify=config["estratificar"], **progress,
+    )

@@ -109,8 +109,8 @@ La preparación no descarga datos ni entrena.
 
 ## Agentes IA
 
-Cada sección tiene su agente: **Exploración de datos → Agente IA** y
-**Clustering → Agente IA**. Elija el modelo de lenguaje (o **Sin LLM**) y pulse
+Cada sección tiene su agente: **Exploración de datos**, **Clustering**,
+**Clasificación** y **Regresión → Agente IA**. Elija el modelo de lenguaje (o **Sin LLM**) y pulse
 **Iniciar agente**; en Exploración también puede indicar la variable objetivo.
 Sin interfaz:
 

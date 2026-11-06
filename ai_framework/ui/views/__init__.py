@@ -29,8 +29,10 @@ vista_regresion = regression_view
 vista_resultados = results_view
 
 from ai_framework.ui.views.agents_view import (
-    render_agente_clustering,
-    render_agente_eda,
+    render_classification_agent,
+    render_clustering_agent,
+    render_eda_agent,
+    render_regression_agent,
 )
 from ai_framework.ui.views.navigation import (
     _render_encabezado_atlas,
@@ -158,8 +160,10 @@ __all__ = [
     "parametros_regresion",
     "preparacion_regresion_segura",
     "preparacion_segura",
-    "render_agente_clustering",
-    "render_agente_eda",
+    "render_classification_agent",
+    "render_clustering_agent",
+    "render_eda_agent",
+    "render_regression_agent",
     "render_experimentos",
     "render_experimentos_regresion",
     "render_modelo_individual",

@@ -36,9 +36,10 @@ from ai_framework.ui.models.view_catalog import (
     VISTAS_REGRESORES,
 )
 from ai_framework.ui.models.agents_state import (
-    limpiar_resultados_agentes,
-    sincronizar_contexto_agentes,
-    sincronizar_contexto_clustering,
+    clear_agent_results,
+    sync_clustering_agent_context,
+    sync_eda_agent_context,
+    sync_supervised_agent_context,
 )
 from ai_framework.ui.models.availability import (
     Disponibilidad,
@@ -107,12 +108,13 @@ __all__ = [
     "hay_evidencia",
     "huella_datos",
     "inicializar_configuracion",
-    "limpiar_resultados_agentes",
+    "clear_agent_results",
     "limpiar_resultados_clasificacion",
     "limpiar_resultados_regresion",
     "sincronizar_contexto",
-    "sincronizar_contexto_agentes",
-    "sincronizar_contexto_clustering",
+    "sync_clustering_agent_context",
+    "sync_eda_agent_context",
+    "sync_supervised_agent_context",
     "sincronizar_contexto_regresion",
     "sincronizar_ejecucion",
     "state_value",

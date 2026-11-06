@@ -18,6 +18,7 @@ VISTAS_REGRESION = {
     "lab3_benchmark",
     "lab3_comparacion",
     "lab3_resultados",
+    "regression_agent",
 }
 
 PALETA = {
@@ -37,7 +38,7 @@ PALETA_OSCURA = {
     "borde": "#556158",
 }
 
-VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac", "clustering_agente"}
+VISTAS_NO_SUPERVISADAS = {"acp", "kmeans", "kmedoids", "hac", "clustering_agent"}
 
 VISTAS_CLASIFICADORES = {
     "clasificacion": "RF",
@@ -55,8 +56,8 @@ TITULOS_VISTA = {
     "kmeans": "K-Means",
     "kmedoids": "K-Medoids",
     "hac": "Clustering jerárquico",
-    "eda_agente": "Agente EDA",
-    "clustering_agente": "Agente de clustering",
+    "eda_agent": "Agente EDA",
+    "clustering_agent": "Agente de clustering",
     "clasificacion": "Random Forest",
     "clasificacion_knn": "KNN",
     "clasificacion_dt": "Árbol de decisión",
@@ -71,6 +72,8 @@ TITULOS_VISTA = {
     "lab3_benchmark": "Evaluación Comparativa de Modelos",
     "lab3_comparacion": "Comparar modelos entrenados",
     "lab3_resultados": "Resultados de regresión",
+    "regression_agent": "Agente de regresión",
+    "classification_agent": "Agente de clasificación",
 }
 
 RUTAS_VISTA = {
@@ -80,8 +83,8 @@ RUTAS_VISTA = {
     "kmeans": "Clustering / K-Means",
     "kmedoids": "Clustering / K-Medoids",
     "hac": "Clustering / HAC",
-    "eda_agente": "Exploración / Agente IA",
-    "clustering_agente": "Clustering / Agente IA",
+    "eda_agent": "Exploración / Agente IA",
+    "clustering_agent": "Clustering / Agente IA",
     "clasificacion": "Clasificación / Random Forest",
     "clasificacion_knn": "Clasificación / KNN",
     "clasificacion_dt": "Clasificación / Árbol de decisión",
@@ -96,6 +99,7 @@ RUTAS_VISTA = {
     "lab3_benchmark": "Regresión / Evaluación Comparativa de Modelos",
     "lab3_comparacion": "Regresión / Comparar modelos entrenados",
     "lab3_resultados": "Resultados / Regresión / Validación y prueba",
+    "classification_agent": "Clasificación / Agente IA",
 }
 
 TAREAS = {"clasificacion": "Clasificación", "regresion": "Regresión"}

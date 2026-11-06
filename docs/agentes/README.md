@@ -12,14 +12,17 @@ Sigue las mismas capas que el resto del framework:
 | Capa | Módulo | Rol |
 | --- | --- | --- |
 | Núcleo | `ai_framework/agents/blackboard.py` | `Blackboard(EDA)` (alias `Pizarra`): estado compartido; los agentes usan los métodos de `EDA` |
-| Núcleo | `ai_framework/agents/agent.py` | `Agent(ABC)` (alias `Agente`): ciclo preparar → proponer → reaccionar → siguientes |
-| Núcleo | `ai_framework/agents/eda_agent.py` | `EDAAgent` (alias `AgenteEDA`): reglas proactivas y `sugerir_configuracion()` |
+| Núcleo | `ai_framework/agents/agent.py` | `Agent(ABC)` (alias `Agente`): ciclo `prepare` → `propose` → `react` → `next_events` |
+| Núcleo | `ai_framework/agents/eda_agent.py` | `EDAAgent` (alias `AgenteEDA`): reglas proactivas y `suggest_configuration()` |
 | Núcleo | `ai_framework/agents/clustering_agent.py` | `ClusteringAgent` (alias `AgenteClustering`): compara K-Means y HAC-ward y describe los grupos |
+| Núcleo | `ai_framework/agents/supervised_agent.py` | `SupervisedAgent`: benchmark con validación cruzada y reglas comunes |
+| Núcleo | `ai_framework/agents/regression_agent.py` | `RegressionAgent` (alias `AgenteRegresion`): mejor regresor por RMSE |
+| Núcleo | `ai_framework/agents/classification_agent.py` | `ClassificationAgent` (alias `AgenteClasificacion`): mejor clasificador por F1 macro |
 | Núcleo | `ai_framework/agents/tools/` | Funciones del framework expuestas al LLM con esquema JSON |
-| Núcleo | `ai_framework/agents/events.py` | `EventBus`: `DATASET_CARGADO` → `EDA_LISTO` → … |
-| Núcleo | `ai_framework/agents/llm/` | Proveedor compatible con OpenAI y `ProveedorFalso` para pruebas |
-| Resultados | `ai_framework/utils/results.py` | `Hallazgo`, `SugerenciaModelado` y `SugerenciaClustering` (inmutables) |
-| Configuración | `ai_framework/utils/agents/agent_config.py` | Proveedores, agentes, `UmbralesEDA` y `UmbralesClustering`, sin Streamlit |
+| Núcleo | `ai_framework/agents/events.py` | `EventBus`: `DATASET_LOADED` → `EDA_DONE` → … |
+| Núcleo | `ai_framework/agents/llm/` | `OpenAICompatibleProvider` y `FakeLLMProvider` para pruebas |
+| Resultados | `ai_framework/utils/results.py` | `Finding`, `ModelingSuggestion` y `ClusteringSuggestion` (inmutables; alias `Hallazgo`, `SugerenciaModelado`, `SugerenciaClustering`) |
+| Configuración | `ai_framework/utils/agents/agent_config.py` | Proveedores, agentes, `EDAThresholds` y `ClusteringThresholds`, sin Streamlit |
 | Interfaz | `ai_framework/ui/controllers/agents_controller.py` | Casos de uso: iniciar agentes y aplicar sugerencias |
 | Interfaz | `ai_framework/ui/models/agents_state.py` | Invalidación de sesiones por dataset y configuración |
 | Interfaz | `ai_framework/ui/views/agents_view.py` | Controles y vistas; los textos están en `ui/i18n.py` |
@@ -45,13 +48,48 @@ grupo en desviaciones estándar; de los grupos con menos de tres filas sólo rec
 el tamaño. Las asignaciones por fila no se envían.
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --agente clustering
+.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --agent clustering
 ```
+
+## Agentes de regresión y clasificación
+
+Están en **Regresión → Agente IA** y **Clasificación → Agente IA**, y usan el
+target, las predictoras y la partición de **Configuración**. Sólo entrenan al
+pulsar **Iniciar agente**. Corren el mismo benchmark del framework con validación
+cruzada de 5 pliegues dentro de train: regresión evalúa los nueve regresores con
+su catálogo de configuraciones; clasificación evalúa una configuración estándar
+de cada uno de los siete clasificadores (la búsqueda completa de hiperparámetros
+sigue en **Evaluación Comparativa**). La prueba sólo evalúa al ganador.
+
+Reglas proactivas comunes: candidatos que fallaron y pocas filas de entrenamiento
+por variable. Regresión: R² de prueba ≤ 0 (no supera a la media), R² débil,
+sobreajuste (R² de train muy por encima del de prueba), RMSE inestable entre
+pliegues y prueba alejada de la validación. Clasificación: accuracy que no supera
+a la clase mayoritaria, sobreajuste en F1 macro, accuracy inflada por desbalance,
+clases que se detectan menos de la mitad de las veces y F1 inestable entre
+pliegues. Los umbrales están en `SupervisedThresholds`.
+
+Herramientas del LLM: ranking de candidatos, entrenar un algoritmo con la misma
+partición, importancia de variables y residuos (regresión) o matriz de confusión
+(clasificación). Al LLM sólo llegan métricas y resúmenes, no predicciones por fila.
+
+Encadenamiento: los dos escuchan también `EDA_DONE`. Si el agente EDA detecta la
+tarea, el agente que corresponde entrena con las predictoras que el EDA no
+desaconsejó. En la CLI se activa con `--agent pipeline`:
+
+```powershell
+.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --target y --agent regression
+.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --target y --agent pipeline
+```
+
+En ese modo la exclusión es automática: una predictora legítima con |r| ≥ 0.98
+con el target también queda fuera por la regla de fuga. Revise los hallazgos
+del EDA antes de confiar en el modelo.
 
 ## Proveedores
 
 `gemini`, `groq`, `openrouter` y `ollama` usan el mismo cliente `openai` con
-otra `base_url`. `reglas` trabaja sin red ni API key.
+otra `base_url`. `rules` trabaja sin red ni API key.
 
 ```powershell
 $env:GEMINI_API_KEY = "su-key"
@@ -70,21 +108,43 @@ Configuración con tarea, target y predictoras; no entrena.
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.ejecutar_agentes data/lab03/concrete/concrete.csv --target strength
-.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --target y --proveedor gemini --interactivo
+.venv\Scripts\python.exe -m scripts.ejecutar_agentes datos.csv --target y --provider gemini --interactive
 ```
+
+Los flags en español (`--agente`, `--proveedor reglas`, `--interactivo`…) siguen
+funcionando como alias.
 
 Cada llamada al LLM se imprime en la consola donde corre Streamlit o el script:
 los mensajes enviados, la respuesta o las herramientas pedidas, y los errores.
 Los esquemas de las herramientas también se envían, pero no se imprimen.
 
+## Idioma y progreso
+
+Los agentes hablan el idioma de la interfaz (selector Español/English). Los
+hallazgos, los avisos de progreso y los textos de respaldo salen de
+`ai_framework/agents/messages.py`, que tiene cada mensaje en ambos idiomas. Al
+LLM se le pide responder en ese idioma o, si el usuario escribe en otro, en el
+del usuario; el idioma se vuelve a leer antes de cada pregunta del chat. Los
+prompts de rol están en inglés y la instrucción de idioma se agrega al final.
+
+Mientras trabaja, cada agente avisa al terminar cada paso (`Agent.report`): perfil
+listo, K-Means evaluado, comparación de modelos lista, reglas aplicadas, consulta
+al LLM y cada herramienta que usa, aviso a otros agentes y fin. En la aplicación
+esos avisos aparecen en vivo en un cuadro de estado y quedan en **Actividad del
+agente**; en la CLI se imprimen con `  - `. Se elige el idioma con `--language en`
+(o `--idioma`).
+
+Para un idioma nuevo basta agregar su bloque en `MESSAGES` y su nombre en
+`LANGUAGE_NAMES`; si falta un mensaje se usa el español.
+
 ## Agregar un agente
 
-1. Herramientas en `ai_framework/agents/tools/<area>_tools.py` con `@herramienta`.
-2. Subclase de `Agent` en `ai_framework/agents/<area>_agent.py`: `escucha`,
-   `herramientas`, `proponer()` (obligatorio) y `siguientes()`. Un agente de
-   regresión, por ejemplo, escucharía `EDA_LISTO` y usaría `ejecutar_experimento`.
-3. Su `ConfiguracionAgente` en `ai_framework/utils/agents/agent_config.py`.
+1. Herramientas en `ai_framework/agents/tools/<area>_tools.py` con `@tool`.
+2. Subclase de `Agent` en `ai_framework/agents/<area>_agent.py`: `listens_to`,
+   `tools`, `propose()` (obligatorio) y `next_events()`. Un agente de
+   regresión, por ejemplo, escucharía `EDA_DONE` y usaría `ejecutar_experimento`.
+3. Su `AgentConfig` en `ai_framework/utils/agents/agent_config.py`.
 4. Caso de uso en `agents_controller.py`, vista en `agents_view.py`, ruta en
    `view_catalog.py`, botón en `navigation.py`, destino en `app.py` y textos en
    español e inglés en `i18n.py`.
-5. Pruebas con `ProveedorFalso`, sin red.
+5. Pruebas con `FakeLLMProvider`, sin red.

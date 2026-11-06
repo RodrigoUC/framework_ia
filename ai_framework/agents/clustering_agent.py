@@ -1,141 +1,137 @@
-"""Agente de agrupamiento construido sobre :class:`Agent`."""
+"""Clustering agent built on :class:`Agent`."""
 
 from __future__ import annotations
 
-from ai_framework.utils.results import Hallazgo, SugerenciaClustering
-from ai_framework.utils.agents.agent_config import UmbralesClustering
+from ai_framework.utils.results import ClusteringSuggestion, Finding
+from ai_framework.utils.agents.agent_config import ClusteringThresholds
 from ai_framework.utils.unsupervised import evaluar_hac, evaluar_kmeans
 from ai_framework.agents.agent import Agent
-from ai_framework.agents.events import CLUSTERING_LISTO, CLUSTERING_SOLICITADO, Event
+from ai_framework.agents.events import CLUSTERING_DONE, CLUSTERING_REQUESTED, Event
 from ai_framework.agents.tools.clustering_tools import (
-    HERRAMIENTAS_AGRUPAMIENTO,
-    crear_cluster,
-    resumir_resultado,
+    CLUSTERING_TOOLS,
+    create_clustering,
+    summarize_result,
 )
-from ai_framework.agents.tools.eda_tools import parece_identificador
+from ai_framework.agents.tools.eda_tools import looks_like_identifier
 
 
 class ClusteringAgent(Agent):
-    """Busca la mejor partición al solicitarse, avisa riesgos y describe los grupos."""
+    """Searches for the best partition when requested, flags risks and describes the groups."""
 
-    nombre = "clustering"
-    rol = (
-        "Eres el agente de agrupamiento de un framework de aprendizaje automático. "
-        "Usa sólo las herramientas para obtener cifras; no inventes valores. Explica "
-        "en español, en pocos párrafos, cuántos grupos conviene usar, qué tan sólida "
-        "es la estructura según silhouette y qué distingue a cada grupo. Las variables "
-        "distintivas están en desviaciones estándar respecto de la media. Los clusters "
-        "son una descripción de los datos, no categorías verdaderas: no les atribuyas "
-        "causas ni significado que las cifras no respalden."
+    name = "clustering"
+    role = (
+        "You are the clustering agent of a machine learning framework. Use only the "
+        "tools to obtain figures; never invent values. Explain, in a few paragraphs, how "
+        "many groups to use, how solid the structure is according to silhouette and what "
+        "sets each group apart. Distinctive variables are measured in standard deviations "
+        "from the mean. Clusters describe the data; they are not true categories, so do "
+        "not attribute causes or meaning the figures do not support."
     )
-    herramientas = HERRAMIENTAS_AGRUPAMIENTO
-    escucha = frozenset({CLUSTERING_SOLICITADO})
+    tools = CLUSTERING_TOOLS
+    listens_to = frozenset({CLUSTERING_REQUESTED})
 
     def __init__(
         self,
-        pizarra,
+        blackboard,
         llm=None,
         *,
         features=None,
-        incluir_categoricas: bool = False,
-        estandarizar: bool = True,
-        umbrales: UmbralesClustering | None = None,
+        include_categorical: bool = False,
+        standardize: bool = True,
+        thresholds: ClusteringThresholds | None = None,
+        **options,
     ) -> None:
-        super().__init__(pizarra, llm)
+        super().__init__(blackboard, llm, **options)
         self.features = features
-        self.incluir_categoricas = incluir_categoricas
-        self.estandarizar = estandarizar
-        self.umbrales = umbrales or UmbralesClustering()
+        self.include_categorical = include_categorical
+        self.standardize = standardize
+        self.thresholds = thresholds or ClusteringThresholds()
 
-    def preparar(self, evento: Event) -> None:
-        """Compara K-Means y HAC-ward; otros métodos suelen premiar grupos degenerados."""
-        cluster = crear_cluster(
-            self.pizarra,
+    def prepare(self, event: Event) -> None:
+        """Compares K-Means and HAC-ward; other linkages tend to reward degenerate groups."""
+        model = create_clustering(
+            self.blackboard,
             features=self.features,
-            incluir_categoricas=self.incluir_categoricas,
-            estandarizar=self.estandarizar,
+            incluir_categoricas=self.include_categorical,
+            estandarizar=self.standardize,
         )
-        matriz = cluster.preparar_matriz().matriz
-        filas = len(matriz)
-        if filas < 3:
-            raise ValueError("El agrupamiento requiere al menos tres filas.")
-        k_max = min(self.umbrales.k_max, filas - 1)
-        kmeans = evaluar_kmeans(matriz, 2, k_max)
-        ward = evaluar_hac(matriz, 2, k_max, metodos=("ward",)).dropna(subset=["silhouette"])
-        mejor_kmeans = kmeans.loc[kmeans["silhouette"].idxmax()]
-        if not ward.empty and ward["silhouette"].max() > mejor_kmeans["silhouette"]:
+        matrix = model.preparar_matriz().matriz
+        rows = len(matrix)
+        if rows < 3:
+            raise ValueError(self.text("clustering_too_few_rows"))
+        self.report("progress_clustering_matrix", rows=rows, features=matrix.shape[1])
+        k_max = min(self.thresholds.k_max, rows - 1)
+        kmeans = evaluar_kmeans(matrix, 2, k_max)
+        best_kmeans = kmeans.loc[kmeans["silhouette"].idxmax()]
+        self.report("progress_kmeans", k_max=k_max, score=round(float(best_kmeans["silhouette"]), 4))
+        ward = evaluar_hac(matrix, 2, k_max, metodos=("ward",)).dropna(subset=["silhouette"])
+        if not ward.empty:
+            self.report("progress_ward", score=round(float(ward["silhouette"].max()), 4))
+        if not ward.empty and ward["silhouette"].max() > best_kmeans["silhouette"]:
             k = int(ward.loc[ward["silhouette"].idxmax(), "k"])
-            resultado = cluster.HAC(k, metodo="ward")
+            result = model.HAC(k, metodo="ward")
         else:
-            resultado = cluster.K_means(int(mejor_kmeans["k"]))
-        self.pizarra.resultados.update(
-            resultado_cluster=resultado,
-            evaluacion_kmeans=kmeans,
-            evaluacion_ward=ward,
-            clustering=resumir_resultado(resultado),
+            result = model.K_means(int(best_kmeans["k"]))
+        self.report("progress_partition", algorithm=result.algoritmo, k=result.etiquetas.nunique())
+        self.blackboard.results.update(
+            cluster_result=result,
+            kmeans_evaluation=kmeans,
+            ward_evaluation=ward,
+            clustering=summarize_result(result),
         )
 
-    def proponer(self, evento: Event) -> list[Hallazgo]:
-        resultado = self.pizarra.resultados["resultado_cluster"]
-        resumen = self.pizarra.resultados["clustering"]
-        preparados = resultado.datos_preparados
-        hallazgos: list[Hallazgo] = []
+    def propose(self, event: Event) -> list[Finding]:
+        result = self.blackboard.results["cluster_result"]
+        summary = self.blackboard.results["clustering"]
+        prepared = result.datos_preparados
+        findings: list[Finding] = []
 
-        def registrar(nivel, mensaje, **detalle):
-            hallazgos.append(Hallazgo(self.nombre, nivel, mensaje, detalle))
+        def add(level, message, **detail):
+            findings.append(Finding(self.name, level, message, detail))
 
-        registrar("info",
-                  f"Mejor partición: {resumen['algoritmo']} con k={resumen['n_clusters']} "
-                  f"(silhouette {resumen['silhouette']}).", regla="recomendacion")
-        if resumen["silhouette"] < self.umbrales.silhouette_debil:
-            registrar("aviso",
-                      f"Silhouette {resumen['silhouette']}: no hay una estructura de grupos "
-                      "sustancial; interprete los clusters con cautela.",
-                      regla="estructura_debil")
-        for grupo in resumen["grupos"]:
-            if grupo["proporcion"] < self.umbrales.cluster_pequeno:
-                registrar("aviso",
-                          f"El cluster {grupo['cluster']} sólo tiene {grupo['tamano']} filas; "
-                          "puede ser un grupo de valores atípicos.",
-                          regla="cluster_pequeno", cluster=grupo["cluster"])
-        if not self.estandarizar and len(preparados.matriz.columns) > 1:
-            registrar("aviso",
-                      "Sin estandarizar, las variables de mayor escala dominan las distancias.",
-                      regla="sin_escalar")
-        if preparados.columnas_descartadas:
-            registrar("info",
-                      f"Se descartaron por no variar: {list(preparados.columnas_descartadas)}.",
-                      regla="descartadas")
-        for columna in preparados.columnas_origen:
-            serie = self.pizarra.datos[columna]
-            if parece_identificador(serie, self.umbrales.min_filas_identificador):
-                registrar("aviso",
-                          f"'{columna}' parece un identificador y distorsiona las distancias; "
-                          "conviene excluirla.", regla="identificador", columna=columna)
-            nulos = float(serie.isna().mean() * 100)
-            if nulos > self.umbrales.nulos:
-                registrar("aviso",
-                          f"'{columna}' tiene {nulos:.1f}% de nulos imputados con la mediana.",
-                          regla="nulos", columna=columna)
-        return hallazgos
+        add("info", self.text("clustering_recommendation", algorithm=summary["algorithm"],
+                              k=summary["n_clusters"], silhouette=summary["silhouette"]),
+            rule="recommendation")
+        if summary["silhouette"] < self.thresholds.weak_silhouette:
+            add("warning", self.text("clustering_weak", silhouette=summary["silhouette"]),
+                rule="weak_structure")
+        for group in summary["groups"]:
+            if group["share"] < self.thresholds.small_cluster:
+                add("warning", self.text("clustering_small", cluster=group["cluster"], size=group["size"]),
+                    rule="small_cluster", cluster=group["cluster"])
+        if not self.standardize and len(prepared.matriz.columns) > 1:
+            add("warning", self.text("clustering_unscaled"), rule="unscaled")
+        if prepared.columnas_descartadas:
+            add("info", self.text("clustering_dropped", columns=list(prepared.columnas_descartadas)),
+                rule="dropped")
+        for column in prepared.columnas_origen:
+            series = self.blackboard.datos[column]
+            if looks_like_identifier(series, self.thresholds.min_identifier_rows):
+                add("warning", self.text("clustering_identifier", column=column),
+                    rule="identifier", column=column)
+            nulls = float(series.isna().mean() * 100)
+            if nulls > self.thresholds.nulls:
+                add("warning", self.text("clustering_nulls", column=column, percent=nulls),
+                    rule="nulls", column=column)
+        return findings
 
-    def siguientes(self, evento: Event) -> list[Event]:
-        resumen = self.pizarra.resultados["clustering"]
+    def next_events(self, event: Event) -> list[Event]:
+        summary = self.blackboard.results["clustering"]
         return [
             Event(
-                CLUSTERING_LISTO,
-                {"algoritmo": resumen["algoritmo"], "n_clusters": resumen["n_clusters"]},
-                origen=self.nombre,
+                CLUSTERING_DONE,
+                {"algorithm": summary["algorithm"], "n_clusters": summary["n_clusters"]},
+                source=self.name,
             )
         ]
 
-    def sugerir_agrupamiento(self) -> SugerenciaClustering | None:
-        resumen = self.pizarra.resultados.get("clustering")
-        if resumen is None:
+    def suggest_clustering(self) -> ClusteringSuggestion | None:
+        summary = self.blackboard.results.get("clustering")
+        if summary is None:
             return None
-        return SugerenciaClustering(
-            resumen["algoritmo"],
-            resumen["n_clusters"],
-            resumen["silhouette"],
-            tuple(grupo["tamano"] for grupo in resumen["grupos"]),
+        return ClusteringSuggestion(
+            summary["algorithm"],
+            summary["n_clusters"],
+            summary["silhouette"],
+            tuple(group["size"] for group in summary["groups"]),
         )

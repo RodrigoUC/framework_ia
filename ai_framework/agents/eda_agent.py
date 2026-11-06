@@ -1,104 +1,109 @@
-"""Agente de análisis exploratorio construido sobre :class:`Agent`."""
+"""Exploratory analysis agent built on :class:`Agent`."""
 
 from __future__ import annotations
 
-from ai_framework.utils.results import Hallazgo, SugerenciaModelado
-from ai_framework.utils.agents.agent_config import REGLAS_EXCLUSION_EDA, UmbralesEDA
+from ai_framework.utils.results import Finding, ModelingSuggestion
+from ai_framework.utils.agents.agent_config import EDA_EXCLUSION_RULES, EDAThresholds
 from ai_framework.agents.agent import Agent
-from ai_framework.agents.events import DATASET_CARGADO, EDA_LISTO, Event
+from ai_framework.agents.events import DATASET_LOADED, EDA_DONE, Event
 from ai_framework.agents.tools.eda_tools import (
-    HERRAMIENTAS_EXPLORACION,
-    parece_identificador,
-    perfil_dataset,
+    EDA_TOOLS,
+    dataset_profile,
+    looks_like_identifier,
 )
 
 
 class EDAAgent(Agent):
-    """Perfila el dataset al cargarse, avisa problemas y habilita el modelado."""
+    """Profiles the dataset when it is loaded, flags problems and enables modeling."""
 
-    nombre = "eda"
-    rol = (
-        "Eres el agente de análisis exploratorio de un framework de aprendizaje "
-        "automático. Usa sólo las herramientas para obtener cifras; no inventes "
-        "valores. Explica en español, en pocos párrafos, la calidad del dataset, "
-        "riesgos para el modelado (nulos, atípicos, colinealidad, fuga de "
-        "información, desbalance) y el siguiente paso recomendado. Nunca sugieras "
-        "usar el conjunto de prueba para tomar decisiones."
+    name = "eda"
+    role = (
+        "You are the exploratory data analysis agent of a machine learning framework. "
+        "Use only the tools to obtain figures; never invent values. Explain, in a few "
+        "paragraphs, the quality of the dataset, the risks for modeling (nulls, outliers, "
+        "collinearity, data leakage, imbalance) and the recommended next step. Never "
+        "suggest using the test set to make decisions."
     )
-    herramientas = HERRAMIENTAS_EXPLORACION
-    escucha = frozenset({DATASET_CARGADO})
+    tools = EDA_TOOLS
+    listens_to = frozenset({DATASET_LOADED})
 
-    def __init__(self, pizarra, llm=None, *, umbrales: UmbralesEDA | None = None) -> None:
-        super().__init__(pizarra, llm)
-        self.umbrales = umbrales or UmbralesEDA()
+    def __init__(
+        self, blackboard, llm=None, *, thresholds: EDAThresholds | None = None, **options
+    ) -> None:
+        super().__init__(blackboard, llm, **options)
+        self.thresholds = thresholds or EDAThresholds()
 
-    def preparar(self, evento: Event) -> None:
-        perfil_dataset.funcion(self.pizarra)
+    def prepare(self, event: Event) -> None:
+        quality = dataset_profile.function(self.blackboard)["quality"]
+        self.report(
+            "progress_profile",
+            rows=quality["filas"],
+            columns=quality["columnas"],
+            nulls=quality["nulos"],
+            duplicates=quality["duplicados"],
+        )
 
-    def proponer(self, evento: Event) -> list[Hallazgo]:
-        perfil = self.pizarra.resultados["perfil"]
-        calidad = perfil["calidad"]
-        hallazgos: list[Hallazgo] = []
+    def propose(self, event: Event) -> list[Finding]:
+        profile = self.blackboard.results["profile"]
+        quality = profile["quality"]
+        findings: list[Finding] = []
 
-        def registrar(nivel, mensaje, **detalle):
-            hallazgos.append(Hallazgo(self.nombre, nivel, mensaje, detalle))
+        def add(level, message, **detail):
+            findings.append(Finding(self.name, level, message, detail))
 
-        if calidad["duplicados"]:
-            registrar("aviso", f"Hay {calidad['duplicados']} filas duplicadas.",
-                      regla="duplicados", duplicados=calidad["duplicados"])
-        for columna in perfil["columnas"]:
-            nombre = columna["columna"]
-            if nombre == self.pizarra.target:
+        if quality["duplicados"]:
+            add("warning", self.text("eda_duplicates", count=quality["duplicados"]),
+                rule="duplicates", duplicates=quality["duplicados"])
+        for column in profile["columns"]:
+            name = column["columna"]
+            if name == self.blackboard.target:
                 continue
-            if columna["porcentaje_nulos"] > self.umbrales.nulos:
-                registrar("aviso", f"'{nombre}' tiene {columna['porcentaje_nulos']}% de nulos.",
-                          regla="nulos", columna=nombre)
-            if columna["valores_unicos"] <= 1:
-                registrar("aviso", f"'{nombre}' es constante y no aporta información.",
-                          regla="constante", columna=nombre)
-            elif parece_identificador(
-                self.pizarra.datos[nombre], self.umbrales.min_filas_identificador
+            if column["porcentaje_nulos"] > self.thresholds.nulls:
+                add("warning", self.text("eda_nulls", column=name, percent=column["porcentaje_nulos"]),
+                    rule="nulls", column=name)
+            if column["valores_unicos"] <= 1:
+                add("warning", self.text("eda_constant", column=name),
+                    rule="constant", column=name)
+            elif looks_like_identifier(
+                self.blackboard.datos[name], self.thresholds.min_identifier_rows
             ):
-                registrar("aviso", f"'{nombre}' parece un identificador; conviene excluirla.",
-                          regla="identificador", columna=nombre)
+                add("warning", self.text("eda_identifier", column=name),
+                    rule="identifier", column=name)
 
-        objetivo = perfil.get("target")
-        if objetivo is None:
-            registrar("info", "No hay variable objetivo; defínala para habilitar el modelado.")
-            return hallazgos
-        for columna, r in objetivo.get("correlaciones", {}).items():
-            if abs(r) >= self.umbrales.fuga:
-                registrar("critico",
-                          f"'{columna}' tiene r={r} con el target: posible fuga de información.",
-                          regla="fuga", columna=columna, r=r)
-        clases = objetivo.get("clases", {})
-        if len(clases) > 1 and min(clases.values()) < self.umbrales.desbalance:
-            registrar("aviso",
-                      f"Target desbalanceado: la clase minoritaria es {min(clases.values()):.1%}.",
-                      regla="desbalance", clases=clases)
-        return hallazgos
+        target = profile.get("target")
+        if target is None:
+            add("info", self.text("eda_no_target"))
+            return findings
+        for column, r in target.get("correlations", {}).items():
+            if abs(r) >= self.thresholds.leakage:
+                add("critical", self.text("eda_leakage", column=column, r=r),
+                    rule="leakage", column=column, r=r)
+        classes = target.get("classes", {})
+        if len(classes) > 1 and min(classes.values()) < self.thresholds.imbalance:
+            add("warning", self.text("eda_imbalance", share=min(classes.values())),
+                rule="imbalance", classes=classes)
+        return findings
 
-    def siguientes(self, evento: Event) -> list[Event]:
-        objetivo = self.pizarra.resultados["perfil"].get("target")
-        if objetivo is None:
+    def next_events(self, event: Event) -> list[Event]:
+        suggestion = self.suggest_configuration()
+        if suggestion is None:
             return []
-        return [
-            Event(
-                EDA_LISTO,
-                {"target": objetivo["nombre"], "tarea": objetivo["tarea"]},
-                origen=self.nombre,
-            )
-        ]
+        data = {
+            "target": suggestion.target,
+            "task": suggestion.task,
+            "features": list(suggestion.features),
+        }
+        return [Event(EDA_DONE, data, source=self.name)]
 
-    def sugerir_configuracion(self) -> SugerenciaModelado | None:
-        """Tarea, target y predictoras sin las columnas que las reglas desaconsejan."""
-        objetivo = self.pizarra.resultados.get("perfil", {}).get("target")
-        if objetivo is None:
+    def suggest_configuration(self) -> ModelingSuggestion | None:
+        """Task, target and predictors without the columns the rules advise against."""
+        target = self.blackboard.results.get("profile", {}).get("target")
+        if target is None:
             return None
-        excluidas = tuple(sorted({
-            h.detalle["columna"] for h in self.pizarra.hallazgos
-            if h.agente == self.nombre and h.detalle.get("regla") in REGLAS_EXCLUSION_EDA
+        excluded = tuple(sorted({
+            f.detail["column"] for f in self.blackboard.findings
+            if f.agent == self.name and f.detail.get("rule") in EDA_EXCLUSION_RULES
         }))
-        candidatas = [str(c) for c in self.pizarra.datos.columns if c != objetivo["nombre"]]
-        features = [c for c in candidatas if c not in excluidas] or candidatas
-        return SugerenciaModelado(objetivo["tarea"], objetivo["nombre"], tuple(features), excluidas)
+        candidates = [str(c) for c in self.blackboard.datos.columns if c != target["name"]]
+        features = [c for c in candidates if c not in excluded] or candidates
+        return ModelingSuggestion(target["task"], target["name"], tuple(features), excluded)

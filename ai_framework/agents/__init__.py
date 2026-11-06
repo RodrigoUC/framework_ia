@@ -5,74 +5,97 @@ Hierarchy, parallel to ``Supervised`` and ``Unsupervised``::
     EDA
     └── Blackboard         (state shared by the agents)
     Agent (ABC)
-    ├── EDAAgent           -> perfil, nulos, atípicos, fuga, desbalance
-    └── ClusteringAgent    -> compara K-Means y HAC, recomienda k, describe grupos
+    ├── EDAAgent           -> profile, nulls, outliers, leakage, imbalance
+    ├── ClusteringAgent    -> compares K-Means and HAC, recommends k, describes groups
+    └── SupervisedAgent    (benchmark with CV inside train, shared rules)
+        ├── RegressionAgent      -> best regressor by RMSE, overfitting, weak R²
+        └── ClassificationAgent  -> best classifier by F1 macro, weak classes, baseline
 
-Uso mínimo::
+Minimal usage::
 
-    pizarra = Blackboard(datos, target="precio")
+    blackboard = Blackboard(data, target="price")
     bus = EventBus()
-    EDAAgent(pizarra, crear_proveedor("gemini")).conectar(bus)
-    bus.emitir(Event(DATASET_CARGADO))
+    EDAAgent(blackboard, create_provider("gemini")).connect(bus)
+    bus.emit(Event(DATASET_LOADED))
 """
 
 from __future__ import annotations
 
 from ai_framework.agents.agent import Agent
 from ai_framework.agents.blackboard import Blackboard
+from ai_framework.agents.classification_agent import ClassificationAgent
 from ai_framework.agents.clustering_agent import ClusteringAgent
 from ai_framework.agents.eda_agent import EDAAgent
 from ai_framework.agents.events import (
-    CLUSTERING_LISTO,
-    CLUSTERING_SOLICITADO,
-    DATASET_CARGADO,
-    EDA_LISTO,
-    MODELO_LISTO,
-    PREGUNTA,
+    CLASSIFICATION_DONE,
+    CLASSIFICATION_REQUESTED,
+    CLUSTERING_DONE,
+    CLUSTERING_REQUESTED,
+    DATASET_LOADED,
+    EDA_DONE,
+    MODEL_DONE,
+    QUESTION,
+    REGRESSION_DONE,
+    REGRESSION_REQUESTED,
     Event,
     EventBus,
 )
 from ai_framework.agents.llm import (
-    ErrorProveedor,
-    ProveedorFalso,
-    ProveedorLLM,
-    ProveedorOpenAICompat,
-    RespuestaLLM,
-    crear_proveedor,
+    FakeLLMProvider,
+    LLMProvider,
+    LLMResponse,
+    OpenAICompatibleProvider,
+    ProviderError,
+    ToolCall,
+    create_provider,
 )
+from ai_framework.agents.regression_agent import RegressionAgent
+from ai_framework.agents.supervised_agent import SupervisedAgent
 
 # Compatibility aliases
 Agente = Agent
 AgenteClustering = ClusteringAgent
+AgenteClasificacion = ClassificationAgent
 AgenteEDA = EDAAgent
+AgenteRegresion = RegressionAgent
 BusEventos = EventBus
 Evento = Event
 Pizarra = Blackboard
 
 __all__ = [
-    "CLUSTERING_LISTO",
-    "CLUSTERING_SOLICITADO",
-    "DATASET_CARGADO",
-    "EDA_LISTO",
-    "MODELO_LISTO",
-    "PREGUNTA",
+    "CLASSIFICATION_DONE",
+    "CLASSIFICATION_REQUESTED",
+    "CLUSTERING_DONE",
+    "CLUSTERING_REQUESTED",
+    "DATASET_LOADED",
+    "EDA_DONE",
+    "MODEL_DONE",
+    "QUESTION",
+    "REGRESSION_DONE",
+    "REGRESSION_REQUESTED",
     # English names
     "Agent",
     "Blackboard",
+    "ClassificationAgent",
     "ClusteringAgent",
     "EDAAgent",
-    "ErrorProveedor",
     "Event",
     "EventBus",
-    "ProveedorFalso",
-    "ProveedorLLM",
-    "ProveedorOpenAICompat",
-    "RespuestaLLM",
-    "crear_proveedor",
+    "FakeLLMProvider",
+    "LLMProvider",
+    "LLMResponse",
+    "OpenAICompatibleProvider",
+    "ProviderError",
+    "RegressionAgent",
+    "SupervisedAgent",
+    "ToolCall",
+    "create_provider",
     # Bilingual aliases
     "Agente",
+    "AgenteClasificacion",
     "AgenteClustering",
     "AgenteEDA",
+    "AgenteRegresion",
     "BusEventos",
     "Evento",
     "Pizarra",

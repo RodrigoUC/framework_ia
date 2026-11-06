@@ -1,7 +1,7 @@
-"""Proveedor para cualquier endpoint compatible con la API de chat de OpenAI.
+"""Provider for any endpoint compatible with the OpenAI chat API.
 
-El SDK ``openai`` se importa sólo al crear el cliente; si falta, se informa con
-:class:`OptionalDependencyError`, igual que UMAP en el agrupamiento.
+The ``openai`` SDK is imported only when the client is created; if it is
+missing, :class:`OptionalDependencyError` is raised, as UMAP does in clustering.
 """
 
 from __future__ import annotations
@@ -11,10 +11,10 @@ import os
 from typing import Any
 
 from ai_framework.models.unsupervised import OptionalDependencyError
-from ai_framework.utils.agents.agent_config import PROVEEDOR_SIN_LLM, PROVEEDORES_LLM
-from ai_framework.agents.llm.provider import LlamadaHerramienta, RespuestaLLM
+from ai_framework.utils.agents.agent_config import LLM_PROVIDERS, RULES_ONLY
+from ai_framework.agents.llm.provider import INVALID_JSON_KEY, LLMResponse, ToolCall
 
-PISTAS_ESTADO = {
+STATUS_HINTS = {
     400: "Puede ser la API key o un parámetro enviado.",
     401: "La API key no es válida.",
     403: "La key no tiene permiso: habilite la API en su proyecto, quite restricciones "
@@ -24,50 +24,50 @@ PISTAS_ESTADO = {
 }
 
 
-class ErrorProveedor(RuntimeError):
-    """Fallo HTTP del proveedor con el motivo devuelto y una pista para resolverlo."""
+class ProviderError(RuntimeError):
+    """HTTP failure from the provider, with the returned reason and a hint to fix it."""
 
-    def __init__(self, proveedor: str, modelo: str, estado: int, detalle: str) -> None:
-        self.estado = estado
-        pista = PISTAS_ESTADO.get(estado, "")
+    def __init__(self, provider: str, model: str, status: int, detail: str) -> None:
+        self.status = status
+        hint = STATUS_HINTS.get(status, "")
         super().__init__(
-            f"{proveedor} ({modelo}) respondió {estado}: "
-            f"{detalle.rstrip('. ') or 'sin detalle'}. {pista}".strip()
+            f"{provider} ({model}) respondió {status}: "
+            f"{detail.rstrip('. ') or 'sin detalle'}. {hint}".strip()
         )
 
 
-class ProveedorOpenAICompat:
-    """Envía el historial y los esquemas de herramientas; normaliza la respuesta."""
+class OpenAICompatibleProvider:
+    """Sends the history and the tool schemas; normalizes the response."""
 
     def __init__(
         self,
-        proveedor: str = "gemini",
-        modelo: str | None = None,
+        provider: str = "gemini",
+        model: str | None = None,
         *,
         api_key: str | None = None,
         base_url: str | None = None,
-        temperatura: float = 0.2,
-        cliente: Any = None,
+        temperature: float = 0.2,
+        client: Any = None,
     ) -> None:
-        if proveedor not in PROVEEDORES_LLM and base_url is None:
+        if provider not in LLM_PROVIDERS and base_url is None:
             raise ValueError(
-                f"Proveedor desconocido {proveedor!r}; use {sorted(PROVEEDORES_LLM)} o base_url."
+                f"Proveedor desconocido {provider!r}; use {sorted(LLM_PROVIDERS)} o base_url."
             )
-        configuracion = PROVEEDORES_LLM.get(proveedor)
-        self.proveedor = proveedor
-        self.modelo = (
-            modelo
+        config = LLM_PROVIDERS.get(provider)
+        self.provider = provider
+        self.model = (
+            model
             or os.environ.get("AGENTES_MODELO")
-            or (configuracion.modelo_sugerido if configuracion else None)
+            or (config.suggested_model if config else None)
         )
-        if not self.modelo:
+        if not self.model:
             raise ValueError("Indique el modelo o defina AGENTES_MODELO.")
-        self.temperatura = temperatura
-        if cliente is None:
-            variable = configuracion.variable_clave if configuracion else None
-            clave = api_key or (os.environ.get(variable) if variable else "ollama")
-            if not clave:
-                raise ValueError(f"Defina {variable} para usar {proveedor}.")
+        self.temperature = temperature
+        if client is None:
+            variable = config.key_variable if config else None
+            key = api_key or (os.environ.get(variable) if variable else "ollama")
+            if not key:
+                raise ValueError(f"Defina {variable} para usar {provider}.")
             try:
                 from openai import OpenAI
             except ImportError as exc:
@@ -75,71 +75,71 @@ class ProveedorOpenAICompat:
                     "Los agentes con LLM requieren 'openai'. Instale requirements.txt. "
                     f"Detalle técnico: {exc}"
                 ) from exc
-            cliente = OpenAI(base_url=base_url or configuracion.base_url, api_key=clave)
-        self.cliente = cliente
+            client = OpenAI(base_url=base_url or config.base_url, api_key=key)
+        self.client = client
 
     @classmethod
-    def desde_entorno(cls) -> ProveedorOpenAICompat:
-        """Lee ``AGENTES_PROVEEDOR`` (gemini por defecto) y ``AGENTES_MODELO``."""
+    def from_env(cls) -> OpenAICompatibleProvider:
+        """Reads ``AGENTES_PROVEEDOR`` (gemini by default) and ``AGENTES_MODELO``."""
         return cls(os.environ.get("AGENTES_PROVEEDOR", "gemini"))
 
-    def completar(self, mensajes, herramientas):
-        parametros: dict[str, Any] = {
-            "model": self.modelo,
-            "messages": mensajes,
-            "temperature": self.temperatura,
+    def complete(self, messages, tools):
+        parameters: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature,
         }
-        if herramientas:
-            parametros["tools"] = herramientas
+        if tools:
+            parameters["tools"] = tools
         try:
-            mensaje = self.cliente.chat.completions.create(**parametros).choices[0].message
+            message = self.client.chat.completions.create(**parameters).choices[0].message
         except Exception as error:
-            estado = getattr(error, "status_code", None)
-            if estado is None:
+            status = getattr(error, "status_code", None)
+            if status is None:
                 raise
-            raise ErrorProveedor(self.proveedor, self.modelo, estado, _detalle(error)) from error
-        llamadas = tuple(
-            LlamadaHerramienta(
-                id=llamada.id,
-                nombre=llamada.function.name,
-                argumentos=_argumentos(llamada.function.arguments),
-                # Gemini exige recibir de vuelta la thought_signature que viene aquí.
-                extra=dict(getattr(llamada, "extra_content", None) or {}),
+            raise ProviderError(self.provider, self.model, status, _error_detail(error)) from error
+        tool_calls = tuple(
+            ToolCall(
+                id=call.id,
+                name=call.function.name,
+                arguments=_parse_arguments(call.function.arguments),
+                # Gemini requires the thought_signature that comes here to be sent back.
+                extra=dict(getattr(call, "extra_content", None) or {}),
             )
-            for llamada in (mensaje.tool_calls or ())
+            for call in (message.tool_calls or ())
         )
-        return RespuestaLLM(texto=mensaje.content, llamadas=llamadas)
+        return LLMResponse(text=message.content, tool_calls=tool_calls)
 
 
-def crear_proveedor(
-    proveedor: str, modelo: str | None = None, api_key: str | None = None
-) -> ProveedorOpenAICompat | None:
-    """``None`` con :data:`PROVEEDOR_SIN_LLM`: los agentes trabajan sólo con reglas."""
-    if proveedor == PROVEEDOR_SIN_LLM:
+def create_provider(
+    provider: str, model: str | None = None, api_key: str | None = None
+) -> OpenAICompatibleProvider | None:
+    """``None`` for :data:`RULES_ONLY`: the agents then work with their rules only."""
+    if provider == RULES_ONLY:
         return None
-    return ProveedorOpenAICompat(proveedor, modelo or None, api_key=api_key or None)
+    return OpenAICompatibleProvider(provider, model or None, api_key=api_key or None)
 
 
-def _detalle(error: Exception) -> str:
-    """Extrae el mensaje del cuerpo JSON de error (formato OpenAI o Google)."""
-    cuerpo = getattr(error, "body", None)
-    if isinstance(cuerpo, list) and cuerpo:
-        cuerpo = cuerpo[0]
-    if isinstance(cuerpo, dict):
-        interno = cuerpo.get("error", cuerpo)
-        if isinstance(interno, dict) and interno.get("message"):
-            return str(interno["message"])
-    respuesta = getattr(error, "response", None)
-    texto = getattr(respuesta, "text", "") or ""
-    return texto[:300]
+def _error_detail(error: Exception) -> str:
+    """Extracts the message from the JSON error body (OpenAI or Google format)."""
+    body = getattr(error, "body", None)
+    if isinstance(body, list) and body:
+        body = body[0]
+    if isinstance(body, dict):
+        inner = body.get("error", body)
+        if isinstance(inner, dict) and inner.get("message"):
+            return str(inner["message"])
+    response = getattr(error, "response", None)
+    text = getattr(response, "text", "") or ""
+    return text[:300]
 
 
-def _argumentos(crudo: str | None) -> dict[str, Any]:
-    """JSON inválido se entrega a la herramienta como error explícito."""
-    if not crudo:
+def _parse_arguments(raw: str | None) -> dict[str, Any]:
+    """Invalid JSON is handed to the tool runner as an explicit error."""
+    if not raw:
         return {}
     try:
-        valor = json.loads(crudo)
+        value = json.loads(raw)
     except json.JSONDecodeError:
-        return {"__json_invalido__": crudo}
-    return valor if isinstance(valor, dict) else {"__json_invalido__": crudo}
+        return {INVALID_JSON_KEY: raw}
+    return value if isinstance(value, dict) else {INVALID_JSON_KEY: raw}

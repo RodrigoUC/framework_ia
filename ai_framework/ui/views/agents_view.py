@@ -1,4 +1,4 @@
-"""Vistas de los agentes de IA de cada sección; trabajan sobre el dataset activo."""
+"""Views of the AI agents of each section; they work on the active dataset."""
 
 from __future__ import annotations
 
@@ -6,240 +6,254 @@ import os
 
 import pandas as pd
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import obtener_idioma, t
 
 from ai_framework.agents import Blackboard, EDAAgent
+from ai_framework.agents.tools.classification_tools import compare_classifiers
+from ai_framework.agents.tools.regression_tools import compare_regressors
 from ai_framework.ui.controllers.agents_controller import (
-    aplicar_sugerencia_modelado,
-    iniciar_agente_clustering,
-    iniciar_agente_eda,
-    proveedor_por_defecto,
+    apply_modeling_suggestion,
+    default_provider,
+    start_classification_agent,
+    start_clustering_agent,
+    start_eda_agent,
+    start_regression_agent,
 )
 from ai_framework.ui.controllers.unsupervised_controller import _muestrear
 from ai_framework.ui.models.agents_state import (
-    sincronizar_contexto_agentes,
-    sincronizar_contexto_clustering,
+    sync_clustering_agent_context,
+    sync_eda_agent_context,
+    sync_supervised_agent_context,
 )
+from ai_framework.ui.views.navigation import mostrar_faltantes
 from ai_framework.ui.views.theme import _mostrar_figura
-from ai_framework.utils.agents import (
-    NOMBRES_PROVEEDORES,
-    PROVEEDOR_SIN_LLM,
-    PROVEEDORES_LLM,
-)
+from ai_framework.utils.agents import LLM_PROVIDERS, PROVIDER_NAMES, RULES_ONLY
 from ai_framework.utils.visualization import VisualizadorNoSupervisado
 
-SIN_OBJETIVO = "__sin_objetivo__"
-ICONOS = {"critico": ":material/error:", "aviso": ":material/warning:", "info": ":material/info:"}
-ORDEN_NIVELES = {"critico": 0, "aviso": 1, "info": 2}
+NO_TARGET = "__no_target__"
+ICONS = {"critical": ":material/error:", "warning": ":material/warning:", "info": ":material/info:"}
+LEVEL_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
 
-def _nombre_proveedor(codigo: str) -> str:
-    if codigo == PROVEEDOR_SIN_LLM:
-        return t("agente_sin_llm", NOMBRES_PROVEEDORES[codigo])
-    return NOMBRES_PROVEEDORES[codigo]
+def _provider_names() -> dict[str, str]:
+    """Labels resolved once per render, so the dropdown does not depend on the session later."""
+    return {
+        code: t("agent_rules_only", label) if code == RULES_ONLY else label
+        for code, label in PROVIDER_NAMES.items()
+    }
 
 
-def _controles_llm() -> dict:
-    """Proveedor, modelo y API key; deben dibujarse dentro de un formulario."""
-    izquierda, derecha = st.columns(2)
-    proveedor = izquierda.selectbox(
-        t("agente_llm", "Modelo de lenguaje"),
-        list(NOMBRES_PROVEEDORES),
-        format_func=_nombre_proveedor,
-        key="agentes_proveedor",
+def _target_label(no_target: str):
+    """Shows the translated placeholder instead of the internal no-target value."""
+    return lambda column: no_target if column == NO_TARGET else column
+
+
+def _llm_controls() -> dict:
+    """Provider, model and API key; must be drawn inside a form."""
+    left, right = st.columns(2)
+    provider = left.selectbox(
+        t("agent_llm", "Modelo de lenguaje"),
+        list(PROVIDER_NAMES),
+        format_func=_provider_names().get,
+        key="agent_provider",
     )
-    configuracion = PROVEEDORES_LLM.get(proveedor)
-    modelo = derecha.text_input(
-        t("agente_modelo", "Modelo"),
+    config = LLM_PROVIDERS.get(provider)
+    model = right.text_input(
+        t("agent_model", "Modelo"),
         value=os.environ.get("AGENTES_MODELO", ""),
-        placeholder=(configuracion.modelo_sugerido if configuracion else "")
-        or t("agente_modelo_placeholder", "nombre del modelo"),
-        key="agentes_modelo",
-        help=t("agente_modelo_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+        placeholder=(config.suggested_model if config else "")
+        or t("agent_model_placeholder", "nombre del modelo"),
+        key="agent_model",
+        help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
     )
     api_key = None
-    if configuracion and configuracion.variable_clave:
-        variable = configuracion.variable_clave
+    if config and config.key_variable:
+        variable = config.key_variable
         api_key = st.text_input(
-            t("agente_api_key", "API key"),
+            t("agent_api_key", "API key"),
             type="password",
-            key="agentes_api_key",
-            placeholder=t("agente_key_detectada", "{variable} detectada", variable=variable)
+            key="agent_api_key",
+            placeholder=t("agent_key_detected", "{variable} detectada", variable=variable)
             if os.environ.get(variable)
-            else t("agente_key_definir", "o defina {variable}", variable=variable),
+            else t("agent_key_missing", "o defina {variable}", variable=variable),
             help=t(
-                "agente_api_key_help",
+                "agent_api_key_help",
                 "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
             ),
         )
-    return {"proveedor": proveedor, "modelo": modelo, "api_key": api_key}
+    return {"provider": provider, "model": model, "api_key": api_key}
 
 
-def _boton_iniciar() -> bool:
+def _start_button() -> bool:
     return st.form_submit_button(
-        t("agente_iniciar", "Iniciar agente"), type="primary", icon=":material/smart_toy:"
+        t("agent_start", "Iniciar agente"), type="primary", icon=":material/smart_toy:"
     )
 
 
-def _configurar_agente_eda(datos: pd.DataFrame) -> dict | None:
-    """Devuelve la configuración sólo cuando se pulsa «Iniciar agente»."""
-    st.session_state.setdefault("agentes_proveedor", proveedor_por_defecto())
-    with st.form("form_agentes"):
+def _configure_eda_agent(data: pd.DataFrame) -> dict | None:
+    """Returns the configuration only when «Start agent» is pressed."""
+    st.session_state.setdefault("agent_provider", default_provider())
+    with st.form("agent_eda_form"):
         st.caption(
             t(
-                "agente_eda_descripcion",
+                "agent_eda_description",
                 "Perfila el dataset, detecta riesgos y sugiere la configuración de modelado.",
             )
         )
-        columnas = [SIN_OBJETIVO, *map(str, datos.columns)]
-        actual = str(st.session_state.get("sup_target", datos.columns[-1]))
-        objetivo = st.selectbox(
-            t("agente_objetivo", "Variable objetivo"),
-            columnas,
-            index=columnas.index(actual) if actual in columnas else len(columnas) - 1,
-            format_func=lambda columna: t("agente_sin_objetivo", "(sin variable objetivo)")
-            if columna == SIN_OBJETIVO
-            else columna,
-            key="agentes_target",
+        columns = [NO_TARGET, *map(str, data.columns)]
+        current = str(st.session_state.get("sup_target", data.columns[-1]))
+        target = st.selectbox(
+            t("agent_target", "Variable objetivo"),
+            columns,
+            index=columns.index(current) if current in columns else len(columns) - 1,
+            format_func=_target_label(t("agent_no_target", "(sin variable objetivo)")),
+            key="agent_target",
         )
-        opciones = _controles_llm()
-        iniciar = _boton_iniciar()
-    if not iniciar:
+        options = _llm_controls()
+        start = _start_button()
+    if not start:
         return None
-    return {"target": None if objetivo == SIN_OBJETIVO else objetivo, **opciones}
+    return {"target": None if target == NO_TARGET else target, **options}
 
 
-def _configurar_agente_clustering() -> dict | None:
-    """Usa las variables de la sección Clustering; sólo el botón agrupa."""
-    st.session_state.setdefault("agentes_proveedor", proveedor_por_defecto())
-    with st.form("form_agente_clustering"):
+def _configure_clustering_agent() -> dict | None:
+    """Uses the variables of the Clustering section; only the button runs clustering."""
+    st.session_state.setdefault("agent_provider", default_provider())
+    with st.form("agent_clustering_form"):
         st.caption(
             t(
-                "agente_clustering_descripcion",
+                "agent_clustering_description",
                 "Compara K-Means y HAC, recomienda el número de clusters y describe cada grupo.",
             )
         )
-        opciones = _controles_llm()
-        iniciar = _boton_iniciar()
-    return opciones if iniciar else None
+        options = _llm_controls()
+        start = _start_button()
+    return options if start else None
 
 
-def _render_hallazgos(pizarra: Blackboard) -> None:
-    st.subheader(t("agente_hallazgos", "Hallazgos"))
-    conteo = pd.Series([h.nivel for h in pizarra.hallazgos], dtype=object).value_counts()
+def _render_findings(blackboard: Blackboard) -> None:
+    st.subheader(t("agent_findings", "Hallazgos"))
+    counts = pd.Series([f.level for f in blackboard.findings], dtype=object).value_counts()
     a, b, c = st.columns(3)
-    a.metric(t("agente_criticos", "Críticos"), int(conteo.get("critico", 0)))
-    b.metric(t("agente_avisos", "Avisos"), int(conteo.get("aviso", 0)))
-    c.metric(t("agente_informativos", "Informativos"), int(conteo.get("info", 0)))
-    for hallazgo in sorted(pizarra.hallazgos, key=lambda h: ORDEN_NIVELES[h.nivel]):
-        mostrar = {"critico": st.error, "aviso": st.warning, "info": st.info}[hallazgo.nivel]
-        mostrar(hallazgo.mensaje, icon=ICONOS[hallazgo.nivel])
-    if not pizarra.hallazgos:
+    a.metric(t("agent_critical", "Críticos"), int(counts.get("critical", 0)))
+    b.metric(t("agent_warnings", "Avisos"), int(counts.get("warning", 0)))
+    c.metric(t("agent_info", "Informativos"), int(counts.get("info", 0)))
+    for finding in sorted(blackboard.findings, key=lambda f: LEVEL_ORDER[f.level]):
+        show = {"critical": st.error, "warning": st.warning, "info": st.info}[finding.level]
+        show(finding.message, icon=ICONS[finding.level])
+    if not blackboard.findings:
         st.success(
-            t("agente_sin_riesgos", "El agente no encontró riesgos con sus reglas."),
+            t("agent_no_risks", "El agente no encontró riesgos con sus reglas."),
             icon=":material/check_circle:",
         )
 
 
-def _render_siguiente_paso(agente: EDAAgent) -> None:
-    sugerencia = agente.sugerir_configuracion()
-    st.subheader(t("agente_siguiente_paso", "Siguiente paso propuesto"))
-    if sugerencia is None:
+def _render_next_step(agent: EDAAgent) -> None:
+    suggestion = agent.suggest_configuration()
+    st.subheader(t("agent_next_step", "Siguiente paso propuesto"))
+    if suggestion is None:
         st.caption(
             t(
-                "agente_elija_objetivo",
+                "agent_choose_target",
                 "Elija una variable objetivo para que el agente proponga el modelado.",
             )
         )
         return
-    tarea = (
+    task = (
         t("nav_regresion", "Regresión")
-        if sugerencia.tarea == "regresion"
+        if suggestion.task == "regresion"
         else t("nav_clasificacion", "Clasificación")
     )
     st.markdown(
         t(
-            "agente_tarea_detectada",
+            "agent_detected_task",
             "Tarea detectada: **{tarea}** sobre `{target}` con {cantidad} predictoras.",
-            tarea=tarea,
-            target=sugerencia.target,
-            cantidad=len(sugerencia.features),
+            tarea=task,
+            target=suggestion.target,
+            cantidad=len(suggestion.features),
         )
     )
-    if sugerencia.excluidas:
+    if suggestion.excluded:
         st.caption(
             t(
-                "agente_excluye",
+                "agent_excludes",
                 "Excluye: {columnas}",
-                columnas=", ".join(f"`{c}`" for c in sugerencia.excluidas),
+                columnas=", ".join(f"`{c}`" for c in suggestion.excluded),
             )
         )
     st.button(
-        t("agente_aplicar", "Aplicar configuración sugerida"),
-        key="agentes_aplicar",
+        t("agent_apply", "Aplicar configuración sugerida"),
+        key="agent_apply",
         icon=":material/arrow_forward:",
-        on_click=aplicar_sugerencia_modelado,
-        args=(st.session_state, sugerencia),
+        on_click=apply_modeling_suggestion,
+        args=(st.session_state, suggestion),
         help=t(
-            "agente_aplicar_help",
+            "agent_apply_help",
             "Abre Configuración con tarea, target y predictoras ya elegidas; no entrena.",
         ),
     )
 
 
-def _render_conversacion(sesion: dict, *, clave: str, error: str) -> None:
-    pizarra, agente = sesion["pizarra"], sesion["agente"]
-    st.subheader(t("agente_conversacion", "Conversación"))
-    if agente.llm is None:
+def _render_conversation(session: dict, *, key: str, error_key: str) -> None:
+    blackboard, agent = session["blackboard"], session["agent"]
+    st.subheader(t("agent_conversation", "Conversación"))
+    if agent.llm is None:
         st.caption(
             t(
-                "agente_configure_llm",
+                "agent_configure_llm",
                 "Configure un modelo de lenguaje para que el agente interprete y responda preguntas.",
             )
         )
         return
-    for autor, texto in pizarra.mensajes:
-        with st.chat_message("user" if autor == "usuario" else "assistant"):
-            st.markdown(texto)
-    pregunta = st.chat_input(
-        t("agente_pregunta", "Pregunte al agente sobre el dataset"), key=clave
-    )
-    if pregunta:
+    for author, text in blackboard.messages:
+        with st.chat_message("user" if author == "user" else "assistant"):
+            st.markdown(text)
+    question = st.chat_input(t("agent_question", "Pregunte al agente sobre el dataset"), key=key)
+    if question:
+        # Answers follow the language currently selected, even if it changed after starting.
+        agent.language = obtener_idioma()
+
+        def ask(report):
+            agent.on_progress = report
+            try:
+                return agent.ask(question)
+            finally:
+                agent.on_progress = None
+
         try:
-            with st.spinner(t("agente_pensando", "Pensando…")):
-                agente.preguntar(pregunta)
-        except Exception as fallo:  # pylint: disable=broad-except
-            st.session_state[error] = t(
-                "agente_llm_error",
+            _run_with_progress("agent_thinking", "Pensando…", ask)
+        except Exception as failure:  # pylint: disable=broad-except
+            st.session_state[error_key] = t(
+                "agent_llm_error",
                 "El modelo de lenguaje no respondió: {detalle}",
-                detalle=fallo,
+                detalle=failure,
             )
         st.rerun()
 
 
-def _render_particion_recomendada(sesion: dict) -> None:
-    pizarra = sesion["pizarra"]
-    sugerencia = sesion["agente"].sugerir_agrupamiento()
-    resultado = pizarra.resultados["resultado_cluster"]
-    st.subheader(t("agente_particion", "Partición recomendada"))
+def _render_recommended_partition(session: dict) -> None:
+    blackboard = session["blackboard"]
+    suggestion = session["agent"].suggest_clustering()
+    result = blackboard.results["cluster_result"]
+    st.subheader(t("agent_partition", "Partición recomendada"))
     a, b, c = st.columns(3)
-    a.metric(t("agente_algoritmo", "Algoritmo"), sugerencia.algoritmo)
-    b.metric(t("agente_clusters", "Clusters"), sugerencia.n_clusters)
-    c.metric("Silhouette", f"{sugerencia.silhouette:.4f}")
-    _mostrar_figura(VisualizadorNoSupervisado.clusters(resultado))
-    _mostrar_figura(VisualizadorNoSupervisado.perfiles_cluster(resultado))
-    salida = pizarra.datos.loc[resultado.etiquetas.index].copy()
-    salida["cluster"] = resultado.etiquetas
+    a.metric(t("agent_algorithm", "Algoritmo"), suggestion.algorithm)
+    b.metric(t("agent_clusters", "Clusters"), suggestion.n_clusters)
+    c.metric("Silhouette", f"{suggestion.silhouette:.4f}")
+    _mostrar_figura(VisualizadorNoSupervisado.clusters(result))
+    _mostrar_figura(VisualizadorNoSupervisado.perfiles_cluster(result))
+    output = blackboard.datos.loc[result.etiquetas.index].copy()
+    output["cluster"] = result.etiquetas
     st.download_button(
-        t("agente_descargar", "Descargar asignaciones"),
-        salida.to_csv(index=False).encode("utf-8"),
+        t("agent_download", "Descargar asignaciones"),
+        output.to_csv(index=False).encode("utf-8"),
         file_name="clusters_agente.csv",
         mime="text/csv",
-        key="agente_clustering_descarga",
+        key="agent_clustering_download",
     )
-    with st.expander(t("agente_comparacion", "Comparación evaluada")):
-        kmeans = pizarra.resultados["evaluacion_kmeans"]
-        ward = pizarra.resultados["evaluacion_ward"]
+    with st.expander(t("agent_comparison", "Comparación evaluada")):
+        kmeans = blackboard.results["kmeans_evaluation"]
+        ward = blackboard.results["ward_evaluation"]
         st.dataframe(kmeans, width="stretch")
         _mostrar_figura(VisualizadorNoSupervisado.curva_evaluacion(kmeans, "K-Means"))
         if not ward.empty:
@@ -247,76 +261,222 @@ def _render_particion_recomendada(sesion: dict) -> None:
             _mostrar_figura(VisualizadorNoSupervisado.curva_evaluacion(ward, "HAC-ward"))
 
 
-def _mostrar_error(clave: str) -> None:
-    if error := st.session_state.get(clave):
+def _run_with_progress(label_key: str, fallback: str, run):
+    """Runs an agent inside a live status box; each update appears as its step ends."""
+    with st.status(t(label_key, fallback), expanded=True) as status:
+        try:
+            result = run(status.write)
+        except Exception:
+            status.update(label=t("agent_failed", "El agente se detuvo."), state="error")
+            raise
+        status.update(label=t("agent_finished", "El agente terminó."), state="complete", expanded=False)
+    return result
+
+
+def _start_session(session_key: str, label_key: str, fallback: str, start) -> None:
+    """Starts an agent in the interface language and keeps its session."""
+    session = _run_with_progress(
+        label_key, fallback, lambda report: start(language=obtener_idioma(), on_progress=report)
+    )
+    session["agent"].on_progress = None  # the status box does not survive the rerun
+    st.session_state[session_key] = session
+
+
+def _render_activity(blackboard: Blackboard) -> None:
+    if not blackboard.progress:
+        return
+    with st.expander(t("agent_activity", "Actividad del agente")):
+        st.markdown("\n".join(f"- {update}" for _, update in blackboard.progress))
+
+
+def _show_error(key: str) -> None:
+    if error := st.session_state.get(key):
         st.error(error)
 
 
-def render_agente_eda(datos: pd.DataFrame, etiqueta: str) -> None:
-    """Analiza sólo al pulsar el botón; navegar a la vista no consume cuota del LLM."""
+def render_eda_agent(data: pd.DataFrame, label: str) -> None:
+    """Analyzes only when the button is pressed; opening the view spends no LLM quota."""
     st.caption(
         t(
-            "agente_eda_intro",
+            "agent_eda_intro",
             "El agente actúa por su cuenta al iniciarse (reglas deterministas) y luego "
             "responde preguntas con el modelo de lenguaje. Al LLM sólo se envía un "
             "resumen del dataset, nunca sus filas.",
         )
     )
-    sincronizar_contexto_agentes(st.session_state, datos)
-    opciones = _configurar_agente_eda(datos)
-    if opciones is not None:
-        st.session_state.pop("error_agentes", None)
+    sync_eda_agent_context(st.session_state, data)
+    options = _configure_eda_agent(data)
+    if options is not None:
+        st.session_state.pop("agent_eda_error", None)
         try:
-            with st.spinner(t("agente_analizando", "El agente está analizando el dataset…")):
-                st.session_state["agentes_sesion"] = iniciar_agente_eda(datos, etiqueta, opciones)
-        except Exception as error:  # pylint: disable=broad-except
-            st.session_state["error_agentes"] = t(
-                "agente_error_inicio", "No fue posible iniciar el agente: {detalle}", detalle=error
+            _start_session(
+                "agent_eda_session", "agent_analyzing", "El agente está analizando el dataset…",
+                lambda **progress: start_eda_agent(data, label, options, **progress),
             )
-    _mostrar_error("error_agentes")
-    sesion = st.session_state.get("agentes_sesion")
-    if sesion is None:
+        except Exception as error:  # pylint: disable=broad-except
+            st.session_state["agent_eda_error"] = t(
+                "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
+            )
+    _show_error("agent_eda_error")
+    session = st.session_state.get("agent_eda_session")
+    if session is None:
         st.info(
-            t("agente_eda_pendiente", "Pulse «Iniciar agente» para analizar el dataset."),
+            t("agent_eda_pending", "Pulse «Iniciar agente» para analizar el dataset."),
             icon=":material/smart_toy:",
         )
         return
     st.divider()
-    _render_hallazgos(sesion["pizarra"])
-    _render_siguiente_paso(sesion["agente"])
-    _render_conversacion(sesion, clave="agentes_pregunta", error="error_agentes")
+    _render_findings(session["blackboard"])
+    _render_activity(session["blackboard"])
+    _render_next_step(session["agent"])
+    _render_conversation(session, key="agent_eda_question", error_key="agent_eda_error")
 
 
-def render_agente_clustering(datos: pd.DataFrame, configuracion: dict, etiqueta: str) -> None:
-    """Agrupa sólo al pulsar el botón, con las variables de la sección Clustering."""
-    if len(datos) < 3 or not configuracion["features"]:
-        st.warning(t("warn_requiere_variables", "Se requieren variables y al menos tres filas."))
+def render_clustering_agent(data: pd.DataFrame, config: dict, label: str) -> None:
+    """Runs clustering only when the button is pressed, with the Clustering section's variables."""
+    if len(data) < 3 or not config["features"]:
+        st.warning(t("agent_requires_variables", "Se requieren variables y al menos tres filas."))
         return
-    muestra = _muestrear(datos, configuracion["filas"])
-    sincronizar_contexto_clustering(st.session_state, muestra, configuracion)
-    opciones = _configurar_agente_clustering()
-    if opciones is not None:
-        st.session_state.pop("error_agente_clustering", None)
+    sample = _muestrear(data, config["filas"])
+    sync_clustering_agent_context(st.session_state, sample, config)
+    options = _configure_clustering_agent()
+    if options is not None:
+        st.session_state.pop("agent_clustering_error", None)
         try:
-            with st.spinner(t("agente_comparando", "El agente está comparando agrupamientos…")):
-                st.session_state["agente_clustering_sesion"] = iniciar_agente_clustering(
-                    muestra, configuracion, etiqueta, opciones
-                )
-        except Exception as error:  # pylint: disable=broad-except
-            st.session_state["error_agente_clustering"] = t(
-                "agente_error_inicio", "No fue posible iniciar el agente: {detalle}", detalle=error
+            _start_session(
+                "agent_clustering_session", "agent_comparing",
+                "El agente está comparando agrupamientos…",
+                lambda **progress: start_clustering_agent(sample, config, label, options, **progress),
             )
-    _mostrar_error("error_agente_clustering")
-    sesion = st.session_state.get("agente_clustering_sesion")
-    if sesion is None:
+        except Exception as error:  # pylint: disable=broad-except
+            st.session_state["agent_clustering_error"] = t(
+                "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
+            )
+    _show_error("agent_clustering_error")
+    session = st.session_state.get("agent_clustering_session")
+    if session is None:
         st.info(
-            t("agente_clustering_pendiente", "Pulse «Iniciar agente» para comparar agrupamientos."),
+            t("agent_clustering_pending", "Pulse «Iniciar agente» para comparar agrupamientos."),
             icon=":material/smart_toy:",
         )
         return
     st.divider()
-    _render_hallazgos(sesion["pizarra"])
-    _render_particion_recomendada(sesion)
-    _render_conversacion(
-        sesion, clave="agente_clustering_pregunta", error="error_agente_clustering"
+    _render_findings(session["blackboard"])
+    _render_activity(session["blackboard"])
+    _render_recommended_partition(session)
+    _render_conversation(
+        session, key="agent_clustering_question", error_key="agent_clustering_error"
     )
+
+
+SUPERVISED_FAMILIES = {
+    "regression": {
+        "start": start_regression_agent,
+        "ranking": compare_regressors,
+        "description": (
+            "agent_regression_description",
+            "Compara los regresores con validación cruzada, avisa riesgos y explica el mejor.",
+        ),
+        "metric_label": "RMSE",
+        "test_metrics": (("rmse", "RMSE"), ("mae", "MAE"), ("r2", "R²")),
+    },
+    "classification": {
+        "start": start_classification_agent,
+        "ranking": compare_classifiers,
+        "description": (
+            "agent_classification_description",
+            "Compara los clasificadores con validación cruzada, avisa riesgos y explica el mejor.",
+        ),
+        "metric_label": "F1 macro",
+        "test_metrics": (("f1_macro", "F1 macro"), ("accuracy", "Accuracy"), ("recall_macro", "Recall macro")),
+    },
+}
+
+
+def _configure_supervised_agent(family: str) -> dict | None:
+    st.session_state.setdefault("agent_provider", default_provider())
+    with st.form(f"agent_{family}_form"):
+        st.caption(t(*SUPERVISED_FAMILIES[family]["description"]))
+        st.caption(
+            t(
+                "agent_supervised_note",
+                "Usa el target, las predictoras y la partición de Configuración. Compara "
+                "los modelos con validación cruzada dentro de train; la prueba sólo "
+                "evalúa al ganador.",
+            )
+        )
+        options = _llm_controls()
+        start = _start_button()
+    return options if start else None
+
+
+def _render_recommended_model(session: dict, family: str) -> None:
+    agent = session["agent"]
+    recommendation = agent.suggest_model()
+    spec = SUPERVISED_FAMILIES[family]
+    st.subheader(t("agent_recommended_model", "Modelo recomendado"))
+    columns = st.columns(2 + len(spec["test_metrics"]))
+    columns[0].metric(t("agent_algorithm", "Algoritmo"), recommendation.algorithm)
+    columns[1].metric(
+        t("agent_validation_metric", "{metrica} validación", metrica=spec["metric_label"]),
+        f"{recommendation.validation_score:.4f}",
+    )
+    for column, (key, label) in zip(columns[2:], spec["test_metrics"]):
+        column.metric(
+            t("agent_test_metric", "{metrica} prueba", metrica=label),
+            f"{recommendation.test_metrics[key]:.4f}",
+        )
+    with st.expander(t("agent_comparison", "Comparación evaluada")):
+        ranking = spec["ranking"].function(session["blackboard"])["rows"]
+        st.dataframe(pd.DataFrame(ranking), width="stretch")
+
+
+def _render_supervised_agent(family, data, config, availability, label) -> None:
+    if config is None or not config["features"]:
+        st.warning(
+            t("agent_configure_supervised", "Seleccione un target y predictoras en Configuración.")
+        )
+        return
+    if availability is not None and not availability.lista:
+        mostrar_faltantes(availability)
+        return
+    session_key, error_key = f"agent_{family}_session", f"agent_{family}_error"
+    sync_supervised_agent_context(st.session_state, data, config, family)
+    options = _configure_supervised_agent(family)
+    if options is not None:
+        st.session_state.pop(error_key, None)
+        try:
+            _start_session(
+                session_key, "agent_supervised_running",
+                "El agente está comparando modelos con validación cruzada…",
+                lambda **progress: SUPERVISED_FAMILIES[family]["start"](
+                    data, config, label, options, **progress
+                ),
+            )
+        except Exception as error:  # pylint: disable=broad-except
+            st.session_state[error_key] = t(
+                "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
+            )
+    _show_error(error_key)
+    session = st.session_state.get(session_key)
+    if session is None:
+        st.info(
+            t("agent_supervised_pending", "Pulse «Iniciar agente» para comparar modelos."),
+            icon=":material/smart_toy:",
+        )
+        return
+    st.divider()
+    _render_findings(session["blackboard"])
+    _render_activity(session["blackboard"])
+    _render_recommended_model(session, family)
+    _render_conversation(session, key=f"agent_{family}_question", error_key=error_key)
+
+
+def render_regression_agent(data: pd.DataFrame, config: dict | None, availability, label: str) -> None:
+    """Trains only when the button is pressed, with the regression Settings."""
+    _render_supervised_agent("regression", data, config, availability, label)
+
+
+def render_classification_agent(data: pd.DataFrame, config: dict | None, availability, label: str) -> None:
+    """Trains only when the button is pressed, with the classification Settings."""
+    _render_supervised_agent("classification", data, config, availability, label)

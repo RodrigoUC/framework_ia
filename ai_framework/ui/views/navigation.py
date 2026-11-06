@@ -132,7 +132,7 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         )
         boton(t("nav_eda", "EDA"), "eda")
         boton(t("nav_acp", "ACP"), "acp")
-        boton(t("nav_agente_ia", "Agente IA"), "eda_agente")
+        boton(t("nav_ai_agent", "Agente IA"), "eda_agent")
 
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_analisis", "Análisis y modelos")}</p>',
@@ -141,17 +141,22 @@ def _seleccionar_vista(disponibilidades=None) -> str:
         boton(t("nav_configuracion", "Configuración"), "configuracion")
         with st.expander(
             t("nav_clustering", "Clustering"),
-            expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agente"},
+            expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agent"},
         ):
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
-            boton(t("nav_agente_ia", "Agente IA"), "clustering_agente")
+            boton(t("nav_ai_agent", "Agente IA"), "clustering_agent")
 
         with st.expander(
             t("nav_clasificacion", "Clasificación"),
             expanded=vista
-            in {*VISTAS_CLASIFICADORES, "lab2_experimentos", "lab2_benchmark"},
+            in {
+                *VISTAS_CLASIFICADORES,
+                "lab2_experimentos",
+                "lab2_benchmark",
+                "classification_agent",
+            },
         ):
             disponible = disponibilidades.get("clasificacion")
             bloqueada = disponible is not None and not disponible.lista
@@ -197,6 +202,12 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                 disabled=bloqueada,
                 help=motivo,
             )
+            boton(
+                t("nav_ai_agent", "Agente IA"),
+                "classification_agent",
+                disabled=bloqueada,
+                help=motivo,
+            )
 
         with st.expander(t("nav_regresion", "Regresión"), expanded=vista in VISTAS_REGRESION):
             disponible = disponibilidades.get("regresion")
@@ -218,6 +229,12 @@ def _seleccionar_vista(disponibilidades=None) -> str:
                 "lab3_benchmark",
                 disabled=bloqueada
                 and not disponibilidades.get("RLS", disponible).lista,
+                help=motivo,
+            )
+            boton(
+                t("nav_ai_agent", "Agente IA"),
+                "regression_agent",
+                disabled=bloqueada,
                 help=motivo,
             )
 
@@ -253,6 +270,7 @@ def _titulo_vista(vista: str) -> str:
             "lab3_benchmark": t("nav_benchmark_completo", "Evaluación Comparativa de Modelos"),
             "lab3_comparacion": t("res_eval_comp", "Comparar modelos entrenados"),
             "lab3_resultados": t("nav_resultados_regresion", "Resultados de regresión"),
+            "regression_agent": t("agent_regression_title", "Agente de regresión"),
         }
         return titulos_regresion.get(vista, TITULOS_VISTA.get(vista, vista))
     if lang == "en":
@@ -263,8 +281,8 @@ def _titulo_vista(vista: str) -> str:
             "kmeans": "K-Means",
             "kmedoids": "K-Medoids",
             "hac": "Hierarchical Clustering",
-            "eda_agente": "EDA Agent",
-            "clustering_agente": "Clustering Agent",
+            "eda_agent": "EDA Agent",
+            "clustering_agent": "Clustering Agent",
             "clasificacion": "Random Forest",
             "clasificacion_knn": "KNN",
             "clasificacion_dt": "Decision Tree",
@@ -275,6 +293,7 @@ def _titulo_vista(vista: str) -> str:
             "lab2_experimentos": "Comparative Evaluation",
             "lab2_benchmark": "Model Comparative Evaluation",
             "lab2_resultados": "Classification Results",
+            "classification_agent": "Classification Agent",
         }
         return titulos_en.get(vista, TITULOS_VISTA.get(vista, vista))
     return TITULOS_VISTA.get(vista, vista)
@@ -295,8 +314,8 @@ def _ruta_vista(vista: str, titulo: str) -> str:
             "kmeans": "Clustering / K-Means",
             "kmedoids": "Clustering / K-Medoids",
             "hac": "Clustering / Hierarchical",
-            "eda_agente": "Exploration / AI Agent",
-            "clustering_agente": "Clustering / AI Agent",
+            "eda_agent": "Exploration / AI Agent",
+            "clustering_agent": "Clustering / AI Agent",
             "clasificacion": "Classification / Random Forest",
             "clasificacion_knn": "Classification / KNN",
             "clasificacion_dt": "Classification / Decision Tree",
@@ -307,6 +326,7 @@ def _ruta_vista(vista: str, titulo: str) -> str:
             "lab2_experimentos": "Classification / Benchmark",
             "lab2_benchmark": "Classification / Benchmark",
             "lab2_resultados": "Results / Classification",
+            "classification_agent": "Classification / AI Agent",
         }
         return rutas_en.get(vista, f"Analysis / {titulo}")
     return RUTAS_VISTA.get(vista, f"Análisis / {titulo}")

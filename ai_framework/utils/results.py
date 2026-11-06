@@ -166,33 +166,46 @@ class ResultadoExperimentoRegresion:
 
 
 @dataclass(frozen=True)
-class Hallazgo:
-    """Observación que un agente registra por iniciativa propia o al reaccionar."""
+class Finding:
+    """Observation an agent records on its own initiative or when reacting."""
 
-    agente: str
-    nivel: str  # "info", "aviso" o "critico"
-    mensaje: str
-    detalle: dict[str, Any] = field(default_factory=dict)
+    agent: str
+    level: str  # "info", "warning" or "critical"
+    message: str
+    detail: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class SugerenciaModelado:
-    """Configuración supervisada que un agente propone; no entrena modelos."""
+class ModelingSuggestion:
+    """Supervised configuration proposed by an agent; it does not train models."""
 
-    tarea: str
+    task: str
     target: str
     features: tuple[str, ...]
-    excluidas: tuple[str, ...]
+    excluded: tuple[str, ...]
 
 
 @dataclass(frozen=True)
-class SugerenciaClustering:
-    """Mejor partición que un agente encontró por silhouette."""
+class ClusteringSuggestion:
+    """Best partition an agent found by silhouette."""
 
-    algoritmo: str
+    algorithm: str
     n_clusters: int
     silhouette: float
-    tamanos: tuple[int, ...]
+    sizes: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class ModelRecommendation:
+    """Supervised model a regression or classification agent selected by validation."""
+
+    task: str
+    algorithm: str
+    metric: str  # selection metric: "rmse" or "f1_macro"
+    validation_score: float
+    test_metrics: dict[str, float] = field(default_factory=dict)
+
+
 PreparedData = DatosPreparados
 PCAResult = ResultadoACP
 ClassificationResult = ResultadoClasificacion
@@ -202,6 +215,7 @@ RegressionExperimentResult = ResultadoExperimentoRegresion
 PartitionResult = ResultadoParticion
 ProjectionResult = ResultadoProyeccion
 RegressionResult = ResultadoRegresion
-Finding = Hallazgo
-ModelingSuggestion = SugerenciaModelado
-ClusteringSuggestion = SugerenciaClustering
+Hallazgo = Finding
+SugerenciaModelado = ModelingSuggestion
+SugerenciaClustering = ClusteringSuggestion
+RecomendacionModelo = ModelRecommendation

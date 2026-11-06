@@ -1,8 +1,8 @@
-"""Estado compartido entre agentes (patrón pizarra / blackboard).
+"""State shared by the agents (blackboard pattern).
 
-Hereda :class:`EDA`, igual que ``Supervisado`` y ``NoSupervisado``: los agentes
-usan sus métodos de análisis sobre una sola copia del dataset. Al LLM sólo se
-le envía :meth:`Blackboard.resumen_para_llm`, nunca las filas.
+Inherits :class:`EDA`, like ``Supervised`` and ``Unsupervised``: agents use its
+analysis methods on a single copy of the dataset. Only
+:meth:`Blackboard.llm_context` is sent to the LLM, never the rows.
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ from typing import Any
 import pandas as pd
 
 from ai_framework.data.eda import EDA
-from ai_framework.utils.results import Hallazgo
+from ai_framework.utils.results import Finding
 
 
 class Blackboard(EDA):
-    # Únicos resultados que llegan al LLM; los demás pueden contener objetos o filas.
-    CLAVES_CONTEXTO = ("perfil", "clustering")
+    # Only results that reach the LLM; the others may hold objects or rows.
+    CONTEXT_KEYS = ("profile", "clustering", "regression", "classification")
 
     def __init__(
         self,
@@ -26,41 +26,42 @@ class Blackboard(EDA):
         ruta_datos=None,
         *,
         target: str | None = None,
-        origen: str = "csv",
+        source: str = "csv",
         **kwargs,
     ) -> None:
         super().__init__(dataframe=dataframe, ruta_datos=ruta_datos, **kwargs)
         if target is not None and target not in self.datos.columns:
             raise KeyError(f"La variable objetivo {target!r} no existe.")
-        self.target = target  # None: sólo exploración, sin modelado sugerido
-        self.origen = origen
-        self.resultados: dict[str, Any] = {}
-        self.hallazgos: list[Hallazgo] = []
-        self.mensajes: list[tuple[str, str]] = []  # (autor, texto)
+        self.target = target  # None: exploration only, no modeling suggestion
+        self.source = source
+        self.results: dict[str, Any] = {}
+        self.findings: list[Finding] = []
+        self.messages: list[tuple[str, str]] = []  # (author, text)
+        self.progress: list[tuple[str, str]] = []  # (agent, update)
 
-    def registrar(self, hallazgo: Hallazgo) -> bool:
-        """Agrega el hallazgo si no estaba; devuelve si era nuevo."""
-        if hallazgo in self.hallazgos:
+    def add_finding(self, finding: Finding) -> bool:
+        """Adds the finding if it was not there yet; returns whether it was new."""
+        if finding in self.findings:
             return False
-        self.hallazgos.append(hallazgo)
+        self.findings.append(finding)
         return True
 
-    def anotar(self, autor: str, texto: str) -> None:
-        self.mensajes.append((autor, texto))
+    def add_message(self, author: str, text: str) -> None:
+        self.messages.append((author, text))
 
-    def resumen_para_llm(self, max_hallazgos: int = 20) -> str:
-        """Contexto compacto: forma, columnas, perfil y hallazgos recientes."""
-        contexto: dict[str, Any] = {
-            "origen": self.origen,
-            "filas": int(len(self.datos)),
-            "columnas": [str(c) for c in self.datos.columns],
+    def llm_context(self, max_findings: int = 20) -> str:
+        """Compact context: shape, columns, profile and recent findings."""
+        context: dict[str, Any] = {
+            "source": self.source,
+            "rows": int(len(self.datos)),
+            "columns": [str(c) for c in self.datos.columns],
             "target": self.target,
         }
-        for clave in self.CLAVES_CONTEXTO:
-            if clave in self.resultados:
-                contexto[clave] = self.resultados[clave]
-        contexto["hallazgos"] = [
-            {"agente": h.agente, "nivel": h.nivel, "mensaje": h.mensaje}
-            for h in self.hallazgos[-max_hallazgos:]
+        for key in self.CONTEXT_KEYS:
+            if key in self.results:
+                context[key] = self.results[key]
+        context["findings"] = [
+            {"agent": f.agent, "level": f.level, "message": f.message}
+            for f in self.findings[-max_findings:]
         ]
-        return json.dumps(contexto, ensure_ascii=False, default=str)
+        return json.dumps(context, ensure_ascii=False, default=str)

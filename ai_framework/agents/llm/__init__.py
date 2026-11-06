@@ -1,23 +1,23 @@
-"""Proveedores de modelos de lenguaje para los agentes."""
+"""Language model providers for the agents."""
 
 from ai_framework.agents.llm.openai_provider import (
-    ErrorProveedor,
-    ProveedorOpenAICompat,
-    crear_proveedor,
+    OpenAICompatibleProvider,
+    ProviderError,
+    create_provider,
 )
 from ai_framework.agents.llm.provider import (
-    LlamadaHerramienta,
-    ProveedorFalso,
-    ProveedorLLM,
-    RespuestaLLM,
+    FakeLLMProvider,
+    LLMProvider,
+    LLMResponse,
+    ToolCall,
 )
 
 __all__ = [
-    "ErrorProveedor",
-    "LlamadaHerramienta",
-    "ProveedorFalso",
-    "ProveedorLLM",
-    "ProveedorOpenAICompat",
-    "RespuestaLLM",
-    "crear_proveedor",
+    "FakeLLMProvider",
+    "LLMProvider",
+    "LLMResponse",
+    "OpenAICompatibleProvider",
+    "ProviderError",
+    "ToolCall",
+    "create_provider",
 ]
