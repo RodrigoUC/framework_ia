@@ -118,6 +118,20 @@ Sin interfaz:
 python -m scripts.ejecutar_agentes data/lab03/concrete/concrete.csv --target strength
 ```
 
-La API key va en `GEMINI_API_KEY` (u otra según el proveedor) o en
-`.streamlit/secrets.toml`, que git ignora. Iniciar un agente no entrena modelos.
-[Arquitectura y proveedores](docs/agentes/README.md).
+### Claves de API para Agentes
+
+Para que los agentes utilicen un modelo de lenguaje (LLM), configure la clave según el proveedor elegido:
+
+- **Groq (Recomendado, gratuito)**: Cree una cuenta y genere su clave en [Groq Console](https://console.groq.com/keys). La variable es `GROQ_API_KEY`.
+- **Gemini (Google AI Studio)**: Genere su clave en [Google AI Studio](https://aistudio.google.com/app/apikey). La variable es `GEMINI_API_KEY`.
+- **Sin LLM (Modo reglas)**: No requiere ninguna API key; funciona de forma local y determinista.
+
+Métodos para configurar la clave:
+1. **Archivo de secretos (recomendado)**: Copie `.streamlit/secrets.toml.example` a `.streamlit/secrets.toml` y pegue su clave (archivo ignorado por git).
+2. **Variable de entorno**:
+   ```powershell
+   $env:GROQ_API_KEY = "gsk_su_clave_aqui"
+   ```
+3. **En la aplicación web**: Ingrésela directamente en el campo **API key** dentro del formulario del Agente IA al seleccionar el proveedor correspondiente.
+
+Consulte la [guía completa de agentes](docs/agentes/README.md) para más detalles.
