@@ -52,15 +52,30 @@ class ClassificationAgent(SupervisedAgent):
     def _candidate_count(self):
         return len(STANDARD_CONFIGURATIONS)
 
+    def _choose_strategy(self) -> str:
+        """Autonomously choose between 'cv' and 'holdout' based on dataset and class sizes."""
+        datos = self.blackboard.datos
+        target = self.blackboard.target
+        if datos is None or target is None or target not in datos.columns:
+            return "cv"
+        n_rows = len(datos)
+        min_class = int(datos[target].dropna().value_counts().min()) if n_rows else 0
+        estimated_train_per_class = int(min_class * (1.0 - self.test_size))
+        if n_rows < 30 or estimated_train_per_class < self.folds:
+            return "holdout"
+        return "cv"
+
     def _run_experiment(self):
         model = Classification(
             dataframe=self.blackboard.datos, target=self.blackboard.target, features=self.features
         )
+        strategy = self._choose_strategy()
+        self.blackboard.results["classification_strategy"] = strategy
         return model.experimentar(
             algoritmos=list(ALGORITMOS_CLASIFICACION),
             configuraciones=STANDARD_CONFIGURATIONS,
             metrica=self.metric,
-            estrategia="cv",
+            estrategia=strategy,
             folds=self.folds,
             **self._training_options(),
         )
