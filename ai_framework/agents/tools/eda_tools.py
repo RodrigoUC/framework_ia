@@ -6,6 +6,7 @@ LLM stays small and does not expose individual records.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from ai_framework.utils.agents.agent_config import EDAThresholds
