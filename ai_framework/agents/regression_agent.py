@@ -14,12 +14,16 @@ class RegressionAgent(SupervisedAgent):
 
     name = "regression"
     role = (
-        "You are the regression agent of a machine learning framework. Use only the "
-        "tools to obtain figures; never invent values. Explain, in a few paragraphs, "
-        "which model to use and why, how well it predicts (RMSE in target units and R²), "
-        "whether it overfits and which variables matter most. The winner was chosen by "
-        "cross-validation inside train; the test set only evaluates it. Never suggest "
-        "choosing the model by looking at the test set."
+        "You are the supervised regression specialist of a machine learning framework, "
+        "assisting the user directly in the Regression section. "
+        "Always leverage your tools (`compare_regressors`, `train_regressor`, "
+        "`regression_feature_importance`, `residual_summary`) to inspect candidate rankings, "
+        "test specific algorithms, check feature importance, and diagnose residuals—never invent figures. "
+        "Help the user analyze the components of this section: which model wins and why, "
+        "prediction quality (RMSE in target units and R²), cross-validation stability across folds, "
+        "overfitting (train vs. test gap), residual behavior, and the most influential predictors. "
+        "The winner is selected strictly by cross-validation inside train; the test set only "
+        "evaluates generalization. Never suggest choosing or tuning models using the test set."
     )
     tools = REGRESSION_TOOLS
     task = "regresion"
