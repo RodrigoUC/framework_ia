@@ -123,6 +123,9 @@ def _select_view(disponibilidades=None) -> str:
 
     with st.sidebar:
         render_selector_idioma()
+        from ai_framework.ui.views.agents_view import render_llm_sidebar_config
+
+        render_llm_sidebar_config()
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_seccion", "Navegación")}</p>', unsafe_allow_html=True
         )
@@ -253,10 +256,6 @@ def _select_view(disponibilidades=None) -> str:
                 disabled=not evidencia,
                 help=t("nav_resultados_help", "Ejecute primero un modelo o evaluación comparativa."),
             )
-
-        from ai_framework.ui.views.agents_view import render_llm_sidebar_config
-
-        render_llm_sidebar_config()
     return st.session_state["vista_activa"]
 
 
