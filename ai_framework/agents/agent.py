@@ -55,6 +55,7 @@ class Agent(ABC):
         self.language = normalize_language(language)
         self.on_progress = on_progress
         self.bus: EventBus | None = None
+        self.registered_name: str | None = None
 
     def connect(self, bus: EventBus) -> Agent:
         self.bus = bus
@@ -69,7 +70,7 @@ class Agent(ABC):
 
     @property
     def display_name(self) -> str:
-        return self.text(f"agent_{self.name}")
+        return self.registered_name or self.text(f"agent_{self.name}")
 
     def report(self, key: str, **values) -> None:
         """Records a progress update and forwards it to whoever is watching."""
@@ -80,6 +81,8 @@ class Agent(ABC):
 
     # ---------------------------------------------------------- cycle
     def handle(self, event: Event) -> None:
+        if event.recipient is not None and event.recipient != self.name:
+            return
         if not self.accepts(event):
             return
         self.report("progress_start", agent=self.display_name)

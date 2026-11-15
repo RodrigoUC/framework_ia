@@ -28,6 +28,7 @@ class Event:
     type: str
     data: dict[str, Any] = field(default_factory=dict)
     source: str = "user"
+    recipient: str | None = None
 
 
 Handler = Callable[[Event], None]
@@ -42,6 +43,9 @@ class EventBus:
 
     def subscribe(self, event_type: str, handler: Handler) -> None:
         self._subscribers[event_type].append(handler)
+
+    def unsubscribe(self, event_type: str, handler: Handler) -> None:
+        self._subscribers[event_type].remove(handler)
 
     def emit(self, event: Event) -> None:
         self._queue.append(event)

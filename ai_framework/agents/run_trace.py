@@ -48,7 +48,7 @@ class RunTrace:
             "tasks": self.tasks,
             "decisions": self.decisions,
             "events": [
-                {"type": event.type, "source": event.source,
+                {"type": event.type, "source": event.source, "recipient": event.recipient,
                  "data": {key: value for key, value in event.data.items() if key in fields}}
                 for event in self.bus.history
             ],

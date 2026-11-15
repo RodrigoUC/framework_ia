@@ -94,3 +94,33 @@ def test_coordinated_trace_records_failed_task(tmp_path, monkeypatch):
     assert evidence["tasks"][-1]["error_code"] == "ValueError"
     assert evidence["tasks"][-1]["duration_seconds"] >= 0
     assert "Private diagnostic details" not in recorded
+
+
+def test_coordinator_assigns_registered_classifier():
+    from ai_framework.agents.blackboard import Blackboard
+    from ai_framework.agents.coordinator_agent import CoordinatorAgent
+    from ai_framework.agents.registry import AgentDefinition, AgentRegistry
+    from ai_framework.agents.run_trace import RunTrace
+
+    registry = AgentRegistry.with_defaults()
+    alternate = AgentDefinition("review-classifier", "Review classifier", "classification", frozenset({"classify"}))
+    registry.register(alternate)
+    assert registry.select("classify").agent_id == "classification"
+    with pytest.raises(ValueError, match="cannot perform"):
+        registry.select("regress", alternate.agent_id)
+    with pytest.raises(ValueError, match="already registered"):
+        registry.register(alternate)
+
+    data = pd.read_csv(DATA / "breast_cancer.csv")
+    trace = RunTrace()
+    coordinator = CoordinatorAgent(Blackboard(data, target="target"), trace.bus, trace=trace, registry=registry)
+
+    agent = coordinator.run(preferred_agent_id=alternate.agent_id)
+    evidence = trace.summary(agent=agent)
+    assert evidence["status"] == "completed"
+    assert evidence["result"]["test_metrics"]["f1_macro"] > 0.9
+    assert [task["agent"] for task in evidence["tasks"]] == ["eda", alternate.agent_id]
+    assert any(decision.get("agent") == alternate.agent_id for decision in evidence["decisions"])
+    requested, completed = evidence["events"][-2:]
+    assert (requested["type"], requested["recipient"]) == ("classification_requested", alternate.agent_id)
+    assert (completed["type"], completed["source"]) == ("classification_done", alternate.agent_id)

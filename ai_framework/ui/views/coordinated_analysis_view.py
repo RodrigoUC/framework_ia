@@ -129,7 +129,9 @@ def render_trace(trace: dict) -> None:
                        target=details["target"]))
     for decision in trace["decisions"]:
         if decision["action"] == "assigned":
-            st.write(t("coordinated_assigned", agent=t(AGENT_LABELS[decision["agent"]])))
+            label = AGENT_LABELS.get(decision["agent"])
+            name = t(label) if label else decision.get("name", decision["agent"])
+            st.write(t("coordinated_assigned", agent=name))
         elif decision["action"] == "excluded_predictor":
             reasons = ", ".join(t(f"coordinated_reason_{reason}") for reason in decision["reasons"])
             st.write(t("coordinated_excluded", column=decision["column"], reasons=reasons))
