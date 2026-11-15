@@ -16,12 +16,31 @@ from ai_framework.agents.llm.provider import INVALID_JSON_KEY, LLMResponse, Tool
 
 STATUS_HINTS = {
     400: "Puede ser la API key o un parámetro enviado.",
-    401: "La API key no es válida.",
+    401: "La API key no es válida o no fue encontrada.",
     403: "La key no tiene permiso: habilite la API en su proyecto, quite restricciones "
          "de la key o verifique que el servicio esté disponible en su país.",
     404: "El modelo no existe para este proveedor; revise AGENTES_MODELO.",
     429: "Se agotó la cuota gratuita o el límite por minuto; espere e intente de nuevo.",
 }
+
+
+def _resolve_api_key(variable: str | None, explicit_key: str | None = None) -> str | None:
+    if explicit_key and explicit_key.strip():
+        return explicit_key.strip()
+    if not variable:
+        return None
+    env_val = os.environ.get(variable)
+    if env_val and env_val.strip():
+        return env_val.strip()
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and variable in st.secrets:
+            secret_val = str(st.secrets[variable]).strip()
+            if secret_val:
+                return secret_val
+    except Exception:
+        pass
+    return None
 
 
 class ProviderError(RuntimeError):
@@ -65,7 +84,7 @@ class OpenAICompatibleProvider:
         self.temperature = temperature
         if client is None:
             variable = config.key_variable if config else None
-            key = api_key or (os.environ.get(variable) if variable else "ollama")
+            key = _resolve_api_key(variable, api_key) or ("ollama" if not variable else None)
             if not key:
                 raise ValueError(f"Defina {variable} para usar {provider}.")
             try:

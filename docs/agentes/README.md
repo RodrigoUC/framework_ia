@@ -91,6 +91,29 @@ del EDA antes de confiar en el modelo.
 `gemini`, `groq`, `openrouter` y `ollama` usan el mismo cliente `openai` con
 otra `base_url`. `rules` trabaja sin red ni API key.
 
+### Configuración con Groq (Modelos Gratuitos)
+
+Groq ofrece acceso gratuito de alta velocidad a modelos de pesos abiertos.
+Modelos gratuitos recomendados:
+- `llama-3.3-70b-versatile` (por defecto, 128k contexto, alta calidad de razonamiento y uso de herramientas).
+- `llama-3.1-8b-instant` (muy rápido, 128k contexto, mayores límites de peticiones por minuto).
+
+Configuración por variables de entorno:
+```powershell
+$env:GROQ_API_KEY = "gsk_su_clave_aqui"
+$env:AGENTES_PROVEEDOR = "groq"
+# Opcional si desea usar el modelo de 8B en vez de 70B:
+# $env:AGENTES_MODELO = "llama-3.1-8b-instant"
+```
+
+Configuración en `.streamlit/secrets.toml`:
+```toml
+GROQ_API_KEY = "gsk_su_clave_aqui"
+```
+
+En la interfaz gráfica (Streamlit), también puede ingresar directamente la clave en el campo **API key** al seleccionar **Groq** en el selector de modelo de lenguaje.
+
+### Configuración con Gemini
 ```powershell
 $env:GEMINI_API_KEY = "su-key"
 $env:AGENTES_MODELO = "gemini-2.5-flash"

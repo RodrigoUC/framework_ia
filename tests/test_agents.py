@@ -414,6 +414,30 @@ def test_default_model_is_the_suggested_one(monkeypatch):
     assert OpenAICompatibleProvider("groq", client=object()).model == "llama-3.3-70b-versatile"
 
 
+def test_groq_free_models_and_key_resolution(monkeypatch):
+    from ai_framework.utils.agents import LLM_PROVIDERS
+    assert "llama-3.3-70b-versatile" in LLM_PROVIDERS["groq"].free_models
+    assert "llama-3.1-8b-instant" in LLM_PROVIDERS["groq"].free_models
+
+    monkeypatch.setenv("GROQ_API_KEY", "  gsk_test_123  ")
+    provider = OpenAICompatibleProvider("groq", client=object())
+    assert provider.provider == "groq"
+    assert provider.model == "llama-3.3-70b-versatile"
+
+    custom_provider = OpenAICompatibleProvider("groq", "llama-3.1-8b-instant", client=object())
+    assert custom_provider.model == "llama-3.1-8b-instant"
+
+
+def test_groq_default_provider_detection(monkeypatch):
+    from ai_framework.ui.controllers.agents_controller import default_provider
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_groq_active")
+    assert default_provider() == "groq"
+
+
 def test_create_provider_rules_only():
     assert create_provider(RULES_ONLY) is None
 

@@ -25,10 +25,17 @@ from ai_framework.utils.results import ModelingSuggestion
 
 
 def default_provider() -> str:
-    """The first provider with a key in the environment; rules only if there is none."""
+    """The first provider with a key in the environment or secrets; rules only if there is none."""
     for code, provider in LLM_PROVIDERS.items():
-        if provider.key_variable and os.environ.get(provider.key_variable):
-            return code
+        if provider.key_variable:
+            if os.environ.get(provider.key_variable):
+                return code
+            try:
+                import streamlit as st
+                if hasattr(st, "secrets") and provider.key_variable in st.secrets:
+                    return code
+            except Exception:
+                pass
     return RULES_ONLY
 
 

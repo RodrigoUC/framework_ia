@@ -64,6 +64,10 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model", "--modelo", dest="model", help="Defaults to AGENTES_MODELO or the suggested one."
     )
+    parser.add_argument(
+        "--api-key", "--clave-api", dest="api_key",
+        help="API key for the LLM; defaults to the provider environment variable.",
+    )
     parser.add_argument("--separator", "--separador", dest="separator", default=",")
     parser.add_argument("--decimal", default=".")
     parser.add_argument("--encoding", default="utf-8")
@@ -89,7 +93,7 @@ def run(arguments: argparse.Namespace) -> Agent:
     )
     blackboard = Blackboard(data, target=arguments.target, source=arguments.csv.name)
     bus = EventBus()
-    llm = create_provider(arguments.provider, arguments.model)
+    llm = create_provider(arguments.provider, arguments.model, getattr(arguments, "api_key", None))
     options = {"language": arguments.language, "on_progress": lambda update: print(f"  - {update}", flush=True)}
     if arguments.agent == "clustering":
         agent = ClusteringAgent(blackboard, llm, **options).connect(bus)

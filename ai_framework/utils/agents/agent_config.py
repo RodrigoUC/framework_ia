@@ -13,6 +13,7 @@ class LLMProviderConfig:
     base_url: str
     key_variable: str | None
     suggested_model: str  # free catalogs change; check with the provider
+    free_models: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,15 +64,18 @@ LLM_PROVIDERS = {
     "gemini": LLMProviderConfig(
         "Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/",
         "GEMINI_API_KEY", "gemini-2.5-flash",
+        free_models=("gemini-2.5-flash", "gemini-2.0-flash"),
     ),
     "groq": LLMProviderConfig(
         "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile",
+        free_models=("llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
     ),
     "openrouter": LLMProviderConfig(
         "OpenRouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "",
     ),
     "ollama": LLMProviderConfig(
         "Ollama (local)", "http://localhost:11434/v1", None, "llama3.2",
+        free_models=("llama3.2", "qwen2.5:7b"),
     ),
 }
 PROVIDER_NAMES = {

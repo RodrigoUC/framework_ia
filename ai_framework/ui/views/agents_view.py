@@ -58,30 +58,43 @@ def _llm_controls() -> dict:
         key="agent_provider",
     )
     config = LLM_PROVIDERS.get(provider)
+    models_hint = (
+        f" Modelos sugeridos/gratuitos: {', '.join(config.free_models)}."
+        if config and config.free_models
+        else ""
+    )
     model = right.text_input(
         t("agent_model", "Modelo"),
         value=os.environ.get("AGENTES_MODELO", ""),
         placeholder=(config.suggested_model if config else "")
         or t("agent_model_placeholder", "nombre del modelo"),
         key="agent_model",
-        help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+        help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor.") + models_hint,
     )
     api_key = None
     if config and config.key_variable:
         variable = config.key_variable
+        has_key = bool(os.environ.get(variable))
+        if not has_key:
+            try:
+                has_key = hasattr(st, "secrets") and variable in st.secrets
+            except Exception:
+                has_key = False
         api_key = st.text_input(
             t("agent_api_key", "API key"),
             type="password",
             key="agent_api_key",
             placeholder=t("agent_key_detected", "{variable} detectada", variable=variable)
-            if os.environ.get(variable)
+            if has_key
             else t("agent_key_missing", "o defina {variable}", variable=variable),
             help=t(
                 "agent_api_key_help",
                 "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
             ),
         )
-    return {"provider": provider, "model": model, "api_key": api_key}
+    clean_model = model.strip() if model and model.strip() else None
+    clean_key = api_key.strip() if api_key and api_key.strip() else None
+    return {"provider": provider, "model": clean_model, "api_key": clean_key}
 
 
 def _start_button() -> bool:
