@@ -444,14 +444,33 @@ def _render_recommended_model(session: dict, family: str) -> None:
         st.dataframe(pd.DataFrame(ranking), width="stretch")
 
 
+def _suggest_eda_agent(family: str) -> None:
+    """Suggests visiting the EDA agent to review and prepare the dataset configuration."""
+    st.info(
+        t(
+            "agent_suggest_eda_prep",
+            "Sugerencia: use el Agente EDA en Exploración de datos para analizar y preparar la configuración del dataset.",
+        ),
+        icon=":material/explore:",
+    )
+    if st.button(
+        t("agent_go_to_eda", "Ir al Agente EDA"),
+        key=f"agent_{family}_goto_eda",
+    ):
+        st.session_state["vista_activa"] = "agente_eda"
+        st.rerun()
+
+
 def _render_supervised_agent(family, data, config, availability, label) -> None:
     if config is None or not config["features"]:
         st.warning(
             t("agent_configure_supervised", "Seleccione un target y predictoras en Configuración.")
         )
+        _suggest_eda_agent(family)
         return
     if availability is not None and not availability.lista:
         mostrar_faltantes(availability)
+        _suggest_eda_agent(family)
         return
     session_key, error_key = f"agent_{family}_session", f"agent_{family}_error"
     sync_supervised_agent_context(st.session_state, data, config, family)
@@ -471,6 +490,8 @@ def _render_supervised_agent(family, data, config, availability, label) -> None:
                 "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
             )
     _show_error(error_key)
+    if st.session_state.get(error_key):
+        _suggest_eda_agent(family)
     session = st.session_state.get(session_key)
     if session is None:
         st.info(
