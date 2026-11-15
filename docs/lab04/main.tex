@@ -23,7 +23,7 @@
 \maketitle
 
 \begin{abstract}
-Se integró un sistema multiagente para apoyar el análisis de datos y la selección de modelos. Un coordinador recibe solicitudes, consulta los hallazgos del agente exploratorio y asigna tareas a especialistas de regresión, clasificación o agrupamiento. El sistema usa una pizarra compartida y un bus de eventos para comunicar decisiones y conservar trazabilidad. La evaluación comparó la ruta coordinada con una ejecución directa de las mismas etapas, con tres repeticiones por caso. Ambas rutas coincidieron en el modelo seleccionado y las métricas de prueba. Un escenario sintético comprobó la exclusión de una copia del objetivo y la detención antes de entrenar cuando se agotan las predictoras elegibles.
+Se incorporó un sistema multiagente para apoyar el análisis de datos y la selección de modelos. El coordinador parte de lo que encuentra el agente exploratorio y, según los datos, asigna la tarea a un especialista de regresión, clasificación o agrupamiento. La pizarra compartida y el bus de eventos permiten comunicar y registrar esas decisiones. Se comparó el flujo coordinado con una ejecución directa y, en los escenarios supervisados, ambas rutas eligieron los mismos modelos y obtuvieron las mismas métricas de prueba. También se comprobó qué ocurre cuando una columna copia el objetivo. El coordinador la descarta y, si no quedan variables útiles, detiene el análisis antes de entrenar.
 \end{abstract}
 
 \tableofcontents
@@ -31,7 +31,7 @@ Se integró un sistema multiagente para apoyar el análisis de datos y la selecc
 
 \section{Introducción y objetivos}
 
-El framework del curso ya provee análisis exploratorio, agrupamiento, clasificación y regresión. La cuarta etapa incorpora agentes para perfilar datos, decidir qué análisis ejecutar y comunicar los resultados. Se implementó un coordinador explícito y se evaluaron la cooperación, el manejo de un conflicto de selección de variables y el costo de intercambiar eventos.
+En los laboratorios anteriores se trabajó con análisis exploratorio, agrupamiento, clasificación y regresión. En esta etapa se incorporaron agentes para decidir qué análisis conviene realizar a partir de los datos y mostrar cómo se llegó a esa decisión. Para evaluar el trabajo del coordinador, se comparó su ejecución con una ruta directa y se estudió qué ocurre cuando una columna contiene la misma información que se quiere predecir.
 
 \section{Fundamentación teórica}
 
@@ -39,7 +39,7 @@ Un agente percibe un entorno, actúa sobre él y orienta sus decisiones hacia un
 
 Una arquitectura reactiva responde a estímulos mediante reglas, una deliberativa razona sobre objetivos y alternativas, y una híbrida combina ambos enfoques \cite{wooldridge}. En el framework, las reglas responden a señales como valores faltantes o una correlación extrema. La selección de modelos del especialista evalúa alternativas con métricas. La capa conversacional opcional puede pedir el uso de herramientas y explicar resultados.
 
-Un sistema multiagente distribuye responsabilidades entre participantes especializados. La comunicación intercambia mensajes estructurados, la coordinación ordena las dependencias y la cooperación combina aportes para una meta común. En una negociación los agentes pueden intercambiar propuestas, como ocurre en el protocolo de red contractual de Smith \cite{smith}. En el laboratorio, una política determinista del coordinador resuelve las discrepancias de selección mediante los hallazgos de EDA. La pizarra sigue el patrón de memoria compartida descrito por Corkill \cite{corkill}. La traza registra la secuencia, el origen de los eventos y los motivos de las decisiones para facilitar su revisión.
+En un sistema multiagente, cada participante asume una parte del trabajo. Los mensajes permiten comunicar lo que encuentra cada agente, y la coordinación permite saber en qué orden se deben realizar las tareas para alcanzar un objetivo común. Una forma de coordinar es negociar mediante propuestas, como en el protocolo de red contractual de Smith \cite{smith}. En este laboratorio, el coordinador aplica reglas a partir de lo que encuentra EDA. Esos hallazgos quedan en la pizarra, que funciona como una memoria compartida \cite{corkill}. La traza permite revisar qué ocurrió, quién envió cada mensaje y por qué se tomó una decisión.
 
 \section{Arquitectura y roles}
 
@@ -59,7 +59,7 @@ Agrupamiento & Variables numéricas seleccionadas. Compara K-Means y HAC con enl
 \end{tabularx}
 \end{table}
 
-El bus síncrono distribuye eventos con tipo, origen y datos estructurados. La pizarra conserva el perfil, los hallazgos, el contexto de ejecución y los resultados. El coordinador conecta al especialista después de procesar EDA y emite su solicitud explícita. Cada asignación se ejecuta una vez y el especialista llama las funciones de aprendizaje automático de los laboratorios anteriores. El flujo coordinado y su traza JSON están disponibles desde la terminal y desde la vista \emph{Análisis coordinado} del menú \emph{Análisis y modelos} en Streamlit. La vista usa reglas locales y presenta la asignación, las exclusiones y el resultado.
+El agente EDA revisa los datos y guarda sus hallazgos en la pizarra compartida. A partir de esa información, el coordinador decide qué especialista debe intervenir y le asigna la tarea mediante el bus de eventos. Cada mensaje identifica su tipo, su origen y los datos necesarios para la tarea. El especialista ejecuta una vez el análisis asignado con las funciones de los laboratorios anteriores y deja su resultado en la pizarra. Se puede seguir este proceso desde la terminal o en \emph{Análisis coordinado}, dentro del menú \emph{Análisis y modelos} de Streamlit. La vista muestra la asignación, las exclusiones y el resultado, y permite descargar la traza.
 
 \begin{figure}[htbp]
 \centering
@@ -84,7 +84,7 @@ El bus síncrono distribuye eventos con tipo, origen y datos estructurados. La p
 
 \section{Flujo de cooperación y resolución del conflicto}
 
-EDA perfila los datos, detecta señales de riesgo y propone variables. El coordinador aplica las exclusiones por constantes, identificadores, correlación extrema y copias exactas del objetivo. Cuando existe una copia de \texttt{target}, el conflicto consiste en que un predictor puede hacer parecer mejor al modelo al incorporar indirectamente la respuesta. Si quedan variables elegibles, el coordinador asigna el entrenamiento con el conjunto filtrado. Si se agotan, registra \texttt{needs\_review} y finaliza antes de entrenar.
+EDA revisa la calidad de los datos y propone qué variables pueden servir para el análisis. El coordinador revisa esa propuesta y descarta columnas constantes, posibles identificadores, variables con correlación extrema y copias exactas del objetivo. Por ejemplo, si una columna copia \texttt{target}, el modelo tendría acceso a la respuesta y su rendimiento podría parecer mejor de lo que es. Si quedan otras variables útiles, el especialista entrena con ellas. Si ninguna queda disponible, el coordinador detiene el proceso y registra que los datos requieren revisión.
 
 \begin{figure}[htbp]
 \centering
@@ -111,7 +111,7 @@ Los fallos de ejecución se registran con el código del error y el estado de la
 
 Se definieron tres niveles de complejidad. En el nivel básico se usó Diabetes de scikit-learn (442 filas) para regresión. En el nivel intermedio se usó Cáncer de mama de scikit-learn (569 filas) para clasificación binaria. En el nivel avanzado se derivaron de Diabetes dos variantes con \texttt{target\_copy}. La primera conserva las predictoras originales. La segunda conserva solo el objetivo y su copia. Una comprobación adicional de agrupamiento usó las predictoras de Diabetes con el objetivo excluido.
 
-La línea base directa invoca EDA y el especialista prefijado en una secuencia centralizada. La ruta multiagente decide la asignación y publica eventos. Ambas aplican la misma política de exclusión y usan semilla 42, 25\,\% de prueba y cinco pliegues de validación dentro del entrenamiento en los casos supervisados. Se contrastó la huella de las filas asignadas a entrenamiento y prueba, las predictoras, el ganador, las métricas publicadas y los errores observados. Se hicieron tres repeticiones por caso con alternancia del orden de ejecución. Se registró el tiempo después de cargar los datos, las tareas completadas, los errores y los eventos del bus. Esos eventos incluyen inicios y finalizaciones; por tanto, el conteo mide la actividad del bus.
+La ruta directa ejecuta EDA y llama a un especialista definido de antemano. En la ruta coordinada, la elección del especialista depende de los hallazgos de EDA. Para comparar ambas rutas en los casos supervisados, se aplicaron las mismas reglas de exclusión y se usaron las mismas filas de entrenamiento y prueba. Se reservó el 25\,\% de los datos para prueba y se usaron cinco pliegues de validación dentro del conjunto de entrenamiento. Cada caso se repitió tres veces y se alternó el orden de las rutas. Se compararon las predictoras elegidas, el modelo recomendado y sus métricas. También se registraron los tiempos después de cargar los datos, las tareas terminadas, los errores y los eventos de inicio y finalización.
 
 Para regresión, RMSE expresa el error en las unidades de la variable objetivo y penaliza más los errores grandes. Para clasificación se emplea F1 macro, el promedio del F1 de cada clase. Para agrupamiento se usa el índice \textit{silhouette}, que contrasta la cohesión del grupo y su separación respecto de los demás \cite{rousseeuw}.
 
@@ -142,7 +142,7 @@ La validación seleccionó Lasso con RMSE 56,0556 y regresión logística con F1
 
 \subsection{Tiempos de ejecución}
 
-La Tabla~\ref{tab:tiempos} muestra la mediana de tres repeticiones de la revisión \texttt{2e79d0c}, ejecutada con Python 3.11.8 y dos hilos para OpenMP y OpenBLAS. La evidencia adjunta conserva los tiempos por corrida y por tarea.
+La Tabla~\ref{tab:tiempos} muestra el tiempo central de las tres repeticiones de cada escenario. El ZIP incluye los tiempos de cada corrida y de sus tareas para quien quiera revisar la comparación con más detalle.
 
 \begin{table}[htbp]
 \centering
@@ -161,19 +161,17 @@ Agrupamiento & 0,67 & -- \\
 \end{tabular}
 \end{table}
 
-En los escenarios supervisados, las diferencias entre las medianas cambian de signo y los rangos de las dos rutas se solapan. Con tres repeticiones y un tiempo dominado por el entrenamiento, estos datos describen la máquina de prueba y ofrecen una estimación limitada del costo aislado de publicar eventos.
+En Diabetes, la ruta coordinada tuvo un tiempo central ligeramente menor. En Cáncer de mama ocurrió lo contrario. Los tiempos de las dos rutas se solaparon en las repeticiones y buena parte del tiempo se destinó al entrenamiento. Con estas pruebas, queda abierta la pregunta de cuánto tiempo añade por sí sola la comunicación entre agentes.
 
 \subsection{Verificación de la integración con un proveedor de lenguaje}
 
-La vista de análisis coordinado ofrece interpretación y preguntas de seguimiento opcionales. El proveedor recibe la traza estructurada y la conversación después de calcular localmente las asignaciones, exclusiones y métricas. En la prueba manual con Cáncer de mama, Groq (\nolinkurl{openai/gpt-oss-120b}) explicó la asignación a Clasificación y respondió qué significa un F1 macro de 0,985. Durante el intento que falló, el resultado local y la descarga de la traza siguieron disponibles.
-
-En Streamlit se pidió al Agente EDA, configurado con Groq y el modelo \nolinkurl{openai/gpt-oss-120b}, que analizara los valores atípicos de \texttt{bmi} con \texttt{outliers}. La respuesta reportada identificó 3 de 442 observaciones (0,68\,\%) mediante el criterio del rango intercuartílico con factor 1,5 y límites de 14,09 y 38,39. Una ejecución local de la herramienta sobre el mismo conjunto devolvió los mismos valores al redondear. La respuesta confirma la interacción con el proveedor y la coincidencia numérica. La invocación en esa sesión quedó sin verificar en la actividad del agente. Los experimentos de la Tabla~\ref{tab:resultados} se ejecutaron en modo \texttt{rules}.
+En Streamlit se probó si el modelo de lenguaje podía ayudar a entender un resultado ya calculado. Con los datos de Cáncer de mama, Groq explicó por qué el coordinador asignó Clasificación y respondió una pregunta sobre el F1 macro de 0,985. En el primer intento falló la respuesta del proveedor, pero las métricas y la descarga de la traza siguieron disponibles. También se consultó al agente EDA sobre los valores atípicos de \texttt{bmi} y la respuesta coincidió con el cálculo local. El registro del ZIP detalla qué se verificó en esa prueba. Los experimentos comparativos se ejecutaron con reglas locales.
 
 \section{Discusión y conclusiones}
 
-La arquitectura conserva la calidad publicada de los modelos en la comparación controlada y añade evidencia explícita de las asignaciones. El escenario sintético demuestra una exclusión con una causa concreta y un cierre anticipado cuando no hay variables aptas. La ruta directa comparte la misma política, necesaria para que la comparación aísle la forma de coordinación.
+En los casos evaluados, ambas rutas eligieron los mismos modelos y obtuvieron las mismas métricas de prueba. La coordinación permitió dejar visible qué agente recibió cada tarea y por qué. El caso de la copia del objetivo muestra también el valor de revisar los datos antes de entrenar. La decisión quedó registrada tanto cuando se pudo continuar como cuando fue necesario detener el análisis.
 
-El perfilado de EDA utiliza todo el archivo antes de fijar el entrenamiento. Esto permite reproducir el flujo existente, pero incorporar etiquetas de prueba a reglas de selección puede afectar una evaluación predictiva externa. Para medir generalización estricta, conviene limitar esas reglas al subconjunto de entrenamiento. El resultado de agrupamiento presenta una estructura débil en este caso. La coordinación es síncrona y se evalúa en un solo proceso, por lo que la medición tampoco establece beneficios de paralelismo o rendimiento distribuido.
+Hay que considerar que EDA revisa todo el archivo antes de definir el entrenamiento. Si las etiquetas de prueba influyen en la selección de variables, pueden afectar la evaluación. Para estudiar el rendimiento sobre datos nuevos, habría que limitar esa selección a los datos de entrenamiento. Además, el agrupamiento mostró una separación débil entre grupos. Como los agentes se ejecutaron uno después de otro en un solo proceso, estas pruebas tampoco permiten saber cómo se comportaría el sistema en paralelo o en varias máquinas.
 
 \clearpage
 \appendix
@@ -183,7 +181,7 @@ Desde la raíz del repositorio, con las dependencias de Python instaladas:
 \begin{verbatim}
 python -m scripts.run_lab04 --output output/lab04/reference
 \end{verbatim}
-El directorio contiene \texttt{runs.json} con las trazas y \texttt{summary.csv} con el resumen. La evidencia registra la revisión de Git, el estado del árbol de trabajo, las versiones y la configuración de hilos.
+El ZIP incluye \texttt{summary.csv} con los resultados y \texttt{runs.json} con el registro de cada corrida. En este último se pueden consultar la versión del código y las condiciones de ejecución.
 
 \begin{thebibliography}{9}
 \bibitem{wooldridge}
