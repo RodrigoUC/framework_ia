@@ -1,5 +1,7 @@
 # Nexo IA (`framework_ia`) · Plataforma Unificada de Análisis de Datos y Machine Learning
 
+[Lab04 setup and evaluation guide](docs/lab04/README.md)
+
 `framework_ia` es un producto unificado de análisis exploratorio de datos, aprendizaje no supervisado y aprendizaje supervisado (clasificación y regresión), desacoplado de la interfaz gráfica (`ui/streamlit_app.py`).
 
 ## Arquitectura del Framework

@@ -1,5 +1,22 @@
 # Lab 04
 
+## Set up a fresh copy
+
+Extract the ZIP and open a terminal in the extracted project folder. Install
+Python 3.11 or newer. The reference runs used Python 3.11.8. On Windows:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m scripts.run_lab04 --output output/lab04/evaluation --repeats 1
+```
+
+On macOS or Linux, use `python3 -m venv .venv` and
+`.venv/bin/python` for the remaining commands. The evaluation runs locally in
+`rules` mode. To launch Streamlit, run `python -m streamlit run app.py` with the
+project environment's Python. The ZIP includes the compiled report in
+`report/lab04.pdf` and the reference evidence in `evidence/`.
+
 ## Coordinated agent workflow
 
 From the repository root, use the project environment to run the coordinator:
@@ -80,3 +97,21 @@ cd docs/lab04
 pdflatex main.tex
 pdflatex main.tex
 ```
+
+## Groq integration smoke test
+
+In Streamlit, load `diabetes_lab03.csv`, select Groq and
+`openai/gpt-oss-120b` in the agent settings, and provide a local API key.
+Start the EDA agent and ask it to use `outliers` on `bmi`. Record the provider,
+model, date, outcome and observed tool invocation in an English smoke-test
+record. A credential should remain in the local settings.
+
+## Package the delivery
+
+Build the report and run the reference suite from a clean checkout. From the
+repository root, pass the confirmed student IDs, the compiled report and the
+experiment evidence to `python -m scripts.pack_lab04`. The `--ids` option accepts
+the IDs in submission order. Use `--pdf` for the compiled PDF, `--evidence` for
+the directory containing `runs.json` and `summary.csv`, and `--output` for the
+destination directory. Use `--llm-evidence` to include the observed Groq test
+record. The command verifies the ZIP and names it with the supplied IDs.
