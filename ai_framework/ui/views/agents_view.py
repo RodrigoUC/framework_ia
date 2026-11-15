@@ -49,7 +49,7 @@ def _target_label(no_target: str):
 
 
 def _llm_controls() -> dict:
-    """Provider, model and API key; must be drawn inside a form."""
+    """Provider, model dropdown and API key."""
     left, right = st.columns(2)
     provider = left.selectbox(
         t("agent_llm", "Modelo de lenguaje"),
@@ -58,19 +58,28 @@ def _llm_controls() -> dict:
         key="agent_provider",
     )
     config = LLM_PROVIDERS.get(provider)
-    models_hint = (
-        f" Modelos sugeridos/gratuitos: {', '.join(config.free_models)}."
-        if config and config.free_models
-        else ""
-    )
-    model = right.text_input(
-        t("agent_model", "Modelo"),
-        value=os.environ.get("AGENTES_MODELO", ""),
-        placeholder=(config.suggested_model if config else "")
-        or t("agent_model_placeholder", "nombre del modelo"),
-        key="agent_model",
-        help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor.") + models_hint,
-    )
+    env_model = os.environ.get("AGENTES_MODELO", "").strip()
+    model_options = list(config.free_models) if (config and config.free_models) else []
+    if config and config.suggested_model and config.suggested_model not in model_options:
+        model_options.insert(0, config.suggested_model)
+    if env_model and env_model not in model_options:
+        model_options.insert(0, env_model)
+    if model_options:
+        model = right.selectbox(
+            t("agent_model", "Modelo"),
+            model_options,
+            key=f"agent_model_{provider}",
+            help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+        )
+    else:
+        model = right.text_input(
+            t("agent_model", "Modelo"),
+            value=env_model,
+            placeholder=t("agent_model_placeholder", "nombre del modelo"),
+            key=f"agent_model_{provider}",
+            disabled=(provider == RULES_ONLY),
+            help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+        )
     variable = config.key_variable if config else None
     has_key = False
     if variable:
@@ -121,7 +130,7 @@ def _llm_controls() -> dict:
 
 
 def _start_button() -> bool:
-    return st.form_submit_button(
+    return st.button(
         t("agent_start", "Iniciar agente"), type="primary", icon=":material/smart_toy:"
     )
 
@@ -129,7 +138,7 @@ def _start_button() -> bool:
 def _configure_eda_agent(data: pd.DataFrame) -> dict | None:
     """Returns the configuration only when «Start agent» is pressed."""
     st.session_state.setdefault("agent_provider", default_provider())
-    with st.form("agent_eda_form"):
+    with st.container(border=True):
         st.caption(
             t(
                 "agent_eda_description",
@@ -155,7 +164,7 @@ def _configure_eda_agent(data: pd.DataFrame) -> dict | None:
 def _configure_clustering_agent() -> dict | None:
     """Uses the variables of the Clustering section; only the button runs clustering."""
     st.session_state.setdefault("agent_provider", default_provider())
-    with st.form("agent_clustering_form"):
+    with st.container(border=True):
         st.caption(
             t(
                 "agent_clustering_description",
@@ -438,7 +447,7 @@ SUPERVISED_FAMILIES = {
 
 def _configure_supervised_agent(family: str) -> dict | None:
     st.session_state.setdefault("agent_provider", default_provider())
-    with st.form(f"agent_{family}_form"):
+    with st.container(border=True):
         st.caption(t(*SUPERVISED_FAMILIES[family]["description"]))
         st.caption(
             t(
