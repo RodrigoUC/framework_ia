@@ -27,7 +27,12 @@ Choose **Clustering** to group the data, with the selected target excluded.
 Select **Run coordinated analysis** to see the assigned specialist, predictor
 exclusions and results. If no eligible predictors remain, the workflow requests
 review before training. **Download JSON trace** exports the decisions, events,
-task durations and outcome. The page uses local rules and needs no API key.
+task durations and outcome. The workflow uses local rules by default.
+
+To explain the result or ask follow-up questions, select a language model
+provider in the sidebar and enable **Use the configured language model**.
+The provider receives the structured trace and the conversation. The analysis,
+its outcome and the downloadable trace remain available if the provider fails.
 
 ## Coordinated agent workflow in the terminal
 

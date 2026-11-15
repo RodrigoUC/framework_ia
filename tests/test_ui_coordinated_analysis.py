@@ -2,13 +2,17 @@
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from ai_framework.agents import FakeLLMProvider, LLMResponse, ProviderError
+
 ENTRYPOINT = Path(__file__).with_name("streamlit_app_entry.py")
 DATA = ENTRYPOINT.parents[1] / "data"
+CREATE_PROVIDER = "ai_framework.ui.controllers.agents_controller.create_provider"
 
 
 def navigate(data: pd.DataFrame) -> AppTest:
@@ -82,3 +86,60 @@ def test_coordinator_explores_without_target_and_invalidates_stale_results():
     app.session_state["fuente_aplicada"] = (data.iloc[:20], "new.csv", "new")
     app.run()
     assert "coordinated_result" not in app.session_state
+
+
+def test_coordinator_explains_and_answers_without_repeating_analysis():
+    app = navigate(pd.read_csv(DATA / "diabetes_lab03.csv"))
+    app.selectbox(key="agent_provider").set_value("groq").run()
+    app.text_input(key="agent_api_key").set_value("test-key").run()
+    provider = FakeLLMProvider([LLMResponse(text="Regression completed."), LLMResponse(text="RMSE 53.282.")])
+    with patch(CREATE_PROVIDER, return_value=provider) as create_provider:
+        trace = run_analysis(app)
+        assert trace["result"]["algorithm"] == "Lasso"
+        assert not app.chat_input
+        create_provider.assert_not_called()
+        app.checkbox(key="coordinated_use_llm").check().run()
+        assert "Regression completed." in app.chat_message[0].markdown[0].value
+        app.chat_input(key="coordinated_question").set_value("What was the test error?").run()
+        assert "RMSE 53.282." in app.chat_message[-1].markdown[0].value
+        assert app.session_state["coordinated_result"] == trace
+        assert [call["tools"] for call in provider.calls] == [[], []]
+        assert create_provider.call_args.args[2] == "test-key"
+        assert "test-key" not in json.dumps(provider.calls)
+        assert "test-key" not in json.dumps(trace)
+        assert provider.calls[-1]["messages"][-1]["content"] == "What was the test error?"
+        initial = provider.calls[0]["messages"]
+        assert [message["role"] for message in initial] == ["system", "user"]
+        trace_json = initial[1]["content"].split("\n", 1)[1].split("\n\nQuestion:", 1)[0]
+        assert json.loads(trace_json)["result"] == trace["result"]
+
+        app.selectbox(key="agent_provider").set_value("rules").run()
+        assert not app.chat_input
+        assert len(provider.calls) == 2
+
+
+def test_coordinator_keeps_trace_when_language_provider_fails():
+    app = navigate(pd.read_csv(DATA / "diabetes_lab03.csv"))
+    app.selectbox(key="agent_provider").set_value("groq").run()
+    app.checkbox(key="coordinated_use_llm").check().run()
+    with patch(CREATE_PROVIDER, side_effect=ValueError("Private credential detail")):
+        trace = run_analysis(app, target=None)
+    assert trace["status"] == "completed"
+    assert app.chat_input
+    assert any("no respondió" in warning.value for warning in app.warning)
+    assert all("Private credential detail" not in warning.value for warning in app.warning)
+
+
+def test_coordinator_reports_provider_status_and_can_retry_without_training():
+    app = navigate(pd.read_csv(DATA / "diabetes_lab03.csv"))
+    app.selectbox(key="agent_provider").set_value("groq").run()
+    app.checkbox(key="coordinated_use_llm").check().run()
+    provider = FakeLLMProvider([LLMResponse(text="EDA completed.")])
+    error = ProviderError("groq", "openai/gpt-oss-120b", 429, "Private diagnostic")
+    with patch(CREATE_PROVIDER, side_effect=[error, provider]):
+        trace = run_analysis(app, target=None)
+        assert any("HTTP 429" in warning.value for warning in app.warning)
+        assert all("Private diagnostic" not in warning.value for warning in app.warning)
+        app.button(key="coordinated_llm_retry").click().run()
+    assert app.session_state["coordinated_result"] == trace
+    assert any("EDA completed." in message.markdown[0].value for message in app.chat_message)

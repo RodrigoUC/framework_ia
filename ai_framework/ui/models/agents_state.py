@@ -5,7 +5,8 @@ from __future__ import annotations
 from ai_framework.ui.models.session_state import firma_parametros, huella_datos
 
 EDA_KEYS = ("agent_eda_session", "agent_eda_error", "agent_eda_context")
-COORDINATED_KEYS = ("coordinated_result", "coordinated_context")
+COORDINATED_CHAT_KEYS = ("coordinated_messages", "coordinated_chat_error", "coordinated_chat_provider")
+COORDINATED_KEYS = ("coordinated_result", "coordinated_context", *COORDINATED_CHAT_KEYS)
 CLUSTERING_KEYS = (
     "agent_clustering_session",
     "agent_clustering_error",
@@ -33,6 +34,10 @@ def sync_coordinated_context(state, data, target: str | None, task: str) -> None
     if state.get("coordinated_context") != signature:
         _clear(state, COORDINATED_KEYS)
         state["coordinated_context"] = signature
+
+
+def clear_coordinated_chat(state) -> None:
+    _clear(state, COORDINATED_CHAT_KEYS)
 
 
 def sync_eda_agent_context(state, data) -> tuple:

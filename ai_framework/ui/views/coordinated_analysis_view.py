@@ -4,9 +4,18 @@ import json
 
 import streamlit as st
 
-from ai_framework.ui.controllers.agents_controller import run_coordinated_analysis
+from ai_framework.agents import ProviderError
+from ai_framework.ui.controllers.agents_controller import (
+    explain_coordinated_run,
+    run_coordinated_analysis,
+)
 from ai_framework.ui.i18n import get_language, t
-from ai_framework.ui.models.agents_state import sync_coordinated_context
+from ai_framework.ui.models.agents_state import (
+    clear_coordinated_chat,
+    sync_coordinated_context,
+)
+from ai_framework.ui.views.agents_view import get_llm_options
+from ai_framework.utils.agents import PROVIDER_NAMES, RULES_ONLY
 
 TASK_LABELS = {"regresion": "coordinated_regression", "clasificacion": "coordinated_classification"}
 AGENT_LABELS = {
@@ -24,8 +33,17 @@ def render_coordinated_analysis(data, label: str) -> None:
                         format_func={"auto": "Auto", "clustering": t("nav_clustering")}.get,
                         key="coordinated_task", persist_state="session")
     sync_coordinated_context(st.session_state, data, target, task)
+    use_llm = st.checkbox(t("coordinated_use_llm"), key="coordinated_use_llm", persist_state="session")
+    options = get_llm_options()
+    configured = options["provider"] != RULES_ONLY
+    if use_llm:
+        if configured:
+            st.caption(" · ".join(filter(None, (PROVIDER_NAMES[options["provider"]], options["model"]))))
+        else:
+            st.info(t("coordinated_llm_setup"))
 
     if st.button(t("coordinated_run"), type="primary", key="coordinated_run"):
+        clear_coordinated_chat(st.session_state)
         with st.status(t("coordinated_running")) as progress:
             def report(update: str) -> None:
                 # Coordinator decisions are rendered from the structured trace below.
@@ -40,6 +58,58 @@ def render_coordinated_analysis(data, label: str) -> None:
 
     if trace := st.session_state.get("coordinated_result"):
         render_trace(trace)
+        if use_llm and configured:
+            render_interpretation(trace, options)
+        elif not configured:
+            clear_coordinated_chat(st.session_state)
+
+
+def render_interpretation(trace: dict, options: dict) -> None:
+    state = st.session_state
+    provider = (options["provider"], options["model"])
+    if state.get("coordinated_chat_provider") != provider:
+        clear_coordinated_chat(state)
+        state["coordinated_chat_provider"] = provider
+
+    st.subheader(t("coordinated_interpretation"))
+    history = state.setdefault("coordinated_messages", [])
+    if not history and state.get("coordinated_chat_error") is None:
+        request = {"role": "user", "content": t("coordinated_explain_request")}
+        reply = request_explanation(trace, options, [request])
+        if reply is not None:
+            history.append({"role": "assistant", "content": reply})
+
+    for message in history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    if (error := state.get("coordinated_chat_error")) is not None:
+        if isinstance(error, int):
+            st.warning(t("coordinated_llm_http", code=error))
+        else:
+            st.warning(t("coordinated_llm_error"))
+            st.caption(t("coordinated_llm_diagnostic", code=error))
+        if not history:
+            st.button(t("coordinated_llm_retry"), key="coordinated_llm_retry",
+                      on_click=state.pop, args=("coordinated_chat_error", None))
+    if question := st.chat_input(t("coordinated_question"), key="coordinated_question"):
+        request = {"role": "user", "content": question}
+        reply = request_explanation(trace, options, [*history, request])
+        if reply is not None:
+            history.extend((request, {"role": "assistant", "content": reply}))
+        st.rerun()
+
+
+def request_explanation(trace: dict, options: dict, messages: list[dict]) -> str | None:
+    try:
+        with st.spinner(t("agent_thinking", "Pensando…")):
+            answer = explain_coordinated_run(trace, options, messages, language=get_language())
+    except Exception as error:  # noqa: BLE001 - provider failures must preserve the local result
+        st.session_state["coordinated_chat_error"] = (
+            error.status if isinstance(error, ProviderError) else type(error).__name__
+        )
+        return None
+    st.session_state.pop("coordinated_chat_error", None)
+    return answer
 
 
 def run_status_label(trace: dict) -> str:

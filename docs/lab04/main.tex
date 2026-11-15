@@ -165,6 +165,8 @@ En los escenarios supervisados, las diferencias entre las medianas cambian de si
 
 \subsection{Verificación de la integración con un proveedor de lenguaje}
 
+La vista de análisis coordinado ofrece interpretación y preguntas de seguimiento opcionales. El proveedor recibe la traza estructurada y la conversación después de calcular localmente las asignaciones, exclusiones y métricas. En la prueba manual con Cáncer de mama, Groq (\nolinkurl{openai/gpt-oss-120b}) explicó la asignación a Clasificación y respondió qué significa un F1 macro de 0,985. Durante el intento que falló, el resultado local y la descarga de la traza siguieron disponibles.
+
 En Streamlit se pidió al Agente EDA, configurado con Groq y el modelo \nolinkurl{openai/gpt-oss-120b}, que analizara los valores atípicos de \texttt{bmi} con \texttt{outliers}. La respuesta reportada identificó 3 de 442 observaciones (0,68\,\%) mediante el criterio del rango intercuartílico con factor 1,5 y límites de 14,09 y 38,39. Una ejecución local de la herramienta sobre el mismo conjunto devolvió los mismos valores al redondear. La respuesta confirma la interacción con el proveedor y la coincidencia numérica. La invocación en esa sesión quedó sin verificar en la actividad del agente. Los experimentos de la Tabla~\ref{tab:resultados} se ejecutaron en modo \texttt{rules}.
 
 \section{Discusión y conclusiones}
