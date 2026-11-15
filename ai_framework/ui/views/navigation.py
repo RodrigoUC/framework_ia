@@ -253,6 +253,10 @@ def _select_view(disponibilidades=None) -> str:
                 disabled=not evidencia,
                 help=t("nav_resultados_help", "Ejecute primero un modelo o evaluación comparativa."),
             )
+
+        from ai_framework.ui.views.agents_view import render_llm_sidebar_config
+
+        render_llm_sidebar_config()
     return st.session_state["vista_activa"]
 
 

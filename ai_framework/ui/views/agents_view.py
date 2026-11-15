@@ -48,85 +48,82 @@ def _target_label(no_target: str):
     return lambda column: no_target if column == NO_TARGET else column
 
 
-def _llm_controls() -> dict:
-    """Provider, model dropdown and API key."""
-    left, right = st.columns(2)
-    provider = left.selectbox(
-        t("agent_llm", "Modelo de lenguaje"),
-        list(PROVIDER_NAMES),
-        format_func=_provider_names().get,
-        key="agent_provider",
+def get_llm_options() -> dict:
+    """Returns the persisted LLM configuration from the sidebar."""
+    return st.session_state.get(
+        "agent_llm_config",
+        {"provider": default_provider(), "model": None, "api_key": None},
     )
-    config = LLM_PROVIDERS.get(provider)
-    env_model = os.environ.get("AGENTES_MODELO", "").strip()
-    model_options = list(config.free_models) if (config and config.free_models) else []
-    if config and config.suggested_model and config.suggested_model not in model_options:
-        model_options.insert(0, config.suggested_model)
-    if env_model and env_model not in model_options:
-        model_options.insert(0, env_model)
-    if model_options:
-        model = right.selectbox(
-            t("agent_model", "Modelo"),
-            model_options,
-            key=f"agent_model_{provider}",
-            help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+
+
+def render_llm_sidebar_config() -> None:
+    """Dedicated sidebar section for configuring LLM provider, model, and API key once."""
+    st.session_state.setdefault("agent_provider", default_provider())
+    with st.expander(t("agent_llm_settings", "Configuración de Agentes IA"), expanded=False):
+        provider = st.selectbox(
+            t("agent_llm", "Modelo de lenguaje"),
+            list(PROVIDER_NAMES),
+            format_func=_provider_names().get,
+            key="agent_provider",
         )
-    else:
-        model = right.text_input(
-            t("agent_model", "Modelo"),
-            value=env_model,
-            placeholder=t("agent_model_placeholder", "nombre del modelo"),
-            key=f"agent_model_{provider}",
-            disabled=(provider == RULES_ONLY),
-            help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
-        )
-    variable = config.key_variable if config else None
-    has_key = False
-    if variable:
-        has_key = bool(os.environ.get(variable))
-        if not has_key:
-            try:
-                has_key = hasattr(st, "secrets") and variable in st.secrets
-            except Exception:
-                has_key = False
-    key_placeholder = (
-        t("agent_key_detected", "{variable} detectada", variable=variable)
-        if (variable and has_key)
-        else (
-            t("agent_key_missing", "o defina {variable}", variable=variable)
-            if variable
-            else t("agent_key_select_provider", "Seleccione un proveedor (ej. Groq o Gemini) para usar una API key")
-        )
-    )
-    api_key = st.text_input(
-        t("agent_api_key", "API key"),
-        type="password",
-        key="agent_api_key",
-        placeholder=key_placeholder,
-        help=t(
-            "agent_api_key_help",
-            "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
-        ),
-    )
-    if config and config.free_models:
-        st.caption(
-            t(
-                "agent_recommended_models",
-                "Modelos gratuitos recomendados para {proveedor}: `{modelos}`",
-                proveedor=config.label,
-                modelos="`, `".join(config.free_models),
+        config = LLM_PROVIDERS.get(provider)
+        env_model = os.environ.get("AGENTES_MODELO", "").strip()
+        model_options = list(config.free_models) if (config and config.free_models) else []
+        if config and config.suggested_model and config.suggested_model not in model_options:
+            model_options.insert(0, config.suggested_model)
+        if env_model and env_model not in model_options:
+            model_options.insert(0, env_model)
+        if model_options:
+            model = st.selectbox(
+                t("agent_model", "Modelo"),
+                model_options,
+                key=f"agent_model_{provider}",
+                help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+            )
+        else:
+            model = st.text_input(
+                t("agent_model", "Modelo"),
+                value=env_model,
+                placeholder=t("agent_model_placeholder", "nombre del modelo"),
+                key=f"agent_model_{provider}",
+                disabled=(provider == RULES_ONLY),
+                help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor."),
+            )
+        variable = config.key_variable if config else None
+        has_key = False
+        if variable:
+            has_key = bool(os.environ.get(variable))
+            if not has_key:
+                try:
+                    has_key = hasattr(st, "secrets") and variable in st.secrets
+                except Exception:
+                    has_key = False
+        key_placeholder = (
+            t("agent_key_detected", "{variable} detectada", variable=variable)
+            if (variable and has_key)
+            else (
+                t("agent_key_missing", "o defina {variable}", variable=variable)
+                if variable
+                else t("agent_key_select_provider", "Seleccione un proveedor (ej. Groq o Gemini) para usar una API key")
             )
         )
-    else:
-        st.caption(
-            t(
-                "agent_recommended_models_default",
-                "Recomendación: seleccione **Groq** (`openai/gpt-oss-120b`) o **Gemini** (`gemini-2.5-flash`) para habilitar el análisis con LLM.",
-            )
+        api_key = st.text_input(
+            t("agent_api_key", "API key"),
+            type="password",
+            key="agent_api_key",
+            placeholder=key_placeholder,
+            help=t(
+                "agent_api_key_help",
+                "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
+            ),
         )
-    clean_model = model.strip() if model and model.strip() else None
-    clean_key = api_key.strip() if api_key and api_key.strip() else None
-    return {"provider": provider, "model": clean_model, "api_key": clean_key}
+        clean_model = model.strip() if model and model.strip() else None
+        clean_key = api_key.strip() if api_key and api_key.strip() else None
+        st.session_state["agent_llm_config"] = {
+            "provider": provider,
+            "model": clean_model,
+            "api_key": clean_key,
+        }
 
 
 def _start_button() -> bool:
@@ -154,7 +151,7 @@ def _configure_eda_agent(data: pd.DataFrame) -> dict | None:
             format_func=_target_label(t("agent_no_target", "(sin variable objetivo)")),
             key="agent_target",
         )
-        options = _llm_controls()
+        options = get_llm_options()
         start = _start_button()
     if not start:
         return None
@@ -171,7 +168,7 @@ def _configure_clustering_agent() -> dict | None:
                 "Compara K-Means y HAC, recomienda el número de clusters y describe cada grupo.",
             )
         )
-        options = _llm_controls()
+        options = get_llm_options()
         start = _start_button()
     return options if start else None
 
@@ -465,7 +462,7 @@ def _configure_supervised_agent(family: str) -> dict | None:
                 "evalúa al ganador.",
             )
         )
-        options = _llm_controls()
+        options = get_llm_options()
         start = _start_button()
     return options if start else None
 
