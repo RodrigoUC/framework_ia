@@ -40,7 +40,7 @@ class Agent(ABC):
     role: str = "You are a data analysis assistant."
     tools: tuple[Tool, ...] = ()
     listens_to: frozenset[str] = frozenset()
-    max_steps: int = 6
+    max_steps: int = 20
 
     def __init__(
         self,
