@@ -14,6 +14,7 @@ from ai_framework.agents import (
     Blackboard,
     ClassificationAgent,
     ClusteringAgent,
+    CoordinatorAgent,
     EDAAgent,
     Event,
     EventBus,
@@ -22,6 +23,20 @@ from ai_framework.agents import (
 )
 from ai_framework.utils.agents import LLM_PROVIDERS, RULES_ONLY
 from ai_framework.utils.results import ModelingSuggestion
+from ai_framework.agents.run_trace import RunTrace
+
+
+def run_coordinated_analysis(data: pd.DataFrame, label: str, target: str | None, task: str,
+                             *, language: str, on_progress=None) -> dict:
+    """Run the local coordinator and return a trace even when execution stops."""
+    trace = RunTrace()
+    try:
+        board = Blackboard(data, target=target, source=label)
+        agent = CoordinatorAgent(board, trace.bus, language=language, on_progress=on_progress,
+                                 trace=trace).run(task)
+    except Exception as error:  # pylint: disable=broad-except
+        return trace.summary(error=error)
+    return trace.summary(agent=agent)
 
 
 def default_provider() -> str:

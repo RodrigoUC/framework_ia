@@ -59,12 +59,12 @@ Agrupamiento & Variables numéricas seleccionadas. Compara K-Means y HAC con enl
 \end{tabularx}
 \end{table}
 
-El bus síncrono distribuye eventos con tipo, origen y datos estructurados. La pizarra conserva el perfil, los hallazgos, el contexto de ejecución y los resultados. El coordinador conecta al especialista después de procesar EDA y emite su solicitud explícita; así cada asignación se ejecuta una vez. El especialista llama las funciones de aprendizaje automático de los laboratorios anteriores. La interfaz Streamlit permite ejecutar los agentes individuales. La terminal ofrece el flujo coordinado y su traza JSON.
+El bus síncrono distribuye eventos con tipo, origen y datos estructurados. La pizarra conserva el perfil, los hallazgos, el contexto de ejecución y los resultados. El coordinador conecta al especialista después de procesar EDA y emite su solicitud explícita. Cada asignación se ejecuta una vez y el especialista llama las funciones de aprendizaje automático de los laboratorios anteriores. El flujo coordinado y su traza JSON están disponibles desde la terminal y desde la vista \emph{Análisis coordinado} del menú \emph{Análisis y modelos} en Streamlit. La vista usa reglas locales y presenta la asignación, las exclusiones y el resultado.
 
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[box/.style={draw,rounded corners,align=center,minimum height=8mm,font=\small}, arr/.style={-{Stealth},thick}]
-\node[box,fill=gray!10] (cli) at (0,3) {Solicitud por terminal};
+\node[box,fill=gray!10] (cli) at (0,3) {Solicitud por terminal o Streamlit};
 \node[box,fill=blue!8] (coord) at (0,1.9) {Coordinador};
 \node[box,fill=green!10] (bus) at (0,0.8) {Bus de eventos};
 \node[box,fill=orange!12] (eda) at (-4,0.8) {EDA};
@@ -97,8 +97,8 @@ EDA perfila los datos, detecta señales de riesgo y propone variables. El coordi
 \node[box,fill=purple!9] (trace) at (0,-1.2) {Se guarda la traza};
 \draw[arr] (request) -- (eda);
 \draw[arr] (eda) -- (review);
-\draw[arr] (review) -- node[above left,font=\footnotesize] {Ninguna elegible} (stop);
-\draw[arr] (review) -- node[above right,font=\footnotesize] {Hay predictoras elegibles} (fit);
+\draw[arr] (review) -- node[pos=.72,above left,font=\footnotesize] {Ninguna elegible} (stop);
+\draw[arr] (review) -- node[pos=.72,above right,font=\footnotesize] {Hay predictoras elegibles} (fit);
 \draw[arr] (stop) -- (trace);
 \draw[arr] (fit) -- (trace);
 \end{tikzpicture}

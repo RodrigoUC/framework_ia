@@ -16,6 +16,8 @@ PROJECT_FILES = (
     "scripts/pack_lab04.py", "tests/test_coordinator_agent.py", ".streamlit/config.toml",
     ".streamlit/secrets.toml.example", "data/diabetes_lab03.csv", "data/breast_cancer.csv",
     "docs/lab04/README.md", "docs/lab04/main.tex",
+    "ai_framework/ui/views/coordinated_analysis_view.py",
+    "tests/test_ui_coordinated_analysis.py", "tests/streamlit_app_entry.py",
 )
 
 

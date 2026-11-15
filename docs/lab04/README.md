@@ -17,7 +17,19 @@ On macOS or Linux, use `python3 -m venv .venv` and
 project environment's Python. The ZIP includes the compiled report in
 `report/lab04.pdf` and the reference evidence in `evidence/`.
 
-## Coordinated agent workflow
+## Coordinated analysis in Streamlit
+
+Apply a data source, then open **Analysis and models → Coordinated analysis**.
+Select a target and leave the mode on **Auto** to let EDA determine whether to
+assign regression or classification. An empty target runs exploration only.
+Choose **Clustering** to group the data, with the selected target excluded.
+
+Select **Run coordinated analysis** to see the assigned specialist, predictor
+exclusions and results. If no eligible predictors remain, the workflow requests
+review before training. **Download JSON trace** exports the decisions, events,
+task durations and outcome. The page uses local rules and needs no API key.
+
+## Coordinated agent workflow in the terminal
 
 From the repository root, use the project environment to run the coordinator:
 

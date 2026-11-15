@@ -68,6 +68,7 @@ from ai_framework.ui.views.agents_view import (
     render_eda_agent,
     render_regression_agent,
 )
+from ai_framework.ui.views.coordinated_analysis_view import render_coordinated_analysis
 from ai_framework.ui.views.classification_view import (
     preparacion_segura,
     render_modelo_individual,
@@ -317,6 +318,8 @@ def main() -> None:
         _render_eda(datos)
     elif vista == "eda_agent":
         render_eda_agent(datos, etiqueta)
+    elif vista == "coordinated_analysis":
+        render_coordinated_analysis(datos, etiqueta)
     elif vista == "clasificacion_configuracion":
         if configuracion_clasif is None:
             st.warning(

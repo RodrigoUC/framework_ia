@@ -143,6 +143,7 @@ def _select_view(disponibilidades=None) -> str:
             unsafe_allow_html=True,
         )
         boton(t("nav_configuracion", "Configuración"), "configuracion")
+        boton(t("nav_coordinated_analysis"), "coordinated_analysis")
         with st.expander(
             t("nav_clustering", "Clustering"),
             expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agent"},
@@ -273,6 +274,8 @@ def _select_view(disponibilidades=None) -> str:
 
 def _view_title(vista: str) -> str:
     lang = obtener_idioma()
+    if vista == "coordinated_analysis":
+        return t("nav_coordinated_analysis")
     if vista == "configuracion":
         return t("nav_configuracion", "Configuración")
     if vista in VISTAS_REGRESION:
