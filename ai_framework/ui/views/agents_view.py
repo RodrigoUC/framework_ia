@@ -356,9 +356,7 @@ def render_eda_agent(data: pd.DataFrame, label: str) -> None:
     st.caption(
         t(
             "agent_eda_intro",
-            "El agente actúa por su cuenta al iniciarse (reglas deterministas) y luego "
-            "responde preguntas con el modelo de lenguaje. Al LLM sólo se envía un "
-            "resumen del dataset, nunca sus filas.",
+            "Analiza el dataset automáticamente y responde tus preguntas usando solo un resumen de los datos (nunca las filas).",
         )
     )
     sync_eda_agent_context(st.session_state, data)
@@ -432,7 +430,7 @@ SUPERVISED_FAMILIES = {
         "ranking": compare_regressors,
         "description": (
             "agent_regression_description",
-            "Compara los regresores con validación cruzada, avisa riesgos y explica el mejor.",
+            "Compara modelos de regresión, detecta riesgos y explica el ganador.",
         ),
         "metric_label": "RMSE",
         "test_metrics": (("rmse", "RMSE"), ("mae", "MAE"), ("r2", "R²")),
@@ -442,7 +440,7 @@ SUPERVISED_FAMILIES = {
         "ranking": compare_classifiers,
         "description": (
             "agent_classification_description",
-            "Compara los clasificadores con validación cruzada, avisa riesgos y explica el mejor.",
+            "Compara modelos de clasificación, detecta riesgos y explica el ganador.",
         ),
         "metric_label": "F1 macro",
         "test_metrics": (("f1_macro", "F1 macro"), ("accuracy", "Accuracy"), ("recall_macro", "Recall macro")),
@@ -457,9 +455,7 @@ def _configure_supervised_agent(family: str) -> dict | None:
         st.caption(
             t(
                 "agent_supervised_note",
-                "Usa el target, las predictoras y la partición de Configuración. Compara "
-                "los modelos con validación cruzada dentro de train; la prueba sólo "
-                "evalúa al ganador.",
+                "Usa el target, las predictoras y la partición configurados. Valida en entrenamiento y evalúa al ganador en prueba.",
             )
         )
         options = get_llm_options()
