@@ -151,14 +151,21 @@ def _render_findings(blackboard: Blackboard) -> None:
     a.metric(t("agent_critical", "Críticos"), int(counts.get("critical", 0)))
     b.metric(t("agent_warnings", "Avisos"), int(counts.get("warning", 0)))
     c.metric(t("agent_info", "Informativos"), int(counts.get("info", 0)))
-    for finding in sorted(blackboard.findings, key=lambda f: LEVEL_ORDER[f.level]):
-        show = {"critical": st.error, "warning": st.warning, "info": st.info}[finding.level]
-        show(finding.message, icon=ICONS[finding.level])
     if not blackboard.findings:
         st.success(
             t("agent_no_risks", "El agente no encontró riesgos con sus reglas."),
             icon=":material/check_circle:",
         )
+        return
+    with st.expander(
+        t("agent_findings_detail", "Ver detalle de hallazgos ({total})", total=len(blackboard.findings)),
+        expanded=False,
+    ):
+        for finding in sorted(blackboard.findings, key=lambda f: LEVEL_ORDER[f.level]):
+            if finding.level in ("critical", "warning"):
+                st.warning(finding.message, icon=ICONS[finding.level])
+            else:
+                st.info(finding.message, icon=ICONS[finding.level])
 
 
 def _render_next_step(agent: EDAAgent) -> None:
