@@ -32,3 +32,6 @@ tmp/pdfs/
 !/data/lab03/concrete/README.md
 /output/lab03/
 /tmp/lab03/
+
+# Claves locales de los agentes; nunca se versionan.
+.streamlit/secrets.toml

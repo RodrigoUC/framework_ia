@@ -1,6 +1,6 @@
-"""Result objects shared by unsupervised and supervised analyses.
+"""Result objects shared by unsupervised and supervised analyses, as well as agents.
 
-Classes in this module transfer data between model logic and the
+Classes in this module transfer data between model logic, agent workflows, and the
 visualization layer without Streamlit dependencies or side effects.
 """
 
@@ -401,3 +401,50 @@ class RegressionExperimentResult:
 
 
 ResultadoExperimentoRegresion = RegressionExperimentResult
+
+
+@dataclass(frozen=True)
+class Finding:
+    """Observation an agent records on its own initiative or when reacting."""
+
+    agent: str
+    level: str  # "info", "warning" or "critical"
+    message: str
+    detail: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ModelingSuggestion:
+    """Supervised configuration proposed by an agent; it does not train models."""
+
+    task: str
+    target: str
+    features: tuple[str, ...]
+    excluded: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ClusteringSuggestion:
+    """Best partition an agent found by silhouette."""
+
+    algorithm: str
+    n_clusters: int
+    silhouette: float
+    sizes: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class ModelRecommendation:
+    """Supervised model a regression or classification agent selected by validation."""
+
+    task: str
+    algorithm: str
+    metric: str  # selection metric: "rmse" or "f1_macro"
+    validation_score: float
+    test_metrics: dict[str, float] = field(default_factory=dict)
+
+
+Hallazgo = Finding
+SugerenciaModelado = ModelingSuggestion
+SugerenciaClustering = ClusteringSuggestion
+RecomendacionModelo = ModelRecommendation

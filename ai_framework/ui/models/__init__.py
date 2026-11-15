@@ -1,6 +1,7 @@
 """State models, availability, and view catalog layer for UI."""
 
 from ai_framework.ui.models import (
+    agents_state,
     availability,
     classification_state,
     diabetes_profile,
@@ -11,6 +12,7 @@ from ai_framework.ui.models import (
 
 catalogo_vistas = view_catalog
 disponibilidad = availability
+estado_agentes = agents_state
 estado_clasificacion = classification_state
 estado_regresion = regression_state
 estado_sesion = session_state
@@ -32,6 +34,12 @@ from ai_framework.ui.models.view_catalog import (
     VISTAS_NO_SUPERVISADAS,
     VISTAS_REGRESION,
     VISTAS_REGRESORES,
+)
+from ai_framework.ui.models.agents_state import (
+    clear_agent_results,
+    sync_clustering_agent_context,
+    sync_eda_agent_context,
+    sync_supervised_agent_context,
 )
 from ai_framework.ui.models.availability import (
     Availability,
@@ -143,9 +151,13 @@ __all__ = [
     "hay_evidencia",
     "huella_datos",
     "inicializar_configuracion",
+    "clear_agent_results",
     "limpiar_resultados_clasificacion",
     "limpiar_resultados_regresion",
     "sincronizar_contexto",
+    "sync_clustering_agent_context",
+    "sync_eda_agent_context",
+    "sync_supervised_agent_context",
     "sincronizar_contexto_regresion",
     "sincronizar_ejecucion",
 ]

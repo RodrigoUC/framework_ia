@@ -14,13 +14,17 @@ Hereda de :class:`DataFrame` (misma carpeta).
 
 Jerarquía del framework:
 
-    DataFrame         (datos/dataframe.py · operaciones tabulares y estadísticas)
-    └── EDA           (este módulo · lógica y gráficos del EDA)
-        ├── NoSupervisado (modelos/no_supervisado/)
-        │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
-        └── Supervisado   (modelos/supervisado/)
-               ├── Clasificacion  ->  KNN, DT, RF, XGBoost, AdaBoost, NR, RL
-               └── Regresion      ->  RLS, RLM, RL, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT, RF
+    EDA               (este módulo · lógica y gráficos del EDA)
+    ├── NoSupervisado (modelos/no_supervisado/)
+    │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
+    ├── Supervisado   (modelos/supervisado.py)
+    │      ├── Clasificacion  ->  RF, NR
+    │      └── Regresion      ->  RLS, RLM, RL
+    └── Blackboard    (agents/ · estado que comparten los agentes)
+
+    Agent (agents/agent.py, ABC) trabaja sobre una Blackboard:
+           ├── EDAAgent          ->  perfil, nulos, atípicos, fuga, desbalance
+           └── ClusteringAgent   ->  compara K-Means y HAC, recomienda k
 """
 
 from __future__ import annotations

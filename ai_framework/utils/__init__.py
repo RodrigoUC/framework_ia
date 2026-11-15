@@ -58,7 +58,7 @@ from .supervised import (
     exportacion,
     regression as utils_regression,
 )
-from . import data, results, supervised, unsupervised, visualization
+from . import agents, data, results, supervised, unsupervised, visualization
 
 
 def __getattr__(name: str):
@@ -173,6 +173,7 @@ __all__ = [
     "utils_experiments",
     "utils_regression",
     "utils_cross_validation",
+    "agents",
     "data",
     "unsupervised",
     "supervised",

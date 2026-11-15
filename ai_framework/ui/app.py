@@ -62,6 +62,12 @@ from ai_framework.ui.views.theme import (
     _mostrar_figura,
     _texto_mapa_calor,
 )
+from ai_framework.ui.views.agents_view import (
+    render_classification_agent,
+    render_clustering_agent,
+    render_eda_agent,
+    render_regression_agent,
+)
 from ai_framework.ui.views.classification_view import (
     preparacion_segura,
     render_modelo_individual,
@@ -187,6 +193,7 @@ def main() -> None:
             "lab2_benchmark",
             "lab2_experimentos",
             "lab2_resultados",
+            "classification_agent",
         }
         else None
     )
@@ -245,6 +252,7 @@ def main() -> None:
         *VISTAS_CLASIFICADORES,
         "lab2_experimentos",
         "lab2_benchmark",
+        "classification_agent",
     }:
         configuracion_clasif = configuracion_clasificacion_actual(
             datos, st.session_state
@@ -294,6 +302,10 @@ def main() -> None:
             render_experimentos_regresion(
                 datos, configuracion_reg, _mostrar_figura
             )
+        elif vista == "regression_agent":
+            render_regression_agent(
+                datos, configuracion_reg, disponibilidades.get("regresion"), etiqueta
+            )
         elif vista in {"lab3_comparacion", "lab3_resultados"}:
             render_resultados_regresion(
                 _mostrar_figura,
@@ -303,6 +315,8 @@ def main() -> None:
         _render_dataset()
     elif vista == "eda":
         _render_eda(datos)
+    elif vista == "eda_agent":
+        render_eda_agent(datos, etiqueta)
     elif vista == "clasificacion_configuracion":
         if configuracion_clasif is None:
             st.warning(
@@ -323,6 +337,15 @@ def main() -> None:
                 configuracion_clasif,
                 _mostrar_figura,
                 algoritmo=VISTAS_CLASIFICADORES[vista],
+            )
+    elif vista == "classification_agent":
+        if configuracion_clasif is None:
+            _render_configuracion_requerida()
+        elif not configuracion_clasif["features"]:
+            _render_configuracion_requerida(sin_features=True)
+        else:
+            render_classification_agent(
+                datos, configuracion_clasif, disponibilidades.get("clasificacion"), etiqueta
             )
     elif vista == "lab2_benchmark":
         if configuracion_clasif is None:
@@ -355,6 +378,9 @@ def main() -> None:
     elif vista == "hac":
         assert configuracion is not None
         _render_hac(datos, configuracion)
+    elif vista == "clustering_agent":
+        assert configuracion is not None
+        render_clustering_agent(datos, configuracion, etiqueta)
     else:
         _render_regresion()
 

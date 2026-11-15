@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import sys
 
-from . import data, datasets, models, ui, utils
+from . import agents, data, datasets, models, ui, utils
+from .agents import (
+    Agent,
+    Agente,
+    AgenteClustering,
+    AgenteEDA,
+    Blackboard,
+    ClusteringAgent,
+    EDAAgent,
+    Pizarra,
+)
 from .data import (
     CargadorCSV,
     ConfiguracionCSV,
@@ -117,13 +127,22 @@ __all__ = [
     "DataVisualizer",
     "UnsupervisedVisualizer",
     "RegressionVisualizer",
+    "Agent",
+    "Blackboard",
+    "ClusteringAgent",
+    "EDAAgent",
     # Subpackages
+    "agents",
     "data",
     "models",
     "datasets",
     "ui",
     "utils",
     # Bilingual Aliases
+    "Agente",
+    "AgenteClustering",
+    "AgenteEDA",
+    "Pizarra",
     "Clasificacion",
     "Regresion",
     "Cluster",

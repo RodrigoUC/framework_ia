@@ -1,17 +1,27 @@
 """Application controller layer for Streamlit user interface."""
 
 from ai_framework.ui.controllers import (
+    agents_controller,
     classification_controller,
     regression_controller,
     sources_controller,
     unsupervised_controller,
 )
 
+controlador_agentes = agents_controller
 controlador_clasificacion = classification_controller
 controlador_regresion = regression_controller
 controlador_fuentes = sources_controller
 controlador_no_supervisado = unsupervised_controller
 
+from ai_framework.ui.controllers.agents_controller import (
+    apply_modeling_suggestion,
+    default_provider,
+    start_classification_agent,
+    start_clustering_agent,
+    start_eda_agent,
+    start_regression_agent,
+)
 from ai_framework.ui.controllers.classification_controller import (
     _argumentos_comunes,
     _argumentos_exportacion,
@@ -148,6 +158,7 @@ __all__ = [
     "_muestrear",
     "_sincronizar_dataset",
     "_usar_particion",
+    "apply_modeling_suggestion",
     "argumentos_comunes",
     "comparar_metodos_hac",
     "crear_regresor",
@@ -158,6 +169,11 @@ __all__ = [
     "ejecutar_tsne",
     "ejecutar_umap",
     "evaluar_kmeans_k",
+    "start_classification_agent",
+    "start_clustering_agent",
+    "start_eda_agent",
+    "start_regression_agent",
     "nombre_tasa_verdaderos",
+    "default_provider",
     "snapshot_ejecucion",
 ]
