@@ -141,7 +141,11 @@ class Agent(ABC):
 
     # ---------------------------------------------------------- LLM
     def system_prompt(self) -> str:
-        return f"{self.role}\n\n{language_instruction(self.language)}"
+        style_rules = (
+            "Keep your response concise and focused (maximum 150-200 words, using short bullet "
+            "points when helpful). Do not use emojis."
+        )
+        return f"{self.role}\n\n{style_rules}\n\n{language_instruction(self.language)}"
 
     def react(self, event: Event) -> str:
         messages: list[dict[str, Any]] = [
