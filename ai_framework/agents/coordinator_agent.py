@@ -23,6 +23,21 @@ class ReviewRequiredError(ValueError):
     run_status = "needs_review"
 
 
+def predictor_exclusions(blackboard: Blackboard, target: str) -> dict[str, list[str]]:
+    """Return the exclusion reasons shared by coordinated and direct workflows."""
+    exclusions = {}
+    for finding in blackboard.findings:
+        rule = finding.detail.get("rule")
+        if finding.agent == "eda" and rule in EDA_EXCLUSION_RULES:
+            exclusions.setdefault(finding.detail["column"], set()).add(rule)
+
+    data = blackboard.datos
+    for column in data:
+        if column != target and data[column].equals(data[target]):
+            exclusions.setdefault(column, set()).add("target_copy")
+    return {column: sorted(reasons) for column, reasons in sorted(exclusions.items())}
+
+
 class CoordinatorAgent:
     """Profile the data, then assign one specialist through the event bus."""
 
@@ -97,21 +112,10 @@ class CoordinatorAgent:
         return specialist
 
     def select_predictors(self, suggested: tuple[str, ...], target: str) -> list[str]:
-        exclusions = {}
-        for finding in self.blackboard.findings:
-            rule = finding.detail.get("rule")
-            if finding.agent == "eda" and rule in EDA_EXCLUSION_RULES:
-                exclusions.setdefault(finding.detail["column"], set()).add(rule)
-
-        data = self.blackboard.datos
-        for column in data:
-            if column != target and data[column].equals(data[target]):
-                exclusions.setdefault(column, set()).add("target_copy")
-
-        for column, reasons in sorted(exclusions.items()):
-            ordered_reasons = sorted(reasons)
-            self.report(f"Excluded {column!r}: {', '.join(ordered_reasons)}.")
-            self.decision("excluded_predictor", column=column, reasons=ordered_reasons)
+        exclusions = predictor_exclusions(self.blackboard, target)
+        for column, reasons in exclusions.items():
+            self.report(f"Excluded {column!r}: {', '.join(reasons)}.")
+            self.decision("excluded_predictor", column=column, reasons=reasons)
 
         return [column for column in suggested if column != target and column not in exclusions]
 

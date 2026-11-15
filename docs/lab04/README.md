@@ -34,6 +34,36 @@ predictors remain. Traces contain column names and summary metrics.
 .\.venv\Scripts\python.exe -m scripts.run_agents data/diabetes_lab03.csv --agent coordinated --target target --provider rules --language en --trace "$env:TEMP\lab04-diabetes-trace.json"
 ```
 
+## Reproduce the experiments
+
+Run the reference suite from the repository root:
+
+```powershell
+$env:OMP_NUM_THREADS = '2'
+$env:OPENBLAS_NUM_THREADS = '2'
+python -m scripts.run_lab04 --output output/lab04/reference
+```
+
+The suite evaluates Diabetes regression, Breast Cancer classification and a
+synthetic leakage case derived from Diabetes. That case runs with other eligible
+predictors and with only a copy of the target. An additional clustering run
+excludes the target from its inputs.
+
+The direct baseline calls EDA and the predetermined specialist in sequence.
+Both routes use the same screening policy, model catalog, seed 42, 25% test split
+and five validation folds for these datasets. The comparison checks the selected
+features, train/test split hash, winner, reported metrics and candidate failures.
+Screening uses the existing EDA profile over the supplied dataset before training.
+
+`summary.csv` records duration, dispatched events, completed tasks, errors and
+quality metrics per run. `runs.json` includes the corresponding decisions, traces,
+dataset hashes and environment metadata. A direct run dispatches zero bus events.
+The runner alternates route order across repetitions and times processing after
+CSV loading. Times vary with hardware and execution order. The output directory
+must be new. Use `--scenario` to select one or more cases and `--repeats` to change
+the default of three paired repetitions. A mismatch or unexpected failure exits
+with code `1` after writing evidence.
+
 ## Academic report
 
 The Spanish academic report is in `docs/lab04/main.tex`. The current draft
