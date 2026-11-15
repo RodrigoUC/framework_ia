@@ -206,6 +206,10 @@ def _select_view(disponibilidades=None) -> str:
                 disabled=bloqueada,
                 help=motivo,
             )
+            st.markdown(
+                f'<p class="atlas-family">{t("nav_comparacion", "Comparación")}</p>',
+                unsafe_allow_html=True,
+            )
             boton(
                 t("nav_benchmark", "Evaluación Comparativa"),
                 "lab2_benchmark",
@@ -223,6 +227,10 @@ def _select_view(disponibilidades=None) -> str:
                 disabled=bloqueada,
                 help=motivo,
             )
+            st.markdown(
+                f'<p class="atlas-family">{t("nav_modelos_disponibles", "Modelos disponibles")}</p>',
+                unsafe_allow_html=True,
+            )
             for destino, algoritmo in VISTAS_REGRESORES.items():
                 bloqueo_modelo = bloqueada and not (
                     algoritmo == "RLS"
@@ -234,6 +242,10 @@ def _select_view(disponibilidades=None) -> str:
                     disabled=bloqueo_modelo,
                     help=motivo,
                 )
+            st.markdown(
+                f'<p class="atlas-family">{t("nav_comparacion", "Comparación")}</p>',
+                unsafe_allow_html=True,
+            )
             boton(
                 t("nav_benchmark", "Evaluación Comparativa"),
                 "lab3_benchmark",
