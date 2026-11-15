@@ -156,6 +156,21 @@ def propose_modeling_setup(
     columns = [str(c) for c in blackboard.datos.columns]
     if target not in columns:
         return {"error": f"Column {target!r} does not exist. Available: {columns}."}
+    target_series = blackboard.datos[target]
+    if target_series.isna().any():
+        return {
+            "error": (
+                f"Target {target!r} contains null values ({int(target_series.isna().sum())} nulls) "
+                "and cannot be used as a target. Choose a column without null values."
+            )
+        }
+    if normalized_task == "regresion":
+        if not pd.api.types.is_numeric_dtype(target_series):
+            return {"error": f"Target {target!r} must be numeric for regression."}
+        if not np.isfinite(target_series.to_numpy(dtype=float)).all():
+            return {"error": f"Target {target!r} contains non-finite values."}
+    elif target_series.nunique(dropna=True) < 2:
+        return {"error": f"Target {target!r} needs at least 2 classes for classification."}
     if features is None:
         selected = [c for c in columns if c != target]
     else:
@@ -163,6 +178,8 @@ def propose_modeling_setup(
         if missing:
             return {"error": f"Invalid feature columns: {missing}."}
         selected = list(features)
+    if not selected:
+        return {"error": "At least one predictor feature is required."}
     suggestion = ModelingSuggestion(normalized_task, target, tuple(selected), ())
     blackboard.results["modeling_suggestion"] = suggestion
     return {

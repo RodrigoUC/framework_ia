@@ -388,8 +388,8 @@ def render_eda_agent(data: pd.DataFrame, label: str) -> None:
     st.divider()
     _render_findings(session["blackboard"])
     _render_activity(session["blackboard"])
-    _render_next_step(session["agent"])
     _render_conversation(session, key="agent_eda_question", error_key="agent_eda_error")
+    _render_next_step(session["agent"])
 
 
 def render_clustering_agent(data: pd.DataFrame, config: dict, label: str) -> None:
