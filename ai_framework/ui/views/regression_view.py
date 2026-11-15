@@ -224,6 +224,7 @@ def render_regression_results(
             "resultado_lab3_experimento",
             "resultado_lab3_intento_experimento",
             "error_lab3_experimento",
+            "agent_regression_session",
         )
     )
     snapshots = {

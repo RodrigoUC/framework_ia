@@ -234,6 +234,7 @@ def render_classification_results(
     hay_experimento = bool(
         st.session_state.get("resultado_lab2_experimento") is not None
         or st.session_state.get("resultado_lab2_intento_experimento") is not None
+        or st.session_state.get("agent_classification_session") is not None
     )
     clave_criterios_rf = "resultado_lab2_modelo_RF_criterios"
     individuales = []
