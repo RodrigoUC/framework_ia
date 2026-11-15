@@ -83,6 +83,7 @@ def apply_modeling_suggestion(state, suggestion: ModelingSuggestion) -> None:
     state["sup_tarea"] = suggestion.task
     state["sup_target"] = suggestion.target
     state["sup_features"] = list(suggestion.features)
+    state["sup_inicializada"] = True
     state["vista_activa"] = "configuracion"
 
 
