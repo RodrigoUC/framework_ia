@@ -150,7 +150,7 @@ def _select_view(disponibilidades=None) -> str:
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
-            boton(t("nav_ai_agent", "Agente IA"), "clustering_agent")
+            boton(t("nav_clustering_agent", "Agente de clustering"), "clustering_agent")
 
         with st.expander(
             t("nav_clasificacion", "Clasificación"),
@@ -207,7 +207,7 @@ def _select_view(disponibilidades=None) -> str:
                 help=motivo,
             )
             boton(
-                t("nav_ai_agent", "Agente IA"),
+                t("nav_classification_agent", "Agente de clasificación"),
                 "classification_agent",
                 disabled=bloqueada,
                 help=motivo,
@@ -236,7 +236,7 @@ def _select_view(disponibilidades=None) -> str:
                 help=motivo,
             )
             boton(
-                t("nav_ai_agent", "Agente IA"),
+                t("nav_regression_agent", "Agente de regresión"),
                 "regression_agent",
                 disabled=bloqueada,
                 help=motivo,
