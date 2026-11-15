@@ -219,7 +219,7 @@ def _render_next_step(agent: EDAAgent) -> None:
     st.markdown(
         t(
             "agent_detected_task",
-            "Tarea detectada: **{tarea}** sobre `{target}` con {cantidad} predictoras.",
+            "Enfoque de modelado: **{tarea}** sobre `{target}` con {cantidad} predictoras.",
             tarea=task,
             target=suggestion.target,
             cantidad=len(suggestion.features),
