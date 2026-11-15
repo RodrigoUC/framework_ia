@@ -13,6 +13,14 @@ from ai_framework.agents.events import (
 )
 from ai_framework.agents.llm.provider import LLMProvider
 from ai_framework.agents.regression_agent import RegressionAgent
+from ai_framework.agents.run_trace import RunTrace
+from ai_framework.utils.agents.agent_config import EDA_EXCLUSION_RULES
+
+
+class ReviewRequiredError(ValueError):
+    """The analysis needs input review before training can proceed."""
+
+    run_status = "needs_review"
 
 
 class CoordinatorAgent:
@@ -28,12 +36,14 @@ class CoordinatorAgent:
         *,
         language: str = "en",
         on_progress: ProgressCallback | None = None,
+        trace: RunTrace | None = None,
     ) -> None:
         self.blackboard = blackboard
         self.bus = bus
         self.llm = llm
         self.language = language
         self.on_progress = on_progress
+        self.trace = trace
 
     def run(self, task: str = "auto") -> Agent:
         """Return the agent that completed the request."""
@@ -45,7 +55,7 @@ class CoordinatorAgent:
         eda.connect(self.bus)
         target = self.blackboard.target
         self.report("Assigned EDA to profile the dataset.")
-        self.bus.emit(Event(DATASET_LOADED, {"task": task, "target": target}, source=self.name))
+        self.dispatch(eda.name, Event(DATASET_LOADED, {"task": task, "target": target}, source=self.name))
 
         if task == "clustering":
             features = [
@@ -70,9 +80,10 @@ class CoordinatorAgent:
                 "regresion": RegressionAgent,
                 "clasificacion": ClassificationAgent,
             }[suggestion.task]
-            features = list(suggestion.features)
+            features = self.select_predictors(suggestion.features, target)
             if not features:
-                raise ValueError("The coordinated request requires at least one predictor.")
+                self.decision("needs_review", reason="no_eligible_predictors")
+                raise ReviewRequiredError("Review required: no eligible predictors remain. Training was not started.")
             specialist = specialist_class(self.blackboard, self.llm, features=features, **options)
             request = specialist.requested_event
             reason = f"EDA identified {specialist.name} for target {target!r}"
@@ -80,9 +91,40 @@ class CoordinatorAgent:
         # Connect after EDA finishes so the legacy EDA_DONE subscription cannot start a second run.
         specialist.connect(self.bus)
         self.report(f"Assigned {specialist.name}: {reason}.")
-        self.bus.emit(Event(request, {"target": target, "features": features}, source=self.name))
+        self.decision("assigned", agent=specialist.name, reason=reason)
+        self.dispatch(specialist.name, Event(request, {"target": target, "features": features}, source=self.name))
         self.report(f"Completed {specialist.name}.")
         return specialist
+
+    def select_predictors(self, suggested: tuple[str, ...], target: str) -> list[str]:
+        exclusions = {}
+        for finding in self.blackboard.findings:
+            rule = finding.detail.get("rule")
+            if finding.agent == "eda" and rule in EDA_EXCLUSION_RULES:
+                exclusions.setdefault(finding.detail["column"], set()).add(rule)
+
+        data = self.blackboard.datos
+        for column in data:
+            if column != target and data[column].equals(data[target]):
+                exclusions.setdefault(column, set()).add("target_copy")
+
+        for column, reasons in sorted(exclusions.items()):
+            ordered_reasons = sorted(reasons)
+            self.report(f"Excluded {column!r}: {', '.join(ordered_reasons)}.")
+            self.decision("excluded_predictor", column=column, reasons=ordered_reasons)
+
+        return [column for column in suggested if column != target and column not in exclusions]
+
+    def decision(self, action: str, **details) -> None:
+        if self.trace is not None:
+            self.trace.decisions.append({"action": action, **details})
+
+    def dispatch(self, agent: str, event: Event) -> None:
+        if self.trace is None:
+            self.bus.emit(event)
+            return
+        with self.trace.task(agent):
+            self.bus.emit(event)
 
     def report(self, update: str) -> None:
         self.blackboard.progress.append((self.name, update))

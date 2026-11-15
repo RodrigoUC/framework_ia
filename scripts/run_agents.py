@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from ai_framework.agents import (
@@ -23,6 +24,7 @@ from ai_framework.agents import (
     SupervisedAgent,
     create_provider,
 )
+from ai_framework.agents.run_trace import RunTrace
 from ai_framework.data.sources import CargadorCSV
 from ai_framework.utils.agents.agent_config import PROVIDER_NAMES, RULES_ONLY
 from ai_framework.agents.messages import DEFAULT_LANGUAGE, MESSAGES
@@ -62,6 +64,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Coordinated task (default: auto). Clustering excludes the target column when provided.",
     )
     parser.add_argument("--target", help="Target column; without it the agent only explores.")
+    parser.add_argument("--trace", type=Path, help="Write a coordinated run trace to a new JSON file.")
     parser.add_argument(
         "--provider", "--proveedor", dest="provider",
         choices=[*PROVIDER_NAMES, LEGACY_RULES_ONLY], default=RULES_ONLY,
@@ -88,7 +91,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run(arguments: argparse.Namespace) -> Agent:
+def run(arguments: argparse.Namespace, *, trace: RunTrace | None = None) -> Agent:
     data = CargadorCSV.cargar_ruta(
         arguments.csv,
         ConfiguracionCSV(
@@ -98,11 +101,12 @@ def run(arguments: argparse.Namespace) -> Agent:
         ),
     )
     blackboard = Blackboard(data, target=arguments.target, source=arguments.csv.name)
-    bus = EventBus()
+    bus = trace.bus if trace is not None else EventBus()
     llm = create_provider(arguments.provider, arguments.model, getattr(arguments, "api_key", None))
     options = {"language": arguments.language, "on_progress": lambda update: print(f"  - {update}", flush=True)}
     if arguments.agent == "coordinated":
-        return CoordinatorAgent(blackboard, bus, llm, **options).run(getattr(arguments, "task", None) or "auto")
+        coordinator = CoordinatorAgent(blackboard, bus, llm, trace=trace, **options)
+        return coordinator.run(getattr(arguments, "task", None) or "auto")
     if arguments.agent == "clustering":
         agent = ClusteringAgent(blackboard, llm, **options).connect(bus)
         bus.emit(Event(CLUSTERING_REQUESTED))
@@ -123,17 +127,33 @@ def run(arguments: argparse.Namespace) -> Agent:
     return agent
 
 
+def run_with_trace(arguments: argparse.Namespace) -> Agent:
+    trace = RunTrace()
+    with arguments.trace.open("x", encoding="utf-8") as output:
+        try:
+            agent = run(arguments, trace=trace)
+        except Exception as error:
+            json.dump(trace.summary(error=error), output, indent=2)
+            output.write("\n")
+            raise
+        json.dump(trace.summary(agent=agent), output, indent=2)
+        output.write("\n")
+    return agent
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = create_parser()
     arguments = parser.parse_args(argv)
     if arguments.task is not None and arguments.agent != "coordinated":
         parser.error("--task requires --agent coordinated.")
+    if arguments.trace is not None and arguments.agent != "coordinated":
+        parser.error("--trace requires --agent coordinated.")
     if arguments.provider == LEGACY_RULES_ONLY:
         arguments.provider = RULES_ONLY
     if arguments.interactive and arguments.provider == RULES_ONLY:
         parser.error(f"--interactive requires a --provider other than '{RULES_ONLY}'.")
     try:
-        agent = run(arguments)
+        agent = run_with_trace(arguments) if arguments.trace is not None else run(arguments)
     except (ValueError, KeyError, TypeError, OSError, ImportError) as exc:
         parser.exit(2, f"The agent could not run: {exc}\n")
     blackboard = agent.blackboard
