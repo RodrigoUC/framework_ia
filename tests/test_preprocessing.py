@@ -5,11 +5,14 @@ import pandas as pd
 import pytest
 
 from ai_framework.data.preprocessing import (
+    PreprocessingConfig,
     ConfiguracionPreprocesamiento,
+    UnsupervisedPreprocessor,
     PreprocesadorNoSupervisado,
+    SupervisedPreprocessor,
     PreprocesadorSupervisado,
 )
-from ai_framework.utils.results import DatosPreparados
+from ai_framework.utils.results import PreparedData, DatosPreparados
 
 
 def test_preprocesador_no_supervisado_numerico_estandar():
@@ -18,11 +21,11 @@ def test_preprocesador_no_supervisado_numerico_estandar():
         "num2": [10.0, 20.0, 30.0, 40.0, 50.0],
         "constante": [7.0, 7.0, 7.0, 7.0, 7.0],
     })
-    cfg = ConfiguracionPreprocesamiento(imputar=True, estandarizar=True)
-    prep = PreprocesadorNoSupervisado(cfg)
+    cfg = PreprocessingConfig(imputar=True, estandarizar=True)
+    prep = UnsupervisedPreprocessor(cfg)
     res = prep.ajustar_transformar(datos)
 
-    assert isinstance(res, DatosPreparados)
+    assert isinstance(res, PreparedData)
     assert res.columnas_descartadas == ("constante",)
     assert "num1" in res.matriz.columns
     assert "num2" in res.matriz.columns
@@ -35,18 +38,18 @@ def test_preprocesador_no_supervisado_categoricas():
         "edad": [25, 30, 35, 40],
         "ciudad": ["Bogotá", "Medellín", "Bogotá", "Cali"],
     })
-    cfg_rechazo = ConfiguracionPreprocesamiento(
+    cfg_rechazo = PreprocessingConfig(
         columnas=["edad", "ciudad"], incluir_categoricas=False
     )
     with pytest.raises(TypeError, match="columnas categóricas"):
-        PreprocesadorNoSupervisado(cfg_rechazo).ajustar_transformar(datos)
+        UnsupervisedPreprocessor(cfg_rechazo).ajustar_transformar(datos)
 
-    cfg_auto_filtro = ConfiguracionPreprocesamiento(columnas=None, incluir_categoricas=False)
-    res_auto = PreprocesadorNoSupervisado(cfg_auto_filtro).ajustar_transformar(datos)
+    cfg_auto_filtro = PreprocessingConfig(columnas=None, incluir_categoricas=False)
+    res_auto = UnsupervisedPreprocessor(cfg_auto_filtro).ajustar_transformar(datos)
     assert res_auto.matriz.columns.tolist() == ["edad"]
 
-    cfg_valida = ConfiguracionPreprocesamiento(incluir_categoricas=True)
-    res = PreprocesadorNoSupervisado(cfg_valida).ajustar_transformar(datos)
+    cfg_valida = PreprocessingConfig(incluir_categoricas=True)
+    res = UnsupervisedPreprocessor(cfg_valida).ajustar_transformar(datos)
     assert res.matriz.shape[0] == 4
     assert res.matriz.shape[1] > 2
     assert not res.matriz.isna().any().any()
@@ -54,12 +57,12 @@ def test_preprocesador_no_supervisado_categoricas():
 
 def test_preprocesador_no_supervisado_columnas_inexistentes_o_vacias():
     datos = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-    cfg_col = ConfiguracionPreprocesamiento(columnas=["inexistente"])
+    cfg_col = PreprocessingConfig(columnas=["inexistente"])
     with pytest.raises(KeyError, match="Columnas inexistentes"):
-        PreprocesadorNoSupervisado(cfg_col).ajustar_transformar(datos)
+        UnsupervisedPreprocessor(cfg_col).ajustar_transformar(datos)
 
     with pytest.raises(ValueError, match="al menos una fila"):
-        PreprocesadorNoSupervisado(ConfiguracionPreprocesamiento()).ajustar_transformar(pd.DataFrame())
+        UnsupervisedPreprocessor(PreprocessingConfig()).ajustar_transformar(pd.DataFrame())
 
 
 def test_preprocesador_supervisado_clasificacion_con_seleccion_k():
@@ -70,7 +73,7 @@ def test_preprocesador_supervisado_clasificacion_con_seleccion_k():
     }, index=[10, 11, 12, 13, 14, 15])
     y = pd.Series(["A", "B", "A", "B", "A", "B"], index=X.index)
 
-    prep = PreprocesadorSupervisado(seleccion_k=1, random_state=42)
+    prep = SupervisedPreprocessor(seleccion_k=1, random_state=42)
     prep.fit(X, y)
     out = prep.transform(X)
 
@@ -91,7 +94,7 @@ def test_preprocesador_supervisado_regresion_con_seleccion_k():
     })
     y_continuo = pd.Series([2.1, 4.0, 6.2, 8.1, 9.9, 12.1])
 
-    prep = PreprocesadorSupervisado(seleccion_k=1, random_state=0)
+    prep = SupervisedPreprocessor(seleccion_k=1, random_state=0)
     prep.fit(X, y_continuo)
     out = prep.transform(X)
 
@@ -101,16 +104,16 @@ def test_preprocesador_supervisado_regresion_con_seleccion_k():
 
 def test_preprocesador_supervisado_imputar_false_falla_si_hay_nulos():
     X = pd.DataFrame({"a": [1.0, np.nan, 3.0]})
-    prep = PreprocesadorSupervisado(imputar=False)
+    prep = SupervisedPreprocessor(imputar=False)
     with pytest.raises(ValueError, match="valores faltantes"):
         prep.fit(X)
 
 
 def test_preprocesador_supervisado_ajustar_transformar():
     X = pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0]})
-    prep = PreprocesadorSupervisado()
+    prep = SupervisedPreprocessor()
     res = prep.ajustar_transformar(X)
 
-    assert isinstance(res, DatosPreparados)
+    assert isinstance(res, PreparedData)
     assert res.matriz.shape == (3, 2)
     assert res.columnas_origen == ("a", "b")

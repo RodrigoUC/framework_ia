@@ -47,6 +47,8 @@ from .supervised import (
     comparar_algoritmos_supervisados,
     configuraciones_experimento,
     configuraciones_experimento_regresion,
+    experiment_configurations,
+    regression_experiment_configs,
     cross_validation as utils_cross_validation,
     despachar_algoritmo_supervisado,
     evidence,

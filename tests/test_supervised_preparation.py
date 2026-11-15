@@ -9,9 +9,9 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from ai_framework.data.eda import EDA
-from ai_framework.data.partition import ConfiguracionParticion, Particionador
-from ai_framework.models.supervised import Clasificacion, Regresion
-from ai_framework.data.preprocessing import PreprocesadorSupervisado
+from ai_framework.data.partition import PartitionConfig, DataSplitter, ConfiguracionParticion, Particionador
+from ai_framework.models.supervised import Classification, Regression, Clasificacion, Regresion
+from ai_framework.data.preprocessing import SupervisedPreprocessor, PreprocesadorSupervisado
 from ai_framework.ui.models.classification_state import (
     configuracion_clasificacion_actual,
 )
@@ -146,10 +146,10 @@ def pulsar(app, etiqueta):
 def test_cleanup_configuration_explicit_regression_failure_and_restore():
     app, original = nueva_app()
     with (
-        patch.object(Regresion, "entrenar", side_effect=AssertionError("auto-fit")),
-        patch.object(Clasificacion, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Regression, "entrenar", side_effect=AssertionError("auto-fit")),
+        patch.object(Classification, "entrenar", side_effect=AssertionError("auto-fit")),
         patch.object(
-            PreprocesadorSupervisado, "fit", side_effect=AssertionError("auto-fit")
+            SupervisedPreprocessor, "fit", side_effect=AssertionError("auto-fit")
         ),
     ):
         assert app.multiselect(key="dataset_columnas_sin_nulos").value == []
@@ -201,8 +201,8 @@ def test_cleanup_configuration_explicit_regression_failure_and_restore():
     app.multiselect(key="dataset_columnas_eliminar").set_value(["descartar"]).run()
     assert app.multiselect(key="dataset_columnas_sin_nulos").value == []
     app.multiselect(key="dataset_columnas_sin_nulos").set_value(["target"]).run()
-    app.session_state["particion_global"] = Particionador(
-        ConfiguracionParticion(porcentaje_test=0.25)
+    app.session_state["particion_global"] = DataSplitter(
+        PartitionConfig(porcentaje_test=0.25)
     ).dividir(preparado)
     pulsar(app, "Aplicar preparación")
     assert "particion_global" not in app.session_state

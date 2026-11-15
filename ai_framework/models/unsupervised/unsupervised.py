@@ -1,4 +1,4 @@
-"""Abstracciones base y métodos comunes compartidos por análisis no supervisados."""
+"""Base abstractions and common methods shared by unsupervised analyses."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from ai_framework.utils import ConfiguracionPreprocesamiento
 
 
 class OptionalDependencyError(ImportError):
-    """Indica que una capacidad opcional requiere instalar una dependencia."""
+    """Indicates that an optional capability requires installing a dependency."""
 
 
 class Unsupervised(EDA):
-    """Clase base para análisis no supervisados: preprocesamiento y benchmark."""
+    """Base class for unsupervised analyses: preprocessing and benchmark."""
 
     def __init__(
         self,
@@ -42,14 +42,14 @@ class Unsupervised(EDA):
         self._datos_preparados: DatosPreparados | None = None
 
     def preparar_matriz(self, *, refrescar: bool = False) -> DatosPreparados:
-        """Obtiene una matriz numérica reutilizable por los análisis no supervisados."""
+        """Obtain a reusable numerical matrix for unsupervised analyses."""
         if self._datos_preparados is None or refrescar:
             preprocesador = PreprocesadorNoSupervisado(self.configuracion)
             self._datos_preparados = preprocesador.ajustar_transformar(self.datos)
         return self._datos_preparados
 
     def proyectar_2d(self, matriz: pd.DataFrame | None = None) -> pd.DataFrame:
-        """Proyecta observaciones en 2 dimensiones para análisis visual."""
+        """Project observations into 2 dimensions for visual analysis."""
         matriz_trabajo = (
             matriz if matriz is not None else self.preparar_matriz().matriz
         )
@@ -66,8 +66,11 @@ class Unsupervised(EDA):
         )
 
     def benchmark(self) -> pd.DataFrame:
-        """Retorna las métricas registradas durante la instancia actual."""
+        """Return metrics recorded during the current instance."""
         return pd.DataFrame(self._historial)
+
+    prepare_matrix = preparar_matriz
+    project_2d = proyectar_2d
 
     def _registrar_resultado(
         self,
@@ -75,7 +78,7 @@ class Unsupervised(EDA):
         n_clusters: int,
         silhouette: float | None,
     ) -> None:
-        """Agrega una medición comparable al historial interno."""
+        """Add a comparable metric to the internal history."""
         self._historial.append(
             {
                 "algoritmo": algoritmo,

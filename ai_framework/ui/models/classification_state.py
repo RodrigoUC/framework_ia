@@ -1,4 +1,4 @@
-"""Estado y firmas de clasificación supervisada independientes de los widgets."""
+"""Supervised classification state and signatures independent from widgets."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from ai_framework.ui.models.session_state import (
 )
 
 
-def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
-    """Construye la firma específica para resultados de clasificación supervisada."""
+def classification_fingerprint(configuracion: dict, *parametros) -> tuple:
+    """Build specific signature for supervised classification results."""
     particion = configuracion.get("particion_global")
     return (
         configuracion.get("tarea"),
@@ -33,8 +33,8 @@ def firma_clasificacion(configuracion: dict, *parametros) -> tuple:
     )
 
 
-def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | None:
-    """Construye la configuración efectiva de clasificación desde los controles guardados."""
+def current_classification_configuration(datos: pd.DataFrame, estado) -> dict | None:
+    """Build effective classification configuration from saved controls."""
     estado = estado_para_familia(estado, "clasificacion")
     if len(datos.columns) < 2:
         return None
@@ -74,17 +74,17 @@ def configuracion_clasificacion_actual(datos: pd.DataFrame, estado) -> dict | No
     }
 
 
-def sincronizar_contexto(
-    estado: MutableMapping[str, Any], datos: pd.DataFrame, configuracion: dict
+def sync_context(
+    state: MutableMapping[str, Any], data: pd.DataFrame, config: dict
 ) -> tuple:
-    """Descarta resultados anteriores al cambiar datos, target, atributos o split."""
-    firma = (
-        estado.get("dataset_identidad"),
-        huella_datos(datos),
-        *firma_clasificacion(configuracion),
+    """Discard previous results when data, target, features, or split change."""
+    sig = (
+        state.get("dataset_identidad"),
+        huella_datos(data),
+        *classification_fingerprint(config),
     )
-    if estado.get("clasificacion_contexto") != firma:
-        for clave in (
+    if state.get("clasificacion_contexto") != sig:
+        for key in (
             "resultado_modelos_clasificacion",
             "preview_clasificacion",
             "resultado_lab2_experimento",
@@ -94,18 +94,18 @@ def sincronizar_contexto(
             "lab2_firma_experimento",
             "lab2_firma_modelo",
         ):
-            estado.pop(clave, None)
-        for clave in tuple(estado):
-            if clave.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
-                estado.pop(clave, None)
-        estado["clasificacion_contexto"] = firma
-    return firma
+            state.pop(key, None)
+        for key in tuple(state):
+            if key.startswith(("resultado_lab2_modelo_", "contexto_lab2_modelo_")):
+                state.pop(key, None)
+        state["clasificacion_contexto"] = sig
+    return sig
 
 
-def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
-    """Elimina la evidencia de clasificación cuando los datos activos no son configurables."""
-    for clave in tuple(estado):
-        if clave.startswith(
+def clear_classification_results(state: MutableMapping[str, Any]) -> None:
+    """Clear classification evidence when active data is not configurable."""
+    for key in tuple(state):
+        if key.startswith(
             (
                 "resultado_modelos_clasificacion",
                 "resultado_lab2_modelo",
@@ -117,15 +117,24 @@ def limpiar_resultados_clasificacion(estado: MutableMapping[str, Any]) -> None:
                 "lab2_firma_experimento",
             )
         ):
-            estado.pop(clave, None)
-    estado.pop("clasificacion_contexto", None)
+            state.pop(key, None)
+    state.pop("clasificacion_contexto", None)
 
 
-def sincronizar_ejecucion(
-    estado: MutableMapping[str, Any], tipo: str, firma: str
+def sync_execution(
+    state: MutableMapping[str, Any], kind: str, signature: str
 ) -> None:
-    """Invalida solo la ejecución cuyos parámetros han cambiado."""
-    clave = f"lab2_firma_{tipo}"
-    if estado.get(clave) != firma:
-        estado.pop(f"resultado_lab2_{tipo}", None)
-        estado[clave] = firma
+    """Invalidate only the execution whose parameters have changed."""
+    key = f"lab2_firma_{kind}"
+    if state.get(key) != signature:
+        state.pop(f"resultado_lab2_{kind}", None)
+        state[key] = signature
+
+# Backward compatibility aliases
+sincronizar_contexto = sync_context
+limpiar_resultados_clasificacion = clear_classification_results
+sincronizar_ejecucion = sync_execution
+
+# Backward compatibility aliases
+firma_clasificacion = classification_fingerprint
+configuracion_clasificacion_actual = current_classification_configuration

@@ -1,4 +1,4 @@
-"""Vista de ejecución y evidencia experimental de clasificación."""
+"""Execution view and experimental evidence for classification."""
 
 from __future__ import annotations
 
@@ -11,15 +11,22 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
+    build_experiment_files,
+    build_experiment_zip,
     construir_archivos_experimento,
     construir_zip_experimento,
 )
 from ai_framework.ui.controllers.classification_controller import (
+    _common_arguments,
+    _export_arguments,
+    _execution_context,
+    _executed_source,
+    _json,
+    _create_model,
     _argumentos_comunes,
     _argumentos_exportacion,
     _contexto_ejecucion,
     _fuente_ejecutada,
-    _json,
     _modelo,
 )
 from ai_framework.ui.models.view_catalog import (
@@ -27,34 +34,58 @@ from ai_framework.ui.models.view_catalog import (
     FOLDS_LAB2,
     TOTAL_CANDIDATOS,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.models.diabetes_profile import estado_fuente_diabetes
-from ai_framework.ui.views.navigation import ir_a, mostrar_faltantes
-from ai_framework.ui.views.theme import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.models.diabetes_profile import (
+    diabetes_source_state,
+    estado_fuente_diabetes,
+)
+from ai_framework.ui.views.navigation import (
+    go_to,
+    show_missing_data,
+    ir_a,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    MostrarFigura,
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 from ai_framework.ui.views.classification_view import (
     _diagnostico,
+    safe_preparation,
     preparacion_segura,
 )
-from ai_framework.ui.views.controls_view import _mostrar_dataframe
+from ai_framework.ui.views.controls_view import (
+    _display_dataframe,
+    _mostrar_dataframe,
+)
 from ai_framework.utils import (
     ALGORITMOS_LAB2,
     METRICAS_SELECCION,
-    configuraciones_experimento,
+    experiment_configurations,
 )
-from ai_framework.utils.visualization import VisualizadorSupervisado
+from ai_framework.utils.visualization import SupervisedVisualizer
 
 
-def render_experimentos(
+def render_classification_experiments(
     datos: pd.DataFrame, configuracion: dict, mostrar_figura: MostrarFigura
 ) -> None:
-    """Renderiza los controles y ejecuta el benchmark de clasificación."""
-    contexto = _contexto_ejecucion(configuracion)
-    segura = preparacion_segura()
+    """Render controls and execute classification benchmark."""
+    contexto = _execution_context(configuracion)
+    segura = safe_preparation()
     original_diabetes = (
-        estado_fuente_diabetes(datos, st.session_state) == "original"
+        diabetes_source_state(datos, st.session_state) == "original"
     )
-    catalogo = configuraciones_experimento()
+    catalogo = experiment_configurations()
     with st.expander(
         t(
             "cat_modelos_expander",
@@ -63,7 +94,7 @@ def render_experimentos(
             familias=5,
         )
     ):
-        _mostrar_dataframe(
+        _display_dataframe(
             pd.DataFrame(
                 [
                     {
@@ -204,15 +235,15 @@ def render_experimentos(
         "validation_size": validation_size,
         "estrategia": estrategia,
     }
-    firma = firma_parametros(opciones)
-    disponibilidad = disponibilidad_supervisada(
+    firma = parameters_fingerprint(opciones)
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "clasificacion",
         experimento={**opciones, "folds": FOLDS_LAB2},
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
+    show_missing_data(disponibilidad)
     ejecutar = st.button(
         t("res_ejecutar_evaluacion", "Ejecutar evaluación comparativa"),
         key="lab2_benchmark_ejecutar",
@@ -228,26 +259,26 @@ def render_experimentos(
                 "Evaluando y comparando modelos con validación cruzada…"
             ):
                 argumentos = {
-                    **_argumentos_comunes(configuracion),
+                    **_common_arguments(configuracion),
                     "metrica": metrica,
                 }
                 if estrategia == "cv":
                     argumentos.update(estrategia="cv", folds=FOLDS_LAB2)
                 elif validation_size is not None:
                     argumentos["validation_size"] = validation_size
-                resultado = _modelo(datos, configuracion).experimentar(
+                resultado = _create_model(datos, configuracion).experimentar(
                     algoritmos=list(ALGORITMOS_LAB2),
                     configuraciones=catalogo,
                     **argumentos,
                 )
-            fuente = _fuente_ejecutada(datos)
+            fuente = _executed_source(datos)
             snapshot = {
                 "resultado": resultado,
                 "contexto": deepcopy(contexto),
                 "firma": firma,
                 "opciones": opciones,
                 "fuente": fuente,
-                "argumentos": _argumentos_exportacion(
+                "argumentos": _export_arguments(
                     configuracion, opciones, fuente
                 ),
                 "versiones": {
@@ -283,22 +314,22 @@ def render_experimentos(
                 t("btn_ir_a_res_clasif", "Ir a Resultados de clasificación"),
                 key="btn_ir_a_resultados_clasificacion",
                 type="primary",
-                on_click=ir_a,
+                on_click=go_to,
                 args=("lab2_resultados",),
             )
         with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
-            render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
+            render_experiment_result(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
     else:
-        render_resultado_experimento(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
+        render_experiment_result(mostrar_figura, prefijo="lab2_benchmark", solo_comparacion=True)
 
 
-def render_resultado_experimento(
+def render_experiment_result(
     mostrar_figura: MostrarFigura,
     *,
     prefijo: str = "lab2_resultados_experimento",
     solo_comparacion: bool = False,
 ) -> None:
-    """Renderiza el snapshot experimental de clasificación sin reentrenar modelos."""
+    """Render experimental classification snapshot without retraining models."""
     guardado = st.session_state.get("resultado_lab2_experimento")
     intento = st.session_state.get("resultado_lab2_intento_experimento")
     error = st.session_state.get("error_lab2_experimento")
@@ -312,12 +343,12 @@ def render_resultado_experimento(
         st.warning(
             "El último intento no produjo ganadores evaluados en prueba."
         )
-        _tabla_validacion(intento["resultado"].tabla)
+        _validation_table(intento["resultado"].tabla)
         for algoritmo, detalle in (
             intento["resultado"].metadatos.get("errores_prueba", {}).items()
         ):
             st.error(f"Prueba de {algoritmo}: {detalle}")
-        _descargas(intento, f"{prefijo}_intento", es_intento=True)
+        _render_downloads(intento, f"{prefijo}_intento", es_intento=True)
         if guardado is not None:
             st.caption("A continuación se conserva la última ejecución exitosa.")
     if guardado is None:
@@ -369,7 +400,7 @@ def render_resultado_experimento(
             f"**Mejor modelo seleccionado:** {resultado.mejor_algoritmo}"
         )
     st.markdown(f"#### {t('sup_test_reservada', 'Prueba reservada · ganadores seleccionados')}")
-    _mostrar_dataframe(
+    _display_dataframe(
         pd.DataFrame(
             [
                 {
@@ -431,7 +462,7 @@ def render_resultado_experimento(
         st.caption(
             "Configuraciones y parámetros efectivos, métricas de validación, selección, estado y errores"
         )
-        _tabla_validacion(resultado.tabla)
+        _validation_table(resultado.tabla)
     if not solo_comparacion:
         with st.expander(
             "Diagnóstico del ganador · matriz de confusión y predicciones"
@@ -457,14 +488,14 @@ def render_resultado_experimento(
                     key=f"{prefijo}_{algoritmo}_clases",
                     alt="Precisión, tasa de verdaderos y F1 por clase del ganador en prueba",
                 )
-    _descargas(guardado, prefijo)
+    _render_downloads(guardado, prefijo)
 
 
-def _tabla_validacion(tabla: pd.DataFrame) -> None:
-    """Muestra la tabla de candidatos evaluados en validación con parámetros serializados."""
+def _validation_table(tabla: pd.DataFrame) -> None:
+    """Display candidate table evaluated during validation with serialized parameters."""
     vista = tabla.copy()
     vista["parametros"] = vista["parametros"].map(_json)
-    _mostrar_dataframe(
+    _display_dataframe(
         vista,
         alt="Configuraciones y parámetros efectivos, métricas de validación, selección, estado y errores",
         hide_index=True,
@@ -472,7 +503,7 @@ def _tabla_validacion(tabla: pd.DataFrame) -> None:
     )
 
 
-def _descargas(
+def _render_downloads(
     guardado: dict, prefijo: str, *, es_intento: bool = False
 ) -> None:
     """Genera los botones de descarga del paquete ZIP, CSV y JSON del experimento."""
@@ -483,13 +514,13 @@ def _descargas(
     )
     try:
         if "archivos" not in guardado:
-            archivos = construir_archivos_experimento(
+            archivos = build_experiment_files(
                 guardado["resultado"],
                 argumentos=guardado["argumentos"],
                 dataset=guardado["fuente"],
                 versiones=guardado["versiones"],
             )
-            zip_evidencia = construir_zip_experimento(archivos)
+            zip_evidencia = build_experiment_zip(archivos)
             guardado.update(archivos=archivos, zip=zip_evidencia)
         archivos = guardado["archivos"]
         st.download_button(
@@ -517,17 +548,17 @@ def _descargas(
             "ZIP con configuración, comparación, ganadores y matrices/predicciones de prueba. Usa el mismo formato que la CLI."
         )
         with st.expander("Configuración ejecutada y reproducibilidad"):
-            tab_meta, tab_fuente = _obtener_pestanas(
+            tab_meta, tab_fuente = _get_tabs(
                 ["Metadatos del experimento", "Fuente de datos"]
             )
             with tab_meta:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     guardado["resultado"].metadatos,
                     columna_clave="Metadato",
                     columna_valor="Detalle",
                 )
             with tab_fuente:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     guardado.get("fuente", {}),
                     columna_clave="Propiedad",
                     columna_valor="Detalle",
@@ -536,3 +567,9 @@ def _descargas(
         st.error(
             f"La ejecución se conserva, pero no fue posible preparar la descarga: {exc}"
         )
+
+# Backward compatibility aliases
+render_experimentos = render_classification_experiments
+render_resultado_experimento = render_experiment_result
+_tabla_validacion = _validation_table
+_descargas = _render_downloads

@@ -1,4 +1,4 @@
-"""Vistas de configuración para flujos supervisados y no supervisados."""
+"""Configuration views for supervised and unsupervised workflows."""
 
 from __future__ import annotations
 
@@ -9,22 +9,31 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.data.eda import EDA
-from ai_framework.ui.controllers.sources_controller import _usar_particion
+from ai_framework.ui.controllers.sources_controller import (
+    _use_partition,
+    _usar_particion,
+)
 from ai_framework.ui.controllers.unsupervised_controller import (
+    _numeric_columns,
     _columnas_numericas,
 )
 from ai_framework.ui.models.view_catalog import TAREAS
 from ai_framework.ui.models.classification_state import (
+    current_classification_configuration,
     configuracion_clasificacion_actual,
 )
 from ai_framework.ui.models.regression_state import (
+    current_regression_configuration,
     configuracion_regresion_actual,
 )
-from ai_framework.ui.models.session_state import inicializar_configuracion
+from ai_framework.ui.models.session_state import (
+    initialize_configuration,
+    inicializar_configuracion,
+)
 
 
-def configurar_supervisado(datos: pd.DataFrame) -> None:
-    """Renderiza los controles de preparación y protocolo para tareas supervisadas."""
+def configure_supervised(datos: pd.DataFrame) -> None:
+    """Render preparation and protocol controls for supervised tasks."""
     tarea = st.radio(
         t("cfg_tarea", "Tarea"),
         list(TAREAS),
@@ -133,25 +142,25 @@ def configurar_supervisado(datos: pd.DataFrame) -> None:
         st.checkbox(etiqueta, key=f"sup_{clave}", persist_state="session")
 
 
-def configurar_clasificacion(
+def configure_classification(
     datos: pd.DataFrame, mostrar_figura: Callable | None = None
 ) -> dict | None:
-    """Muestra la configuración supervisada compartida y retorna la configuración de clasificación."""
+    """Display shared supervised configuration and return classification configuration."""
     del mostrar_figura
-    inicializar_configuracion(datos, st.session_state)
-    configurar_supervisado(datos)
-    return configuracion_clasificacion_actual(datos, st.session_state)
+    initialize_configuration(datos, st.session_state)
+    configure_supervised(datos)
+    return current_classification_configuration(datos, st.session_state)
 
 
-def configurar_regresion(datos: pd.DataFrame) -> dict | None:
-    """Muestra la configuración supervisada compartida y retorna la configuración de regresión."""
-    inicializar_configuracion(datos, st.session_state)
-    configurar_supervisado(datos)
-    return configuracion_regresion_actual(datos, st.session_state)
+def configure_regression(datos: pd.DataFrame) -> dict | None:
+    """Display shared supervised configuration and return regression configuration."""
+    initialize_configuration(datos, st.session_state)
+    configure_supervised(datos)
+    return current_regression_configuration(datos, st.session_state)
 
 
-def _configurar_modelos(datos: pd.DataFrame) -> dict:
-    """Recopila una configuración común para todos los modelos no supervisados."""
+def _configure_models(datos: pd.DataFrame) -> dict:
+    """Collect common configuration for all unsupervised models."""
     st.markdown(f"### {t('cfg_analisis_titulo', 'Configuración del análisis')}")
     incluir_categoricas = st.checkbox(
         "Codificar variables categóricas",
@@ -162,7 +171,7 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
         opciones = datos.columns.tolist()
         predeterminadas = datos.columns.tolist()
     else:
-        opciones = _columnas_numericas(datos)
+        opciones = _numeric_columns(datos)
         predeterminadas = opciones
     guardadas = st.session_state.get("modelo_features", [])
     if any(columna not in opciones for columna in guardadas):
@@ -198,16 +207,16 @@ def _configurar_modelos(datos: pd.DataFrame) -> dict:
     }
 
 
-def _render_regresion() -> None:
-    """Orienta hacia las vistas de configuración y modelos de regresión."""
+def _render_regression() -> None:
+    """Guide toward regression configuration and model views."""
     st.info(
         "Abra Configuración para elegir target y predictores; "
         "después seleccione un modelo o Experimentos en la navegación."
     )
 
 
-def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
-    """Ofrece un acceso directo cuando falta configurar variables de clasificación."""
+def _render_required_configuration(*, sin_features: bool = False) -> None:
+    """Provide direct shortcut when classification variables are unconfigured."""
     st.info(
         "Seleccione al menos una variable predictora en Configuración."
         if sin_features
@@ -220,3 +229,13 @@ def _render_configuracion_requerida(*, sin_features: bool = False) -> None:
     ):
         st.session_state["vista_activa"] = "clasificacion_configuracion"
         st.rerun()
+
+# Backward compatibility aliases
+configurar_supervisado = configure_supervised
+configurar_clasificacion = configure_classification
+configurar_regresion = configure_regression
+
+# Backward compatibility aliases
+_configurar_modelos = _configure_models
+_render_regresion = _render_regression
+_render_configuracion_requerida = _render_required_configuration

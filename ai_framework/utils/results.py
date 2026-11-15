@@ -1,7 +1,7 @@
-"""Objetos de resultado compartidos por los análisis y los agentes.
+"""Result objects shared by unsupervised and supervised analyses, as well as agents.
 
-Las clases de este módulo transportan datos entre la lógica de modelos y la
-capa de visualización. No conocen Streamlit ni generan efectos secundarios.
+Classes in this module transfer data between model logic, agent workflows, and the
+visualization layer without Streamlit dependencies or side effects.
 """
 
 from __future__ import annotations
@@ -13,18 +13,37 @@ import pandas as pd
 
 
 @dataclass(frozen=True)
-class DatosPreparados:
-    """Matriz numérica lista para modelos y metadatos del preprocesamiento."""
+class PreparedData:
+    """Numerical matrix ready for models and preprocessing metadata."""
 
     matriz: pd.DataFrame
     columnas_origen: tuple[str, ...]
     columnas_descartadas: tuple[str, ...]
     transformador: Any = field(repr=False)
 
+    @property
+    def matrix(self) -> pd.DataFrame:
+        return self.matriz
+
+    @property
+    def source_columns(self) -> tuple[str, ...]:
+        return self.columnas_origen
+
+    @property
+    def discarded_columns(self) -> tuple[str, ...]:
+        return self.columnas_descartadas
+
+    @property
+    def transformer(self) -> Any:
+        return self.transformador
+
+
+DatosPreparados = PreparedData
+
 
 @dataclass(frozen=True)
-class ResultadoACP:
-    """Resultado completo de un análisis de componentes principales."""
+class PCAResult:
+    """Full outcome of a principal components analysis."""
 
     coordenadas: pd.DataFrame
     cargas: pd.DataFrame
@@ -33,9 +52,36 @@ class ResultadoACP:
     datos_preparados: DatosPreparados
     modelo: Any = field(repr=False)
 
+    @property
+    def coordinates(self) -> pd.DataFrame:
+        return self.coordenadas
+
+    @property
+    def loadings(self) -> pd.DataFrame:
+        return self.cargas
+
+    @property
+    def explained_variance(self) -> pd.Series:
+        return self.varianza_explicada
+
+    @property
+    def cumulative_variance(self) -> pd.Series:
+        return self.varianza_acumulada
+
+    @property
+    def prepared_data(self) -> DatosPreparados:
+        return self.datos_preparados
+
+    @property
+    def model(self) -> Any:
+        return self.modelo
+
+
+ResultadoACP = PCAResult
+
 
 @dataclass(frozen=True)
-class ResultadoProyeccion:
+class ProjectionResult:
     """Coordenadas bidimensionales producidas por t-SNE o UMAP."""
 
     algoritmo: str
@@ -43,10 +89,29 @@ class ResultadoProyeccion:
     datos_preparados: DatosPreparados
     modelo: Any = field(repr=False)
 
+    @property
+    def algorithm(self) -> str:
+        return self.algoritmo
+
+    @property
+    def coordinates(self) -> pd.DataFrame:
+        return self.coordenadas
+
+    @property
+    def prepared_data(self) -> DatosPreparados:
+        return self.datos_preparados
+
+    @property
+    def model(self) -> Any:
+        return self.modelo
+
+
+ResultadoProyeccion = ProjectionResult
+
 
 @dataclass(frozen=True)
-class ResultadoCluster:
-    """Resultado uniforme para algoritmos de agrupamiento."""
+class ClusterResult:
+    """Uniform result container for clustering algorithms."""
 
     algoritmo: str
     etiquetas: pd.Series
@@ -58,14 +123,49 @@ class ResultadoCluster:
     inercia: float | None = None
     matriz_vinculacion: Any | None = field(default=None, repr=False)
 
+    @property
+    def algorithm(self) -> str:
+        return self.algoritmo
+
+    @property
+    def labels(self) -> pd.Series:
+        return self.etiquetas
+
+    @property
+    def centroids(self) -> pd.DataFrame:
+        return self.centroides
+
+    @property
+    def projection_2d(self) -> pd.DataFrame:
+        return self.proyeccion_2d
+
+    @property
+    def prepared_data(self) -> DatosPreparados:
+        return self.datos_preparados
+
+    @property
+    def model(self) -> Any:
+        return self.modelo
+
+    @property
+    def inertia(self) -> float | None:
+        return self.inercia
+
+    @property
+    def linkage_matrix(self) -> Any | None:
+        return self.matriz_vinculacion
+
+
+ResultadoCluster = ClusterResult
+
 
 @dataclass(frozen=True)
-class ResultadoParticion:
-    """Partición reproducible de un dataset en train/test y validación opcional.
+class PartitionResult:
+    """Reproducible dataset partition into train/test and optional validation.
 
-    Se calcula una sola vez sobre el dataset activo (vista Datos) y puede
-    reutilizarse en Clasificación o Regresión en lugar de generar una
-    partición aleatoria distinta en cada vista.
+    Computed once on the active dataset (Data view) and reusable across
+    Classification or Regression rather than generating different random
+    partitions in each view.
     """
 
     train: pd.DataFrame
@@ -82,8 +182,36 @@ class ResultadoParticion:
     advertencia: str | None = None
 
     @property
-    def huella(self) -> tuple:
-        """Identifica la partición para invalidar resultados dependientes."""
+    def validation(self) -> pd.DataFrame | None:
+        return self.validacion
+
+    @property
+    def train_percentage(self) -> float:
+        return self.porcentaje_train
+
+    @property
+    def test_percentage(self) -> float:
+        return self.porcentaje_test
+
+    @property
+    def validation_percentage(self) -> float:
+        return self.porcentaje_validacion
+
+    @property
+    def stratify_column(self) -> str | None:
+        return self.columna_estratificacion
+
+    @property
+    def seed(self) -> int:
+        return self.semilla
+
+    @property
+    def warning(self) -> str | None:
+        return self.advertencia
+
+    @property
+    def fingerprint(self) -> tuple:
+        """Identifies partition to invalidate dependent results."""
         return (
             tuple(self.train.index),
             tuple(self.test.index),
@@ -92,10 +220,16 @@ class ResultadoParticion:
             self.semilla,
         )
 
+    # Backward compatibility alias
+    huella = fingerprint
+
+
+ResultadoParticion = PartitionResult
+
 
 @dataclass(frozen=True)
-class ResultadoClasificacion:
-    """Salida de entrenamiento y evaluación supervisada para clasificación."""
+class ClassificationResult:
+    """Supervised training and evaluation output for classification."""
 
     algoritmo: str
     target: str
@@ -111,23 +245,69 @@ class ResultadoClasificacion:
     parametros: dict[str, Any] = field(default_factory=dict)
     metadatos: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def algorithm(self) -> str:
+        return self.algoritmo
+
+    @property
+    def confusion_matrix(self) -> pd.DataFrame:
+        return self.matriz_confusion
+
+    @property
+    def metrics(self) -> dict[str, Any]:
+        return self.metricas
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self.parametros
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.metadatos
+
+    @property
+    def model(self) -> Any:
+        return self.modelo
+
+
+ResultadoClasificacion = ClassificationResult
+
 
 @dataclass(frozen=True)
-class ResultadoExperimentoClasificacion:
-    """Selección por validación y evaluación final de los ganadores en prueba.
+class ClassificationExperimentResult:
+    """Validation-based selection and test set evaluation of winning models.
 
-    ``tabla`` nunca contiene métricas de prueba de candidatos descartados.
-    ``mejor_algoritmo`` se decide exclusivamente por la métrica de validación.
+    ``tabla`` never contains test metrics for discarded candidates.
+    ``best_algorithm`` is determined exclusively by validation metrics.
     """
 
     tabla: pd.DataFrame
-    mejores: dict[str, ResultadoClasificacion]
+    mejores: dict[str, ClassificationResult]
     mejor_algoritmo: str | None
     metadatos: dict[str, Any]
 
+    @property
+    def table(self) -> pd.DataFrame:
+        return self.tabla
+
+    @property
+    def best_by_family(self) -> dict[str, ClassificationResult]:
+        return self.mejores
+
+    @property
+    def best_algorithm(self) -> str | None:
+        return self.mejor_algoritmo
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.metadatos
+
+
+ResultadoExperimentoClasificacion = ClassificationExperimentResult
+
 
 @dataclass(frozen=True)
-class ResultadoRegresion:
+class RegressionResult:
     """Evaluación numérica y artefactos ajustados sólo con entrenamiento.
 
     ``y_true``, ``y_pred``, ``residuos`` y ``metricas`` corresponden al conjunto
@@ -154,15 +334,73 @@ class ResultadoRegresion:
     parametros: dict[str, Any] = field(default_factory=dict)
     metadatos: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def algorithm(self) -> str:
+        return self.algoritmo
+
+    @property
+    def residuals(self) -> pd.Series:
+        return self.residuos
+
+    @property
+    def residuals_train(self) -> pd.Series:
+        return self.residuos_train
+
+    @property
+    def metrics(self) -> dict[str, float]:
+        return self.metricas
+
+    @property
+    def metrics_train(self) -> dict[str, float]:
+        return self.metricas_train
+
+    @property
+    def model(self) -> Any:
+        return self.modelo
+
+    @property
+    def prepared_data(self) -> DatosPreparados:
+        return self.datos_preparados
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self.parametros
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.metadatos
+
+
+ResultadoRegresion = RegressionResult
+
 
 @dataclass(frozen=True)
-class ResultadoExperimentoRegresion:
+class RegressionExperimentResult:
     """Comparación por validación; sólo los ganadores tienen evaluación en prueba."""
 
     tabla: pd.DataFrame
-    mejores: dict[str, ResultadoRegresion]
+    mejores: dict[str, RegressionResult]
     mejor_algoritmo: str | None
     metadatos: dict[str, Any]
+
+    @property
+    def table(self) -> pd.DataFrame:
+        return self.tabla
+
+    @property
+    def best_by_family(self) -> dict[str, RegressionResult]:
+        return self.mejores
+
+    @property
+    def best_algorithm(self) -> str | None:
+        return self.mejor_algoritmo
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.metadatos
+
+
+ResultadoExperimentoRegresion = RegressionExperimentResult
 
 
 @dataclass(frozen=True)
@@ -206,15 +444,6 @@ class ModelRecommendation:
     test_metrics: dict[str, float] = field(default_factory=dict)
 
 
-PreparedData = DatosPreparados
-PCAResult = ResultadoACP
-ClassificationResult = ResultadoClasificacion
-ClusterResult = ResultadoCluster
-ClassificationExperimentResult = ResultadoExperimentoClasificacion
-RegressionExperimentResult = ResultadoExperimentoRegresion
-PartitionResult = ResultadoParticion
-ProjectionResult = ResultadoProyeccion
-RegressionResult = ResultadoRegresion
 Hallazgo = Finding
 SugerenciaModelado = ModelingSuggestion
 SugerenciaClustering = ClusteringSuggestion

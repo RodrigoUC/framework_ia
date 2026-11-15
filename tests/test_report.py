@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_framework import Regresion
+from ai_framework import Regression, Regresion
 from ai_framework.datasets.concrete import FUENTE_CONCRETE, PREDICTORAS_CONCRETE
 from ai_framework.utils.supervised.evidence import cargar_evidencia
 from scripts import ejecutar_regresion
@@ -133,7 +133,7 @@ def test_informe_refleja_catorce_candidatos_y_metricas_reales_sin_entrenar(
     evidencia = leer_evidencia(caso_informe)
     datos_antes = archivos(caso_informe)
     args = argumentos(caso_informe, caso_informe.parent / "informe")
-    with patch.object(Regresion, "_ajustar", side_effect=AssertionError("No entrenar")):
+    with patch.object(Regression, "_ajustar", side_effect=AssertionError("No entrenar")):
         salida = generar_fixture(args)
     contenido = (salida / "main.tex").read_text(encoding="utf-8")
     assert "nueve modelos de regresión y catorce configuraciones" in contenido
@@ -319,8 +319,8 @@ def test_referencias_citadas_y_mayoria_de_articulos_arbitrados(caso_informe):
     assert r"\begin{tikzpicture}" in documento
     assert r"\mathrm{MAE}" in documento and r"\mathrm{RMSE}" in documento
     assert r"\mathrm{MSE}" in documento and "R^2" in documento
-    assert "no demuestra generalización" in documento
-    assert "No se reajusta en cada pliegue interno" in documento
+    assert "no permite confirmar" in documento
+    assert "no se reajusta dentro de cada pliegue interno" in documento
 
 
 def test_bloque_reproduccion_python_usa_fuente_y_original_correctos(caso_informe):

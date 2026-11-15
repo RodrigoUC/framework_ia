@@ -1,4 +1,4 @@
-"""Configuración compartida para clasificación supervisada."""
+"""Shared configuration for supervised classification."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class ParametroModelo:
-    """Metadatos de un control de parámetros expuesto por la interfaz."""
+class ModelParameter:
+    """Metadata for a parameter control exposed by the UI or estimators."""
 
     nombre: str
     etiqueta: str
@@ -20,13 +20,43 @@ class ParametroModelo:
     opciones: tuple[Any, ...] = ()
     formato: str | None = None
 
+    @property
+    def name(self) -> str:
+        return self.nombre
+
+    @property
+    def label(self) -> str:
+        return self.etiqueta
+
+    @property
+    def type(self) -> str:
+        return self.tipo
+
+    @property
+    def value(self) -> Any:
+        return self.valor
+
+
+ParametroModelo = ModelParameter
+
 
 @dataclass(frozen=True)
-class ConfiguracionModelo:
-    """Identidad y parámetros configurables de un clasificador supervisado."""
+class ModelConfig:
+    """Identity and configurable parameters of a model."""
 
     etiqueta: str
     parametros: tuple[ParametroModelo, ...]
+
+    @property
+    def label(self) -> str:
+        return self.etiqueta
+
+    @property
+    def parameters(self) -> tuple[ParametroModelo, ...]:
+        return self.parametros
+
+
+ConfiguracionModelo = ModelConfig
 
 
 ALGORITMOS_LAB2 = ("KNN", "DT", "RF", "XGBoost", "AdaBoost")
@@ -153,7 +183,7 @@ _CONFIGURACIONES_EXPERIMENTO = {
 }
 
 
-def configuraciones_experimento() -> dict[str, list[dict[str, Any]]]:
+def experiment_configurations() -> dict[str, list[dict[str, Any]]]:
     """Return fresh experiment candidate configurations for backward compatibility."""
     return {
         algoritmo: [
@@ -162,3 +192,7 @@ def configuraciones_experimento() -> dict[str, list[dict[str, Any]]]:
         ]
         for algoritmo, configuraciones in _CONFIGURACIONES_EXPERIMENTO.items()
     }
+
+
+# Backward compatibility aliases
+configuraciones_experimento = experiment_configurations

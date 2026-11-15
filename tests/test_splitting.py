@@ -5,14 +5,16 @@ import pandas as pd
 import pytest
 
 from ai_framework.data.partition import (
+    PartitionConfig,
     ConfiguracionParticion,
+    DataSplitter,
     Particionador,
     comprobar_clases,
     dividir_indices,
     huella_datos,
     validar_particion,
 )
-from ai_framework.utils.results import ResultadoParticion
+from ai_framework.utils.results import PartitionResult, ResultadoParticion
 
 
 def test_huella_datos_consistencia_y_sensibilidad():
@@ -40,10 +42,10 @@ def test_particionador_division_train_test_correcta():
         "feat1": np.arange(100),
         "feat2": np.arange(100, 200),
     })
-    cfg = ConfiguracionParticion(porcentaje_test=0.2, porcentaje_validacion=0.0, semilla=42)
-    part = Particionador(cfg).dividir(datos)
+    cfg = PartitionConfig(porcentaje_test=0.2, porcentaje_validacion=0.0, semilla=42)
+    part = DataSplitter(cfg).dividir(datos)
 
-    assert isinstance(part, ResultadoParticion)
+    assert isinstance(part, PartitionResult)
     assert len(part.train) == 80
     assert len(part.test) == 20
     assert part.validacion is None
@@ -57,13 +59,13 @@ def test_particionador_division_train_test_validacion():
         "x": np.arange(100),
         "target": [0, 1] * 50,
     })
-    cfg = ConfiguracionParticion(
+    cfg = PartitionConfig(
         porcentaje_test=0.2,
         porcentaje_validacion=0.1,
         columna_estratificacion="target",
         semilla=123,
     )
-    part = Particionador(cfg).dividir(datos)
+    part = DataSplitter(cfg).dividir(datos)
 
     assert len(part.train) == 70
     assert len(part.test) == 20
@@ -77,56 +79,56 @@ def test_particionador_division_train_test_validacion():
 
 def test_particionador_advertencia_por_nulos_o_clase_unica():
     datos_nulos = pd.DataFrame({"x": [1, 2, 3, 4], "cat": ["a", "a", np.nan, "b"]})
-    cfg_nulos = ConfiguracionParticion(
+    cfg_nulos = PartitionConfig(
         porcentaje_test=0.5,
         columna_estratificacion="cat",
     )
-    part_nulos = Particionador(cfg_nulos).dividir(datos_nulos)
+    part_nulos = DataSplitter(cfg_nulos).dividir(datos_nulos)
     assert part_nulos.advertencia is not None
     assert "nulos" in part_nulos.advertencia
 
     datos_unica = pd.DataFrame({"x": [1, 2, 3, 4], "cat": ["a", "a", "a", "a"]})
-    cfg_unica = ConfiguracionParticion(
+    cfg_unica = PartitionConfig(
         porcentaje_test=0.5,
         columna_estratificacion="cat",
     )
-    part_unica = Particionador(cfg_unica).dividir(datos_unica)
+    part_unica = DataSplitter(cfg_unica).dividir(datos_unica)
     assert part_unica.advertencia is not None
     assert "una sola clase" in part_unica.advertencia
 
 
 def test_particionador_advertencia_clase_con_una_observacion():
     datos = pd.DataFrame({"x": [1, 2, 3, 4, 5], "cat": ["a", "a", "b", "b", "c"]})
-    cfg = ConfiguracionParticion(porcentaje_test=0.4, columna_estratificacion="cat")
-    part = Particionador(cfg).dividir(datos)
+    cfg = PartitionConfig(porcentaje_test=0.4, columna_estratificacion="cat")
+    part = DataSplitter(cfg).dividir(datos)
     assert part.advertencia is not None
     assert "sola observación" in part.advertencia
 
 
 def test_particionador_validaciones_de_rangos_y_entradas():
     with pytest.raises(ValueError, match="al menos una fila"):
-        Particionador(ConfiguracionParticion(porcentaje_test=0.2)).dividir(pd.DataFrame())
+        DataSplitter(PartitionConfig(porcentaje_test=0.2)).dividir(pd.DataFrame())
 
     with pytest.raises(ValueError, match="porcentaje de prueba"):
-        Particionador(ConfiguracionParticion(porcentaje_test=0.0)).dividir(pd.DataFrame({"x": [1, 2]}))
+        DataSplitter(PartitionConfig(porcentaje_test=0.0)).dividir(pd.DataFrame({"x": [1, 2]}))
 
     with pytest.raises(ValueError, match="porcentaje de prueba"):
-        Particionador(ConfiguracionParticion(porcentaje_test=1.0)).dividir(pd.DataFrame({"x": [1, 2]}))
+        DataSplitter(PartitionConfig(porcentaje_test=1.0)).dividir(pd.DataFrame({"x": [1, 2]}))
 
     with pytest.raises(ValueError, match="suma de prueba y validación"):
-        Particionador(ConfiguracionParticion(porcentaje_test=0.6, porcentaje_validacion=0.5)).dividir(
+        DataSplitter(PartitionConfig(porcentaje_test=0.6, porcentaje_validacion=0.5)).dividir(
             pd.DataFrame({"x": [1, 2]})
         )
 
     with pytest.raises(KeyError, match="no existe"):
-        Particionador(
-            ConfiguracionParticion(porcentaje_test=0.5, columna_estratificacion="inexistente")
+        DataSplitter(
+            PartitionConfig(porcentaje_test=0.5, columna_estratificacion="inexistente")
         ).dividir(pd.DataFrame({"x": [1, 2]}))
 
 
 def test_validar_particion_detecta_anomalias():
     datos = pd.DataFrame({"x": [10, 20, 30, 40]})
-    part = Particionador(ConfiguracionParticion(porcentaje_test=0.5, semilla=0)).dividir(datos)
+    part = DataSplitter(PartitionConfig(porcentaje_test=0.5, semilla=0)).dividir(datos)
 
     with pytest.raises(TypeError, match="ResultadoParticion"):
         validar_particion("no es particion", datos)

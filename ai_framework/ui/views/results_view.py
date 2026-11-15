@@ -1,4 +1,4 @@
-"""Componentes reutilizables y unificados para las vistas de Resultados (Clasificación y Regresión)."""
+"""Reusable unified components for Results views (Classification and Regression)."""
 
 from __future__ import annotations
 
@@ -7,16 +7,21 @@ import pandas as pd
 import streamlit as st
 
 from ai_framework.ui.i18n import t
-from ai_framework.ui.views.theme import _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.views.theme import (
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 
 
-def render_panel_modelos_individuales(
+def render_individual_models_panel(
     df_metricas: pd.DataFrame,
     modelos_params: list[tuple[str, dict]],
     *,
     titulo: str | None = None,
 ) -> None:
-    """Renderiza de forma unificada la tabla de modelos individuales y el visor de hiperparámetros."""
+    """Render unified individual models table and hyperparameter inspector."""
     titulo_texto = titulo if titulo is not None else t("res_modelos_ind", "Modelos entrenados individualmente")
     st.markdown(f"#### {titulo_texto}")
     st.dataframe(df_metricas, hide_index=True, width="stretch")
@@ -27,23 +32,23 @@ def render_panel_modelos_individuales(
             col_param = t("res_parametro", "Hiperparámetro")
             col_val = t("res_valor", "Valor configurado")
             if len(nombres) == 1:
-                render_tabla_clave_valor(
+                render_key_value_table(
                     modelos_params[0][1],
                     columna_clave=col_param,
                     columna_valor=col_val,
                 )
             else:
-                tabs = _obtener_pestanas(nombres)
+                tabs = _get_tabs(nombres)
                 for tab, (nombre, params) in zip(tabs, modelos_params):
                     with tab:
-                        render_tabla_clave_valor(
+                        render_key_value_table(
                             params,
                             columna_clave=col_param,
                             columna_valor=col_val,
                         )
 
 
-def render_layout_resultados(
+def render_results_layout(
     *,
     hay_individuales: bool,
     hay_comparativa: bool,
@@ -52,7 +57,7 @@ def render_layout_resultados(
     mensaje_sin_datos: str | None = None,
     clave_contexto: str = "general",
 ) -> None:
-    """Organiza la página de resultados con dos botones para conmutar entre modelos individuales y evaluación comparativa."""
+    """Organize results page with two buttons to toggle between individual models and comparative benchmark."""
     if not hay_individuales and not hay_comparativa:
         msg = mensaje_sin_datos or t("res_sin_datos", "Todavía no hay modelos entrenados ni evaluaciones guardadas en este contexto.")
         st.info(msg)
@@ -103,3 +108,7 @@ def render_layout_resultados(
         render_individuales_fn()
     else:
         render_comparativa_fn()
+
+# Backward compatibility aliases
+render_panel_modelos_individuales = render_individual_models_panel
+render_layout_resultados = render_results_layout

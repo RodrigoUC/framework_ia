@@ -1,4 +1,4 @@
-"""Punto de entrada y enrutador principal de la interfaz Streamlit."""
+"""Streamlit UI entry point and primary router."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.datasets.diabetes import cargar_diabetes_regresion
-from ai_framework.data.sources import CargadorCSV, ConfiguracionCSV
+from ai_framework.data.sources import CSVLoader, CargadorCSV, CSVConfig, ConfiguracionCSV
 from ai_framework.ui.controllers.sources_controller import (
     _aplicar_preset_regresion,
     _cargar_fuente_csv,

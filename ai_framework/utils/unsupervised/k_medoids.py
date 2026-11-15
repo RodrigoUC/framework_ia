@@ -1,4 +1,4 @@
-"""Estimador de K-Medoids mediante actualización alternante de medoides."""
+"""K-Medoids estimator via alternating medoid updates."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import numpy as np
 from sklearn.metrics import pairwise_distances
 
 
-class ModeloKMedoids:
-    """Implementa K-Medoids mediante actualización alternante de medoides.
+class KMedoidsModel:
+    """Implements K-Medoids via alternating medoid updates.
 
-    Expone una interfaz compatible con estimadores de scikit-learn
+    Exposes a scikit-learn compatible interface
     (fit, fit_predict, predict, cluster_centers_, labels_, inertia_).
     """
 
@@ -31,8 +31,8 @@ class ModeloKMedoids:
         self.inertia_: float | None = None
         self.n_iter_: int = 0
 
-    def fit(self, datos) -> "ModeloKMedoids":
-        """Ajusta medoides minimizando la distancia interna de cada grupo."""
+    def fit(self, datos) -> "KMedoidsModel":
+        """Fit medoids by minimizing internal distances within each cluster."""
         matriz = np.asarray(datos, dtype=float)
         if matriz.ndim != 2 or len(matriz) == 0:
             raise ValueError("K-Medoids requiere una matriz bidimensional no vacía.")
@@ -100,3 +100,6 @@ class ModeloKMedoids:
             matriz, self.cluster_centers_, metric=self.metric
         )
         return np.argmin(distancias, axis=1)
+
+
+ModeloKMedoids = KMedoidsModel

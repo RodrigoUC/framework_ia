@@ -1,4 +1,4 @@
-"""Funciones de utilidad, estimadores y cálculo de métricas para regresión."""
+"""Utility functions, estimators, and metric computation for regression."""
 
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ from .regression_algorithms import (
 )
 
 
-def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]:
-    """Calcula errores en unidades originales y R² con al menos dos filas."""
+def regression_metrics(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]:
+    """Calculate errors in original units and R² with at least two rows."""
     if len(y_true) < 2:
         raise ValueError("La evaluación necesita al menos dos filas para calcular R².")
     mse = float(mean_squared_error(y_true, y_pred))
@@ -34,8 +34,8 @@ def metricas_regresion(y_true: pd.Series, y_pred: pd.Series) -> dict[str, float]
     }
 
 
-def validar_objetivo(y: pd.Series) -> None:
-    """Verifica que la variable objetivo sea numérica continua y válida."""
+def validate_target(y: pd.Series) -> None:
+    """Verify that target variable is a continuous and valid numerical series."""
     if (
         not pd.api.types.is_numeric_dtype(y)
         or pd.api.types.is_bool_dtype(y)
@@ -52,14 +52,14 @@ def validar_objetivo(y: pd.Series) -> None:
         )
 
 
-def validar_datos_regresion(base: pd.DataFrame, target: str) -> pd.DataFrame:
-    """Valida los datos tabulares para regresión."""
+def validate_regression_data(base: pd.DataFrame, target: str) -> pd.DataFrame:
+    """Validate tabular data for regression."""
     validar_objetivo(base[target])
     return base
 
 
-def validar_predictoras(features: list[str], base: pd.DataFrame, algoritmo: str) -> None:
-    """Valida los requisitos de características según el algoritmo."""
+def validate_predictors(features: list[str], base: pd.DataFrame, algoritmo: str) -> None:
+    """Validate feature requirements based on algorithm."""
     if algoritmo not in ALGORITMOS_REGRESION:
         raise ValueError(f"Algoritmo de regresión desconocido: {algoritmo}")
     if algoritmo == "RLS":
@@ -78,7 +78,7 @@ def validar_predictoras(features: list[str], base: pd.DataFrame, algoritmo: str)
         raise ValueError("RLM requiere al menos dos variables predictoras.")
 
 
-def ajustar_regresion(
+def fit_regression(
     base: pd.DataFrame,
     train: pd.Index,
     features: list[str],
@@ -88,7 +88,7 @@ def ajustar_regresion(
     opciones: dict[str, Any],
     parametros: dict[str, Any],
 ):
-    """Ajusta preprocesamiento y modelo de regresión en el conjunto de entrenamiento."""
+    """Fit preprocessing and regression model on training set."""
     validar_predictoras(features, base, algoritmo)
     if len(train) < 2:
         raise ValueError("Entrenamiento necesita al menos dos filas.")
@@ -107,7 +107,7 @@ def ajustar_regresion(
     return modelo, preparados
 
 
-def crear_resultado_regresion(
+def create_regression_result(
     base: pd.DataFrame,
     train: pd.Index,
     evaluacion: pd.Index,
@@ -118,14 +118,14 @@ def crear_resultado_regresion(
     preparados: Any,
     metadatos: dict[str, Any],
 ) -> ResultadoRegresion:
-    """Construye el contenedor ResultadoRegresion con predicciones y residuos."""
-    def predecir(indices):
+    """Build the RegressionResult container with predictions and residuals."""
+    def predict(indices):
         X = preparados.transformador.transform(base.loc[indices, features])
         return pd.Series(modelo.predict(X), index=indices, name="prediccion")
 
     y_train = base.loc[train, target].rename("real").copy()
     y_true = base.loc[evaluacion, target].rename("real").copy()
-    y_pred_train, y_pred = predecir(train), predecir(evaluacion)
+    y_pred_train, y_pred = predict(train), predict(evaluacion)
     return ResultadoRegresion(
         algoritmo=algoritmo,
         target=target,
@@ -150,3 +150,11 @@ def crear_resultado_regresion(
             "columnas_descartadas": list(preparados.columnas_descartadas),
         },
     )
+
+# Backward compatibility aliases
+metricas_regresion = regression_metrics
+validar_objetivo = validate_target
+validar_datos_regresion = validate_regression_data
+validar_predictoras = validate_predictors
+ajustar_regresion = fit_regression
+crear_resultado_regresion = create_regression_result

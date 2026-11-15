@@ -1,4 +1,4 @@
-"""Comparación y despacho de modelos supervisados (clasificación y regresión)."""
+"""Comparison and dispatching of supervised models (classification and regression)."""
 
 from __future__ import annotations
 
@@ -10,20 +10,24 @@ if TYPE_CHECKING:
     from ai_framework.models.supervised import Supervisado
 
 
-def despachar_algoritmo_supervisado(
+def dispatch_supervised_algorithm(
     modelo: Supervisado,
     algoritmo: str,
     **kwargs,
 ) -> Any:
-    """Entrena y despacha el algoritmo supervisado solicitado sobre la instancia."""
+    """Train and dispatch the requested supervised algorithm on the model instance."""
     return modelo.entrenar(algoritmo=algoritmo, **kwargs)
 
 
-def comparar_algoritmos_supervisados(
+def compare_supervised_algorithms(
     modelo: Supervisado,
     algoritmos: list[str] | tuple[str, ...] | None = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """Ejecuta experimentos de comparación sobre modelos supervisados y retorna resumen comparativo."""
+    """Run comparison experiments on supervised models and return comparative summary."""
     experimento = modelo.experimentar(algoritmos=algoritmos, **kwargs)
     return experimento.tabla_comparativa()
+
+# Backward compatibility aliases
+despachar_algoritmo_supervisado = dispatch_supervised_algorithm
+comparar_algoritmos_supervisados = compare_supervised_algorithms

@@ -1,4 +1,4 @@
-"""Vista de ejecución y evidencia experimental de regresión."""
+"""Execution view and experimental evidence for regression."""
 
 from __future__ import annotations
 
@@ -8,30 +8,57 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.utils.supervised.export import (
+    build_experiment_files,
+    build_experiment_zip,
     construir_archivos_experimento,
     construir_zip_experimento,
 )
 from ai_framework.ui.controllers.regression_controller import (
+    common_arguments,
+    create_regressor,
+    execution_snapshot,
     argumentos_comunes,
     crear_regresor,
     snapshot_ejecucion,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.views.navigation import ir_a, mostrar_faltantes
-from ai_framework.ui.views.theme import _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.views.navigation import (
+    go_to,
+    show_missing_data,
+    ir_a,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 from ai_framework.ui.views.regression_view import (
+    display_model_result,
     mostrar_resultado_modelo,
+    safe_regression_preparation,
     preparacion_regresion_segura,
 )
 from ai_framework.utils.supervised.regression_config import (
     ALGORITMOS_LAB3,
+    regression_experiment_configs,
     configuraciones_experimento_regresion,
 )
-from ai_framework.utils.visualization import VisualizadorRegresion
+from ai_framework.utils.visualization import (
+    RegressionVisualizer,
+    VisualizadorRegresion,
+)
 
-def _sanear_tabla_regresion(tabla: pd.DataFrame) -> pd.DataFrame:
-    """Prepara la tabla para serialización segura en Arrow sin fallos de tipo."""
+def _sanitize_regression_table(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Prepare table for safe Arrow serialization without type failures."""
     if not isinstance(tabla, pd.DataFrame) or tabla.empty:
         return tabla
     vista = tabla.copy()
@@ -46,10 +73,10 @@ def _sanear_tabla_regresion(tabla: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def mostrar_experimento_guardado(
+def display_saved_experiment(
     mostrar_figura, *, solo_comparacion=False
 ) -> None:
-    """Presenta los resultados de validación, el ganador y los paquetes de descarga."""
+    """Present validation results, winner, and download bundles."""
     intento = st.session_state.get("resultado_lab3_intento_experimento")
     if intento:
         st.warning(
@@ -57,12 +84,12 @@ def mostrar_experimento_guardado(
         )
         errores_intento = intento["resultado"].metadatos.get("errores_prueba", {})
         if errores_intento:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 errores_intento,
                 columna_clave="Familia / Algoritmo",
                 columna_valor="Detalle del error",
             )
-        st.dataframe(_sanear_tabla_regresion(intento["resultado"].tabla), hide_index=True, width="stretch")
+        st.dataframe(_sanitize_regression_table(intento["resultado"].tabla), hide_index=True, width="stretch")
     error = st.session_state.get("error_lab3_experimento")
     if error:
         st.error(
@@ -90,24 +117,24 @@ def mostrar_experimento_guardado(
     )
     columnas[2].metric(t("sup_candidatos_comparados", "Candidatos comparados"), len(resultado.tabla))
     mostrar_figura(
-        VisualizadorRegresion.comparacion_validacion(resultado.tabla),
+        RegressionVisualizer.comparacion_validacion(resultado.tabla),
         key="lab3_validacion",
         alt="RMSE de validación por candidato con desviación entre pliegues cuando aplica; menor es mejor.",
     )
     with st.expander(t("sup_val_todas_configs", "Validación · todas las configuraciones")):
-        st.dataframe(_sanear_tabla_regresion(resultado.tabla), hide_index=True, width="stretch")
+        st.dataframe(_sanitize_regression_table(resultado.tabla), hide_index=True, width="stretch")
     errores = resultado.metadatos.get("errores_prueba")
     if errores:
         st.warning(
             "Algunas familias fallaron en la evaluación final; se muestran los errores, sin sustituir la selección por validación."
         )
-        render_tabla_clave_valor(
+        render_key_value_table(
             errores,
             columna_clave="Familia / Algoritmo",
             columna_valor="Detalle del error",
         )
     with st.expander(t("sup_selecciones_contexto_expander", "Selecciones por familia y contexto ejecutado")):
-        tab_meta, tab_args, tab_data = _obtener_pestanas(
+        tab_meta, tab_args, tab_data = _get_tabs(
             [
                 t("tab_meta_exp", "Metadatos del experimento"),
                 t("tab_args_exp", "Argumentos de ejecución"),
@@ -115,19 +142,19 @@ def mostrar_experimento_guardado(
             ]
         )
         with tab_meta:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 resultado.metadatos,
                 columna_clave="Metadato",
                 columna_valor="Detalle",
             )
         with tab_args:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 snapshot.get("argumentos", {}),
                 columna_clave="Argumento",
                 columna_valor="Valor",
             )
         with tab_data:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 snapshot.get("dataset", {}),
                 columna_clave="Propiedad",
                 columna_valor="Detalle",
@@ -146,19 +173,19 @@ def mostrar_experimento_guardado(
             width="stretch",
         )
     if ganador is not None and not solo_comparacion:
-        mostrar_resultado_modelo(
+        display_model_result(
             {**snapshot, "resultado": ganador},
             mostrar_figura,
             clave="lab3_ganador",
         )
-    archivos = construir_archivos_experimento(
+    archivos = build_experiment_files(
         resultado,
         argumentos=snapshot["argumentos"],
         dataset=snapshot["dataset"],
     )
     st.download_button(
         t("sup_descargar_zip_exp", "Descargar evidencia del experimento (ZIP)"),
-        construir_zip_experimento(archivos),
+        build_experiment_zip(archivos),
         file_name="lab03_experimento.zip",
         mime="application/zip",
         key="lab3_experimento_zip",
@@ -179,10 +206,10 @@ def mostrar_experimento_guardado(
     )
 
 
-def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
-    """Renderiza los controles y ejecuta el benchmark de regresión."""
+def render_regression_experiments(datos, configuracion, mostrar_figura) -> None:
+    """Render controls and execute regression benchmark."""
     st.caption(t("sup_14_configs_9_algs", "14 configuraciones · 9 algoritmos"))
-    segura = preparacion_regresion_segura()
+    segura = safe_regression_preparation()
     algoritmos = st.multiselect(
         t("sup_modelos_a_evaluar", "Modelos a evaluar"),
         ALGORITMOS_LAB3,
@@ -226,15 +253,15 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
         "validation_size": validation_size,
         "feature_simple": configuracion["feature_simple"],
     }
-    catalogo = configuraciones_experimento_regresion()
-    disponibilidad = disponibilidad_supervisada(
+    catalogo = regression_experiment_configs()
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "regresion",
         experimento=opciones,
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
+    show_missing_data(disponibilidad)
     with st.expander(t("sup_modelos_configs_eval_expander", "Modelos y configuraciones que se evaluarán")):
         st.dataframe(
             pd.DataFrame(
@@ -262,10 +289,10 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
     ):
         try:
             with st.spinner(t("sup_evaluando_comparando_spinner", "Evaluando y comparando modelos por validación…")):
-                resultado = crear_regresor(datos, configuracion).experimentar(
-                    **argumentos_comunes(configuracion), **opciones
+                resultado = create_regressor(datos, configuracion).experimentar(
+                    **common_arguments(configuracion), **opciones
                 )
-            snapshot = snapshot_ejecucion(
+            snapshot = execution_snapshot(
                 resultado, datos, configuracion, opciones
             )
             if resultado.mejor_algoritmo in resultado.mejores:
@@ -281,7 +308,7 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
             st.session_state["error_lab3_experimento"] = str(exc)
             st.session_state.pop("resultado_lab3_intento_experimento", None)
     snapshot = st.session_state.get("resultado_lab3_experimento")
-    if snapshot and snapshot["firma_parametros"] != firma_parametros(opciones):
+    if snapshot and snapshot["firma_parametros"] != parameters_fingerprint(opciones):
         st.info(
             t("opciones_modificadas_sin_ejecutar", "Opciones modificadas sin ejecutar. La evidencia corresponde al último experimento exitoso.")
         )
@@ -295,10 +322,16 @@ def render_experimentos_regresion(datos, configuracion, mostrar_figura) -> None:
                 t("btn_ir_a_res_reg", "Ir a Resultados de regresión"),
                 key="btn_ir_a_resultados_regresion",
                 type="primary",
-                on_click=ir_a,
+                on_click=go_to,
                 args=("lab3_resultados",),
             )
         with st.expander(t("expander_evidencia_eval", "Ver evidencia y resultados de la evaluación en esta vista")):
             mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
     else:
         mostrar_experimento_guardado(mostrar_figura, solo_comparacion=True)
+
+mostrar_experimento_guardado = display_saved_experiment
+
+# Backward compatibility aliases
+_sanear_tabla_regresion = _sanitize_regression_table
+render_experimentos_regresion = render_regression_experiments

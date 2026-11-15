@@ -11,8 +11,30 @@ from ..utils.data.csv_config import ConfiguracionCSV
 from .dataframe import DataFrame
 
 
-class CargadorCSV:
-    """Adapta distintas fuentes CSV a un pandas.DataFrame o DataFrame del framework."""
+class CSVLoader:
+    """Adapts different CSV sources to a pandas.DataFrame or framework DataFrame."""
+
+    @staticmethod
+    def load_path(ruta: str | Path, configuracion: ConfiguracionCSV) -> pd.DataFrame:
+        """Load a CSV available on the filesystem."""
+        return CSVLoader.cargar_ruta(ruta, configuracion)
+
+    @staticmethod
+    def load_bytes(contenido: bytes, configuracion: ConfiguracionCSV) -> pd.DataFrame:
+        """Load a user-uploaded CSV without writing to disk."""
+        return CSVLoader.cargar_bytes(contenido, configuracion)
+
+    @staticmethod
+    def load_dataframe(ruta: str | Path, configuracion: ConfiguracionCSV) -> DataFrame:
+        """Load a CSV from a path wrapped in the framework DataFrame."""
+        return CSVLoader.cargar_dataframe(ruta, configuracion)
+
+    @staticmethod
+    def load_bytes_dataframe(
+        contenido: bytes, configuracion: ConfiguracionCSV
+    ) -> DataFrame:
+        """Load a CSV from bytes wrapped in the framework DataFrame."""
+        return CSVLoader.cargar_bytes_dataframe(contenido, configuracion)
 
     @staticmethod
     def cargar_ruta(ruta: str | Path, configuracion: ConfiguracionCSV) -> pd.DataFrame:
@@ -20,26 +42,26 @@ class CargadorCSV:
         ruta = Path(ruta)
         if not ruta.is_file():
             raise FileNotFoundError(f"No existe el archivo '{ruta}'.")
-        return CargadorCSV._leer(ruta, configuracion)
+        return CSVLoader._leer(ruta, configuracion)
 
     @staticmethod
     def cargar_bytes(contenido: bytes, configuracion: ConfiguracionCSV) -> pd.DataFrame:
         """Carga un CSV subido por el usuario sin escribirlo en disco."""
         if not contenido:
             raise ValueError("El archivo CSV está vacío.")
-        return CargadorCSV._leer(BytesIO(contenido), configuracion)
+        return CSVLoader._leer(BytesIO(contenido), configuracion)
 
     @staticmethod
     def cargar_dataframe(ruta: str | Path, configuracion: ConfiguracionCSV) -> DataFrame:
         """Carga un CSV desde ruta y lo envuelve en la clase ``DataFrame`` del framework."""
-        return DataFrame(dataframe=CargadorCSV.cargar_ruta(ruta, configuracion))
+        return DataFrame(dataframe=CSVLoader.cargar_ruta(ruta, configuracion))
 
     @staticmethod
     def cargar_bytes_dataframe(
         contenido: bytes, configuracion: ConfiguracionCSV
     ) -> DataFrame:
         """Carga un CSV desde bytes y lo envuelve en la clase ``DataFrame`` del framework."""
-        return DataFrame(dataframe=CargadorCSV.cargar_bytes(contenido, configuracion))
+        return DataFrame(dataframe=CSVLoader.cargar_bytes(contenido, configuracion))
 
     @staticmethod
     def _leer(origen, configuracion: ConfiguracionCSV) -> pd.DataFrame:
@@ -55,6 +77,9 @@ class CargadorCSV:
         if datos.empty:
             raise ValueError("El CSV no contiene registros analizables.")
         return datos
+
+
+CargadorCSV = CSVLoader
 
 
 CSVConfig = ConfiguracionCSV

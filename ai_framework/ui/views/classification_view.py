@@ -1,4 +1,4 @@
-"""Vistas de clasificación individual, diagnóstico y comparación de resultados."""
+"""Individual classification, diagnostic, and comparison result views."""
 
 from __future__ import annotations
 
@@ -7,28 +7,54 @@ import streamlit as st
 from ai_framework.ui.i18n import t
 
 from ai_framework.ui.controllers.classification_controller import (
+    _common_arguments,
+    _execution_context,
+    _json,
+    _metrics_by_class,
+    _percentage_metrics,
+    _create_model,
+    true_rate_name,
     _argumentos_comunes,
     _contexto_ejecucion,
-    _json,
     _metricas_por_clase,
     _metricas_porcentuales,
     _modelo,
     nombre_tasa_verdaderos,
 )
-from ai_framework.ui.models.availability import disponibilidad_supervisada
-from ai_framework.ui.models.session_state import firma_parametros
-from ai_framework.ui.views.navigation import mostrar_faltantes
-from ai_framework.ui.views.theme import MostrarFigura, _obtener_pestanas, render_tabla_clave_valor
+from ai_framework.ui.models.availability import (
+    supervised_availability,
+    disponibilidad_supervisada,
+)
+from ai_framework.ui.models.session_state import (
+    parameters_fingerprint,
+    firma_parametros,
+)
+from ai_framework.ui.views.navigation import (
+    show_missing_data,
+    mostrar_faltantes,
+)
+from ai_framework.ui.views.theme import (
+    MostrarFigura,
+    _get_tabs,
+    _obtener_pestanas,
+    render_key_value_table,
+    render_tabla_clave_valor,
+)
 from ai_framework.ui.views.controls_view import (
     NOMBRES_MODELOS,
+    _display_dataframe,
     _mostrar_dataframe,
+    individual_parameters,
     parametros_individuales,
 )
-from ai_framework.utils.visualization import VisualizadorSupervisado
+from ai_framework.utils.visualization import (
+    SupervisedVisualizer,
+    VisualizadorSupervisado,
+)
 
 
-def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
-    """Verifica que la preparación previa no haya imputado ni escalado antes del split."""
+def safe_preparation(*, mostrar_guia: bool = False) -> bool:
+    """Verify that previous preparation has not imputed or scaled before the split."""
     preparacion = st.session_state.get("dataset_preparacion", {})
     if (
         preparacion.get("imputar")
@@ -49,18 +75,18 @@ def preparacion_segura(*, mostrar_guia: bool = False) -> bool:
     return True
 
 
-def render_modelo_individual(
+def render_single_model(
     datos: pd.DataFrame,
     configuracion: dict,
     mostrar_figura: MostrarFigura,
     *,
     algoritmo: str,
 ) -> None:
-    """Entrenamiento exploratorio de un único modelo con parámetros visibles."""
+    """Exploratory training of a single model with visible parameters."""
     nombre_modelo = NOMBRES_MODELOS.get(algoritmo, "Naive Bayes")
-    segura = preparacion_segura()
-    parametros = parametros_individuales(algoritmo)
-    disponibilidad = disponibilidad_supervisada(
+    segura = safe_preparation()
+    parametros = individual_parameters(algoritmo)
+    disponibilidad = supervised_availability(
         datos,
         configuracion,
         "clasificacion",
@@ -68,8 +94,8 @@ def render_modelo_individual(
         parametros=parametros,
         preparacion=st.session_state.get("dataset_preparacion"),
     )
-    mostrar_faltantes(disponibilidad)
-    firma = firma_parametros({"algoritmo": algoritmo, "parametros": parametros})
+    show_missing_data(disponibilidad)
+    firma = parameters_fingerprint({"algoritmo": algoritmo, "parametros": parametros})
     estado_modelo = f"modelo_{algoritmo}"
     resultado_modelo = f"resultado_lab2_{estado_modelo}"
     criterio_rf = (
@@ -90,12 +116,12 @@ def render_modelo_individual(
     ):
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
-                resultado = _modelo(datos, configuracion).entrenar(
+                resultado = _create_model(datos, configuracion).entrenar(
                     algoritmo=algoritmo,
-                    **_argumentos_comunes(configuracion),
+                    **_common_arguments(configuracion),
                     **parametros,
                 )
-            contexto = _contexto_ejecucion(configuracion)
+            contexto = _execution_context(configuracion)
             if algoritmo == "RF":
                 guardados = dict(st.session_state.get(clave_criterios_rf, {}))
                 guardados[criterio_rf] = {
@@ -137,7 +163,7 @@ def render_modelo_individual(
                 st.info(
                     t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
                 )
-            _diagnostico(
+            _diagnostic(
                 actual_rf["resultado"],
                 mostrar_figura,
                 prefijo=f"lab2_{algoritmo}_{criterio_rf}",
@@ -149,15 +175,15 @@ def render_modelo_individual(
             st.info(
                 t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
             )
-        _diagnostico(
+        _diagnostic(
             resultado_previo,
             mostrar_figura,
             prefijo=f"lab2_{algoritmo}",
         )
 
 
-def _render_modelos_individuales(individuales: list) -> None:
-    from ai_framework.ui.views.results_view import render_panel_modelos_individuales
+def _render_single_models(individuales: list) -> None:
+    from ai_framework.ui.views.results_view import render_individual_models_panel, render_panel_modelos_individuales
 
     filas_comparativa = []
     modelos_params = []
@@ -182,7 +208,7 @@ def _render_modelos_individuales(individuales: list) -> None:
         for etiqueta in etiquetas_lista:
             reales = y_true == etiqueta
             soporte = int(reales.sum())
-            col_nombre = nombre_tasa_verdaderos(etiqueta, etiquetas_lista)
+            col_nombre = true_rate_name(etiqueta, etiquetas_lista)
             fila[col_nombre] = (
                 round(100.0 * int((y_pred[reales] == etiqueta).sum()) / soporte, 2)
                 if soporte
@@ -194,17 +220,17 @@ def _render_modelos_individuales(individuales: list) -> None:
         )
         modelos_params.append((nombre, params_dict))
 
-    render_panel_modelos_individuales(
+    render_individual_models_panel(
         pd.DataFrame(filas_comparativa),
         modelos_params,
         titulo="Modelos entrenados individualmente",
     )
 
 
-def render_resultados(
+def render_classification_results(
     mostrar_figura: MostrarFigura, *, incluir_experimentos: bool = False
 ) -> None:
-    """Compara métricas de prueba de modelos individuales y del benchmark experimental."""
+    """Compare test metrics of individual models and experimental benchmark."""
     hay_experimento = bool(
         st.session_state.get("resultado_lab2_experimento") is not None
         or st.session_state.get("resultado_lab2_intento_experimento") is not None
@@ -269,32 +295,33 @@ def render_resultados(
         )
         return
 
-    from ai_framework.ui.views.results_view import render_layout_resultados
+    from ai_framework.ui.views.results_view import render_results_layout, render_layout_resultados
     from ai_framework.ui.views.classification_experiments_view import (
+        render_experiment_result,
         render_resultado_experimento,
     )
 
-    render_layout_resultados(
+    render_results_layout(
         hay_individuales=bool(individuales),
         hay_comparativa=hay_experimento,
-        render_individuales_fn=lambda: _render_modelos_individuales(individuales),
-        render_comparativa_fn=lambda: render_resultado_experimento(mostrar_figura, solo_comparacion=True),
+        render_individuales_fn=lambda: _render_single_models(individuales),
+        render_comparativa_fn=lambda: render_experiment_result(mostrar_figura, solo_comparacion=True),
         mensaje_sin_datos="Todavía no hay ejecuciones individuales guardadas. Entrene un modelo para que aparezca en esta comparación.",
         clave_contexto="clasificacion",
     )
 
 
-def _diagnostico(
+def _diagnostic(
     resultado, mostrar_figura: MostrarFigura, prefijo: str
 ) -> None:
-    """Presenta métricas, matriz de confusión y predicciones del modelo de clasificación."""
+    """Display metrics, confusion matrix, and predictions for classification model."""
     st.markdown(f"#### {resultado.algoritmo}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Accuracy", f"{resultado.metricas['accuracy']:.1%}")
     c2.metric("Precisión macro", f"{resultado.metricas['precision']['macro']:.4f}")
     c3.metric("Tasa de verdaderos macro", f"{resultado.metricas['recall']['macro']:.4f}")
     c4.metric("F1 macro", f"{resultado.metricas['f1']['macro']:.4f}")
-    metricas_clase = _metricas_por_clase(resultado)
+    metricas_clase = _metrics_by_class(resultado)
     st.markdown(f"**{t('sup_tasa_verdaderos', 'Tasa de verdaderos por clase')}**")
     st.dataframe(
         pd.DataFrame(
@@ -330,18 +357,18 @@ def _diagnostico(
                 key=f"{prefijo}_distribucion_estratificada",
             )
     with st.expander("Parámetros y metadatos"):
-        tab_params, tab_meta = _obtener_pestanas(
+        tab_params, tab_meta = _get_tabs(
             ["Parámetros del modelo", "Metadatos de ejecución"]
         )
         with tab_params:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 getattr(resultado, "parametros", resultado.modelo.get_params()),
                 columna_clave="Parámetro",
                 columna_valor="Valor configurado",
                 vacio_mensaje="No se registraron parámetros específicos para este modelo.",
             )
         with tab_meta:
-            render_tabla_clave_valor(
+            render_key_value_table(
                 getattr(resultado, "metadatos", {}),
                 columna_clave="Metadato",
                 columna_valor="Detalle",
@@ -363,3 +390,10 @@ def _diagnostico(
         "text/csv",
         key=f"{prefijo}_predicciones",
     )
+
+# Backward compatibility aliases
+preparacion_segura = safe_preparation
+render_modelo_individual = render_single_model
+_render_modelos_individuales = _render_single_models
+render_resultados = render_classification_results
+_diagnostico = _diagnostic

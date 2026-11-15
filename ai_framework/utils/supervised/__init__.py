@@ -66,6 +66,7 @@ from .classification_config import (
     ConfiguracionModelo,
     ParametroModelo,
     configuraciones_experimento,
+    experiment_configurations,
 )
 from .regression_config import (
     ALGORITMOS_LAB3,
@@ -76,6 +77,7 @@ from .regression_config import (
     ConfiguracionRegresion,
     NOMBRES_REGRESORES,
     configuraciones_experimento_regresion,
+    regression_experiment_configs,
 )
 from .experiments import (
     ExperimentoClasificacion,

@@ -1,4 +1,4 @@
-"""Controlador de instanciación y snapshots de ejecución para regresión."""
+"""Controller for instantiation and execution snapshots for regression."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ from ai_framework.models.supervised import Regresion
 from ai_framework.ui.models.session_state import firma_parametros, huella_datos
 
 
-def argumentos_comunes(configuracion: dict) -> dict:
-    """Construye los argumentos comunes de partición y preprocesamiento para regresión."""
+def common_arguments(config: dict) -> dict:
+    """Build common partition and preprocessing arguments for regression."""
     return {
         **{
-            clave: configuracion[clave]
-            for clave in (
+            key: config[key]
+            for key in (
                 "test_size",
                 "random_state",
                 "incluir_categoricas",
@@ -23,42 +23,50 @@ def argumentos_comunes(configuracion: dict) -> dict:
                 "estandarizar",
             )
         },
-        "particion": configuracion.get("particion_global"),
+        "particion": config.get("particion_global"),
     }
 
 
-def crear_regresor(datos, configuracion, *, algoritmo=None) -> Regresion:
-    """Instancia el modelo de dominio de regresión con los predictores correspondientes."""
+def create_regressor(data, config, *, algorithm=None, **kwargs) -> Regresion:
+    """Instantiate regression domain model with corresponding predictors."""
+    alg = algorithm or kwargs.get("algoritmo")
     features = (
-        [configuracion["feature_simple"]]
-        if algoritmo == "RLS"
-        else configuracion["features"]
+        [config["feature_simple"]]
+        if alg == "RLS"
+        else config["features"]
     )
     return Regresion(
-        dataframe=datos, target=configuracion["target"], features=features
+        dataframe=data, target=config["target"], features=features
     )
 
 
-def snapshot_ejecucion(resultado, datos, configuracion, parametros) -> dict:
-    """Congela contexto y procedencia de una ejecución de regresión para exportación."""
-    argumentos = {
-        clave: deepcopy(valor)
-        for clave, valor in configuracion.items()
-        if clave != "particion_global"
+def execution_snapshot(result, data, config, parameters) -> dict:
+    """Freeze context and provenance of a regression execution for export."""
+    arguments = {
+        key: deepcopy(value)
+        for key, value in config.items()
+        if key != "particion_global"
     }
-    argumentos["parametros_solicitados"] = deepcopy(parametros)
-    fuente = deepcopy(st.session_state.get("fuente_metadata", {}))
-    fuente["preparacion_previa"] = deepcopy(
+    arguments["parametros_solicitados"] = deepcopy(parameters)
+    source = deepcopy(st.session_state.get("fuente_metadata", {}))
+    source["preparacion_previa"] = deepcopy(
         st.session_state.get("dataset_preparacion", {})
     )
-    fuente["huella_datos_efectivos"] = huella_datos(datos)
-    fuente.setdefault(
+    source["huella_datos_efectivos"] = huella_datos(data)
+    source.setdefault(
         "etiqueta",
-        st.session_state.get("fuente_aplicada", (None, "Dataset activo"))[1],
+        st.session_state.get("fuente_aplicada", (None, "Active dataset"))[1],
     )
     return {
-        "resultado": resultado,
-        "argumentos": argumentos,
-        "dataset": fuente,
-        "firma_parametros": firma_parametros(parametros),
+        "resultado": result,
+        "argumentos": arguments,
+        "dataset": source,
+        "firma_parametros": firma_parametros(parameters),
     }
+
+crear_regresor = create_regressor
+
+# Backward compatibility aliases
+argumentos_comunes = common_arguments
+snapshot_ejecucion = execution_snapshot
+crear_regresor = create_regressor

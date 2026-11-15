@@ -1,4 +1,4 @@
-"""Controles reutilizables de entrada e hiperparámetros para la interfaz."""
+"""Reusable input controls and hyperparameter widgets for the UI."""
 
 from __future__ import annotations
 import json
@@ -17,7 +17,7 @@ from ai_framework.utils import (
 from ai_framework.utils.supervised.regression_config import CONFIGURACIONES_REGRESION
 
 
-def _seleccionar_entero(
+def _select_integer(
     etiqueta: str,
     minimo: int,
     maximo: int,
@@ -25,7 +25,7 @@ def _seleccionar_entero(
     *,
     key: str,
 ) -> int:
-    """Renderiza un control deslizante entero o un texto fijo si el rango es unitario."""
+    """Render integer slider or fixed text if range has a single value."""
     if minimo == maximo:
         st.caption(f"{etiqueta}: {minimo}")
         return minimo
@@ -38,8 +38,8 @@ def _seleccionar_entero(
     )
 
 
-def _sanear_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
-    """Evita fallos de serialización de PyArrow convirtiendo columnas de tipo dict/list a JSON/string."""
+def _sanitize_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
+    """Avoid PyArrow serialization failures by converting dict/list columns to JSON/string."""
     if not isinstance(data, pd.DataFrame) or data.empty:
         return data
     modificado = False
@@ -59,14 +59,14 @@ def _sanear_dataframe_arrow(data: pd.DataFrame) -> pd.DataFrame:
     return vista
 
 
-def _mostrar_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
-    """Muestra una descripción accesible junto a la tabla de datos."""
+def _display_dataframe(data: pd.DataFrame, *, alt: str, **opciones) -> None:
+    """Display accessible description alongside data table."""
     st.caption(alt)
-    st.dataframe(_sanear_dataframe_arrow(data), **opciones)
+    st.dataframe(_sanitize_dataframe_arrow(data), **opciones)
 
 
-def parametros_individuales(algoritmo: str) -> dict:
-    """Renderiza los controles de hiperparámetros para un modelo de clasificación."""
+def individual_parameters(algoritmo: str) -> dict:
+    """Render hyperparameter controls for a classification model."""
     if algoritmo == "NR":
         return {}
     criterio_rf = None
@@ -127,8 +127,8 @@ def parametros_individuales(algoritmo: str) -> dict:
     return resultado
 
 
-def parametros_regresion(algoritmo: str) -> dict | None:
-    """Renderiza los controles de hiperparámetros para un modelo de regresión."""
+def regression_parameters(algoritmo: str) -> dict | None:
+    """Render hyperparameter controls for a regression model."""
     modo = st.radio(
         t("sup_configuracion_modelo", "Configuración del modelo"),
         ["Estándar", "Personalizada"],
@@ -190,3 +190,10 @@ def parametros_regresion(algoritmo: str) -> dict | None:
                 valor = valor or None
         resultado[parametro.nombre] = valor
     return resultado
+
+# Backward compatibility aliases
+_seleccionar_entero = _select_integer
+_sanear_dataframe_arrow = _sanitize_dataframe_arrow
+_mostrar_dataframe = _display_dataframe
+parametros_individuales = individual_parameters
+parametros_regresion = regression_parameters

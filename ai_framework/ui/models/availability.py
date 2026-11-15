@@ -1,4 +1,4 @@
-"""Prerrequisitos derivados de datos y configuración para flujos supervisados."""
+"""Derived data and configuration prerequisites for supervised workflows."""
 
 from __future__ import annotations
 
@@ -15,10 +15,18 @@ from ai_framework.utils.supervised.regression_config import ALGORITMOS_LAB3
 
 
 @dataclass(frozen=True)
-class Disponibilidad:
-    """Resultado de verificar si una vista o ejecución está lista para usarse."""
+class Availability:
+    """Result of checking whether a view or execution is ready for use."""
 
     faltantes: tuple[str, ...] = ()
+
+    @property
+    def missing(self) -> tuple[str, ...]:
+        return self.faltantes
+
+    @property
+    def ready(self) -> bool:
+        return not self.faltantes
 
     @property
     def lista(self) -> bool:
@@ -26,110 +34,113 @@ class Disponibilidad:
         return not self.faltantes
 
 
-def _predictoras(base, features, train, evaluaciones, configuracion) -> None:
-    """Valida variación, codificación y nulos en las variables predictoras."""
-    datos = base[features].replace([np.inf, -np.inf], np.nan)
-    retenidas = [
-        col for col in features if datos.loc[train, col].nunique(dropna=True) > 1
+Disponibilidad = Availability
+
+
+def _validate_predictors(base, features, train, evaluations, config) -> None:
+    """Validate variance, encoding, and missing values in predictor variables."""
+    data = base[features].replace([np.inf, -np.inf], np.nan)
+    retained = [
+        col for col in features if data.loc[train, col].nunique(dropna=True) > 1
     ]
-    if not retenidas:
+    if not retained:
         raise ValueError("Seleccione predictores con variación en entrenamiento.")
-    categoricas = [
-        col for col in retenidas if not pd.api.types.is_numeric_dtype(datos[col])
+    categorical = [
+        col for col in retained if not pd.api.types.is_numeric_dtype(data[col])
     ]
-    if categoricas and not configuracion["incluir_categoricas"]:
+    if categorical and not config["incluir_categoricas"]:
         raise ValueError(
-            f"Active Codificar categóricas o retire estas predictoras: {', '.join(categoricas)}."
+            f"Active Codificar categóricas o retire estas predictoras: {', '.join(categorical)}."
         )
-    if not configuracion["imputar"]:
+    if not config["imputar"]:
         indices = train
-        for indice in evaluaciones:
-            indices = indices.union(indice)
-        nulas = (
-            datos.loc[indices, retenidas]
-            .columns[datos.loc[indices, retenidas].isna().any()]
+        for idx in evaluations:
+            indices = indices.union(idx)
+        null_cols = (
+            data.loc[indices, retained]
+            .columns[data.loc[indices, retained].isna().any()]
             .tolist()
         )
-        if nulas:
+        if null_cols:
             raise ValueError(
-                f"Active imputación de predictores o corrija nulos/no finitos en: {', '.join(nulas)}."
+                f"Active imputación de predictores o corrija nulos/no finitos en: {', '.join(null_cols)}."
             )
 
 
-def _pliegues_clasificacion(modelo, base, config, opciones):
-    """Construye los índices de entrenamiento, prueba y pliegues de validación."""
-    train, test, validacion = modelo._indices(
+def _classification_folds(model, base, config, options):
+    """Build train, test, and validation fold index splits."""
+    train, test, validation = model._indices(
         base,
         particion=config.get("particion_global"),
         test_size=config["test_size"],
         random_state=config["random_state"],
         stratify=config["estratificar"],
     )
-    if opciones is None:
+    if options is None:
         return train, test, [(train, test)]
-    if opciones.get("estrategia", "holdout") == "cv":
-        train = train.append(validacion)
-        folds = opciones.get("folds", 5)
-        y = base.loc[train, modelo.target]
+    if options.get("estrategia", "holdout") == "cv":
+        train = train.append(validation)
+        folds = options.get("folds", 5)
+        y = base.loc[train, model.target]
         if y.value_counts().min() < folds:
             raise ValueError(
                 f"CV necesita al menos {folds} filas por clase en entrenamiento. Use holdout o aporte más ejemplos."
             )
-        divisor = StratifiedKFold(
+        splitter = StratifiedKFold(
             n_splits=folds, shuffle=True, random_state=config["random_state"]
         )
-        pliegues = [
+        fold_splits = [
             (train.take(t), train.take(v))
-            for t, v in divisor.split(np.zeros(len(train)), y)
+            for t, v in splitter.split(np.zeros(len(train)), y)
         ]
     else:
-        if validacion.empty:
-            train, validacion = dividir_indices(
+        if validation.empty:
+            train, validation = dividir_indices(
                 base.loc[train],
-                modelo.target,
-                test_size=opciones.get("validation_size") or 0.2,
+                model.target,
+                test_size=options.get("validation_size") or 0.2,
                 random_state=config["random_state"],
                 stratify=config["estratificar"],
             )
-        pliegues = [(train, validacion)]
-    return train, test, pliegues
+        fold_splits = [(train, validation)]
+    return train, test, fold_splits
 
 
-def _candidato_regresion_disponible(datos, base, config, pliegues, test, opciones) -> None:
-    """Verifica que al menos un candidato del benchmark de regresión sea viable."""
-    errores = []
-    algoritmos = opciones.get("algoritmos", ALGORITMOS_LAB3)
-    if not algoritmos:
+def _regression_candidate_available(data, base, config, fold_splits, test, options) -> None:
+    """Verify that at least one candidate in regression benchmark is viable."""
+    errors = []
+    algorithms = options.get("algoritmos", ALGORITMOS_LAB3)
+    if not algorithms:
         raise ValueError("Seleccione al menos un algoritmo del experimento.")
-    for algoritmo in algoritmos:
+    for algorithm in algorithms:
         features = (
-            [config.get("feature_simple")] if algoritmo == "RLS" else config["features"]
+            [config.get("feature_simple")] if algorithm == "RLS" else config["features"]
         )
         try:
             if None in features:
                 raise ValueError("RLS necesita un predictor numérico seleccionado.")
-            candidato = Regresion(
-                dataframe=datos, target=configuracion_target(config), features=features
+            candidate = Regresion(
+                dataframe=data, target=get_target_configuration(config), features=features
             )
-            candidato._validar_predictoras(base, algoritmo)
-            for train, evaluacion in pliegues:
-                if algoritmo in ("LassoCV", "RidgeCV") and len(train) < 5:
+            candidate._validar_predictoras(base, algorithm)
+            for train, evaluation in fold_splits:
+                if algorithm in ("LassoCV", "RidgeCV") and len(train) < 5:
                     raise ValueError(
                         "Se necesitan cinco filas de train para CV interna."
                     )
-                _predictoras(base, features, train, [evaluacion, test], config)
+                _validate_predictors(base, features, train, [evaluation, test], config)
             return
         except (ValueError, TypeError, KeyError) as exc:
-            errores.append(f"{algoritmo}: {exc}")
-    raise ValueError("Ningún candidato está preparado. " + " ".join(errores))
+            errors.append(f"{algorithm}: {exc}")
+    raise ValueError("Ningún candidato está preparado. " + " ".join(errors))
 
 
-def configuracion_target(config: dict) -> str:
-    """Obtiene el nombre de la columna objetivo configurada."""
+def get_target_configuration(config: dict) -> str:
+    """Get name of configured target column."""
     return config["target"]
 
 
-def disponibilidad_supervisada(
+def supervised_availability(
     datos,
     configuracion,
     familia,
@@ -139,7 +150,7 @@ def disponibilidad_supervisada(
     parametros=None,
     experimento=None,
 ) -> Disponibilidad:
-    """Detecta bloqueos deterministas de datos y configuración supervisada."""
+    """Detect deterministic data blockages and supervised configuration issues."""
     faltantes = []
     preparacion = preparacion or {}
     if (
@@ -205,7 +216,7 @@ def disponibilidad_supervisada(
                     "Prueba necesita al menos dos filas para R². Aumente el tamaño de prueba o aporte más datos."
                 )
         else:
-            train, test, pliegues = _pliegues_clasificacion(
+            train, test, pliegues = _classification_folds(
                 modelo, base, configuracion, experimento
             )
             comprobar_clases(
@@ -232,11 +243,11 @@ def disponibilidad_supervisada(
                         "Reduzca el número de vecinos: supera las filas disponibles en entrenamiento."
                     )
             if familia != "regresion" or experimento is None:
-                _predictoras(
+                _validate_predictors(
                     base, features, entrenamiento, [evaluacion, test], configuracion
                 )
         if familia == "regresion" and experimento is not None:
-            _candidato_regresion_disponible(
+            _regression_candidate_available(
                 datos, base, configuracion, pliegues, test, experimento
             )
     except (ValueError, TypeError, KeyError) as exc:
@@ -250,16 +261,25 @@ def disponibilidad_supervisada(
     return Disponibilidad(tuple(faltantes))
 
 
-def hay_evidencia(estado, familia, *, solo_modelos=False) -> bool:
-    """Indica si existen resultados individuales o de experimentación para la familia."""
-    lab = "lab3" if familia == "regresion" else "lab2"
-    modelos = any(
-        clave.startswith(f"resultado_{lab}_modelo_") and estado[clave] is not None
-        for clave in estado
+def has_evidence(state, family, *, only_models=False, **kwargs) -> bool:
+    """Indicate whether individual or experiment results exist for family."""
+    solo = kwargs.get("solo_modelos", only_models)
+    lab = "lab3" if family == "regresion" else "lab2"
+    models = any(
+        key.startswith(f"resultado_{lab}_modelo_") and state[key] is not None
+        for key in state
     )
-    if solo_modelos:
-        return modelos
-    return modelos or any(
-        estado.get(f"resultado_{lab}_{sufijo}") is not None
-        for sufijo in ("experimento", "intento_experimento")
+    if solo:
+        return models
+    return models or any(
+        state.get(f"resultado_{lab}_{suffix}") is not None
+        for suffix in ("experimento", "intento_experimento")
     )
+
+# Backward compatibility aliases
+_predictoras = _validate_predictors
+_pliegues_clasificacion = _classification_folds
+_candidato_regresion_disponible = _regression_candidate_available
+configuracion_target = get_target_configuration
+disponibilidad_supervisada = supervised_availability
+hay_evidencia = has_evidence

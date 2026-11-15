@@ -1,4 +1,4 @@
-"""Controlador de carga de fuentes, sincronización de datos y presets."""
+"""Controller for source loading, data synchronization, and presets."""
 
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ from ai_framework.ui.models.session_state import firma_preparacion
 from ai_framework.ui.models.diabetes_profile import estado_fuente_diabetes
 
 
-def _cargar_referencia_regresion() -> None:
-    """Prepara la fuente local de referencia para regresión y su preset asociado."""
+def _load_regression_reference() -> None:
+    """Prepare local reference source for regression and its associated preset."""
     cargador = cargar_diabetes_regresion
     for mod_name in (
         "ai_framework.ui.streamlit_app",
@@ -56,8 +56,8 @@ def _cargar_referencia_regresion() -> None:
     }
 
 
-def _aplicar_preset_regresion(identidad: str) -> None:
-    """Aplica el preset de regresión una sola vez tras confirmar la fuente local."""
+def _apply_regression_preset(identidad: str) -> None:
+    """Apply regression preset once after confirming local source."""
     preset = st.session_state.pop("fuente_preset_regresion", None)
     if preset is None or preset["identidad"] != identidad:
         return
@@ -78,12 +78,12 @@ def _aplicar_preset_regresion(identidad: str) -> None:
     )
 
 
-def _guardar_metadatos_fuente(
+def _save_source_metadata(
     contenido: bytes,
     configuracion: ConfiguracionCSV,
     fuente: str | None = None,
 ) -> None:
-    """Registra los metadatos y la huella criptográfica de la fuente aplicada."""
+    """Record metadata and cryptographic digest of applied data source."""
     datos, nombre, identidad = st.session_state["fuente_aplicada"]
     st.session_state["fuente_metadata"] = {
         "archivo": nombre,
@@ -101,23 +101,23 @@ def _guardar_metadatos_fuente(
     }
 
 
-def _cargar_fuente_csv(
+def _load_csv_source(
     seleccion: Path,
     configuracion: ConfiguracionCSV,
     *,
     fuente: str | None = None,
 ) -> None:
-    """Carga un archivo CSV local y conserva su identidad de archivo y lectura."""
+    """Load local CSV file and preserve its file identity and reading config."""
     contenido = seleccion.read_bytes()
     datos = CargadorCSV.cargar_bytes(contenido, configuracion)
     digest = hashlib.sha256(contenido).hexdigest()
     identidad = f"local:{seleccion.resolve()}:{digest}:{configuracion}"
     st.session_state["fuente_aplicada"] = (datos, seleccion.name, identidad)
-    _guardar_metadatos_fuente(contenido, configuracion, fuente)
+    _save_source_metadata(contenido, configuracion, fuente)
 
 
-def _limpiar_resultados() -> None:
-    """Descarta resultados que ya no corresponden al dataset activo."""
+def _clear_results() -> None:
+    """Discard results that no longer correspond to active dataset."""
     limpiar_resultados_regresion(st.session_state)
     clear_agent_results(st.session_state)
     for clave in list(st.session_state):
@@ -135,14 +135,14 @@ def _limpiar_resultados() -> None:
     st.session_state.pop("error_lab2_experimento", None)
 
 
-def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
-    """Reinicia resultados únicamente cuando cambia el archivo o su lectura."""
+def _sync_dataset(datos: pd.DataFrame, identidad: str) -> None:
+    """Reset results only when file or its reading configuration changes."""
     if st.session_state.get("dataset_identidad") == identidad:
         return
     st.session_state["dataset_identidad"] = identidad
     st.session_state["dataset_original"] = datos.copy()
     st.session_state["dataset_preparado"] = datos.copy()
-    _limpiar_resultados()
+    _clear_results()
     st.session_state.pop("dataset_preparacion", None)
     for clave in list(st.session_state):
         if (
@@ -155,8 +155,8 @@ def _sincronizar_dataset(datos: pd.DataFrame, identidad: str) -> None:
             del st.session_state[clave]
 
 
-def _aplicar_configuracion_diabetes() -> None:
-    """Aplica las opciones recomendadas para el CSV preparado de Diabetes."""
+def _apply_diabetes_configuration() -> None:
+    """Apply recommended settings for prepared Diabetes CSV."""
     datos = st.session_state.get("dataset_preparado")
     if datos is None or estado_fuente_diabetes(datos, st.session_state) != "preparado":
         return
@@ -181,11 +181,21 @@ def _aplicar_configuracion_diabetes() -> None:
     ]
 
 
-def _usar_particion() -> None:
-    """Sincroniza los controles supervisados con la partición global calculada."""
+def _use_partition() -> None:
+    """Synchronize supervised controls with calculated global partition."""
     particion = st.session_state.get("particion_global")
     if particion is not None and st.session_state.get("sup_usar_particion_global"):
         st.session_state["sup_test_size"] = round(particion.porcentaje_test * 100)
         st.session_state["sup_random_state"] = particion.semilla
         st.session_state["sup_strat"] = particion.columna_estratificacion is not None
         st.session_state["sup_particion_firma"] = firma_preparacion(st.session_state)
+
+# Backward compatibility aliases
+_cargar_referencia_regresion = _load_regression_reference
+_aplicar_preset_regresion = _apply_regression_preset
+_guardar_metadatos_fuente = _save_source_metadata
+_cargar_fuente_csv = _load_csv_source
+_limpiar_resultados = _clear_results
+_sincronizar_dataset = _sync_dataset
+_aplicar_configuracion_diabetes = _apply_diabetes_configuration
+_usar_particion = _use_partition

@@ -8,9 +8,9 @@ import pandas as pd
 from pandas.testing import assert_series_equal
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from ai_framework import Regresion
-from ai_framework.models.supervised import Supervisado
-from ai_framework.utils.results import ResultadoParticion, ResultadoRegresion
+from ai_framework import Regression, Regresion
+from ai_framework.models.supervised import Supervised, Supervisado
+from ai_framework.utils.results import PartitionResult, RegressionResult, ResultadoParticion, RegressionResult
 
 
 def regression_data(n=40):
@@ -23,7 +23,7 @@ def regression_data(n=40):
 
 
 def partition(data, train, test, validation=()):
-    return ResultadoParticion(
+    return PartitionResult(
         train=data.iloc[list(train)].copy(),
         test=data.iloc[list(test)].copy(),
         validacion=data.iloc[list(validation)].copy() if len(validation) else None,
@@ -38,17 +38,17 @@ def partition(data, train, test, validation=()):
     )
 
 
-class RegresionTests(unittest.TestCase):
+class RegressionTests(unittest.TestCase):
     def setUp(self):
         self.data = regression_data()
 
     def test_inheritance_aliases_default_target_and_frozen_result(self):
-        self.assertTrue(issubclass(Regresion, Supervisado))
+        self.assertTrue(issubclass(Regression, Supervised))
         for method in ("lineal_multiple", "RLM", "entrenar"):
             with self.subTest(method=method):
-                model = Regresion(dataframe=self.data)
+                model = Regression(dataframe=self.data)
                 result = getattr(model, method)()
-                self.assertIsInstance(result, ResultadoRegresion)
+                self.assertIsInstance(result, RegressionResult)
                 self.assertEqual(result.target, "target")
                 self.assertEqual(result.features, ("a", "b"))
                 self.assertEqual(result.algoritmo, "RLM")
@@ -63,12 +63,12 @@ class RegresionTests(unittest.TestCase):
         for method in ("RLS", "lineal_simple"):
             with self.subTest(method=method):
                 result = getattr(
-                    Regresion(dataframe=self.data, features=["a"]), method
+                    Regression(dataframe=self.data, features=["a"]), method
                 )()
                 self.assertEqual(result.algoritmo, "RLS")
 
     def test_metrics_and_residuals_use_original_target_units(self):
-        result = Regresion(dataframe=self.data, features=["a"]).RLS()
+        result = Regression(dataframe=self.data, features=["a"]).RLS()
         for actual, predicted, metrics, residuals in (
             (result.y_true, result.y_pred, result.metricas, result.residuos),
             (
@@ -90,7 +90,7 @@ class RegresionTests(unittest.TestCase):
             assert_series_equal(residuals, (actual - predicted).rename("residuo"))
 
     def test_prediction_requires_fit_and_aligns_named_columns(self):
-        model = Regresion(dataframe=self.data)
+        model = Regression(dataframe=self.data)
         for operation in (model.predecir, model.evaluar):
             with self.assertRaisesRegex(RuntimeError, "Entrene"):
                 operation()
@@ -122,13 +122,13 @@ class RegresionTests(unittest.TestCase):
                 self.subTest(target=str(target[:2])),
                 self.assertRaises((ValueError, TypeError)),
             ):
-                Regresion(dataframe=self.data.assign(target=target)).RLM()
+                Regression(dataframe=self.data.assign(target=target)).RLM()
         nullable = self.data.copy()
         nullable["target"] = pd.array(range(40), dtype="Int64")
-        self.assertEqual(Regresion(dataframe=nullable).RLM().muestra_train, 30)
+        self.assertEqual(Regression(dataframe=nullable).RLM().muestra_train, 30)
         nullable.iloc[0, -1] = pd.NA
         with self.assertRaisesRegex(ValueError, "nulos"):
-            Regresion(dataframe=nullable).RLM()
+            Regression(dataframe=nullable).RLM()
 
     def test_validates_columns_indices_and_predictor_contracts(self):
         for features in ([], ["a", "a"], ["a", "target"], ["missing"]):
@@ -136,31 +136,31 @@ class RegresionTests(unittest.TestCase):
                 self.subTest(features=features),
                 self.assertRaises((ValueError, KeyError)),
             ):
-                Regresion(dataframe=self.data, features=features).RLM()
+                Regression(dataframe=self.data, features=features).RLM()
         with self.assertRaises(KeyError):
-            Regresion(dataframe=self.data, target="missing").RLM()
+            Regression(dataframe=self.data, target="missing").RLM()
         with self.assertRaisesRegex(ValueError, "No hay datos"):
-            Regresion(dataframe=pd.DataFrame()).RLM()
+            Regression(dataframe=pd.DataFrame()).RLM()
         duplicate_indices = self.data.copy()
         duplicate_indices.index = [0] * 40
         with self.assertRaisesRegex(ValueError, "índices únicos"):
-            Regresion(dataframe=duplicate_indices).RLM()
+            Regression(dataframe=duplicate_indices).RLM()
         with self.assertRaisesRegex(ValueError, "columna únicos"):
-            Regresion(dataframe=pd.concat([self.data, self.data[["a"]]], axis=1)).RLM()
+            Regression(dataframe=pd.concat([self.data, self.data[["a"]]], axis=1)).RLM()
         with self.assertRaisesRegex(ValueError, "exactamente una"):
-            Regresion(dataframe=self.data).RLS()
+            Regression(dataframe=self.data).RLS()
         with self.assertRaisesRegex(ValueError, "al menos dos"):
-            Regresion(dataframe=self.data, features=["a"]).RLM()
+            Regression(dataframe=self.data, features=["a"]).RLM()
         with self.assertRaisesRegex(TypeError, "numérica real"):
-            Regresion(
+            Regression(
                 dataframe=self.data.assign(a=["a", "b"] * 20), features=["a"]
             ).RLS()
         with self.assertRaisesRegex(ValueError, "desconocido"):
-            Regresion(dataframe=self.data).entrenar(algoritmo="not-a-model")
+            Regression(dataframe=self.data).entrenar(algoritmo="not-a-model")
 
     def test_external_split_integrity_and_reserved_validation(self):
         split = partition(self.data, range(24), range(24, 32), range(32, 40))
-        result = Regresion(dataframe=self.data).RLM(particion=split)
+        result = Regression(dataframe=self.data).RLM(particion=split)
         self.assertEqual(result.metadatos["train_indices"], split.train.index.tolist())
         self.assertEqual(result.metadatos["test_indices"], split.test.index.tolist())
         self.assertEqual(
@@ -183,7 +183,7 @@ class RegresionTests(unittest.TestCase):
             replace(split, validacion=split.validacion.iloc[:0]),
         ):
             with self.subTest(split=bad.huella), self.assertRaises(ValueError):
-                Regresion(dataframe=self.data).RLM(particion=bad)
+                Regression(dataframe=self.data).RLM(particion=bad)
 
     def test_preprocessing_learns_no_holdout_values_or_categories(self):
         data = pd.DataFrame(
@@ -195,7 +195,7 @@ class RegresionTests(unittest.TestCase):
             }
         )
         split = partition(data, range(4), range(4, 6), range(6, 8))
-        model = Regresion(dataframe=data)
+        model = Regression(dataframe=data)
         result = model.RLM(particion=split, incluir_categoricas=True)
         pre = result.datos_preparados.transformador
         numeric = pre.transformador_.named_transformers_["numericas"]
@@ -209,21 +209,21 @@ class RegresionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Faltan variables"):
             model.predecir(data.drop(columns="constant"))
         with self.assertRaisesRegex(ValueError, "faltantes"):
-            Regresion(dataframe=data, features=["a"]).RLS(
+            Regression(dataframe=data, features=["a"]).RLS(
                 particion=split, imputar=False
             )
         with self.assertRaisesRegex(TypeError, "categóricas"):
-            Regresion(dataframe=data).RLM(particion=split)
+            Regression(dataframe=data).RLM(particion=split)
 
     def test_reproducibility_and_test_mutations_do_not_change_fit(self):
-        first = Regresion(dataframe=self.data).RLM()
-        second = Regresion(dataframe=self.data).RLM()
+        first = Regression(dataframe=self.data).RLM()
+        second = Regression(dataframe=self.data).RLM()
         assert_series_equal(first.y_pred, second.y_pred)
         self.assertEqual(first.metadatos, second.metadatos)
         changed = self.data.copy()
         test = first.y_true.index
         changed.loc[test, ["a", "b", "target"]] *= 100
-        third = Regresion(dataframe=changed).RLM()
+        third = Regression(dataframe=changed).RLM()
         np.testing.assert_allclose(first.modelo.coef_, third.modelo.coef_)
         assert_series_equal(first.y_pred_train, third.y_pred_train)
         self.assertNotEqual(
@@ -231,7 +231,7 @@ class RegresionTests(unittest.TestCase):
         )
 
     def test_small_splits_and_constant_train_fail_and_preserve_last_success(self):
-        model = Regresion(dataframe=self.data)
+        model = Regression(dataframe=self.data)
         previous = model.RLM()
         with self.assertRaisesRegex(ValueError, "dos filas"):
             model.RLM(test_size=0.01)
@@ -243,11 +243,11 @@ class RegresionTests(unittest.TestCase):
         data = self.data.copy()
         data.loc[data.index[:30], "target"] = 1
         with self.assertRaisesRegex(ValueError, "constante"):
-            Regresion(dataframe=data).RLM(
+            Regression(dataframe=data).RLM(
                 particion=partition(data, range(30), range(30, 40))
             )
         with self.assertRaisesRegex(ValueError, "dos filas"):
-            Regresion(dataframe=self.data).RLM(
+            Regression(dataframe=self.data).RLM(
                 particion=partition(self.data, range(1), range(1, 40))
             )
 

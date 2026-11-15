@@ -1,4 +1,4 @@
-"""Catálogo de regresión compartido por modelos, experimentos e interfaz."""
+"""Regression catalog shared across models, experiments, and UI."""
 
 from __future__ import annotations
 
@@ -9,11 +9,22 @@ from .classification_config import ParametroModelo
 
 
 @dataclass(frozen=True)
-class ConfiguracionRegresion:
-    """Identidad y controles de un regresor sin dependencias de Streamlit."""
+class RegressionConfig:
+    """Identity and controls of a regressor without Streamlit dependencies."""
 
     etiqueta: str
     parametros: tuple[ParametroModelo, ...]
+
+    @property
+    def label(self) -> str:
+        return self.etiqueta
+
+    @property
+    def parameters(self) -> tuple[ParametroModelo, ...]:
+        return self.parametros
+
+
+ConfiguracionRegresion = RegressionConfig
 
 
 ALGORITMOS_REGRESION = (
@@ -125,7 +136,7 @@ _CONFIGURACIONES_EXPERIMENTO = {
 }
 
 
-def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
+def regression_experiment_configs() -> dict[str, list[dict[str, Any]]]:
     """Devuelve catorce candidatos independientes, con formato reproducible."""
     return {
         algoritmo: [
@@ -134,3 +145,9 @@ def configuraciones_experimento_regresion() -> dict[str, list[dict[str, Any]]]:
         ]
         for algoritmo, candidatos in _CONFIGURACIONES_EXPERIMENTO.items()
     }
+
+# English aliases
+REGRESSION_ALGORITHMS = ALGORITMOS_REGRESION
+REGRESSION_ALPHAS = ALPHAS_REGRESION
+INTERNAL_FOLDS = PLIEGUES_INTERNOS
+configuraciones_experimento_regresion = regression_experiment_configs

@@ -12,6 +12,8 @@ from .cluster_evaluation import (
     construir_resultado_cluster,
     evaluar_hac,
     evaluar_kmeans,
+    evaluate_hac,
+    evaluate_kmeans,
     validar_numero_clusters,
 )
 from .k_medoids import ModeloKMedoids
@@ -24,6 +26,8 @@ __all__ = [
     "construir_resultado_cluster",
     "evaluar_hac",
     "evaluar_kmeans",
+    "evaluate_hac",
+    "evaluate_kmeans",
     "validar_numero_clusters",
     "ModeloKMedoids",
 ]

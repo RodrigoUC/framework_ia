@@ -9,12 +9,12 @@ import pytest
 from pandas.testing import assert_frame_equal
 from sklearn.datasets import make_regression
 
-from ai_framework import Regresion
-from ai_framework.data.partition import Particionador
+from ai_framework import Regression, Regresion
+from ai_framework.data.partition import DataSplitter, Particionador
 from ai_framework.models.supervised import experimentos_regresion as experimentos
-from ai_framework.data.preprocessing import PreprocesadorSupervisado
-from ai_framework.utils.results import ResultadoExperimentoRegresion
-from ai_framework.utils import ALGORITMOS_LAB3, ConfiguracionParticion
+from ai_framework.data.preprocessing import SupervisedPreprocessor, SupervisedPreprocessor
+from ai_framework.utils.results import RegressionExperimentResult, ResultadoExperimentoRegresion
+from ai_framework.utils import ALGORITMOS_LAB3, PartitionConfig, ConfiguracionParticion
 
 
 @pytest.fixture
@@ -27,8 +27,8 @@ def data():
 
 
 def split(data, validation=0):
-    return Particionador(
-        ConfiguracionParticion(
+    return DataSplitter(
+        PartitionConfig(
             porcentaje_test=0.25, porcentaje_validacion=validation, semilla=19
         )
     ).dividir(data)
@@ -39,9 +39,9 @@ def candidate(name, **parameters):
 
 
 def test_default_catalog_all_nine_models_fourteen_candidates_and_reproducibility(data):
-    model = Regresion(dataframe=data, target="target")
+    model = Regression(dataframe=data, target="target")
     result = model.experimentar(feature_simple="b")
-    assert isinstance(result, ResultadoExperimentoRegresion)
+    assert isinstance(result, RegressionExperimentResult)
     assert len(result.tabla) == 14
     assert result.tabla.estado.eq("ok").all()
     assert tuple(result.mejores) == ALGORITMOS_LAB3
@@ -51,8 +51,8 @@ def test_default_catalog_all_nine_models_fourteen_candidates_and_reproducibility
     assert model.features == ["a", "b", "c"]
     assert model.experimento is result
     assert model.evaluar() is result.mejores[result.mejor_algoritmo]
-    assert Regresion.benchmark is Regresion.experimentar
-    repeated = Regresion(dataframe=data).benchmark(feature_simple="b")
+    assert Regression.benchmark is Regression.experimentar
+    repeated = Regression(dataframe=data).benchmark(feature_simple="b")
     assert_frame_equal(result.tabla, repeated.tabla)
     for _, group in result.tabla.groupby("algoritmo", sort=False):
         selected = group[group.seleccionado]
@@ -73,7 +73,7 @@ def test_default_catalog_all_nine_models_fourteen_candidates_and_reproducibility
 def test_common_outer_folds_fit_preprocessing_only_on_their_training_rows(data):
     partition = split(data)
     observed = []
-    original = PreprocesadorSupervisado.fit
+    original = SupervisedPreprocessor.fit
 
     def fit(preprocessor, X, y=None):
         fitted = original(preprocessor, X, y)
@@ -84,8 +84,8 @@ def test_common_outer_folds_fit_preprocessing_only_on_their_training_rows(data):
         observed.append(X.index.tolist())
         return fitted
 
-    with patch.object(PreprocesadorSupervisado, "fit", autospec=True, side_effect=fit):
-        result = Regresion(dataframe=data).experimentar(
+    with patch.object(SupervisedPreprocessor, "fit", autospec=True, side_effect=fit):
+        result = Regression(dataframe=data).experimentar(
             algoritmos=["Ridge"],
             configuraciones={"Ridge": [candidate("one", alpha=1)]},
             particion=partition,
@@ -108,7 +108,7 @@ def test_external_validation_default_holdout_or_reserved_under_explicit_cv(
     data, strategy
 ):
     partition = split(data, validation=0.2)
-    result = Regresion(dataframe=data).experimentar(
+    result = Regression(dataframe=data).experimentar(
         algoritmos=["RLS", "Ridge"], particion=partition, estrategia=strategy, folds=3
     )
     metadata = result.metadatos
@@ -131,7 +131,7 @@ def test_external_validation_default_holdout_or_reserved_under_explicit_cv(
 
 def test_holdout_without_external_validation_splits_only_shared_train(data):
     partition = split(data)
-    result = Regresion(dataframe=data).experimentar(
+    result = Regression(dataframe=data).experimentar(
         algoritmos="Ridge",
         particion=partition,
         estrategia="holdout",
@@ -155,7 +155,7 @@ def test_reserved_values_cannot_change_validation_or_selection(data, strategy):
         "estrategia": strategy,
         "folds": 3,
     }
-    first = Regresion(dataframe=data).experimentar(**options)
+    first = Regression(dataframe=data).experimentar(**options)
     changed = data.copy()
     changed.loc[partition.test.index, "a"] += 10000
     changed.loc[partition.test.index, "target"] += 10000
@@ -166,7 +166,7 @@ def test_reserved_values_cannot_change_validation_or_selection(data, strategy):
     options["particion"] = replace(
         partition, test=changed.loc[partition.test.index].copy(), validacion=validation
     )
-    second = Regresion(dataframe=changed).experimentar(**options)
+    second = Regression(dataframe=changed).experimentar(**options)
     assert_frame_equal(first.tabla, second.tabla)
     assert first.mejor_algoritmo == second.mejor_algoritmo
     assert first.mejores["Ridge"].metricas != second.mejores["Ridge"].metricas
@@ -176,7 +176,7 @@ def test_all_validation_decisions_precede_every_test_evaluation(data):
     events = []
     common_splits = []
     original_validation = experimentos._evaluar
-    original_result = Regresion._resultado
+    original_result = Regression._resultado
 
     def validation(*args, **kwargs):
         events.append("validation")
@@ -189,9 +189,9 @@ def test_all_validation_decisions_precede_every_test_evaluation(data):
 
     with (
         patch.object(experimentos, "_evaluar", side_effect=validation),
-        patch.object(Regresion, "_resultado", autospec=True, side_effect=evaluate),
+        patch.object(Regression, "_resultado", autospec=True, side_effect=evaluate),
     ):
-        Regresion(dataframe=data).experimentar(algoritmos=["Ridge", "DT"], folds=3)
+        Regression(dataframe=data).experimentar(algoritmos=["Ridge", "DT"], folds=3)
     assert events == ["validation"] * 4 + ["test"] * 2
     assert len(set(common_splits)) == 1
 
@@ -202,7 +202,7 @@ def test_ties_preserve_candidate_and_algorithm_declaration_order(data):
         name: [candidate("first"), candidate("second")] for name in ("DT", "Ridge")
     }
     with patch.object(experimentos, "metricas_regresion", return_value=fixed):
-        result = Regresion(dataframe=data).experimentar(
+        result = Regression(dataframe=data).experimentar(
             algoritmos=["DT", "Ridge"], configuraciones=configs, folds=3
         )
     assert result.mejor_algoritmo == "DT"
@@ -210,7 +210,7 @@ def test_ties_preserve_candidate_and_algorithm_declaration_order(data):
 
 
 def test_candidate_failures_continue_and_all_failed_retry_preserves_success(data):
-    model = Regresion(dataframe=data)
+    model = Regression(dataframe=data)
     first = model.experimentar(algoritmos=["DT", "Ridge"], folds=3)
     saved_result, saved_model = model.resultado, model.modelo
     failed = model.experimentar(
@@ -235,9 +235,9 @@ def test_candidate_failures_continue_and_all_failed_retry_preserves_success(data
 
 
 def test_test_evaluation_failures_are_visible_without_reselection(data):
-    model = Regresion(dataframe=data)
+    model = Regression(dataframe=data)
     with patch.object(
-        Regresion, "_resultado", side_effect=RuntimeError("test unavailable")
+        Regression, "_resultado", side_effect=RuntimeError("test unavailable")
     ):
         result = model.experimentar(algoritmos="Ridge", folds=3)
     assert not result.mejores
@@ -251,12 +251,12 @@ def test_test_evaluation_failures_are_visible_without_reselection(data):
 def test_selected_winner_test_failure_preserves_entire_active_snapshot(
     data, previous_success
 ):
-    model = Regresion(dataframe=data)
+    model = Regression(dataframe=data)
     if previous_success:
         model.experimentar(algoritmos=["Ridge", "DT"], folds=3)
     active_fields = ("experimento", "resultado", "modelo", "_preparados", "r2")
     previous = {name: getattr(model, name) for name in active_fields}
-    original_result = Regresion._resultado
+    original_result = Regression._resultado
 
     def evaluate(
         regressor, base, train, evaluation, algorithm, estimator, prepared, metadata
@@ -267,7 +267,7 @@ def test_selected_winner_test_failure_preserves_entire_active_snapshot(
             regressor, base, train, evaluation, algorithm, estimator, prepared, metadata
         )
 
-    with patch.object(Regresion, "_resultado", autospec=True, side_effect=evaluate):
+    with patch.object(Regression, "_resultado", autospec=True, side_effect=evaluate):
         attempted = model.experimentar(
             algoritmos=["Ridge", "DT"], folds=3, random_state=43
         )
@@ -319,14 +319,14 @@ def test_invalid_data_splits_or_configuration_abort_before_fitting(data, invalid
     else:
         options["configuraciones"] = {"Ridge": [candidate("same"), candidate("same")]}
     with (
-        patch.object(Regresion, "_ajustar", side_effect=AssertionError("must not fit")),
+        patch.object(Regression, "_ajustar", side_effect=AssertionError("must not fit")),
         pytest.raises((ValueError, KeyError)),
     ):
-        Regresion(dataframe=data).experimentar(**options)
+        Regression(dataframe=data).experimentar(**options)
 
 
 def test_single_predictor_default_is_schema_order_not_target_fit(data):
-    result = Regresion(dataframe=data, features=["c", "a"]).experimentar(
+    result = Regression(dataframe=data, features=["c", "a"]).experimentar(
         algoritmos=["RLS", "RLM"], folds=3
     )
     assert result.metadatos["feature_simple"] == "c"
@@ -337,7 +337,7 @@ def test_single_predictor_default_is_schema_order_not_target_fit(data):
 def test_nonfinite_candidate_scores_are_failures_not_winners(data):
     invalid = {"rmse": np.inf, "mae": 1.0, "mse": np.inf, "r2": 0.0}
     with patch.object(experimentos, "metricas_regresion", return_value=invalid):
-        result = Regresion(dataframe=data).experimentar(algoritmos="Ridge", folds=3)
+        result = Regression(dataframe=data).experimentar(algoritmos="Ridge", folds=3)
     assert not result.mejores
     assert result.tabla.estado.eq("error").all()
     assert result.tabla.error.str.contains("no finitas").all()

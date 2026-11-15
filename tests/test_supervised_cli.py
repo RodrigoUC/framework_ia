@@ -20,15 +20,15 @@ import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
 from sklearn.datasets import make_classification
 
-from ai_framework import Regresion
-from ai_framework.data.sources import CargadorCSV
+from ai_framework import Regression, Regresion
+from ai_framework.data.sources import CSVLoader, CargadorCSV
 from ai_framework.utils.supervised.export import (
     construir_archivos_experimento,
     construir_archivos_modelo,
     construir_zip_experimento,
 )
-from ai_framework.models.supervised import Clasificacion
-from ai_framework.utils import ConfiguracionCSV
+from ai_framework.models.supervised import Classification, Clasificacion
+from ai_framework.utils import CSVConfig, ConfiguracionCSV
 from scripts import ejecutar_clasificacion, ejecutar_regresion
 
 
@@ -130,7 +130,7 @@ class ClasificacionCLITests(unittest.TestCase):
         argumentos = self.argumentos()
         salida = ejecutar_clasificacion.ejecutar(argumentos)
         datos = pd.read_csv(self.csv)
-        resultado = Clasificacion(dataframe=datos, target="clase").experimentar(
+        resultado = Classification(dataframe=datos, target="clase").experimentar(
             algoritmos=argumentos.algoritmos,
             test_size=argumentos.test_size,
             random_state=argumentos.semilla,
@@ -177,7 +177,7 @@ class ClasificacionCLITests(unittest.TestCase):
         self.assertEqual(resultado.metadatos, metadatos_originales)
 
     def test_exportacion_conserva_procedencia_y_versiones_del_ajuste(self):
-        resultado = Clasificacion(
+        resultado = Classification(
             dataframe=pd.read_csv(self.csv), target="clase"
         ).experimentar(algoritmos=["DT"])
         versiones_originales = dict(resultado.metadatos["versiones"])
@@ -198,7 +198,7 @@ class ClasificacionCLITests(unittest.TestCase):
         self.assertEqual(dataset["lectura"]["usar_indice"], False)
 
     def test_cli_parcial_conserva_error_y_solo_exporta_ganadores_validos(self):
-        resultado = Clasificacion(
+        resultado = Classification(
             dataframe=pd.read_csv(self.csv), target="clase"
         ).experimentar(
             algoritmos=["KNN", "DT"],
@@ -209,7 +209,7 @@ class ClasificacionCLITests(unittest.TestCase):
         argumentos = self.argumentos()
         with (
             patch(
-                "scripts.ejecutar_clasificacion.Clasificacion.experimentar",
+                "scripts.ejecutar_clasificacion.Classification.experimentar",
                 return_value=resultado,
             ),
             redirect_stdout(StringIO()) as mensajes,
@@ -244,7 +244,7 @@ def source(tmp_path):
     path = tmp_path / "observaciones.csv"
     path.write_text(data.to_csv(index=False, sep=";", decimal=","), encoding="utf-8")
     raw = path.read_bytes()
-    loaded = CargadorCSV.cargar_bytes(raw, ConfiguracionCSV(separador=";", decimal=","))
+    loaded = CSVLoader.cargar_bytes(raw, CSVConfig(separador=";", decimal=","))
     return path, raw, loaded
 
 
@@ -289,14 +289,14 @@ def test_cli_bytes_equal_shared_exporter_and_preserve_original_csv_hash(
 ):
     args = arguments(source, tmp_path)
     captured = []
-    original = Regresion.experimentar
+    original = Regression.experimentar
 
     def experiment(model, **options):
         result = original(model, **options)
         captured.append(result)
         return result
 
-    with patch.object(Regresion, "experimentar", autospec=True, side_effect=experiment):
+    with patch.object(Regression, "experimentar", autospec=True, side_effect=experiment):
         output = ejecutar_regresion.ejecutar(args)
     result = captured[0]
     expected = construir_archivos_experimento(
@@ -329,13 +329,13 @@ def test_cli_bytes_equal_shared_exporter_and_preserve_original_csv_hash(
 def test_individual_and_experiment_exports_share_bytes_and_never_retrain_or_mutate(
     source,
 ):
-    result = Regresion(dataframe=source[2]).experimentar(algoritmos="RidgeCV", folds=3)
+    result = Regression(dataframe=source[2]).experimentar(algoritmos="RidgeCV", folds=3)
     winner = result.mejores["RidgeCV"]
     table_before = result.tabla.copy(deep=True)
     predictions_before = winner.y_pred.copy()
     inputs = {"argumentos": {"target": "target"}, "dataset": provenance(source)}
     with patch.object(
-        Regresion, "_ajustar", side_effect=AssertionError("export must not fit")
+        Regression, "_ajustar", side_effect=AssertionError("export must not fit")
     ):
         individual = construir_archivos_modelo(winner, **inputs)
         experiment = construir_archivos_experimento(result, **inputs)
@@ -359,7 +359,7 @@ def test_individual_and_experiment_exports_share_bytes_and_never_retrain_or_muta
 
 
 def test_stored_versions_override_export_time_versions_and_json_is_finite(source):
-    result = Regresion(dataframe=source[2]).experimentar(algoritmos="Ridge", folds=3)
+    result = Regression(dataframe=source[2]).experimentar(algoritmos="Ridge", folds=3)
     metadata = {
         **result.metadatos,
         "versiones": {"python": "recorded-python", "scikit-learn": "recorded-sklearn"},
@@ -422,21 +422,21 @@ def test_cli_exit_codes_complete_partial_and_invalid(source, tmp_path, capsys):
         str(tmp_path / "complete"),
     ]
     assert ejecutar_regresion.main(complete) == 0
-    partial = Regresion(dataframe=source[2]).experimentar(
+    partial = Regression(dataframe=source[2]).experimentar(
         algoritmos=["DT", "Ridge"],
         folds=3,
         configuraciones={"DT": [{"nombre": "invalid", "parametros": {"max_depth": 0}}]},
     )
-    with patch.object(Regresion, "experimentar", return_value=partial):
+    with patch.object(Regression, "experimentar", return_value=partial):
         assert ejecutar_regresion.main([*complete[:-1], str(tmp_path / "partial")]) == 1
     assert "Ejecución parcial" in capsys.readouterr().out
-    all_failed = Regresion(dataframe=source[2]).experimentar(
+    all_failed = Regression(dataframe=source[2]).experimentar(
         algoritmos="DT",
         folds=3,
         configuraciones={"DT": [{"nombre": "invalid", "parametros": {"max_depth": 0}}]},
     )
     with (
-        patch.object(Regresion, "experimentar", return_value=all_failed),
+        patch.object(Regression, "experimentar", return_value=all_failed),
         pytest.raises(SystemExit) as failure,
     ):
         ejecutar_regresion.main([*complete[:-1], str(tmp_path / "failed")])
@@ -445,7 +445,7 @@ def test_cli_exit_codes_complete_partial_and_invalid(source, tmp_path, capsys):
 
 
 def test_exporter_supports_a_real_individual_result_without_experiment(source):
-    winner = Regresion(dataframe=source[2], features=["a"]).RLS()
+    winner = Regression(dataframe=source[2], features=["a"]).RLS()
     files = construir_archivos_modelo(winner, argumentos={}, dataset=provenance(source))
     config = json.loads(files["configuracion.json"])
     metrics = json.loads(files["metricas.json"])

@@ -1,4 +1,4 @@
-"""Funciones de utilidad, estimadores y cálculo de métricas para clasificación."""
+"""Utility functions, estimators, and metric computation for classification."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ from .classification_config import (
 )
 
 
-def normalizar_algoritmo(algoritmo: str) -> str:
-    """Admite los nombres de clase y aliases de la interfaz pythónica."""
+def normalize_algorithm(algoritmo: str) -> str:
+    """Support class names and aliases from the pythonic interface."""
     aliases = {
         "knn": "KNN",
         "k_nearest_neighbors": "KNN",
@@ -66,8 +66,8 @@ def normalizar_algoritmo(algoritmo: str) -> str:
         ) from exc
 
 
-def configuraciones_lab2() -> dict[str, list[dict[str, Any]]]:
-    """Catálogo de configuraciones estándar para experimentación de clasificación."""
+def classification_lab2_configs() -> dict[str, list[dict[str, Any]]]:
+    """Standard configuration catalog for classification experimentation."""
     return configuraciones_experimento()
 
 
@@ -102,8 +102,8 @@ class _XGBoostEtiquetas:
         return self.estimador.feature_importances_
 
 
-def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
-    """Instancia el estimador de clasificación correspondiente según el algoritmo."""
+def create_model(algoritmo: str, random_state: int, parametros: dict):
+    """Instantiate corresponding classification estimator based on algorithm."""
     parametros = dict(parametros)
     if algoritmo == "KNN":
         return KNeighborsClassifier(**{"n_jobs": 1, **parametros})
@@ -138,8 +138,8 @@ def crear_modelo(algoritmo: str, random_state: int, parametros: dict):
     )
 
 
-def validar_datos_clasificacion(base: pd.DataFrame, target: str) -> pd.DataFrame:
-    """Valida que los datos sean aptos para clasificación supervisada."""
+def validate_classification_data(base: pd.DataFrame, target: str) -> pd.DataFrame:
+    """Validate that data is suitable for supervised classification."""
     base = base.replace([np.inf, -np.inf], np.nan).dropna(subset=[target])
     if base.empty:
         raise ValueError("No hay filas válidas tras depurar objetivos nulos.")
@@ -158,7 +158,7 @@ def validar_datos_clasificacion(base: pd.DataFrame, target: str) -> pd.DataFrame
     return base
 
 
-def ajustar_clasificacion(
+def fit_classification(
     base: pd.DataFrame,
     train: pd.Index,
     features: list[str],
@@ -192,7 +192,7 @@ def ajustar_clasificacion(
     return modelo, preparados
 
 
-def ordenar_labels(real: pd.Series, predicho: pd.Series):
+def order_labels(real: pd.Series, predicho: pd.Series):
     """Genera orden determinista para las etiquetas de clase."""
     etiquetas = list(
         dict.fromkeys(pd.concat([pd.Series(real), pd.Series(predicho)]).tolist())
@@ -203,14 +203,14 @@ def ordenar_labels(real: pd.Series, predicho: pd.Series):
         return etiquetas
 
 
-def metricas_clasificacion(
+def classification_metrics(
     y_train: pd.Series,
     y_true: pd.Series,
     y_pred: pd.Series,
     matriz: pd.DataFrame,
     labels: list[Any],
 ) -> dict[str, Any]:
-    """Calcula métricas globales y por clase para clasificación binaria o multiclase."""
+    """Compute global and per-class metrics for binary or multiclass classification."""
     precision_por_clase = precision_score(
         y_true,
         y_pred,
@@ -308,7 +308,7 @@ def metricas_clasificacion(
     }
 
 
-def crear_resultado_clasificacion(
+def create_classification_result(
     base: pd.DataFrame,
     train: pd.Index,
     evaluacion: pd.Index,
@@ -319,7 +319,7 @@ def crear_resultado_clasificacion(
     preparados: Any,
     metadatos: dict[str, Any],
 ) -> ResultadoClasificacion:
-    """Construye la estructura de resultado de clasificación."""
+    """Build the classification result structure."""
     y_train = base.loc[train, target]
     y_test = base.loc[evaluacion, target]
     X_test = preparados.transformador.transform(base.loc[evaluacion, features])
@@ -353,3 +353,13 @@ def crear_resultado_clasificacion(
             "columnas_descartadas": list(preparados.columnas_descartadas),
         },
     )
+
+# Backward compatibility aliases
+normalizar_algoritmo = normalize_algorithm
+configuraciones_lab2 = classification_lab2_configs
+crear_modelo = create_model
+validar_datos_clasificacion = validate_classification_data
+ajustar_clasificacion = fit_classification
+ordenar_labels = order_labels
+metricas_clasificacion = classification_metrics
+crear_resultado_clasificacion = create_classification_result

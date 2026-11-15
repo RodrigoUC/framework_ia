@@ -1,4 +1,4 @@
-"""Algoritmos de agrupamiento y proyecciones no supervisadas: K-Means, K-Medoids, HAC, ACP, t-SNE y UMAP."""
+"""Unsupervised clustering algorithms and projections: K-Means, K-Medoids, HAC, PCA, t-SNE, and UMAP."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from ai_framework.utils.unsupervised.k_medoids import ModeloKMedoids
 
 
 class Clustering(Unsupervised):
-    """Ejecuta algoritmos de agrupamiento (K-Means, K-Medoids, HAC) y proyecciones (ACP, t-SNE, UMAP)."""
+    """Execute clustering algorithms (K-Means, K-Medoids, HAC) and projections (PCA, t-SNE, UMAP)."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -42,7 +42,7 @@ class Clustering(Unsupervised):
         n_init: int = 20,
         max_iter: int = 500,
     ) -> ResultadoCluster:
-        """Agrupa observaciones mediante centroides K-Means."""
+        """Group observations using K-Means centroids."""
         preparados = self.preparar_matriz()
         validar_numero_clusters(preparados.matriz, n_clusters)
         modelo = KMeans(
@@ -83,7 +83,7 @@ class Clustering(Unsupervised):
         max_iter: int = 500,
         metric: str = "manhattan",
     ) -> ResultadoCluster:
-        """Agrupa observaciones alrededor de medoides mediante distancias."""
+        """Group observations around medoids using distances."""
         preparados = self.preparar_matriz()
         validar_numero_clusters(preparados.matriz, n_clusters)
         modelo = ModeloKMedoids(
@@ -230,7 +230,7 @@ class Clustering(Unsupervised):
         min_dist: float = 0.1,
         random_state: int = 42,
     ) -> ResultadoProyeccion:
-        """Genera una proyección UMAP bidimensional reproducible."""
+        """Generate a reproducible two-dimensional UMAP projection."""
         configurar_cache_numba()
         try:
             import umap.umap_ as umap
@@ -270,6 +270,16 @@ class Clustering(Unsupervised):
             datos_preparados=preparados,
             modelo=modelo,
         )
+
+    # English & pythonic aliases
+    k_means = K_means
+    k_medoids = K_medoids
+    hac = HAC
+    pca = ACP
+    tsne = TSNE
+    umap = UMAP
+    kmeans = K_means
+    kmedoids = K_medoids
 
 
 def __getattr__(name: str):

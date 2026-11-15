@@ -1,4 +1,4 @@
-"""Clase base de aprendizaje supervisado con herencia y desacoplamiento de utilidades."""
+"""Base supervised learning class with inheritance and decoupled utilities."""
 
 from __future__ import annotations
 
@@ -31,11 +31,11 @@ from ai_framework.utils.supervised import (
 
 
 class Supervised(EDA):
-    """Base común del aprendizaje supervisado.
+    """Common base for supervised learning.
 
-    Proporciona validación estructural de ``target`` y ``features``, particiones
-    sin fuga de datos, orquestación de entrenamiento y experimentación mediante
-    herencia, preprocesamiento y contratos pythónicos.
+    Provides structural validation of ``target`` and ``features``, leak-free
+    partitions, orchestration of training and experimentation through inheritance,
+    preprocessing, and pythonic contracts.
     """
 
     def __init__(
@@ -58,7 +58,7 @@ class Supervised(EDA):
         self.r2: float | None = None
 
     def _reiniciar_resultados(self) -> None:
-        """Limpia artefactos previos."""
+        """Clean up previous artifacts."""
         self.resultado = None
         self.experimento = None
         self.modelo = None
@@ -67,13 +67,13 @@ class Supervised(EDA):
         self.r2 = None
 
     def _definir_target(self):
-        """Devuelve el target, asumiendo la última columna si no se indicó."""
+        """Return the target column name, defaulting to the last column if omitted."""
         if self.target is None:
             self.target = self.datos.columns[-1]
         return self.target
 
     def _tipo_target(self):
-        """Indica clasificación si el target es categórico o regresión si es numérico."""
+        """Return classification if target is categorical or regression if numerical."""
         self._definir_target()
         serie = self.datos[self.target]
         if pd.api.types.is_numeric_dtype(serie) and not pd.api.types.is_bool_dtype(
@@ -83,7 +83,7 @@ class Supervised(EDA):
         return "clasificacion"
 
     def _es_regresion(self) -> bool:
-        """Comprueba si la instancia opera en modalidad regresión."""
+        """Check if instance operates in regression mode."""
         if self.__class__.__name__ in ("Regresion", "Regression"):
             return True
         if self.__class__.__name__ in ("Clasificacion", "Classification"):
@@ -99,7 +99,7 @@ class Supervised(EDA):
         return self._tipo_target() == "regresion"
 
     def _definir_features(self):
-        """Devuelve las features (todas las columnas menos el target)."""
+        """Return features (all columns except target)."""
         self._definir_target()
         if self.features is None:
             self.features = [
@@ -112,7 +112,7 @@ class Supervised(EDA):
         *,
         mensaje_indices: str = "El dataset necesita índices únicos.",
     ) -> pd.DataFrame:
-        """Valida la integridad tabular común a clasificación y regresión."""
+        """Validate tabular integrity common to classification and regression."""
         if self.datos.empty:
             raise ValueError("No hay datos para entrenar.")
         if not self.datos.index.is_unique:
@@ -143,7 +143,7 @@ class Supervised(EDA):
         random_state: int = 42,
         stratify: bool = False,
     ) -> tuple[pd.Index, pd.Index, pd.Index]:
-        """Obtiene los índices de train, test y validación sin fuga de datos."""
+        """Obtain leak-free train, test, and validation indices."""
         if particion is not None:
             validar_particion(particion, self.datos)
             indices = [
@@ -167,7 +167,7 @@ class Supervised(EDA):
         return train, test, pd.Index([])
 
     def _datos_supervisados(self) -> pd.DataFrame:
-        """Obtiene el DataFrame base validado según la tarea supervisada."""
+        """Return the validated base DataFrame according to the supervised task."""
         if self._es_regresion():
             base = self._validar_estructura_base(
                 mensaje_indices="El dataset necesita índices únicos."
@@ -186,13 +186,13 @@ class Supervised(EDA):
     _metricas_supervisadas = staticmethod(metricas_clasificacion)
 
     def _validar_predictoras(self, base: pd.DataFrame, algoritmo: str | None = None):
-        """Valida que las predictoras sean aptas para el algoritmo."""
+        """Validate predictor features for the specified algorithm."""
         if self._es_regresion():
             return validar_predictoras_regresion(self.features, base, algoritmo)
         return self.features
 
     def _stratify_defecto(self) -> bool:
-        """Define si la estratificación se aplica por defecto en la tarea supervisada."""
+        """Determine whether stratification applies by default for the supervised task."""
         return not self._es_regresion()
 
     def _metadatos(
@@ -205,7 +205,7 @@ class Supervised(EDA):
         particion: ResultadoParticion | None,
         opciones: dict[str, Any],
     ) -> dict[str, Any]:
-        """Construye metadatos de trazabilidad comunes a todas las tareas supervisadas."""
+        """Construct traceability metadata common to all supervised tasks."""
         versiones = {
             "python": platform.python_version(),
             **{
@@ -238,7 +238,7 @@ class Supervised(EDA):
         }
 
     def _delegado_supervisado(self, algoritmo: str | None = None) -> "Supervised":
-        """Instancia la subclase correspondiente si se invoca Supervisado directamente."""
+        """Instantiate the corresponding subclass if Supervised is invoked directly."""
         from .classification import Classification
         from .regression import Regression
 
@@ -282,7 +282,7 @@ class Supervised(EDA):
         return clase(dataframe=self.datos, target=self.target, features=self.features)
 
     def _normalizar_algoritmo(self, algoritmo: str | None) -> str:
-        """Normaliza el identificador del algoritmo según la modalidad."""
+        """Normalize the algorithm identifier based on task mode."""
         if self._es_regresion():
             alg = str(algoritmo or "RLM").strip()
             if alg.lower() in {
@@ -306,7 +306,7 @@ class Supervised(EDA):
         test: pd.Index,
         validacion: pd.Index,
     ) -> None:
-        """Valida que los conjuntos de partición cumplan los requisitos de la tarea."""
+        """Validate partition sets against task requirements."""
         if self._es_regresion():
             if len(test) < 2:
                 raise ValueError(
@@ -316,7 +316,7 @@ class Supervised(EDA):
             comprobar_clases(base.loc[train, self.target], base.loc[test, self.target])
 
     def _ajustar(self, base, train, algoritmo, random_state, opciones, parametros):
-        """Ajusta el estimador supervisado según la modalidad."""
+        """Fit the supervised estimator according to the mode."""
         if self._es_regresion():
             return ajustar_regresion(
                 base,
@@ -342,7 +342,7 @@ class Supervised(EDA):
     def _resultado(
         self, base, train, evaluacion, algoritmo, modelo, preparados, metadatos
     ):
-        """Construye el contenedor tipado de resultados supervisados."""
+        """Build the typed supervised result container."""
         if self._es_regresion():
             return crear_resultado_regresion(
                 base,
@@ -368,14 +368,14 @@ class Supervised(EDA):
         )
 
     def _actualizar_metricas_resumen(self, resultado: Any) -> None:
-        """Sincroniza los atributos escalares principales de evaluación."""
+        """Synchronize main scalar evaluation metrics."""
         if self._es_regresion():
             self.r2 = resultado.metricas.get("r2")
         else:
             self.exactitud = resultado.metricas.get("accuracy")
 
     def _ejecutar_experimento(self, **kwargs) -> Any:
-        """Ejecuta la suite experimental adecuada a la tarea supervisada."""
+        """Execute the appropriate experimental suite for the supervised task."""
         if self._es_regresion():
             intento = ejecutar_experimento_regresion(self, **kwargs)
             elegido = intento.mejores.get(intento.mejor_algoritmo)
@@ -404,7 +404,7 @@ class Supervised(EDA):
         particion: ResultadoParticion | None = None,
         **kwargs,
     ):
-        """Orquesta el flujo común de entrenamiento supervisado sin fuga de datos."""
+        """Orchestrate common leak-free supervised training workflow."""
         if type(self) is Supervised:
             delegado = self._delegado_supervisado(algoritmo)
             if type(delegado) is type(self):
@@ -474,7 +474,7 @@ class Supervised(EDA):
         return resultado
 
     def experimentar(self, *args, **kwargs):
-        """Ejecuta un experimento comparativo supervisado sin fuga de datos."""
+        """Execute a leak-free comparative supervised experiment."""
         if type(self) is Supervised:
             delegado = self._delegado_supervisado()
             if type(delegado) is type(self):
@@ -493,9 +493,11 @@ class Supervised(EDA):
         return self._ejecutar_experimento(*args, **kwargs)
 
     benchmark = experimentar
+    experiment = experimentar
+    train = entrenar
 
     def _transformar(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Transforma características con el preprocesador ajustado en train."""
+        """Transform features using the preprocessor fitted only on train."""
         preparados = self._preparados
         if preparados is None and self.resultado is not None:
             preparados = getattr(self.resultado, "datos_preparados", None)
@@ -504,13 +506,13 @@ class Supervised(EDA):
         return preparados.transformador.transform(X)
 
     def evaluar(self):
-        """Devuelve el resultado de evaluación del último modelo entrenado."""
+        """Return evaluation result of the latest trained model."""
         if self.resultado is None:
             raise RuntimeError("Entrene primero un modelo antes de evaluarlo.")
         return self.resultado
 
     def predecir(self, X=None):
-        """Genera predicciones conservando el orden e índice de las observaciones."""
+        """Generate predictions preserving observation order and index."""
         if self.modelo is None and self.resultado is None:
             raise RuntimeError("Entrene primero un modelo antes de predecir.")
         if X is None:
@@ -543,7 +545,7 @@ class Supervised(EDA):
         estandarizar: bool = True,
         particion: ResultadoParticion | None = None,
     ) -> dict[str, Any]:
-        """Describe exactamente los índices reutilizados después al entrenar."""
+        """Describe exact indices reused later during training."""
         base = self._datos_supervisados()
         if stratify is None:
             stratify = self._stratify_defecto()
@@ -576,6 +578,10 @@ class Supervised(EDA):
                 base.loc[test, self.target].value_counts().to_dict()
             )
         return resumen
+
+    evaluate = evaluar
+    predict = predecir
+    preview_partition = previsualizar_particion
 
     def __str__(self) -> str:
         self._definir_target()

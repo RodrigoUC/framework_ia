@@ -222,7 +222,7 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         r"\setlength{\emergencystretch}{2em}\renewcommand{\arraystretch}{1.12}",
         r"\setlength{\parskip}{.4em}\setlength{\parindent}{0pt}",
         (
-            r"\title{\textbf{Informe Experimental}\\Métodos supervisados: regresión y benchmarking\\"
+            r"\title{\textbf{Laboratorio 3}\\Métodos supervisados: regresión y benchmarking\\"
             r"\large Predicción de la resistencia a compresión del concreto}"
         ),
         r"\author{" + r"\\".join(tex(a) for a in autores) + "}",
@@ -239,13 +239,21 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
             "Se examinan regularización, complejidad, diferencias entre familias y límites de generalización."
         ),
         r"\end{abstract}",
+        r"\tableofcontents\clearpage",
         r"\section{Introducción y objetivos}",
         (
-            "El objetivo consiste en predecir una cantidad continua, la resistencia a compresión, "
-            "a partir de los componentes de una mezcla y su edad. Este caso permite contrastar "
-            "representaciones lineales, basadas en kernels y basadas en árboles bajo un protocolo común. "
-            "Se busca comparar modelos dentro de una misma familia y entre familias, y justificar "
-            "la selección mediante evidencia de validación, sin utilizar la prueba para elegir hiperparámetros."
+            "La resistencia a compresión permite describir cuánto esfuerzo soporta el concreto "
+            "antes de fallar bajo una carga de compresión. En este laboratorio se busca estimar "
+            "esa resistencia a partir de los componentes de la mezcla y de su edad. Al tratarse "
+            "de una respuesta numérica, el estudio corresponde a un problema de regresión supervisada."
+        ),
+        (
+            "Para estudiar este problema se comparan modelos lineales, de vectores de soporte "
+            "y basados en árboles. El objetivo es valorar cómo cambia la predicción al utilizar "
+            "distintas configuraciones de un modelo y al comparar algoritmos de una misma familia "
+            "o de familias diferentes. Todos se evalúan con las mismas particiones, de manera "
+            "que sus diferencias puedan interpretarse bajo un protocolo común. La selección "
+            "se realiza con validación y, después, se examina su desempeño en una prueba reservada."
         ),
         r"\section{Datos y análisis exploratorio}",
         (
@@ -298,9 +306,11 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
     secciones.append(
         f"En entrenamiento, {tex(ETIQUETAS.get(mayor, mayor)).lower()} presenta la mayor "
         f"correlación lineal absoluta con la respuesta ({numero(correlaciones[mayor])}). "
-        "Estas asociaciones son descriptivas y no demuestran causalidad. Cemento se fijó "
-        "como predictora del modelo simple antes del benchmark; la correlación no seleccionó "
-        "variables ni modificó el conjunto de prueba. Los modelos restantes utilizan las ocho predictoras."
+        "Esta relación ayuda a describir los datos, aunque por sí sola no demuestra que una "
+        "variable sea la causa de los cambios en la resistencia. Para la regresión simple se "
+        "había definido el cemento antes de realizar la comparación. Es decir, esta correlación "
+        "se presenta como parte de la exploración y no se utilizó para escoger variables ni "
+        "modificar la prueba. Los demás modelos incorporan las ocho predictoras."
     )
     conteos, bordes = np.histogram(datos[target], bins=12)
     centros = (bordes[:-1] + bordes[1:]) / 2
@@ -400,17 +410,22 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         f"La regresión simple obtuvo RMSE de validación {numero(por_algoritmo['RLS'].rmse_validacion)} "
         f"MPa y la múltiple {numero(por_algoritmo['RLM'].rmse_validacion)} MPa: "
         f"la múltiple presentó una {cambio} relativa de {numero(abs(mejora), 1)}\\,\\% "
-        "en este error. Esta comparación modifica también la información disponible: "
-        "la simple utiliza cemento y la múltiple incorpora las ocho predictoras."
+        "en este error. La diferencia debe leerse considerando la información que recibe cada "
+        "modelo. La simple utiliza únicamente cemento, mientras que la múltiple incorpora "
+        "las ocho predictoras. De esa manera, se compara tanto el ajuste de los modelos como "
+        "el efecto de disponer de información adicional sobre la mezcla y su edad. El resultado "
+        "no permite atribuir la misma importancia a todas las variables."
     )
     lineal = min(FAMILIAS["Lineales"], key=lambda a: por_algoritmo[a].rmse_validacion)
     secciones.append(
         f"Dentro del grupo lineal, {tex(NOMBRES[lineal])} alcanzó el menor RMSE promedio "
         f"({numero(por_algoritmo[lineal].rmse_validacion)} MPa). "
         f"LassoCV obtuvo {numero(por_algoritmo['LassoCV'].rmse_validacion)} MPa y RidgeCV "
-        f"{numero(por_algoritmo['RidgeCV'].rmse_validacion)} MPa. La selección automática "
-        "de alpha no asegura superar las configuraciones fijas en la validación externa. "
-        "Las diferencias deben interpretarse junto con la variación entre pliegues."
+        f"{numero(por_algoritmo['RidgeCV'].rmse_validacion)} MPa. Estos valores permiten "
+        "examinar si el control de los coeficientes mejora la predicción frente a las otras "
+        "alternativas lineales. Sin embargo, escoger alpha de forma automática no asegura "
+        "un menor error en la validación externa. Para valorar diferencias pequeñas también "
+        "es necesario considerar cuánto varían los resultados entre pliegues."
     )
     secciones.append(
         tabla(
@@ -433,9 +448,12 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
     secciones.append(
         f"Entre los modelos basados en árboles, {tex(NOMBRES[arboles])} fue el mejor validado. "
         f"El árbol individual registró {numero(por_algoritmo['DT'].rmse_validacion)} MPa y "
-        f"Random Forest {numero(por_algoritmo['RF'].rmse_validacion)} MPa. La tabla de candidatos "
-        "permite observar el efecto de limitar la profundidad a cinco niveles frente a permitir "
-        "profundidad libre. SVR compara dos valores de C con kernel RBF; no se compararon kernels distintos."
+        f"Random Forest {numero(por_algoritmo['RF'].rmse_validacion)} MPa. En esta comparación "
+        "se observa qué ocurre al pasar de un árbol individual a un conjunto de árboles. "
+        "Además, las configuraciones permiten valorar el efecto de limitar la profundidad "
+        "a cinco niveles frente a dejarla libre. En el caso de SVR se probaron dos valores "
+        "de C con kernel RBF. Por ello, sus resultados describen esas configuraciones y no "
+        "una comparación entre distintos kernels."
     )
     secciones.append(r"\subsection{Comparación entre familias}")
     filas = []
@@ -462,18 +480,22 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         f"promedio y DE {numero(por_algoritmo[ganador].puntuacion_validacion_std)} MPa. "
         f"La siguiente alternativa fue {tex(NOMBRES[ranking[1]])}, con "
         f"{numero(por_algoritmo[ranking[1]].rmse_validacion)} MPa. "
-        "La diferencia observada no constituye una prueba de significancia estadística ni "
-        "demuestra superioridad sobre todos los datasets o particiones."
+        "El menor error respalda la elección dentro del experimento realizado. Sin embargo, "
+        "la comparación no incluyó una prueba de significancia estadística. Por ello, el "
+        "resultado debe entenderse en relación con este conjunto de datos y estas particiones, "
+        "sin extenderlo a cualquier problema de regresión."
     )
     secciones.append(
         f"El RMSE de entrenamiento del árbol fue {numero(e.mejores['DT']['metricas_train']['rmse'])} "
         f"MPa, frente a {numero(por_algoritmo['DT'].rmse_validacion)} MPa en validación. "
         f"Random Forest registró {numero(e.mejores['RF']['metricas_train']['rmse'])} MPa en "
         f"entrenamiento y {numero(por_algoritmo['RF'].rmse_validacion)} MPa en validación. "
-        "La mayor capacidad de ajustar entrenamiento del árbol individual no se tradujo "
-        "en menor error externo. El bosque obtuvo mejor validación aun con un ajuste "
-        "menos exacto en entrenamiento, comportamiento compatible con la reducción de "
-        r"variabilidad mediante el ensamble \cite{breiman2001}."
+        "El árbol individual ajustó con mayor precisión los datos con los que aprendió, "
+        "pero esa ventaja no se mantuvo al evaluar observaciones de validación. En ese sentido, "
+        "un error muy bajo en entrenamiento resulta insuficiente para escoger un modelo. "
+        "El bosque obtuvo un menor error de validación aunque su ajuste de entrenamiento "
+        "fuera menos exacto. Este comportamiento es compatible con la reducción de "
+        r"variabilidad que se busca al combinar árboles \cite{breiman2001}."
     )
     secciones.append(r"\subsection{Evaluación final en prueba}")
     filas = []
@@ -508,8 +530,10 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         f"{tex(NOMBRES[mejor_test])} obtuvo el menor RMSE de prueba entre las configuraciones "
         f"evaluadas ({numero(e.mejores[mejor_test]['metricas_test']['rmse'])} MPa). "
         f"El modelo seleccionado sigue siendo {tex(NOMBRES[ganador])}, porque la decisión "
-        "se cerró utilizando exclusivamente validación. Los errores están expresados en MPa, "
-        r"salvo MSE, cuya unidad es MPa$^2$; $R^2$ es adimensional."
+        "se cerró utilizando exclusivamente validación. La prueba permite examinar cómo "
+        "se comportan las configuraciones elegidas con observaciones reservadas. Sus resultados "
+        "complementan el análisis, sin cambiar retrospectivamente la selección. MAE y RMSE "
+        r"se expresan en MPa, MSE en MPa$^2$ y $R^2$ es adimensional."
     )
     limite_inf = min(pred.real.min(), pred.prediccion.min())
     limite_sup = max(pred.real.max(), pred.prediccion.max())
@@ -534,38 +558,70 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
         )
     )
     secciones.append(
+        f"En el modelo seleccionado, el MAE de prueba fue "
+        f"{numero(e.mejores[ganador]['metricas_test']['mae'])} MPa. Este valor expresa la "
+        "magnitud media de las diferencias entre las resistencias observadas y las estimadas. "
+        f"El RMSE de {numero(rmse_test)} MPa da mayor peso a los errores grandes. Por su parte, "
+        f"el valor de $R^2$ fue {numero(e.mejores[ganador]['metricas_test']['r2'])}; "
+        "esta medida describe la variación explicada en la prueba y no un porcentaje de "
+        "predicciones correctas."
+    )
+    secciones.append(
         f"El residuo medio de prueba fue {numero(pred.residuo.mean())} MPa y el mayor error "
         f"absoluto fue {numero(pred.residuo.abs().max())} MPa. "
         "Un residuo positivo indica subestimación y uno negativo indica sobreestimación. "
-        "Los gráficos permiten inspeccionar dispersión y sesgos locales; el residuo medio "
-        "cercano a cero no garantiza errores pequeños en cada observación."
+        "Los gráficos ayudan a reconocer la dispersión de las predicciones y posibles sesgos "
+        "locales. Aunque el promedio de los residuos esté cerca de cero, pueden existir errores "
+        "grandes en casos particulares, porque las diferencias positivas y negativas se compensan."
     )
     secciones.extend(
         [
             r"\section{Discusión y limitaciones}",
             (
-                "La deduplicación evita repartir réplicas completas entre conjuntos, pero no asegura "
-                "independencia entre mezclas relacionadas o mediciones a edades distintas. La evaluación "
-                "por filas representa observaciones de una distribución semejante a la disponible; "
-                "no demuestra generalización a formulaciones, lotes o laboratorios nuevos. "
-                "Sólo se utilizaron una semilla, un dataset y el catálogo declarado. No se evaluaron "
-                "todos los hiperparámetros posibles ni se realizaron pruebas de significancia."
+                "La eliminación de duplicados evita que una misma fila completa aparezca en "
+                "entrenamiento y prueba. Sin embargo, pueden mantenerse mezclas relacionadas "
+                "o mediciones tomadas a distintas edades. Por ello, esta preparación no garantiza "
+                "que todas las observaciones sean independientes. La evaluación representa "
+                "casos de una distribución semejante a la disponible y no permite confirmar "
+                "el mismo desempeño en formulaciones, lotes o laboratorios nuevos."
             ),
             (
-                "En LassoCV y RidgeCV, el preprocesamiento se aprende con el entrenamiento externo "
-                "antes de la validación interna de alpha. No se reajusta en cada pliegue interno; "
-                "sus puntuaciones internas no se presentan como evidencia independiente. El benchmark "
-                r"sí reajusta las transformaciones en cada pliegue externo \cite{sklearn_fuga,cawley2010}."
+                "También debe considerarse que se trabajó con un conjunto de datos, una semilla "
+                "y un catálogo definido de configuraciones. La comparación permite justificar "
+                "una elección dentro de ese alcance. Para valorar su estabilidad en otras "
+                "condiciones harían falta evaluaciones adicionales. En este estudio no se "
+                "exploraron todos los hiperparámetros posibles ni se realizaron pruebas de significancia."
+            ),
+            (
+                "En LassoCV y RidgeCV existe una limitación del procedimiento interno: el "
+                "preprocesamiento se aprende con todo el entrenamiento externo antes de buscar "
+                "alpha y no se reajusta dentro de cada pliegue interno. En consecuencia, esos "
+                "scores internos se utilizan para escoger la regularización y no se presentan "
+                "como una evaluación independiente del rendimiento. La comparación entre modelos "
+                "se apoya en la validación externa, donde las transformaciones se vuelven a "
+                r"ajustar en cada pliegue \cite{sklearn_fuga,cawley2010}."
             ),
             r"\section{Conclusiones}",
             (
                 f"El protocolo comparó nueve modelos y catorce configuraciones bajo particiones comunes. "
                 f"La elección fue {tex(NOMBRES[ganador])}, con RMSE de validación {numero(rmse_cv)} MPa "
-                f"y RMSE de prueba {numero(rmse_test)} MPa. La comparación simple--múltiple examinó "
-                "el efecto de incorporar información adicional; Lasso/Ridge y sus versiones CV "
-                "permitieron estudiar regularización; árbol/Random Forest mostraron el efecto de "
-                "profundidad y ensamble. Las conclusiones se limitan a este dataset, partición y "
-                "configuraciones, con la incertidumbre descrita entre pliegues."
+                f"y RMSE de prueba {numero(rmse_test)} MPa. Esta elección se fundamenta en el "
+                "error de validación y la prueba reservada permite examinar el resultado "
+                "después de completar la selección."
+            ),
+            (
+                "La comparación entre regresión simple y múltiple permitió examinar el efecto "
+                "de incorporar información adicional. Por otro lado, Lasso, Ridge y sus versiones "
+                "CV permitieron valorar la regularización y la elección automática de alpha. "
+                "Los modelos basados en árboles mostraron cómo cambia el desempeño al limitar "
+                "la profundidad y al combinar las predicciones de varios árboles."
+            ),
+            (
+                "Estos resultados aportan una referencia para estimar la resistencia del concreto "
+                "bajo las condiciones estudiadas. Su interpretación debe acompañarse de la "
+                "variación observada entre pliegues y de los límites del conjunto de datos. "
+                "Por ello, la selección obtenida requiere una evaluación adicional antes de "
+                "extenderse a mezclas o condiciones diferentes."
             ),
             r"\section{Reproducción y trazabilidad}",
             (
@@ -575,13 +631,13 @@ def construir_informe(evidencia, autores: list[str], fecha: str) -> str:
                 "sin volver a entrenar. Los siguientes comandos reproducen la preparación y el experimento:"
             ),
             r"\begin{verbatim}",
-            "from scripts.preparar_concrete import main as preparar",
-            "from scripts.ejecutar_regresion import main as experimentar",
+            "from scripts.prepare_concrete import main as preparar",
+            "from scripts.run_regression import main as experimentar",
             "preparar(['data/lab03/concrete/Concrete_Data.xls'])",
             "experimentar([",
             "    'data/lab03/concrete/concrete.csv',",
             "    '--target', 'strength', '--feature-simple', 'cement',",
-            "    '--salida', 'salida_regresion/concrete',",
+            "    '--salida', 'resultados_reproducidos/concrete',",
             "    '--semilla', '42', '--test-size', '0.25',",
             "    '--estrategia', 'cv', '--folds', '5',",
             "    '--fuente',",

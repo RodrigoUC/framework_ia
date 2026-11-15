@@ -11,8 +11,8 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from ai_framework import Regresion
-from ai_framework.utils.supervised.evidence import EvidenciaLab03, cargar_evidencia
+from ai_framework import Regression, Regresion
+from ai_framework.utils.supervised.evidence import RegressionEvidence, EvidenciaLab03, cargar_evidencia
 from ai_framework.utils.supervised.export import construir_archivos_experimento
 from ai_framework.utils.supervised.regression_config import ALGORITMOS_LAB3
 
@@ -41,7 +41,7 @@ def artefactos(tmp_path_factory):
         },
     }
     (raiz / "procedencia.json").write_text(json.dumps(proc), encoding="utf-8")
-    resultado = Regresion(dataframe=datos, target="respuesta").experimentar(
+    resultado = Regression(dataframe=datos, target="respuesta").experimentar(
         feature_simple="b"
     )
     argumentos = {"target": "respuesta", "semilla": 42, "folds": 5, "test_size": 0.25}
@@ -86,7 +86,7 @@ def editar_tabla(raiz, cambiar):
 def test_carga_nueve_modelos_catorce_candidatos_sin_ajustes_ni_escrituras(evidencia):
     antes = {p: p.read_bytes() for p in evidencia.rglob("*") if p.is_file()}
     with (
-        patch.object(Regresion, "_ajustar", side_effect=AssertionError("No entrenar")),
+        patch.object(Regression, "_ajustar", side_effect=AssertionError("No entrenar")),
         patch.object(Path, "write_bytes", side_effect=AssertionError("No escribir")),
         patch.object(Path, "write_text", side_effect=AssertionError("No escribir")),
     ):
