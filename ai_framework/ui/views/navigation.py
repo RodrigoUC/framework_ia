@@ -136,7 +136,7 @@ def _select_view(disponibilidades=None) -> str:
         )
         boton(t("nav_eda", "EDA"), "eda")
         boton(t("nav_acp", "ACP"), "acp")
-        boton(t("nav_ai_agent", "Agente IA"), "eda_agent")
+        boton(t("nav_eda_agent", "Agente EDA"), "eda_agent")
 
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_analisis", "Análisis y modelos")}</p>',
