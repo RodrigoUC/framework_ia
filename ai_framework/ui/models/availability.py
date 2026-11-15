@@ -265,15 +265,20 @@ def has_evidence(state, family, *, only_models=False, **kwargs) -> bool:
     """Indicate whether individual or experiment results exist for family."""
     solo = kwargs.get("solo_modelos", only_models)
     lab = "lab3" if family == "regresion" else "lab2"
+    agent_family = "regression" if family == "regresion" else "classification"
     models = any(
         key.startswith(f"resultado_{lab}_modelo_") and state[key] is not None
         for key in state
     )
     if solo:
         return models
-    return models or any(
-        state.get(f"resultado_{lab}_{suffix}") is not None
-        for suffix in ("experimento", "intento_experimento")
+    return (
+        models
+        or state.get(f"agent_{agent_family}_session") is not None
+        or any(
+            state.get(f"resultado_{lab}_{suffix}") is not None
+            for suffix in ("experimento", "intento_experimento")
+        )
     )
 
 # Backward compatibility aliases

@@ -353,6 +353,12 @@ def render_experiment_result(
             st.caption("A continuación se conserva la última ejecución exitosa.")
     if guardado is None:
         if intento is None:
+            agent_session = st.session_state.get("agent_classification_session")
+            if agent_session is not None:
+                from ai_framework.ui.views.agents_view import _render_recommended_model
+
+                _render_recommended_model(agent_session, "classification")
+                return
             st.info(
                 t("sup_sin_evaluaciones_guardadas", "Todavía no hay evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos.")
             )

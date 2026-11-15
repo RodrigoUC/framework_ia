@@ -97,6 +97,12 @@ def display_saved_experiment(
         )
     snapshot = st.session_state.get("resultado_lab3_experimento")
     if not snapshot:
+        agent_session = st.session_state.get("agent_regression_session")
+        if agent_session is not None:
+            from ai_framework.ui.views.agents_view import _render_recommended_model
+
+            _render_recommended_model(agent_session, "regression")
+            return
         st.info(
             "Sin evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos para comparar por validación."
         )
