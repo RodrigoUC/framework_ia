@@ -83,6 +83,14 @@ def apply_modeling_suggestion(state, suggestion: ModelingSuggestion) -> None:
     state["sup_tarea"] = suggestion.task
     state["sup_target"] = suggestion.target
     state["sup_features"] = list(suggestion.features)
+    fuente = state.get("fuente_aplicada")
+    if isinstance(fuente, (tuple, list)) and len(fuente) >= 1 and isinstance(fuente[0], pd.DataFrame):
+        df = fuente[0]
+        cols = [c for c in suggestion.features if c in df.columns]
+        if any(not pd.api.types.is_numeric_dtype(df[c]) for c in cols):
+            state["sup_incluir_categoricas"] = True
+        if any(df[c].isna().any() for c in cols):
+            state["sup_imputar"] = True
     state["sup_inicializada"] = True
     state["vista_activa"] = "configuracion"
 
