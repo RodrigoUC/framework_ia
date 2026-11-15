@@ -134,9 +134,9 @@ def _select_view(disponibilidades=None) -> str:
             f'<p class="atlas-nav-label">{t("nav_exploracion", "Exploración de datos")}</p>',
             unsafe_allow_html=True,
         )
+        boton(t("nav_eda_agent", "Agente EDA"), "eda_agent")
         boton(t("nav_eda", "EDA"), "eda")
         boton(t("nav_acp", "ACP"), "acp")
-        boton(t("nav_eda_agent", "Agente EDA"), "eda_agent")
 
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_analisis", "Análisis y modelos")}</p>',
@@ -147,10 +147,10 @@ def _select_view(disponibilidades=None) -> str:
             t("nav_clustering", "Clustering"),
             expanded=vista in {"kmeans", "kmedoids", "hac", "clustering_agent"},
         ):
+            boton(t("nav_clustering_agent", "Agente de clustering"), "clustering_agent")
             boton("K-Means", "kmeans")
             boton("K-Medoids", "kmedoids")
             boton("HAC", "hac")
-            boton(t("nav_clustering_agent", "Agente de clustering"), "clustering_agent")
 
         with st.expander(
             t("nav_clasificacion", "Clasificación"),
@@ -165,6 +165,12 @@ def _select_view(disponibilidades=None) -> str:
             disponible = disponibilidades.get("clasificacion")
             bloqueada = disponible is not None and not disponible.lista
             motivo = " ".join(disponible.faltantes) if bloqueada else None
+            boton(
+                t("nav_classification_agent", "Agente de clasificación"),
+                "classification_agent",
+                disabled=bloqueada,
+                help=motivo,
+            )
             st.markdown(
                 f'<p class="atlas-family">{t("nav_modelos_disponibles", "Modelos disponibles")}</p>',
                 unsafe_allow_html=True,
@@ -206,17 +212,17 @@ def _select_view(disponibilidades=None) -> str:
                 disabled=bloqueada,
                 help=motivo,
             )
-            boton(
-                t("nav_classification_agent", "Agente de clasificación"),
-                "classification_agent",
-                disabled=bloqueada,
-                help=motivo,
-            )
 
         with st.expander(t("nav_regresion", "Regresión"), expanded=vista in VISTAS_REGRESION):
             disponible = disponibilidades.get("regresion")
             bloqueada = disponible is not None and not disponible.lista
             motivo = " ".join(disponible.faltantes) if bloqueada else None
+            boton(
+                t("nav_regression_agent", "Agente de regresión"),
+                "regression_agent",
+                disabled=bloqueada,
+                help=motivo,
+            )
             for destino, algoritmo in VISTAS_REGRESORES.items():
                 bloqueo_modelo = bloqueada and not (
                     algoritmo == "RLS"
@@ -233,12 +239,6 @@ def _select_view(disponibilidades=None) -> str:
                 "lab3_benchmark",
                 disabled=bloqueada
                 and not disponibilidades.get("RLS", disponible).lista,
-                help=motivo,
-            )
-            boton(
-                t("nav_regression_agent", "Agente de regresión"),
-                "regression_agent",
-                disabled=bloqueada,
                 help=motivo,
             )
 
