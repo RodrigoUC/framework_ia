@@ -27,8 +27,9 @@ class EDAAgent(Agent):
         "missing values, data types, collinearity/correlations, outliers, target distribution or "
         "class imbalance, and data leakage risks. "
         "If the user explicitly requests a specific modeling task (such as regression instead of "
-        "classification) or a different target/feature subset, use `propose_modeling_setup` to "
-        "update the suggested configuration accordingly. "
+        "classification) or a different target/feature subset, you MUST call "
+        "`propose_modeling_setup` BEFORE answering so the UI 'Apply suggested configuration' "
+        "button updates accordingly. "
         "Never suggest using the test set to make modeling or preprocessing decisions."
     )
     tools = EDA_TOOLS

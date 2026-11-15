@@ -40,7 +40,7 @@ class Agent(ABC):
     role: str = "You are a data analysis assistant."
     tools: tuple[Tool, ...] = ()
     listens_to: frozenset[str] = frozenset()
-    max_steps: int = 20
+    max_steps: int | None = None
 
     def __init__(
         self,
@@ -142,8 +142,9 @@ class Agent(ABC):
     # ---------------------------------------------------------- LLM
     def system_prompt(self) -> str:
         style_rules = (
-            "Keep your response concise and focused (maximum 150-200 words, using short bullet "
-            "points when helpful). Do not use emojis."
+            "Write in clear, well-structured paragraphs instead of excessive bullet-point lists, "
+            "providing enough analytical depth to explain the reasoning behind your conclusions "
+            "(maximum 150 lines). Do not use emojis."
         )
         return f"{self.role}\n\n{style_rules}\n\n{language_instruction(self.language)}"
 
@@ -154,7 +155,9 @@ class Agent(ABC):
         ]
         schemas = [t.schema() for t in self.tools]
         sent = 0
-        for step in range(1, self.max_steps + 1):
+        step = 0
+        while self.max_steps is None or step < self.max_steps:
+            step += 1
             self.report("progress_llm_step", step=step)
             # The whole history is resent; the console only shows what is new.
             for item in messages[sent:]:
