@@ -67,8 +67,8 @@ LLM_PROVIDERS = {
         free_models=("gemini-2.5-flash", "gemini-2.0-flash"),
     ),
     "groq": LLMProviderConfig(
-        "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile",
-        free_models=("llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
+        "Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b",
+        free_models=("openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"),
     ),
     "openrouter": LLMProviderConfig(
         "OpenRouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "",

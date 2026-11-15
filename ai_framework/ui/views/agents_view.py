@@ -71,26 +71,49 @@ def _llm_controls() -> dict:
         key="agent_model",
         help=t("agent_model_help", "Vacío: AGENTES_MODELO o la sugerencia del proveedor.") + models_hint,
     )
-    api_key = None
-    if config and config.key_variable:
-        variable = config.key_variable
+    variable = config.key_variable if config else None
+    has_key = False
+    if variable:
         has_key = bool(os.environ.get(variable))
         if not has_key:
             try:
                 has_key = hasattr(st, "secrets") and variable in st.secrets
             except Exception:
                 has_key = False
-        api_key = st.text_input(
-            t("agent_api_key", "API key"),
-            type="password",
-            key="agent_api_key",
-            placeholder=t("agent_key_detected", "{variable} detectada", variable=variable)
-            if has_key
-            else t("agent_key_missing", "o defina {variable}", variable=variable),
-            help=t(
-                "agent_api_key_help",
-                "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
-            ),
+    key_placeholder = (
+        t("agent_key_detected", "{variable} detectada", variable=variable)
+        if (variable and has_key)
+        else (
+            t("agent_key_missing", "o defina {variable}", variable=variable)
+            if variable
+            else t("agent_key_select_provider", "Seleccione un proveedor (ej. Groq o Gemini) para usar una API key")
+        )
+    )
+    api_key = st.text_input(
+        t("agent_api_key", "API key"),
+        type="password",
+        key="agent_api_key",
+        placeholder=key_placeholder,
+        help=t(
+            "agent_api_key_help",
+            "Sólo vive en esta sesión. Preferible: .streamlit/secrets.toml.",
+        ),
+    )
+    if config and config.free_models:
+        st.caption(
+            t(
+                "agent_recommended_models",
+                "Modelos gratuitos recomendados para {proveedor}: `{modelos}`",
+                proveedor=config.label,
+                modelos="`, `".join(config.free_models),
+            )
+        )
+    else:
+        st.caption(
+            t(
+                "agent_recommended_models_default",
+                "Recomendación: seleccione **Groq** (`openai/gpt-oss-120b`) o **Gemini** (`gemini-2.5-flash`) para habilitar el análisis con LLM.",
+            )
         )
     clean_model = model.strip() if model and model.strip() else None
     clean_key = api_key.strip() if api_key and api_key.strip() else None

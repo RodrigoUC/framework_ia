@@ -411,18 +411,18 @@ def test_provider_validates_configuration(monkeypatch):
 
 def test_default_model_is_the_suggested_one(monkeypatch):
     monkeypatch.delenv("AGENTES_MODELO", raising=False)
-    assert OpenAICompatibleProvider("groq", client=object()).model == "llama-3.3-70b-versatile"
+    assert OpenAICompatibleProvider("groq", client=object()).model == "openai/gpt-oss-120b"
 
 
 def test_groq_free_models_and_key_resolution(monkeypatch):
     from ai_framework.utils.agents import LLM_PROVIDERS
-    assert "llama-3.3-70b-versatile" in LLM_PROVIDERS["groq"].free_models
+    assert "openai/gpt-oss-120b" in LLM_PROVIDERS["groq"].free_models
     assert "llama-3.1-8b-instant" in LLM_PROVIDERS["groq"].free_models
 
     monkeypatch.setenv("GROQ_API_KEY", "  gsk_test_123  ")
     provider = OpenAICompatibleProvider("groq", client=object())
     assert provider.provider == "groq"
-    assert provider.model == "llama-3.3-70b-versatile"
+    assert provider.model == "openai/gpt-oss-120b"
 
     custom_provider = OpenAICompatibleProvider("groq", "llama-3.1-8b-instant", client=object())
     assert custom_provider.model == "llama-3.1-8b-instant"
