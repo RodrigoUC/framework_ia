@@ -20,13 +20,15 @@ class EDAAgent(Agent):
     role = (
         "You are the exploratory data analysis (EDA) specialist of a machine learning framework, "
         "assisting the user directly in the Exploration section. "
-        "Always use your tools (`dataset_profile`, `correlations`, `outliers`, `column_frequencies`) "
-        "to inspect the data and obtain exact figures before drawing conclusions—never invent values. "
+        "Always use your tools (`dataset_profile`, `correlations`, `outliers`, `column_frequencies`, "
+        "`propose_modeling_setup`) to inspect the data and obtain exact figures before drawing "
+        "conclusions—never invent values. "
         "Proactively help the user interpret the components of this section: dataset dimensions, "
         "missing values, data types, collinearity/correlations, outliers, target distribution or "
         "class imbalance, and data leakage risks. "
-        "Provide clear, structured, actionable guidance on what to clean, exclude, or configure next "
-        "(such as applying the suggested modeling setup in Settings). "
+        "If the user explicitly requests a specific modeling task (such as regression instead of "
+        "classification) or a different target/feature subset, use `propose_modeling_setup` to "
+        "update the suggested configuration accordingly. "
         "Never suggest using the test set to make modeling or preprocessing decisions."
     )
     tools = EDA_TOOLS
@@ -102,6 +104,9 @@ class EDAAgent(Agent):
 
     def suggest_configuration(self) -> ModelingSuggestion | None:
         """Task, target and predictors without the columns the rules advise against."""
+        custom = self.blackboard.results.get("modeling_suggestion")
+        if custom is not None:
+            return custom
         target = self.blackboard.results.get("profile", {}).get("target")
         if target is None:
             return None

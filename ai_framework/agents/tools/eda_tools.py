@@ -133,4 +133,44 @@ def column_frequencies(blackboard, column: str, top: int = 10) -> dict:
     }
 
 
-EDA_TOOLS = (dataset_profile, correlations, outliers, column_frequencies)
+@tool(
+    "Sets or updates the suggested modeling configuration (task, target, and features) "
+    "based on the user's request.",
+    task="Task type: 'regresion' or 'clasificacion'.",
+    target="Name of the target column.",
+    features="Optional list of predictor column names; if omitted, uses all other non-excluded columns.",
+)
+def propose_modeling_setup(
+    blackboard, task: str, target: str, features: list[str] | None = None
+) -> dict:
+    from ai_framework.utils.results import ModelingSuggestion
+
+    normalized_task = {
+        "regresion": "regresion",
+        "regression": "regresion",
+        "clasificacion": "clasificacion",
+        "classification": "clasificacion",
+    }.get(task.strip().lower())
+    if normalized_task is None:
+        return {"error": f"Invalid task {task!r}. Use 'regresion' or 'clasificacion'."}
+    columns = [str(c) for c in blackboard.datos.columns]
+    if target not in columns:
+        return {"error": f"Column {target!r} does not exist. Available: {columns}."}
+    if features is None:
+        selected = [c for c in columns if c != target]
+    else:
+        missing = [f for f in features if f not in columns or f == target]
+        if missing:
+            return {"error": f"Invalid feature columns: {missing}."}
+        selected = list(features)
+    suggestion = ModelingSuggestion(normalized_task, target, tuple(selected), ())
+    blackboard.results["modeling_suggestion"] = suggestion
+    return {
+        "status": "updated",
+        "task": suggestion.task,
+        "target": suggestion.target,
+        "features": list(suggestion.features),
+    }
+
+
+EDA_TOOLS = (dataset_profile, correlations, outliers, column_frequencies, propose_modeling_setup)
