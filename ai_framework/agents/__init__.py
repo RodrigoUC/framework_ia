@@ -25,6 +25,7 @@ from ai_framework.agents.agent import Agent
 from ai_framework.agents.blackboard import Blackboard
 from ai_framework.agents.classification_agent import ClassificationAgent
 from ai_framework.agents.clustering_agent import ClusteringAgent
+from ai_framework.agents.coordinator_agent import CoordinatorAgent
 from ai_framework.agents.eda_agent import EDAAgent
 from ai_framework.agents.events import (
     CLASSIFICATION_DONE,
@@ -78,6 +79,7 @@ __all__ = [
     "Blackboard",
     "ClassificationAgent",
     "ClusteringAgent",
+    "CoordinatorAgent",
     "EDAAgent",
     "Event",
     "EventBus",

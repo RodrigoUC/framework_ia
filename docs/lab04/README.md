@@ -1,12 +1,33 @@
-# Informe 4: Subsistema de Agentes Inteligentes
+# Lab 04
 
-El documento fuente del informe se encuentra en `docs/lab04/main.tex` y es autónomo (no requiere archivos externos ni BibTeX).
+## Coordinated agent workflow
 
-## Compilación
+From the repository root, use the project environment to run the coordinator:
 
-En Overleaf: cree un proyecto nuevo o suba `main.tex` y compile con `pdfLaTeX`.
+```powershell
+.\.venv\Scripts\python.exe -m scripts.run_agents data/diabetes_lab03.csv --agent coordinated --target target --provider rules --language en
+.\.venv\Scripts\python.exe -m scripts.run_agents data/breast_cancer.csv --agent coordinated --target target --provider rules --language en
+```
 
-En local (con TeX Live o MiKTeX):
+Both runs first show `Assigned EDA`. The coordinator then assigns one specialist
+and reports its completion. Expect `regression` for Diabetes and `classification`
+for Breast Cancer. With the reference data and default settings, the recommended
+models are Lasso and logistic regression (`RL`), respectively.
+
+Use `--task clustering` to request clustering. If you pass `--target`, the
+coordinator excludes that column from the clustering inputs. In the default
+`auto` mode, omitting `--target` runs only EDA.
+
+## Academic report
+
+The Spanish academic report is in `docs/lab04/main.tex`. The current draft
+compiles without external files or BibTeX.
+
+### Build the report
+
+In Overleaf, upload `main.tex` and compile with `pdfLaTeX`.
+
+To build locally with TeX Live or MiKTeX, run:
 
 ```powershell
 cd docs/lab04

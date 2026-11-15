@@ -15,6 +15,7 @@ from ai_framework.agents import (
     Blackboard,
     ClassificationAgent,
     ClusteringAgent,
+    CoordinatorAgent,
     EDAAgent,
     Event,
     EventBus,
@@ -37,7 +38,7 @@ __all__ = [
 
 # Value accepted before the translation, kept so existing commands still work.
 LEGACY_RULES_ONLY = "reglas"
-AGENTS = ("eda", "clustering", "regression", "classification", "pipeline")
+AGENTS = ("eda", "clustering", "regression", "classification", "pipeline", "coordinated")
 SUPERVISED = {
     "regression": (RegressionAgent, REGRESSION_REQUESTED),
     "classification": (ClassificationAgent, CLASSIFICATION_REQUESTED),
@@ -53,7 +54,12 @@ def create_parser() -> argparse.ArgumentParser:
         "--agent", "--agente", dest="agent", choices=AGENTS, default="eda",
         help="eda profiles the dataset; clustering compares K-Means and HAC; regression and "
         "classification compare models with cross-validation; pipeline runs EDA and then "
-        "the supervised agent that matches the detected task.",
+        "the supervised agent that matches the detected task; coordinated assigns a specialist "
+        "after reviewing the EDA result.",
+    )
+    parser.add_argument(
+        "--task", choices=("auto", "clustering"),
+        help="Coordinated task (default: auto). Clustering excludes the target column when provided.",
     )
     parser.add_argument("--target", help="Target column; without it the agent only explores.")
     parser.add_argument(
@@ -95,6 +101,8 @@ def run(arguments: argparse.Namespace) -> Agent:
     bus = EventBus()
     llm = create_provider(arguments.provider, arguments.model, getattr(arguments, "api_key", None))
     options = {"language": arguments.language, "on_progress": lambda update: print(f"  - {update}", flush=True)}
+    if arguments.agent == "coordinated":
+        return CoordinatorAgent(blackboard, bus, llm, **options).run(getattr(arguments, "task", None) or "auto")
     if arguments.agent == "clustering":
         agent = ClusteringAgent(blackboard, llm, **options).connect(bus)
         bus.emit(Event(CLUSTERING_REQUESTED))
@@ -118,6 +126,8 @@ def run(arguments: argparse.Namespace) -> Agent:
 def main(argv: list[str] | None = None) -> int:
     parser = create_parser()
     arguments = parser.parse_args(argv)
+    if arguments.task is not None and arguments.agent != "coordinated":
+        parser.error("--task requires --agent coordinated.")
     if arguments.provider == LEGACY_RULES_ONLY:
         arguments.provider = RULES_ONLY
     if arguments.interactive and arguments.provider == RULES_ONLY:
