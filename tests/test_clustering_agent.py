@@ -150,6 +150,7 @@ def test_llm_interprets_with_context_and_tools():
     assert '"clustering"' in first["messages"][1]["content"]
     assert {t["function"]["name"] for t in first["tools"]} == {
         "evaluate_k", "evaluate_hierarchical", "run_clustering",
+        "apply_clustering_setup",
     }
     reply = json.loads(second["messages"][-1]["content"])
     assert reply["algorithm"] == "K-Medoids"

@@ -1,0 +1,244 @@
+\documentclass[11pt]{article}
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage{booktabs,longtable,tabularx,amsmath,amssymb,float,xurl,placeins,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc,babel}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\setlength{\emergencystretch}{2em}
+\renewcommand{\arraystretch}{1.12}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+\title{\textbf{Laboratorio 4}\\[2pt] Subsistema de Agentes Inteligentes\\[2pt]\large Arquitectura Blackboard, coordinación por eventos e integración con el framework}
+\author{Dylan Elizondo Alvarado (504610652)\\Joseph Garcia Montero (402680547)\\Rodrigo Ureña Castillo (118910482)\\Mariana Ureña Padilla (119180324)}
+\date{EIF420O -- Inteligencia Artificial, I Ciclo 2026\\Universidad Nacional de Costa Rica\\Profesor: Dr. Juan Murillo-Morera\\15 de noviembre de 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Se presenta el desarrollo e integración del subsistema de agentes inteligentes sobre el framework de aprendizaje automático del curso. El diseño combina análisis determinista proactivo, coordinación mediante una arquitectura \textit{Blackboard} y un bus de eventos (\texttt{EventBus}), y razonamiento reactivo asistido por modelos de lenguaje (LLM) a través de herramientas con esquema JSON. Se implementaron cuatro agentes especializados: \texttt{EDAAgent} para perfilado y detección temprana de riesgos, \texttt{ClusteringAgent} para comparación automática entre K-Means y HAC-ward, y los agentes supervisados \texttt{RegressionAgent} y \texttt{ClassificationAgent} sobre una base común (\texttt{SupervisedAgent}) con validación cruzada de 5 pliegues. Por diseño de privacidad y reproducibilidad, el LLM nunca genera ni ejecuta código y únicamente recibe resúmenes agregados del conjunto de datos, nunca sus filas crudas. El subsistema opera tanto en la interfaz web Streamlit (bajo el patrón MVC, con soporte bilingüe Español/English y reporte de progreso en vivo) como en línea de comandos, y cuenta con respaldo sin red mediante modo de reglas (\texttt{rules}) y pruebas automatizadas con \texttt{FakeLLMProvider}.
+\end{abstract}
+
+\tableofcontents
+
+\clearpage
+
+\section{Introducción y objetivos}
+
+En los laboratorios anteriores se construyó el núcleo estadístico y de aprendizaje automático del framework: análisis exploratorio (\texttt{EDA}), agrupamiento (\texttt{Clustering}), clasificación supervisada (\texttt{Clasificacion}) y regresión (\texttt{Regresion}), junto con su interfaz gráfica en Streamlit. El objetivo de esta cuarta etapa es incorporar una capa de agentes inteligentes que asista al usuario en la exploración de datos, la detección de riesgos metodológicos, la selección de algoritmos y la interpretación de resultados, manteniendo intacto el rigor experimental del framework.
+
+Los objetivos específicos de este avance son:
+\begin{enumerate}
+\item Diseñar una arquitectura desacoplada basada en \textit{Blackboard} y eventos (\texttt{EventBus}) que separe el cálculo numérico determinista del razonamiento del modelo de lenguaje.
+\item Implementar cuatro agentes especializados: exploración de datos (\texttt{EDAAgent}), agrupamiento (\texttt{ClusteringAgent}), regresión (\texttt{RegressionAgent}) y clasificación (\texttt{ClassificationAgent}).
+\item Garantizar la privacidad de los datos y la seguridad de ejecución: ningún agente genera ni ejecuta código arbitrario, y al LLM sólo se envían resúmenes estadísticos y métricas agregadas.
+\item Integrar los agentes en la interfaz Streamlit (patrón MVC) y en la CLI, con soporte multi-proveedor (Groq, Gemini, OpenRouter, Ollama y modo \texttt{rules} sin red) e internacionalización Español/English.
+\end{enumerate}
+
+El documento se organiza así: la Sección~2 presenta la arquitectura del subsistema de agentes; la Sección~3 detalla los cuatro agentes implementados y su integración en la interfaz y la CLI; la Sección~4 presenta los resultados experimentales sobre Diabetes; la Sección~5 analiza el caso de Cáncer de mama; la Sección~6 discute limitaciones y decisiones de diseño; la Sección~7 resume las conclusiones, y el Anexo contiene los comandos para reproducir todo.
+
+\section{Arquitectura del subsistema de agentes}
+
+El subsistema sigue la misma separación por capas que el resto del framework (\texttt{ai\_framework/agents/}, \texttt{ai\_framework/utils/agents/} y \texttt{ai\_framework/ui/}).
+
+\subsection{Patrón Blackboard, ciclo de vida y bus de eventos}
+
+La coordinación entre componentes se apoya en tres abstracciones principales:
+
+\begin{itemize}
+\item \textbf{Pizarra compartida (\texttt{Blackboard}, alias \texttt{Pizarra}):} definida en \texttt{ai\_framework/agents/blackboard.py}, extiende a \texttt{EDA} y centraliza el estado compartido de la sesión (perfil del dataset, hallazgos, sugerencias de modelado/clustering y resultados).
+\item \textbf{Clase base \texttt{Agent} (alias \texttt{Agente}):} definida en \texttt{ai\_framework/agents/agent.py}, establece el ciclo de vida estándar \texttt{prepare} $\rightarrow$ \texttt{propose} $\rightarrow$ \texttt{react} $\rightarrow$ \texttt{next\_events}.
+\item \textbf{Bus de eventos (\texttt{EventBus}):} definido en \texttt{ai\_framework/agents/events.py}, permite el encadenamiento reactivo entre agentes mediante eventos tipados (\texttt{DATASET\_LOADED} $\rightarrow$ \texttt{EDA\_DONE} $\rightarrow$ entrenamiento supervisado).
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=1.1cm and 1.4cm,
+  box/.style={draw, rounded corners=3pt, minimum width=3.1cm, minimum height=0.85cm, align=center, font=\small},
+  arrow/.style={-{Stealth[length=2.3mm]}, thick}
+]
+\node[box, fill=blue!6] (eda) {\textbf{EDAAgent}\\Reglas + Perfil};
+\node[box, fill=green!6, right=1.8cm of eda] (bus) {\textbf{EventBus}\\\texttt{EDA\_DONE}};
+\node[box, fill=orange!7, above right=0.35cm and 1.7cm of bus] (reg) {\textbf{RegressionAgent}\\9 regresores (CV 5)};
+\node[box, fill=orange!7, below right=0.35cm and 1.7cm of bus] (clf) {\textbf{ClassificationAgent}\\7 clasificadores (CV 5)};
+\node[box, fill=purple!6, below=1.0cm of eda] (bb) {\textbf{Blackboard (Pizarra)}\\Estado compartido y hallazgos};
+\node[box, fill=gray!10, right=1.8cm of bb] (llm) {\textbf{LLM + Tools}\\Sólo resúmenes y métricas};
+
+\draw[arrow] (eda) -- node[above, font=\scriptsize] {emite} (bus);
+\draw[arrow] (bus) -- (reg);
+\draw[arrow] (bus) -- (clf);
+\draw[arrow] (eda) -- (bb);
+\draw[arrow] (bb) -- (llm);
+\end{tikzpicture}
+\caption{Flujo de coordinación entre agentes, pizarra compartida, bus de eventos y capa LLM.}
+\end{figure}
+
+\subsection{Comportamiento proactivo y reactivo}
+
+Cada agente combina dos modos de operación complementarios:
+\begin{enumerate}
+\item \textbf{Modo proactivo (determinista):} al iniciar o cargarse un dataset, el agente ejecuta reglas deterministas y cálculos propios del framework sin consumir cuota del LLM. Si el proveedor de lenguaje falla o no hay red, las reglas, los hallazgos (\texttt{Finding}) y los eventos siguen operando normalmente.
+\item \textbf{Modo reactivo (conversacional):} el usuario puede hacer preguntas en lenguaje natural. El LLM decide qué herramienta invocar mediante esquemas JSON (\texttt{ai\_framework/agents/tools/}) e interpreta los resultados devueltos por el framework.
+\end{enumerate}
+
+\subsection{Proveedores de lenguaje y privacidad}
+
+El módulo \texttt{ai\_framework/agents/llm/} implementa \texttt{OpenAICompatibleProvider}, un cliente unificado compatible con la API de OpenAI que cambia únicamente la \texttt{base\_url} y credenciales para soportar \textbf{Groq} (por ejemplo \texttt{llama-3.3-70b-versatile} y \texttt{llama-3.1-8b-instant}), \textbf{Gemini} (\texttt{gemini-2.5-flash}), \textbf{OpenRouter} y \textbf{Ollama} local. Además, el proveedor \texttt{rules} opera completamente offline sin clave de API, y \texttt{FakeLLMProvider} permite ejecutar pruebas unitarias deterministas sin conexión.
+
+\section{Agentes implementados}
+
+La Tabla~\ref{tab:agentes} resume los cuatro agentes desarrollados, su clase base, el evento que escuchan y su responsabilidad principal.
+
+\begin{table}[H]
+\centering
+\caption{Resumen de agentes implementados en \texttt{ai\_framework/agents/}.}
+\label{tab:agentes}
+\begin{tabularx}{\textwidth}{@{}llXl@{}}
+\toprule
+\textbf{Agente} & \textbf{Módulo} & \textbf{Responsabilidad principal} & \textbf{Criterio / Salida} \\
+\midrule
+\texttt{EDAAgent} & \texttt{eda\_agent.py} & Perfilado del dataset, detección de duplicados, nulos, constantes, IDs, fuga de información y desbalance. & \texttt{ModelingSuggestion} \\
+\texttt{ClusteringAgent} & \texttt{clustering\_agent.py} & Compara K-Means y HAC-ward ($k=2\dots 10$) y describe grupos en desviaciones estándar. & Mayor \textit{silhouette} \\
+\texttt{RegressionAgent} & \texttt{regression\_agent.py} & Evalúa los 9 regresores del framework con CV de 5 pliegues dentro de \textit{train}. & Menor RMSE \\
+\texttt{ClassificationAgent} & \texttt{classification\_agent.py} & Evalúa los 7 clasificadores con CV de 5 pliegues dentro de \textit{train}. & Mayor F1 macro \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Agente EDA (\texttt{EDAAgent})}
+
+Analiza el conjunto de datos de forma proactiva al activarse: detecta filas duplicadas, columnas con alta proporción de valores nulos, columnas constantes, posibles identificadores únicos, riesgo de fuga de información ($|r| \ge 0.98$ con el objetivo) y desbalance de clases. A partir de la variable objetivo seleccionada, genera una \texttt{ModelingSuggestion} con la tarea sugerida (clasificación o regresión) y las variables predictoras recomendadas, sin entrenar modelos por su cuenta.
+
+\subsection{Agente de clustering (\texttt{ClusteringAgent})}
+
+Utiliza las mismas variables, configuración de escalado y límite de filas configurados en la vista de Clustering. Al pulsar \textbf{Iniciar agente}, compara K-Means y HAC-ward para $k \in [2, 10]$ y recomienda la partición con mayor índice \textit{silhouette}. Además, alerta sobre estructura débil (\textit{silhouette} $< 0.25$), grupos con menos del 5\,\% de las filas, ausencia de estandarización, identificadores y columnas con muchos nulos. Al LLM sólo se envían tamaños de grupo, métricas y las variables más distintivas en desviaciones estándar (omitidas para grupos con menos de tres filas).
+
+\subsection{Agentes supervisados (\texttt{RegressionAgent} y \texttt{ClassificationAgent})}
+
+Ambos heredan de \texttt{SupervisedAgent} (\texttt{supervised\_agent.py}), que ejecuta el benchmark del framework usando validación cruzada de 5 pliegues exclusivamente sobre el conjunto de entrenamiento; el conjunto de prueba se reserva para evaluar una única vez al modelo ganador. Incorporan reglas proactivas comunes (candidatos fallidos, pocas filas por variable) y específicas:
+\begin{itemize}
+\item \textbf{Regresión:} $R^2 \le 0$ en prueba, $R^2$ débil, sobreajuste ($R^2$ de entrenamiento muy superior al de prueba), RMSE inestable entre pliegues y divergencia entre validación y prueba.
+\item \textbf{Clasificación:} exactitud que no supera a la clase mayoritaria, sobreajuste en F1 macro, exactitud inflada por desbalance, clases con baja detección y F1 inestable entre pliegues.
+\end{itemize}
+
+En modo encadenado (\texttt{--agent pipeline} en CLI), ambos agentes escuchan el evento \texttt{EDA\_DONE} emitido por \texttt{EDAAgent} y ejecutan automáticamente el benchmark con las predictoras filtradas por el análisis exploratorio.
+
+\section{Interfaz gráfica, CLI e internacionalización}
+
+\subsection{Integración MVC y mejoras de usabilidad en Streamlit}
+
+La interfaz de agentes se integró respetando el patrón Modelo-Vista-Controlador en \texttt{ai\_framework/ui/}:
+\begin{itemize}
+\item \textbf{Modelo de estado (\texttt{models/agents\_state.py}):} gestiona las sesiones por agente e invalida el estado cuando cambia el dataset activo o la configuración supervisada/de clustering.
+\item \textbf{Controlador (\texttt{controllers/agents\_controller.py}):} encapsula los casos de uso de inicio de agentes y aplicación de sugerencias.
+\item \textbf{Vista y navegación (\texttt{views/agents\_view.py}, \texttt{views/navigation.py}):} presenta la configuración del proveedor LLM, el botón de inicio, los hallazgos deterministas, el historial de actividad en vivo (\texttt{Agent.report}) y el chat reactivo.
+\end{itemize}
+
+Como parte del refinamiento de experiencia de usuario, se realizaron mejoras clave en la navegación y textos de la interfaz:
+\begin{enumerate}
+\item Cada agente (\textbf{Agente EDA}, \textbf{Agente de clustering}, \textbf{Agente de clasificación} y \textbf{Agente de regresión}) aparece ahora como la \textbf{primera opción} dentro de su respectiva sección en el menú lateral.
+\item En las secciones de \textbf{Clasificación} y \textbf{Regresión} se diferenciaron explícitamente los encabezados \textbf{Modelos disponibles} y \textbf{Comparación} (antes de \textbf{Evaluación Comparativa}) para separar el flujo asistido por agente del entrenamiento manual de modelos.
+\item Se depuraron los textos descriptivos en \texttt{agents\_view.py} e \texttt{i18n.py} (en español e inglés) para hacerlos breves, claros y sin redundancias.
+\end{enumerate}
+
+\subsection{Interfaz de línea de comandos (CLI)}
+
+El mismo flujo puede ejecutarse sin interfaz gráfica mediante \texttt{scripts/run\_agents.py} (alias \texttt{scripts/ejecutar\_agentes.py}):
+\begin{verbatim}
+python -m scripts.ejecutar_agentes data/lab03/concrete/concrete.csv --target strength
+python -m scripts.ejecutar_agentes datos.csv --agent clustering
+python -m scripts.ejecutar_agentes datos.csv --target y --agent pipeline --provider groq
+\end{verbatim}
+
+\subsection{Internacionalización y reporte de progreso}
+
+Todos los hallazgos, avisos de progreso y mensajes de respaldo residen en \texttt{ai\_framework/agents/messages.py} en español e inglés. Cada agente reporta paso a paso su avance mediante \texttt{Agent.report}, mostrando en tiempo real el estado en Streamlit o en la salida estándar de la CLI.
+
+\section{Pruebas y verificación}
+
+El subsistema cuenta con suites de pruebas automatizadas en \texttt{tests/} que validan la lógica sin depender de conexión a internet ni consumo de cuota externa, gracias a \texttt{FakeLLMProvider}:
+\begin{itemize}
+\item \texttt{tests/test\_agents.py}: ciclo de vida, reglas de \texttt{EDAAgent}, herramientas y \texttt{EventBus}.
+\item \texttt{tests/test\_clustering\_agent.py}: comparación K-Means vs HAC-ward y reglas de calidad de grupos.
+\item \texttt{tests/test\_supervised\_agents.py}: benchmark CV, reglas de regresión/clasificación y encadenamiento \texttt{EDA\_DONE}.
+\item \texttt{tests/test\_agent\_language\_progress.py}: mensajes bilingües y emisión de progreso.
+\item \texttt{tests/test\_ui\_agents.py}: controlador, estado de sesión e integración con la interfaz.
+\end{itemize}
+
+\section{Resultados y análisis: Diabetes}
+
+Para validar el comportamiento de los cuatro agentes en condiciones reproducibles y sin consumo de cuota externa, se ejecutaron flujos completos mediante la CLI en modo \texttt{rules} sobre dos conjuntos de datos reales: \texttt{diabetes\_lab03.csv} (442 filas, 11 columnas, procedente de \texttt{sklearn.datasets.load\_diabetes} con \texttt{scaled=False}) y \texttt{breast\_cancer.csv} (569 filas, 31 columnas, procedente de \texttt{sklearn.datasets.load\_breast\_cancer}).
+
+Al ejecutar el flujo encadenado (\texttt{--target target --agent pipeline --provider rules}) y el agente de agrupamiento (\texttt{--agent clustering --provider rules}) sobre Diabetes, se obtuvieron los resultados resumidos en la Tabla~\ref{tab:res_diabetes}.
+
+\begin{table}[H]
+\centering
+\caption{Resultados observados de los agentes sobre \texttt{diabetes\_lab03.csv}.}
+\label{tab:res_diabetes}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Agente} & \textbf{Resultado / Modelo} & \textbf{Métricas y hallazgos} \\
+\midrule
+\texttt{EDAAgent} & Tarea: \texttt{regresion} & 442 filas, 11 columnas, 0 nulos, 0 duplicados; 0 hallazgos críticos o avisos. \\
+\texttt{RegressionAgent} & Ganador: \textbf{Lasso} & Comparó 14 candidatos (CV 5 pliegues). Validación: RMSE = 56.0556. Prueba: RMSE = 53.282, MAE = 41.4847, $R^2$ = 0.4866. \\
+\texttt{ClusteringAgent} & K-Means ($k=2$) & K-Means (mejor \textit{silhouette} = 0.2381) vs. HAC-ward (0.2013). Aviso: \textit{silhouette} $< 0.25$, estructura débil. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Resultados y análisis: Cáncer de mama}
+
+Sobre \texttt{breast\_cancer.csv} (569 filas, 31 columnas, 0 nulos y 0 duplicados) se ejecutaron el flujo encadenado (\texttt{--target target --agent pipeline --provider rules}) y el agente de agrupamiento (\texttt{--agent clustering --provider rules}), obteniendo los resultados de la Tabla~\ref{tab:res_cancer}.
+
+\begin{table}[H]
+\centering
+\caption{Resultados observados de los agentes sobre \texttt{breast\_cancer.csv}.}
+\label{tab:res_cancer}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Agente} & \textbf{Resultado / Modelo} & \textbf{Métricas y hallazgos} \\
+\midrule
+\texttt{EDAAgent} & Tarea: \texttt{clasificacion} & 569 filas, 31 columnas, 0 nulos, 0 duplicados; 0 hallazgos críticos o avisos. \\
+\texttt{ClassificationAgent} & Ganador: \textbf{RL} & Comparó 7 candidatos (CV 5 pliegues). Validación: F1 macro = 0.9773. Prueba: \textit{accuracy} = 0.986, F1 macro = 0.985, precisión = 0.985, \textit{recall} = 0.985. \\
+\texttt{ClusteringAgent} & K-Means ($k=2$) & K-Means (mejor \textit{silhouette} = 0.3563) vs. HAC-ward (0.3198). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Discusión y limitaciones}
+
+Los resultados en ambos conjuntos de datos muestran que el diseño híbrido (reglas deterministas más herramientas del framework) mantiene el rigor experimental de los laboratorios previos. En Diabetes, la selección de \textbf{Lasso} mediante validación cruzada de 5 pliegues evita el sobreajuste y logra una generalización consistente en prueba ($R^2 = 0.4866$), mientras que \texttt{ClusteringAgent} advierte correctamente que el conjunto no presenta una estructura de grupos marcada (\textit{silhouette} $= 0.2381 < 0.25$). En Cáncer de mama, \texttt{ClassificationAgent} identifica a \textbf{RL} como el mejor clasificador (F1 macro de 0.985 en prueba) sin consumir cuota de LLM.
+
+Como limitación principal, el modo \texttt{rules} ofrece hallazgos estructurados pero no genera explicaciones en lenguaje natural adaptadas a preguntas abiertas del usuario; para ello se requiere configurar una clave de API gratuita (Groq, Gemini u OpenRouter) o un modelo local con Ollama. Además, en modo encadenado (\texttt{--agent pipeline}), la exclusión automática de predictoras con $|r| \ge 0.98$ respecto al objetivo requiere revisar los hallazgos del \texttt{EDAAgent} cuando exista una relación legítima muy alta.
+
+\section{Conclusiones}
+
+La incorporación del subsistema de agentes dota al framework de una capa de asistencia inteligente sin comprometer la validez estadística ni la privacidad de los datos. La separación entre reglas deterministas proactivas y razonamiento reactivo con herramientas JSON permite que el sistema sea útil incluso en entornos sin conexión (\texttt{rules}), mientras que la integración MVC en Streamlit y la CLI unificada ofrecen una experiencia coherente en todo el flujo de ciencia de datos.
+
+\appendix
+\section{Comandos para reproducir los experimentos}
+
+\begin{verbatim}
+# 1. Preparar datasets de referencia (si no existen)
+python -c "from sklearn.datasets import load_diabetes; load_diabetes(as_frame=True, scaled=False).frame.to_csv('data/diabetes_lab03.csv', index=False)"
+python -c "from sklearn.datasets import load_breast_cancer; load_breast_cancer(as_frame=True).frame.to_csv('data/breast_cancer.csv', index=False)"
+
+# 2. Ejecutar agentes en modo rules (sin red)
+python -m scripts.ejecutar_agentes data/diabetes_lab03.csv --target target --agent pipeline --provider rules
+python -m scripts.ejecutar_agentes data/diabetes_lab03.csv --agent clustering --provider rules
+python -m scripts.ejecutar_agentes data/breast_cancer.csv --target target --agent pipeline --provider rules
+python -m scripts.ejecutar_agentes data/breast_cancer.csv --agent clustering --provider rules
+
+# 3. Ejecutar pruebas automatizadas de agentes
+python -m pytest tests/test_agents.py tests/test_agent_language_progress.py tests/test_clustering_agent.py tests/test_supervised_agents.py tests/test_ui_agents.py -q
+\end{verbatim}
+
+\end{document}

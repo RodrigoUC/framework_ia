@@ -240,6 +240,7 @@ def test_loop_runs_tool_and_returns_interpretation(regression_data):
     first, second = llm.calls
     assert {t["function"]["name"] for t in first["tools"]} == {
         "dataset_profile", "correlations", "outliers", "column_frequencies",
+        "propose_modeling_setup",
     }
     assert '"profile"' in first["messages"][1]["content"]
     assistant, tool_reply = second["messages"][-2:]
