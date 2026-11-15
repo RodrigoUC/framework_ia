@@ -486,12 +486,29 @@ def _render_supervised_agent(family, data, config, availability, label) -> None:
                 ),
             )
         except Exception as error:  # pylint: disable=broad-except
-            st.session_state[error_key] = t(
-                "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
-            )
-    _show_error(error_key)
-    if st.session_state.get(error_key):
+            msg = str(error)
+            if "pliegues" in msg.lower() or "folds" in msg.lower():
+                st.session_state[error_key] = (
+                    "__insufficient_rows__",
+                    t(
+                        "agent_insufficient_rows_rec",
+                        "El dataset es demasiado pequeño para validación cruzada de 5 pliegues ({detalle}). "
+                        "Recomendación: utilice un dataset con más registros por clase, o bien analícelo con el Agente EDA o Clustering.",
+                        detalle=msg,
+                    ),
+                )
+            else:
+                st.session_state[error_key] = t(
+                    "agent_start_error", "No fue posible iniciar el agente: {detalle}", detalle=error
+                )
+    err_val = st.session_state.get(error_key)
+    if isinstance(err_val, tuple) and err_val[0] == "__insufficient_rows__":
+        st.warning(err_val[1], icon=":material/lightbulb:")
         _suggest_eda_agent(family)
+    else:
+        _show_error(error_key)
+        if err_val:
+            _suggest_eda_agent(family)
     session = st.session_state.get(session_key)
     if session is None:
         st.info(
