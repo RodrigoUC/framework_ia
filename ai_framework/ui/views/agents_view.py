@@ -257,9 +257,17 @@ def _render_conversation(session: dict, *, key: str, error_key: str) -> None:
             )
         )
         return
-    for author, text in blackboard.messages:
-        with st.chat_message("user" if author == "user" else "assistant"):
-            st.markdown(text)
+    last_index = len(blackboard.messages) - 1
+    for idx, (author, text) in enumerate(blackboard.messages):
+        is_user = author == "user"
+        with st.chat_message("user" if is_user else "assistant"):
+            if is_user:
+                st.markdown(text)
+            else:
+                preview = next((line.strip("#* >-") for line in text.splitlines() if line.strip()), "")
+                label = (preview[:70] + "...") if len(preview) > 70 else (preview or t("agent_response", "Respuesta"))
+                with st.expander(label, expanded=(idx == last_index)):
+                    st.markdown(text)
     question = st.chat_input(t("agent_question", "Pregunte al agente sobre el dataset"), key=key)
     if question:
         # Answers follow the language currently selected, even if it changed after starting.
