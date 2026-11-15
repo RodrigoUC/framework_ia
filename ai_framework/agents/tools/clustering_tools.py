@@ -109,4 +109,50 @@ def run_clustering(
     return summarize_result(result)
 
 
-CLUSTERING_TOOLS = (evaluate_k, evaluate_hierarchical, run_clustering)
+@tool(
+    "Applies the user's or agent's suggested data-treatment configuration for clustering "
+    "(features, categorical encoding, standardization) and re-runs clustering.",
+    features="Optional list of feature column names to include.",
+    include_categorical="Whether to one-hot encode categorical columns.",
+    standardize="Whether to standardize numeric variables (recommended).",
+    algorithm=f"Algorithm to run: one of {ALGORITMOS_CLUSTERING_COMPARACION} (default 'K-Means').",
+    n_clusters="Number of clusters k (default 3).",
+    hac_method=f"Only for HAC: one of {HAC_METHODS} (default 'ward').",
+)
+def apply_clustering_setup(
+    blackboard,
+    features: list[str] | None = None,
+    include_categorical: bool = False,
+    standardize: bool = True,
+    algorithm: str = "K-Means",
+    n_clusters: int = 3,
+    hac_method: str | None = None,
+) -> dict:
+    if algorithm not in ALGORITMOS_CLUSTERING_COMPARACION:
+        return {"error": f"Unsupported algorithm {algorithm!r}; use {ALGORITMOS_CLUSTERING_COMPARACION}."}
+    model = create_clustering(
+        blackboard,
+        features=features,
+        incluir_categoricas=include_categorical,
+        estandarizar=standardize,
+    )
+    options = {"metodo": hac_method or "ward"} if algorithm == "HAC" else {}
+    result = despachar_algoritmo(model, algorithm, n_clusters=n_clusters, **options)
+    summary = summarize_result(result)
+    blackboard.results.update(
+        cluster_model=model,
+        cluster_result=result,
+        clustering=summary,
+        clustering_config={
+            "features": list(features) if features is not None else list(model.datos_preparados.columnas_origen),
+            "incluir_categoricas": include_categorical,
+            "estandarizar": standardize,
+            "algoritmo": algorithm,
+            "k": n_clusters,
+            "metodo_hac": hac_method or "ward",
+        },
+    )
+    return summary
+
+
+CLUSTERING_TOOLS = (evaluate_k, evaluate_hierarchical, run_clustering, apply_clustering_setup)

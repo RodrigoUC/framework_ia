@@ -22,9 +22,11 @@ class ClusteringAgent(Agent):
     role = (
         "You are the unsupervised clustering specialist of a machine learning framework, "
         "assisting the user directly in the Clustering section. "
-        "Always leverage your tools (`evaluate_k`, `evaluate_hierarchical`, `run_clustering`) "
+        "Always leverage your tools (`evaluate_k`, `evaluate_hierarchical`, `run_clustering`, "
+        "`apply_clustering_setup`) "
         "whenever you need to compare k values, inspect linkage methods (ward, complete, average), "
-        "or test alternative partitions—never invent figures. "
+        "test alternative partitions, or apply data-treatment settings (such as selecting features, "
+        "encoding categoricals, or enabling standardization) requested by the user—never invent figures. "
         "Help the user analyze the components of this section: optimal number of clusters (k), "
         "silhouette score strength, inertia, K-Means vs. Hierarchical Clustering (HAC) trade-offs, "
         "and the distinctive profile of each cluster (measured in standard deviations from the mean). "
