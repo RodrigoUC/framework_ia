@@ -6,6 +6,7 @@ from ai_framework.utils.results import ClusteringSuggestion, Finding
 from ai_framework.utils.agents.agent_config import ClusteringThresholds
 from ai_framework.utils.unsupervised import evaluar_hac, evaluar_kmeans
 from ai_framework.agents.agent import Agent
+from ai_framework.models.unsupervised import operations
 from ai_framework.agents.events import CLUSTERING_DONE, CLUSTERING_REQUESTED, Event
 from ai_framework.agents.tools.clustering_tools import (
     CLUSTERING_TOOLS,
@@ -52,6 +53,24 @@ class ClusteringAgent(Agent):
         self.include_categorical = include_categorical
         self.standardize = standardize
         self.thresholds = thresholds or ClusteringThresholds()
+
+    def execute_configured(self, request):
+        """Execute the requested projection, partition or comparison."""
+        handlers = {
+            "pca": operations.run_pca,
+            "kmeans": operations.run_kmeans,
+            "kmedoids": operations.run_kmedoids,
+            "hac": operations.run_hac,
+            "kmeans_benchmark": operations.evaluate_kmeans_k,
+            "hac_benchmark": operations.compare_hac_methods,
+            "tsne": operations.run_tsne,
+            "umap": operations.run_umap,
+        }
+        handler = handlers.get(request.operation)
+        if handler is None:
+            raise ValueError(f"Unsupported clustering operation: {request.operation!r}.")
+        options = request.options
+        return handler(self.blackboard.datos, options["configuration"], **options["parameters"])
 
     def prepare(self, event: Event) -> None:
         """Compares K-Means and HAC-ward; other linkages tend to reward degenerate groups."""

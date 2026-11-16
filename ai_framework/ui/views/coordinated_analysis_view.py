@@ -42,7 +42,13 @@ def render_coordinated_analysis(data, label: str) -> None:
         else:
             st.info(t("coordinated_llm_setup"))
 
-    if st.button(t("coordinated_run"), type="primary", key="coordinated_run"):
+    preparation = st.session_state.get("dataset_preparacion") or {}
+    blocked = task == "auto" and target is not None and (
+        preparation.get("imputar") or preparation.get("escalado", "Ninguno") != "Ninguno"
+    )
+    if blocked:
+        st.warning(t("coordinated_global_preprocessing"))
+    if st.button(t("coordinated_run"), type="primary", key="coordinated_run", disabled=bool(blocked)):
         clear_coordinated_chat(st.session_state)
         with st.status(t("coordinated_running")) as progress:
             def report(update: str) -> None:

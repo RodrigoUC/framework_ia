@@ -244,7 +244,12 @@ def test_default_benchmark_executes_fourteen_candidates_and_saves_selection():
     assert any("puntuacion_validacion" in frame.value for frame in app.dataframe)
     assert any("rmse" in frame.value for frame in app.dataframe)
     assert not any("real" in (chart.key or "") for chart in app.get("plotly_chart"))
-    assert len(app.get("download_button")) == 3
+    downloads = app.get("download_button")
+    assert len(downloads) == 4
+    assert any(button.key == "download_regression_benchmark_mas_trace" for button in downloads)
+    trace = app.session_state["resultado_lab3_experimento"]["trace"]
+    assert trace["result"]["algorithm"] == resultado.mejor_algoritmo
+    assert trace["events"][0]["recipient"] == "regression"
 
 
 def test_individual_regression_page_keeps_only_its_own_diagnostic():
@@ -258,7 +263,10 @@ def test_individual_regression_page_keeps_only_its_own_diagnostic():
     assert len(app.metric) == 4
     assert len(app.get("plotly_chart")) == 2
     assert all(any(tipo in chart.proto.id for chart in app.get("plotly_chart")) for tipo in ("real", "residuos"))
-    assert len(app.get("download_button")) == 2
+    downloads = app.get("download_button")
+    assert len(downloads) == 3
+    traces = [button.key for button in downloads if button.key and button.key.endswith("_mas_trace")]
+    assert len(traces) == 1 and "rls" in traces[0].lower()
 
 
 def test_invalid_alpha_entry_blocks_training_without_discarding_success():

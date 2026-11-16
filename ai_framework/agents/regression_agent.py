@@ -13,6 +13,7 @@ class RegressionAgent(SupervisedAgent):
     """Compares the nine regressors and explains the one with the lowest validation RMSE."""
 
     name = "regression"
+    model_class = Regression
     role = (
         "You are the supervised regression specialist of a machine learning framework, "
         "assisting the user directly in the Regression section. "

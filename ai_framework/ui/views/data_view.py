@@ -8,7 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from ai_framework.ui.i18n import t, obtener_idioma
+from ai_framework.ui.i18n import get_language, t, obtener_idioma
+from ai_framework.ui.controllers.agents_controller import run_configured_analysis
+from ai_framework.ui.views.results_view import render_mas_trace
 
 from ai_framework.datasets.diabetes import PREDICTORAS_DIABETES
 from ai_framework.data.eda import EDA
@@ -425,18 +427,23 @@ def _render_dataset() -> None:
     accion, restaurar = st.columns(2)
     if accion.button(t("prep_aplicar", "Aplicar preparación"), type="primary"):
         try:
-            eda = EDA(dataframe=original)
-            preparado = eda.preparar_dataset(
-                columnas_eliminar=columnas_eliminar,
-                columnas_sin_nulos=columnas_sin_nulos,
-                eliminar_duplicados=eliminar_duplicados,
-                imputar_nulos=imputar_nulos,
-                normalizar=escalado == "Normalizar",
-                estandarizar=escalado == "Estandarizar",
+            execution = run_configured_analysis(
+                original, {"features": retenidas}, "eda", "prepare",
+                {
+                    "columnas_eliminar": columnas_eliminar,
+                    "columnas_sin_nulos": columnas_sin_nulos,
+                    "eliminar_duplicados": eliminar_duplicados,
+                    "imputar_nulos": imputar_nulos,
+                    "normalizar": escalado == "Normalizar",
+                    "estandarizar": escalado == "Estandarizar",
+                },
+                language=get_language(),
             )
+            preparado, preparation = execution.output
             st.session_state["dataset_preparado"] = preparado.copy()
             st.session_state["dataset_preparacion"] = {
-                **eda.preparacion,
+                **preparation,
+                "trace": execution.trace,
                 "imputar": imputar_nulos,
                 "escalado": escalado,
             }
@@ -454,6 +461,7 @@ def _render_dataset() -> None:
         st.rerun()
 
     if preparacion := st.session_state.get("dataset_preparacion"):
+        render_mas_trace(preparacion.get("trace"), "eda_preparation")
         st.caption(
             f"Preparación aplicada: {preparacion.get('filas_preparadas', len(actual))} filas · "
             f"Nulos: {preparacion.get('filas_eliminadas_nulos', 0)} filas eliminadas · "

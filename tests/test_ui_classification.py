@@ -605,6 +605,12 @@ def test_benchmark_usa_validacion_cruzada_por_defecto_y_la_ejecuta():
     assert llamada.call_args.kwargs["folds"] == 5
     assert "validation_size" not in llamada.call_args.kwargs
     guardado = app.session_state["resultado_lab2_experimento"]
+    trace = guardado["trace"]
+    assert trace["result"]["algorithm"] == guardado["resultado"].mejor_algoritmo
+    request, completion = trace["events"]
+    assert (request["source"], request["recipient"]) == ("coordinator", "classification")
+    assert request["data"]["strategy"] == "cv"
+    assert (completion["type"], completion["source"]) == ("classification_done", "classification")
     metadatos = guardado["resultado"].metadatos
     assert metadatos["estrategia_seleccion"] == "validacion_cruzada_estratificada"
     assert metadatos["muestra_train"] + metadatos["muestra_test"] == 120

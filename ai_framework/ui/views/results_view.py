@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 import pandas as pd
 import streamlit as st
@@ -112,3 +113,12 @@ def render_results_layout(
 # Backward compatibility aliases
 render_panel_modelos_individuales = render_individual_models_panel
 render_layout_resultados = render_results_layout
+
+
+def render_mas_trace(trace: dict | None, key: str) -> None:
+    """Offer the trace associated with the displayed result."""
+    if trace:
+        st.download_button(
+            t("coordinated_download"), json.dumps(trace, ensure_ascii=False, indent=2),
+            file_name=f"{key}-trace.json", mime="application/json", key=f"download_{key}_mas_trace",
+        )

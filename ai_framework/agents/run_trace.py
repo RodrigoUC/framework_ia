@@ -41,7 +41,7 @@ class RunTrace:
             quality = agent.blackboard.results["profile"]["quality"]
             result = {"rows": quality["filas"], "columns": quality["columnas"]}
 
-        fields = {"task", "target", "features", "algorithm", "metric", "validation_score", "n_clusters"}
+        fields = {"task", "target", "features", "algorithm", "metric", "validation_score", "n_clusters", "operation", "strategy"}
         return {
             "status": "completed" if error is None else getattr(error, "run_status", "failed"),
             "duration_seconds": perf_counter() - self.started_at,

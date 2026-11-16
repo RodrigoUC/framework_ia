@@ -41,6 +41,15 @@ class EDAAgent(Agent):
         super().__init__(blackboard, llm, **options)
         self.thresholds = thresholds or EDAThresholds()
 
+    def execute_configured(self, request):
+        if request.operation == "prepare":
+            prepared = self.blackboard.preparar_dataset(**request.options)
+            return prepared, self.blackboard.preparacion
+        if request.operation != "profile":
+            raise ValueError(f"Unsupported EDA operation: {request.operation!r}.")
+        self.prepare(Event(DATASET_LOADED))
+        return self.blackboard
+
     def prepare(self, event: Event) -> None:
         quality = dataset_profile.function(self.blackboard)["quality"]
         self.report(

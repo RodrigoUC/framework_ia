@@ -2,6 +2,7 @@
 
 from ai_framework.agents.agent import Agent, ProgressCallback
 from ai_framework.agents.blackboard import Blackboard
+from ai_framework.agents.analysis_request import AnalysisRequest, AnalysisResult
 from ai_framework.agents.events import (
     CLUSTERING_REQUESTED,
     DATASET_LOADED,
@@ -60,7 +61,10 @@ class CoordinatorAgent:
         self.registry = registry if registry is not None else AgentRegistry.with_defaults()
         self.factory = AgentFactory()
 
-    def run(self, task: str = "auto", *, preferred_agent_id: str | None = None) -> Agent:
+    def run(
+        self, task: str = "auto", *, preferred_agent_id: str | None = None,
+        training_only_screening: bool = False,
+    ) -> Agent:
         """Return the agent that completed the request."""
         if task not in {"auto", "clustering"}:
             raise ValueError(f"Unsupported coordinated task: {task!r}.")
@@ -91,7 +95,11 @@ class CoordinatorAgent:
             if suggestion.target != target:
                 raise ValueError(f"EDA suggested a different target. Run again with --target {suggestion.target!r}.")
             capability = {"regresion": "regress", "clasificacion": "classify"}[suggestion.task]
-            features = self.select_predictors(suggestion.features, target, eda_id=eda.name)
+            if training_only_screening:
+                candidate = self.registry.select(capability, preferred_agent_id)
+                features = self.screen_training_predictors(candidate, eda_definition, target)
+            else:
+                features = self.select_predictors(suggestion.features, target, eda_id=eda.name)
             if not features:
                 self.decision("needs_review", reason="no_eligible_predictors")
                 raise ReviewRequiredError("Review required: no eligible predictors remain. Training was not started.")
@@ -107,21 +115,79 @@ class CoordinatorAgent:
         self.report(f"Completed {specialist.name}.")
         return specialist
 
+    def run_configured(self, request: AnalysisRequest) -> AnalysisResult:
+        """Assign an explicit operation and return its output with the same run's trace."""
+        capability = {
+            "classification": "classify", "regression": "regress", "clustering": "cluster", "eda": "profile",
+        }[request.specialty]
+        definition = self.registry.select(capability)
+        agent = self.factory.create(definition, self.blackboard, self.llm, language=self.language)
+        self.decision(
+            "assigned", agent=agent.name, name=agent.display_name, specialty=definition.specialty,
+            reason=f"The caller requested {request.specialty} {request.operation}.",
+        )
+        result = None
+        summary = {}
+
+        def execute(event: Event) -> None:
+            nonlocal result, summary
+            if event.recipient != agent.name:
+                return
+            result = agent.execute_configured(request)
+            algorithm = getattr(result, "mejor_algoritmo", getattr(result, "algoritmo", None))
+            summary = {"algorithm": algorithm} if algorithm else {"operation": request.operation}
+            self.bus.emit(Event(f"{request.specialty}_done", summary, source=agent.name))
+
+        options = request.options
+        strategy = options.get("estrategia")
+        if request.specialty == "classification" and request.operation == "benchmark" and strategy is None:
+            strategy = "holdout"
+        self.dispatch(agent, Event(
+            f"{request.specialty}_{request.operation}_requested",
+            {"task": request.specialty, "target": self.blackboard.target, "features": request.features,
+             "operation": request.operation, "strategy": strategy},
+            source=self.name, recipient=agent.name,
+        ), handler=execute)
+        evidence = self.trace.summary() if self.trace is not None else {}
+        evidence["result"] = summary
+        return AnalysisResult(result, evidence)
+
+    def screen_training_predictors(self, specialist_definition, eda_definition, target: str) -> list[str]:
+        """Apply predictor rules using the same training split as the automatic specialist."""
+        candidate = self.factory.create(specialist_definition, self.blackboard)
+        model = candidate.model_class(dataframe=self.blackboard.datos, target=target)
+        base = model._datos_supervisados()
+        train, _, _ = model._indices(
+            base, particion=None, test_size=candidate.test_size, random_state=candidate.random_state,
+            stratify=getattr(candidate, "stratify", False),
+        )
+        training = Blackboard(self.blackboard.datos.loc[train], target=target)
+        profiler = self.factory.create(eda_definition, training, language=self.language)
+        profiler.handle(Event(DATASET_LOADED))
+        exclusions = predictor_exclusions(training, target, eda_id=profiler.name)
+        return self.record_exclusions(
+            tuple(base.columns), target, exclusions,
+        )
+
     def select_predictors(self, suggested: tuple[str, ...], target: str, *, eda_id: str = "eda") -> list[str]:
         exclusions = predictor_exclusions(self.blackboard, target, eda_id=eda_id)
+        return self.record_exclusions(suggested, target, exclusions)
+
+    def record_exclusions(self, candidates, target, exclusions) -> list[str]:
         for column, reasons in exclusions.items():
             self.report(f"Excluded {column!r}: {', '.join(reasons)}.")
             self.decision("excluded_predictor", column=column, reasons=reasons)
 
-        return [column for column in suggested if column != target and column not in exclusions]
+        return [column for column in candidates if column != target and column not in exclusions]
 
     def decision(self, action: str, **details) -> None:
         if self.trace is not None:
             self.trace.decisions.append({"action": action, **details})
 
-    def dispatch(self, agent: Agent, event: Event) -> None:
+    def dispatch(self, agent: Agent, event: Event, *, handler=None) -> None:
         agent.bus = self.bus
-        self.bus.subscribe(event.type, agent.handle)
+        handler = handler if handler is not None else agent.handle
+        self.bus.subscribe(event.type, handler)
         try:
             if self.trace is None:
                 self.bus.emit(event)
@@ -129,7 +195,7 @@ class CoordinatorAgent:
                 with self.trace.task(agent.name):
                     self.bus.emit(event)
         finally:
-            self.bus.unsubscribe(event.type, agent.handle)
+            self.bus.unsubscribe(event.type, handler)
 
     def report(self, update: str) -> None:
         self.blackboard.progress.append((self.name, update))

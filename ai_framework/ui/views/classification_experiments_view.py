@@ -8,7 +8,8 @@ from copy import deepcopy
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import get_language, t
+from ai_framework.ui.views.results_view import render_mas_trace
 
 from ai_framework.utils.supervised.export import (
     build_experiment_files,
@@ -22,7 +23,7 @@ from ai_framework.ui.controllers.classification_controller import (
     _execution_context,
     _executed_source,
     _json,
-    _create_model,
+    run_classification_benchmark,
     _argumentos_comunes,
     _argumentos_exportacion,
     _contexto_ejecucion,
@@ -266,14 +267,13 @@ def render_classification_experiments(
                     argumentos.update(estrategia="cv", folds=FOLDS_LAB2)
                 elif validation_size is not None:
                     argumentos["validation_size"] = validation_size
-                resultado = _create_model(datos, configuracion).experimentar(
-                    algoritmos=list(ALGORITMOS_LAB2),
-                    configuraciones=catalogo,
-                    **argumentos,
+                resultado, trace = run_classification_benchmark(
+                    datos, configuracion, catalogo, argumentos, language=get_language(),
                 )
             fuente = _executed_source(datos)
             snapshot = {
                 "resultado": resultado,
+                "trace": trace,
                 "contexto": deepcopy(contexto),
                 "firma": firma,
                 "opciones": opciones,
@@ -363,6 +363,7 @@ def render_experiment_result(
                 t("sup_sin_evaluaciones_guardadas", "Todavía no hay evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos.")
             )
         return
+    render_mas_trace(guardado.get("trace"), prefijo)
     resultado = guardado["resultado"]
     metadatos = resultado.metadatos
     metrica = guardado["opciones"]["metrica"]

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import get_language, t
+from ai_framework.ui.controllers.agents_controller import run_configured_analysis
+from ai_framework.ui.views.results_view import render_mas_trace
 
 from ai_framework.utils.supervised.export import (
     build_model_files,
@@ -14,7 +16,6 @@ from ai_framework.utils.supervised.export import (
 )
 from ai_framework.ui.controllers.regression_controller import (
     common_arguments,
-    create_regressor,
     execution_snapshot,
     argumentos_comunes,
     crear_regresor,
@@ -181,16 +182,16 @@ def render_regression_model(
     ):
         try:
             with st.spinner("Ajustando regresión solo con entrenamiento…"):
-                resultado = create_regressor(
-                    datos, configuracion, algoritmo=algoritmo
-                ).entrenar(
-                    algoritmo=algoritmo,
-                    **common_arguments(configuracion),
-                    **parametros,
+                features = [configuracion["feature_simple"]] if algoritmo == "RLS" else configuracion["features"]
+                execution = run_configured_analysis(
+                    datos, configuracion, "regression", "train",
+                    {**common_arguments(configuracion), **parametros, "algoritmo": algoritmo},
+                    language=get_language(), features=features,
                 )
-            st.session_state[clave] = execution_snapshot(
-                resultado, datos, configuracion, parametros
-            )
+            st.session_state[clave] = {
+                **execution_snapshot(execution.output, datos, configuracion, parametros),
+                "trace": execution.trace,
+            }
             st.session_state.pop(error, None)
             st.rerun()
         except (ValueError, TypeError, RuntimeError) as exc:
@@ -201,6 +202,7 @@ def render_regression_model(
         )
     snapshot = st.session_state.get(clave)
     if snapshot:
+        render_mas_trace(snapshot.get("trace"), clave)
         if snapshot["firma_parametros"] != parameters_fingerprint(parametros):
             st.info(
                 "Parámetros modificados sin ejecutar. Se muestra la última ejecución exitosa, no estos ajustes pendientes."

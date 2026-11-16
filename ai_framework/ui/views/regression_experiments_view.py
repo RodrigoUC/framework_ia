@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import pandas as pd
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import get_language, t
+from ai_framework.ui.controllers.agents_controller import run_configured_analysis
+from ai_framework.ui.views.results_view import render_mas_trace
 
 from ai_framework.utils.supervised.export import (
     build_experiment_files,
@@ -15,7 +17,6 @@ from ai_framework.utils.supervised.export import (
 )
 from ai_framework.ui.controllers.regression_controller import (
     common_arguments,
-    create_regressor,
     execution_snapshot,
     argumentos_comunes,
     crear_regresor,
@@ -107,6 +108,7 @@ def display_saved_experiment(
             "Sin evaluaciones guardadas. Ejecute la Evaluación Comparativa de Modelos para comparar por validación."
         )
         return
+    render_mas_trace(snapshot.get("trace"), "regression_benchmark")
     resultado = snapshot["resultado"]
     st.markdown("#### Evaluación comparativa · selección por RMSE de validación")
     st.caption(
@@ -295,12 +297,15 @@ def render_regression_experiments(datos, configuracion, mostrar_figura) -> None:
     ):
         try:
             with st.spinner(t("sup_evaluando_comparando_spinner", "Evaluando y comparando modelos por validación…")):
-                resultado = create_regressor(datos, configuracion).experimentar(
-                    **common_arguments(configuracion), **opciones
+                execution = run_configured_analysis(
+                    datos, configuracion, "regression", "benchmark",
+                    {**common_arguments(configuracion), **opciones}, language=get_language(),
                 )
-            snapshot = execution_snapshot(
-                resultado, datos, configuracion, opciones
-            )
+            resultado = execution.output
+            snapshot = {
+                **execution_snapshot(resultado, datos, configuracion, opciones),
+                "trace": execution.trace,
+            }
             if resultado.mejor_algoritmo in resultado.mejores:
                 st.session_state["resultado_lab3_experimento"] = snapshot
                 st.session_state.pop("resultado_lab3_intento_experimento", None)

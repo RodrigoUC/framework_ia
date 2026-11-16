@@ -130,6 +130,19 @@ class SupervisedAgent(Agent):
         )
 
     # ---------------------------------------------------------- hooks
+    def execute_configured(self, request):
+        """Run the selected model or comparison with the caller's settings."""
+        if request.operation not in {"train", "benchmark"}:
+            raise ValueError(f"Unsupported supervised operation: {request.operation!r}.")
+        model = self.model_class(
+            dataframe=self.blackboard.datos,
+            target=self.blackboard.target,
+            features=request.features,
+        )
+        if request.operation == "train":
+            return model.entrenar(**request.options)
+        return model.experimentar(**request.options)
+
     def _training_options(self) -> dict[str, Any]:
         return {
             "test_size": self.test_size,

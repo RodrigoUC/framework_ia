@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import get_language, t
+from ai_framework.ui.controllers.agents_controller import run_configured_analysis
+from ai_framework.ui.views.results_view import render_mas_trace
 
 from ai_framework.ui.controllers.classification_controller import (
     _common_arguments,
@@ -12,7 +14,6 @@ from ai_framework.ui.controllers.classification_controller import (
     _json,
     _metrics_by_class,
     _percentage_metrics,
-    _create_model,
     true_rate_name,
     _argumentos_comunes,
     _contexto_ejecucion,
@@ -116,16 +117,18 @@ def render_single_model(
     ):
         try:
             with st.spinner(f"Entrenando {nombre_modelo}…"):
-                resultado = _create_model(datos, configuracion).entrenar(
-                    algoritmo=algoritmo,
-                    **_common_arguments(configuracion),
-                    **parametros,
+                execution = run_configured_analysis(
+                    datos, configuracion, "classification", "train",
+                    {**_common_arguments(configuracion), **parametros, "algoritmo": algoritmo},
+                    language=get_language(),
                 )
+                resultado = execution.output
             contexto = _execution_context(configuracion)
             if algoritmo == "RF":
                 guardados = dict(st.session_state.get(clave_criterios_rf, {}))
                 guardados[criterio_rf] = {
                     "resultado": resultado,
+                    "trace": execution.trace,
                     "firma": firma,
                     "criterio": criterio_rf,
                     "contexto": contexto,
@@ -136,7 +139,7 @@ def render_single_model(
                 errores.pop(criterio_rf, None)
                 st.session_state[intentos_rf] = errores
             st.session_state[resultado_modelo] = resultado
-            st.session_state[f"contexto_{resultado_modelo}"] = contexto
+            st.session_state[f"contexto_{resultado_modelo}"] = {**contexto, "trace": execution.trace}
             st.session_state[f"firma_{resultado_modelo}"] = firma
             st.session_state.pop(f"error_{resultado_modelo}", None)
             st.rerun()
@@ -163,6 +166,7 @@ def render_single_model(
                 st.info(
                     t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
                 )
+            render_mas_trace(actual_rf.get("trace"), f"lab2_rf_{criterio_rf}")
             _diagnostic(
                 actual_rf["resultado"],
                 mostrar_figura,
@@ -175,6 +179,7 @@ def render_single_model(
             st.info(
                 t("sup_params_difieren", "Los parámetros actuales difieren del modelo entrenado visible. Vuelva a entrenar para actualizar.")
             )
+        render_mas_trace(st.session_state.get(f"contexto_{resultado_modelo}", {}).get("trace"), f"lab2_{algoritmo}")
         _diagnostic(
             resultado_previo,
             mostrar_figura,

@@ -18,10 +18,12 @@ STANDARD_CONFIGURATIONS = {
 }
 
 
+
 class ClassificationAgent(SupervisedAgent):
     """Compares the classifiers and explains the one with the best validation F1 macro."""
 
     name = "classification"
+    model_class = Classification
     role = (
         "You are the supervised classification specialist of a machine learning framework, "
         "assisting the user directly in the Classification section. "

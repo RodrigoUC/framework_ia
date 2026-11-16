@@ -124,3 +124,44 @@ def test_coordinator_assigns_registered_classifier():
     requested, completed = evidence["events"][-2:]
     assert (requested["type"], requested["recipient"]) == ("classification_requested", alternate.agent_id)
     assert (completed["type"], completed["source"]) == ("classification_done", alternate.agent_id)
+
+
+def test_streamlit_coordinator_screens_predictors_using_training_only():
+    from ai_framework.data.splitting import dividir_indices
+    from ai_framework.ui.controllers.agents_controller import run_coordinated_analysis
+
+    data = pd.read_csv(DATA / "diabetes_lab03.csv")
+    _, test = dividir_indices(data, "target", test_size=0.25, random_state=42, stratify=False)
+    data["training_target_copy"] = data["target"]
+    data.loc[test, "training_target_copy"] = data.loc[test, "target"].iloc[::-1].to_numpy()
+
+    trace = run_coordinated_analysis(data, "diabetes.csv", "target", "auto", language="en")
+
+    assert trace["status"] == "completed"
+    assert any(
+        decision.get("column") == "training_target_copy" and "target_copy" in decision["reasons"]
+        for decision in trace["decisions"]
+    )
+    assignment = next(event for event in trace["events"] if event["type"] == "regression_requested")
+    assert "training_target_copy" not in assignment["data"]["features"]
+
+
+def test_configured_clustering_comparison_records_operation_and_agent():
+    from ai_framework.ui.controllers.agents_controller import run_configured_analysis
+
+    data = pd.read_csv(DATA / "diabetes_lab03.csv").iloc[:40]
+    configuration = {
+        "features": ["bmi", "bp"], "filas": 40,
+        "incluir_categoricas": False, "estandarizar": True,
+    }
+    execution = run_configured_analysis(
+        data, configuration, "clustering", "kmeans_benchmark",
+        {"configuration": configuration, "parameters": {"k_min": 2, "k_max": 4}},
+        language="en",
+    )
+
+    assert execution.output["k"].tolist() == [2, 3, 4]
+    request, completed = execution.trace["events"]
+    assert request["recipient"] == "clustering"
+    assert request["data"]["operation"] == "kmeans_benchmark"
+    assert completed["source"] == "clustering"

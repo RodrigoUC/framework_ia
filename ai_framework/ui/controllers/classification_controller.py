@@ -8,6 +8,7 @@ from copy import deepcopy
 import pandas as pd
 import streamlit as st
 
+from ai_framework.ui.controllers.agents_controller import run_configured_analysis
 from ai_framework.models.supervised import Clasificacion
 from ai_framework.ui.models.view_catalog import FOLDS_LAB2
 from ai_framework.utils import ALGORITMOS_LAB2
@@ -33,6 +34,16 @@ def _create_model(datos: pd.DataFrame, configuracion: dict) -> Clasificacion:
         target=configuracion["target"],
         features=configuracion["features"],
     )
+
+
+def run_classification_benchmark(data, configuration, catalog, options, *, language):
+    """Return the comparison and its MAS trace."""
+    result = run_configured_analysis(
+        data, configuration, "classification", "benchmark",
+        {**options, "algoritmos": list(ALGORITMOS_LAB2), "configuraciones": catalog},
+        language=language,
+    )
+    return result.output, result.trace
 
 
 def _execution_context(configuracion: dict) -> dict:

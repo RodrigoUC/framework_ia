@@ -7,6 +7,8 @@ import os
 
 import pandas as pd
 
+from ai_framework.agents.analysis_request import AnalysisRequest, AnalysisResult
+
 from ai_framework.agents import (
     CLASSIFICATION_REQUESTED,
     CLUSTERING_REQUESTED,
@@ -27,6 +29,21 @@ from ai_framework.utils.results import ModelingSuggestion
 from ai_framework.agents.run_trace import RunTrace
 
 
+def run_configured_analysis(
+    data, configuration, specialty, operation, options, *, language, features=None,
+) -> AnalysisResult:
+    """Execute the requested panel operation through the coordinator."""
+    trace = RunTrace()
+    board = Blackboard(data, target=configuration.get("target"))
+    coordinator = CoordinatorAgent(board, trace.bus, trace=trace, language=language)
+    request = AnalysisRequest(
+        specialty, operation,
+        tuple(configuration["features"] if features is None else features),
+        options,
+    )
+    return coordinator.run_configured(request)
+
+
 def run_coordinated_analysis(data: pd.DataFrame, label: str, target: str | None, task: str,
                              *, language: str, on_progress=None) -> dict:
     """Run the local coordinator and return a trace even when execution stops."""
@@ -34,7 +51,7 @@ def run_coordinated_analysis(data: pd.DataFrame, label: str, target: str | None,
     try:
         board = Blackboard(data, target=target, source=label)
         agent = CoordinatorAgent(board, trace.bus, language=language, on_progress=on_progress,
-                                 trace=trace).run(task)
+                                 trace=trace).run(task, training_only_screening=True)
     except Exception as error:  # pylint: disable=broad-except
         return trace.summary(error=error)
     return trace.summary(agent=agent)
