@@ -11,3 +11,6 @@ requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
 include = ["ai_framework*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

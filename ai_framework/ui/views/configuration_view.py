@@ -44,7 +44,7 @@ def configure_supervised(datos: pd.DataFrame) -> None:
         horizontal=True,
     )
     if len(datos.columns) < 2:
-        st.warning("Se necesita un objetivo y al menos una variable predictora.")
+        st.warning(t("configuration_view_0"))
         return
     if tarea is None:
         st.info(
@@ -76,7 +76,7 @@ def configure_supervised(datos: pd.DataFrame) -> None:
                 )
         else:
             if not pd.api.types.is_numeric_dtype(serie):
-                st.warning("La variable objetivo debe ser numérica para regresión.")
+                st.warning(t("configuration_view_1"))
                 resumen = serie.describe().astype(str).rename("Valor").to_frame()
             else:
                 resumen = serie.describe().rename("Valor").to_frame()

@@ -80,10 +80,10 @@ class ClassificationPanelTests(unittest.TestCase):
         ):
             fila = tabla.set_index("Algoritmo").loc[nombre]
             self.assertAlmostEqual(
-                fila["Exactitud (%)"], 100 * resultado.metricas["accuracy"]
+                fila["Exactitud (%)"], round(100 * resultado.metricas["accuracy"], 2)
             )
             self.assertAlmostEqual(
-                fila["F1-Score Macro"], resultado.metricas["f1"]["macro"]
+                fila["F1-Score Macro"], round(resultado.metricas["f1"]["macro"], 4)
             )
         self.assertNotIn("Parámetros efectivos", tabla.columns)
         self.assertTrue(any("hiperparámetros" in item.label.lower() for item in app.expander))

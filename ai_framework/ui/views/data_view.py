@@ -238,7 +238,7 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
                 seleccion = None
                 archivo = None
                 if origen in ("Diabetes (referencia)", "Diabetes · referencia Lab03"):
-                    st.caption("Referencia de regresión scikit-learn (442 filas).")
+                    st.caption(t("data_view_5"))
                 else:
                     separador = st.text_input(
                         t("fuente_separador", "Separador"),
@@ -255,22 +255,22 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
                         key="fuente_decimal",
                     )
                     encoding = st.selectbox(
-                        "Codificación",
+                        t("data_view_0"),
                         ["utf-8", "latin-1", "cp1252"],
                         key="fuente_encoding",
                     )
                     usar_indice = st.checkbox(
-                        "Usar primera columna como índice",
+                        t("data_view_1"),
                         key="fuente_usar_indice",
                     )
                     referencia = st.text_input(
-                        "Procedencia (URL o referencia, opcional)",
+                        t("data_view_2"),
                         key="fuente_referencia",
                     )
                     if origen == "CSV local":
                         if archivos:
                             seleccion = st.selectbox(
-                                "Archivo",
+                                t("data_view_3"),
                                 archivos,
                                 format_func=lambda ruta: str(
                                     ruta.relative_to(directorio_datos)
@@ -283,7 +283,7 @@ def _select_source() -> tuple[pd.DataFrame | None, str, str]:
                             )
                     else:
                         archivo = st.file_uploader(
-                            "Archivo CSV", type=["csv"], key="fuente_upload"
+                            t("data_view_4"), type=["csv"], key="fuente_upload"
                         )
                 aplicar = st.form_submit_button(
                     t("fuente_aplicar", "Aplicar fuente"), type="primary"
@@ -448,7 +448,7 @@ def _render_dataset() -> None:
                 "escalado": escalado,
             }
             _clear_results()
-            st.success("La preparación se aplicó correctamente.")
+            st.success(t("data_view_6"))
             st.rerun()
         except Exception as exc:
             st.error(f"No fue posible preparar el dataset: {exc}")
@@ -457,7 +457,7 @@ def _render_dataset() -> None:
         st.session_state["dataset_preparado"] = original.copy()
         st.session_state.pop("dataset_preparacion", None)
         _clear_results()
-        st.success("Se restauró el contenido original.")
+        st.success(t("data_view_7"))
         st.rerun()
 
     if preparacion := st.session_state.get("dataset_preparacion"):

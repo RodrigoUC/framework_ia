@@ -1,0 +1,181 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{booktabs,tabularx,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,babel}
+\usepackage[hidelinks]{hyperref}
+\definecolor{ink}{HTML}{19382B}
+\definecolor{soft}{HTML}{EAF1ED}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlength{\emergencystretch}{2em}
+\tikzset{component/.style={draw=ink,fill=soft,rounded corners=2pt,align=center,
+minimum width=30mm,minimum height=10mm,font=\small}, flow/.style={-{Stealth},draw=ink,thick}}
+\input{results.tex}
+
+\begin{document}
+\thispagestyle{empty}
+{\color{ink}\large Universidad Nacional de Costa Rica\par}
+{EIF420O -- Inteligencia Artificial \quad | \quad I Ciclo 2026\par}
+{Proyecto final \quad | \quad Dr. Juan Murillo-Morera\par}
+
+\vspace{23mm}
+{\color{ink}\Huge\bfseries Nexo IA\par}
+\vspace{3mm}
+{\LARGE Framework de análisis de datos y aprendizaje automático con un sistema multiagente\par}
+\vspace{14mm}
+Dylan Elizondo Alvarado (504610652)\\
+Joseph Garcia Montero (402680547)\\
+Rodrigo Ureña Castillo (118910482)\\
+Mariana Ureña Padilla (119180324)
+
+\vspace{19mm}
+\section*{Resumen}
+Se integraron los componentes de análisis exploratorio, agrupamiento, clasificación y regresión trabajados durante el curso. Streamlit recibe los datos y la configuración. El coordinador busca la capacidad requerida en el registro, asigna la tarea y devuelve el resultado con una traza. Se verificó en la interfaz que un agente creado durante la sesión recibió un encargo de agrupamiento y publicó su resultado. El historial permitió recuperar esa ejecución desde otra sesión. En los experimentos de referencia, XGBoost obtuvo el mayor F1 macro de validación en clasificación y Lasso obtuvo el menor RMSE de validación en regresión. El agrupamiento seleccionó dos grupos con una silueta de \ClusterScore.
+
+\vfill
+\textbf{Entorno de referencia} \enspace Python 3.11.8, Streamlit 1.66.0 y scikit-learn 1.9.1.
+\clearpage
+
+\section{Arquitectura y reutilización}
+
+Los laboratorios aportaron los componentes de EDA y agrupamiento, los clasificadores, los regresores y el primer flujo de coordinación por eventos. El proyecto reutiliza esos modelos y sus protocolos de comparación. Las vistas reciben la configuración y presentan el resultado. Los controladores construyen la solicitud y el agente elegido ejecuta el modelo correspondiente.
+
+\begin{center}
+\begin{tikzpicture}[node distance=6mm and 9mm]
+\node[component] (ui) {Streamlit};
+\node[component,right=of ui] (controller) {Controlador};
+\node[component,right=of controller] (mas) {Coordinador y agentes};
+\node[component,below=of mas] (ml) {EDA y modelos};
+\node[component,below=of controller] (db) {Historial SQLite};
+\draw[flow,<->] (ui)--(controller);
+\draw[flow,<->] (controller)--(mas);
+\draw[flow,<->] (mas)--(ml);
+\draw[flow] (controller)--(db);
+\end{tikzpicture}
+
+\small Figura 1. Capas que intervienen en una ejecución iniciada desde el dashboard.
+\end{center}
+
+El módulo de datos valida la carga y conserva la procedencia. EDA permite revisar dimensiones, valores faltantes, duplicados, distribuciones, correlaciones y valores atípicos. En tareas supervisadas, las transformaciones del modelo se ajustan sobre el entrenamiento de cada pliegue. El análisis automático toma su decisión sobre las exclusiones de predictoras usando la partición de entrenamiento. La descripción inicial puede examinar el archivo completo.
+
+\section{Diseño del sistema multiagente}
+
+Cada definición registrada identifica una especialidad y las capacidades que publica. La fábrica crea una instancia para la solicitud. El coordinador puede delegar al especialista predeterminado o al agente elegido en la sesión, siempre que cumpla la capacidad requerida. La pizarra compartida conserva los datos y resultados que intercambian los agentes durante una ejecución \cite{corkill}. El registro y el historial de experimentos tienen almacenamiento local. Las preferencias de agente se aplican en la sesión activa.
+
+\begin{center}
+\begin{tikzpicture}[node distance=6mm and 10mm]
+\node[component] (coordinator) {\texttt{CoordinatorAgent}};
+\node[component,right=of coordinator] (registry) {\texttt{AgentRegistry}};
+\node[component,right=of registry] (definition) {\texttt{AgentDefinition}};
+\node[component,below=of coordinator] (factory) {\texttt{AgentFactory}};
+\node[component,below=of registry] (agent) {\texttt{Agent}\ y especialistas};
+\node[component,below=of definition] (board) {\texttt{Blackboard}};
+\draw[flow] (coordinator)--(registry);
+\draw[flow] (registry)--(definition);
+\draw[flow] (coordinator)--(factory);
+\draw[flow] (factory)--(agent);
+\draw[flow] (agent)--(board);
+\end{tikzpicture}
+
+\small Figura 2. Componentes responsables de descubrir, crear y ejecutar agentes.
+\end{center}
+\clearpage
+
+\section{Secuencia de una ejecución coordinada}
+
+La Figura 3 sigue el caso de agrupamiento con un especialista registrado desde la interfaz. El perfil de EDA se ejecuta primero. La solicitud al especialista contiene el identificador del destinatario y las predictoras. El caso de referencia declara \texttt{target} como objetivo para excluirlo de la matriz de agrupamiento.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[component] (ui) at (0,0) {Streamlit};
+\node[component] (coord) at (3.4,0) {Coordinador};
+\node[component] (eda) at (6.8,0) {Agente EDA};
+\node[component] (spec) at (10.2,0) {Agrupamiento};
+\foreach \a in {ui,coord,eda,spec} \draw[dashed,gray] (\a.south)--++(0,-5.8);
+\draw[flow] (0,-.95)--node[above,font=\small]{Solicitar agrupamiento} (3.4,-.95);
+\draw[flow] (3.4,-1.7)--node[above,font=\small]{Perfilar datos} (6.8,-1.7);
+\draw[flow] (6.8,-2.45)--node[above,font=\small]{Perfil disponible} (3.4,-2.45);
+\draw[flow] (3.4,-3.2)--node[above,font=\small]{Asignar al agente registrado} (10.2,-3.2);
+\draw[flow] (10.2,-3.95)--node[above,font=\small]{Publicar resultado} (3.4,-3.95);
+\draw[flow] (3.4,-4.7)--node[above,font=\small]{Resultado y traza} (0,-4.7);
+\node[font=\small,align=center] at (0,-5.55) {Guardar ejecución\\en el historial};
+\end{tikzpicture}
+
+\small Figura 3. Secuencia observada en la prueba del agente de agrupamiento.
+\end{center}
+
+Cuando la ejecución termina, la traza conserva asignaciones, emisor y destinatario de los mensajes, estados, duración y resumen del resultado. Si el análisis automático detecta que todas las predictoras deben excluirse, devuelve el estado \texttt{needs\_review}. Si una tarea lanza un error, la traza registra el estado y el tipo de error. La ejecución local se puede repetir sin credenciales.
+
+\section{Protocolo experimental}
+
+La clasificación empleó el conjunto Breast Cancer Wisconsin con 569 filas y 30 predictoras. El panel comparó KNN, árbol de decisión, Random Forest, XGBoost y AdaBoost. La selección usó F1 macro de validación cruzada estratificada con cinco pliegues. Se reservó un 25\,\% para prueba. El F1 macro pondera por igual el desempeño de ambas clases.
+
+La regresión empleó las 442 observaciones de Diabetes y diez predictoras. Se compararon regresión lineal simple y múltiple, Lasso, LassoCV, Ridge, RidgeCV, SVR, árbol de decisión y Random Forest. La selección minimizó el RMSE de validación y se reportó el desempeño sobre la prueba reservada. El agrupamiento usó las predictoras de este mismo conjunto. El agente evaluó K-Means y HAC con enlace Ward y eligió la partición según el índice de silueta \cite{rousseeuw}.
+\clearpage
+
+\section{Resultados}
+
+\subsection{Clasificación}
+\begin{center}
+\small
+\begin{tabular}{lrrr}
+\toprule
+Familia & F1 macro de validación & Exactitud de prueba & F1 macro de prueba \\
+\midrule
+\ClassificationRows
+\bottomrule
+\end{tabular}
+
+Tabla 1. Métricas de los mejores candidatos por familia en la corrida de referencia.
+\end{center}
+
+XGBoost con clases balanceadas fue seleccionado por su F1 macro de validación de \ClassValidation. Su exactitud fue \ClassAccuracy\ y su F1 macro de prueba fue \ClassTest. KNN logró un F1 macro de prueba mayor en esta partición. La selección del ganador se mantuvo basada en la validación.
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+Clase real & Predicción 0 & Predicción 1 \\
+\midrule
+\ConfusionRows
+\bottomrule
+\end{tabular}
+
+Tabla 2. Matriz de confusión del XGBoost elegido en validación.
+\end{center}
+
+\subsection{Regresión y agrupamiento}
+
+Lasso con alfa igual a 0,1 obtuvo un RMSE de validación de \RegValidation. En prueba obtuvo RMSE \RegRmse, MAE \RegMae\ y R² de \RegRtwo. El R² indica la fracción de variación explicada en esa partición. Los CSV de evidencia conservan las configuraciones evaluadas y el resultado de los ganadores por familia.
+
+El agente registrado eligió K-Means con dos grupos de \ClusterSizes\ observaciones. La silueta de \ClusterScore\ indica una separación limitada. Este resultado describe la estructura observada al usar las predictoras seleccionadas. Vincular esos grupos con categorías clínicas requeriría evidencia adicional.
+
+\subsection{Prueba del agente registrado}
+
+Se creó un agente de la especialidad de Agrupamiento y se eligió en el panel del MAS. La prueba comprobó que el destinatario de \texttt{clustering\_requested} coincide con el emisor de \texttt{clustering\_done}. También comprobó que \texttt{target} quedó fuera de las predictoras. Una sesión nueva recuperó el resultado guardado y las descargas de traza, CSV y modelo.
+
+\section{Discusión y conclusiones}
+
+La integración permite comparar modelos y observar qué agente ejecutó cada tarea desde la misma interfaz. En las dos tareas supervisadas, la prueba reservada se usó para estimar el desempeño de configuraciones elegidas en validación. Los resultados corresponden a los conjuntos y particiones de referencia. Evaluar estabilidad requeriría repetir el protocolo con otras particiones y conjuntos.
+
+El bus procesa eventos dentro de un solo proceso y el historial usa una base local. La demostración verifica el alta, la asignación y la persistencia en ese entorno. La prueba automatizada opera sobre el punto de entrada de Streamlit y registra los hechos que usa este informe.
+\clearpage
+
+\section{Reproducción y trazabilidad}
+
+Instale las dependencias y ejecute el siguiente comando desde la raíz del proyecto. El README explica cómo abrir los mismos paneles manualmente.
+\begin{verbatim}
+python -m scripts.verify_project --output output/project/reference
+\end{verbatim}
+El directorio de evidencia del ZIP incluye las trazas de preparación, EDA, clasificación, regresión y agrupamiento. También contiene las comparativas de validación y prueba, la matriz de confusión y un resumen con las huellas SHA-256 de los CSV, el entorno y las comprobaciones realizadas.
+
+\begin{thebibliography}{9}
+\bibitem{corkill} D. D. Corkill. Blackboard systems. \emph{AI Expert}, 6(9), 40--47, 1991.
+\bibitem{rousseeuw} P. J. Rousseeuw. Silhouettes. A graphical aid to the interpretation and validation of cluster analysis. \emph{Journal of Computational and Applied Mathematics}, 20, 53--65, 1987.
+\end{thebibliography}
+\end{document}

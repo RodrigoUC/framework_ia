@@ -15,6 +15,16 @@ IDIOMAS = {
 
 TEXTOS = {
     "es": {
+        "data_view_0": "Codificación",
+        "data_view_1": "Usar primera columna como índice",
+        "data_view_2": "Procedencia (URL o referencia, opcional)",
+        "data_view_3": "Archivo",
+        "data_view_4": "Archivo CSV",
+        "data_view_5": "Referencia de regresión scikit-learn (442 filas).",
+        "data_view_6": "La preparación se aplicó correctamente.",
+        "data_view_7": "Se restauró el contenido original.",
+        "configuration_view_0": "Se necesita un objetivo y al menos una variable predictora.",
+        "configuration_view_1": "La variable objetivo debe ser numérica para regresión.",
         "project_builtin": "Predeterminado",
         "project_registered": "Registrado",
         "project_duration": "Duración (s)",
@@ -455,6 +465,16 @@ TEXTOS = {
 
     },
     "en": {
+        "data_view_0": "Encoding",
+        "data_view_1": "Use first column as index",
+        "data_view_2": "Source citation (optional URL or reference)",
+        "data_view_3": "File",
+        "data_view_4": "CSV file",
+        "data_view_5": "scikit-learn regression reference (442 rows).",
+        "data_view_6": "Data preparation applied.",
+        "data_view_7": "Original data restored.",
+        "configuration_view_0": "Select a target and at least one predictor.",
+        "configuration_view_1": "Regression requires a numeric target.",
         "project_builtin": "Default",
         "project_registered": "Registered",
         "project_duration": "Duration (s)",

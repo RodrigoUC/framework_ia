@@ -1,86 +1,58 @@
-# Nexo IA (`framework_ia`) · Plataforma Unificada de Análisis de Datos y Machine Learning
+# Nexo IA
 
-[Lab04 setup and evaluation guide](docs/lab04/README.md)
+Nexo IA is the EIF420O final project for exploratory data analysis, data preparation, clustering, classification and regression. The Streamlit dashboard delegates analysis to a local multi-agent system. The rules mode works without an API key.
 
-`framework_ia` es un producto unificado de análisis exploratorio de datos, aprendizaje no supervisado y aprendizaje supervisado (clasificación y regresión), desacoplado de la interfaz gráfica (`ui/streamlit_app.py`).
+## Run the dashboard
 
-## Arquitectura del Framework
-
-```text
-DataFrame         (framework_ia/datos/dataframe.py · operaciones tabulares y estadísticas)
-└── EDA           (framework_ia/datos/eda.py · preparación, calidad y gráficos exploratorios)
-    ├── NoSupervisado (framework_ia/modelos/no_supervisado/)
-    │      └── Cluster -> ACP, K-Means (+ t-SNE, UMAP), K-Medoids, HAC
-    └── Supervisado   (framework_ia/modelos/supervisado/)
-           ├── Clasificacion  ->  KNN, DT, RF, XGBoost, AdaBoost, NR, RL
-           └── Regresion      ->  RLS, RLM, RL, Lasso, LassoCV, Ridge, RidgeCV, SVR, DT, RF
-```
-
-## Módulos Principales
-
-| Ruta | Responsabilidad |
-| --- | --- |
-| `framework_ia/datos/` | `DataFrame`, `EDA`, `CargadorCSV`, `Particionador`, `PreprocesadorNoSupervisado` y `PreprocesadorSupervisado` |
-| `framework_ia/modelos/no_supervisado/` | `NoSupervisado` y `Cluster` (ACP, K-Means, K-Medoids, HAC, t-SNE, UMAP y `benchmark`) |
-| `framework_ia/modelos/supervisado/` | `Supervisado`, `Clasificacion` y `Regresion` (`Progresion`) con preprocesamiento ajustado solo en train |
-| `framework_ia/visualizacion.py` | `VisualizadorDatos`, `VisualizadorNoSupervisado`, `VisualizadorSupervisado` y `VisualizadorRegresion` |
-| `framework_ia/exportacion.py` y `framework_ia/evidencia.py` | Exportación y verificación de evidencia reproducible de experimentos supervisados |
-| `framework_ia/ui/modelos/` | Capa de modelos de estado, catálogo de vistas, disponibilidad y validación de procedencia |
-| `framework_ia/ui/controladores/` | Capa de casos de uso y controladores de fuentes, no supervisado, clasificación y regresión |
-| `framework_ia/ui/vistas/` | Capa de presentación en Streamlit (tema, navegación, controles y vistas por dominio) |
-| `framework_ia/ui/streamlit_app.py` | Punto de entrada y enrutador principal de la interfaz **Nexo IA** |
-| `scripts/` | Ejecución reproducible por línea de comandos, informes y empaquetado |
-| `tests/` | Suite de pruebas unitarias e integrales del framework y la interfaz |
-
-## Ejecutar la aplicación y pruebas
-
-En PowerShell, dentro de la carpeta del proyecto (Python 3.11 o superior; verificado con Python 3.13):
+From the extracted project directory, use Python 3.11. On Windows:
 
 ```powershell
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-project-lock.txt
+.\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+On macOS or Linux, use `python3.11 -m venv .venv` and `.venv/bin/python`. The lock records the Windows/Python 3.11 reference environment. Use `requirements.txt` when installing on a different supported platform.
+
+## Demonstrate the system
+
+1. Open **Data source**, select a local CSV and click **Apply source**. Set the dashboard language in the sidebar.
+2. Open **Data & Preparation** or **Exploratory data analysis** to review the data. Applying a preparation sends an explicit request to the EDA agent.
+3. For classification, load `breast_cancer.csv`. In **Configuration**, select Classification and set the target to `target`. Run **Comparative Model Evaluation** from the Classification section.
+4. For regression, load `diabetes_lab03.csv`. Select Regression and set the target to `target`. Run the regression benchmark.
+5. In **Multi-agent system**, choose Clustering, enter an agent name, register it and select it under **Agents selected for this session**. Open **Coordinated analysis**, select Clustering and set the target to `target` so that it is excluded from the inputs. Run the analysis.
+6. Open **Experiment history**. Verify the run, assignee, completion event and result. The local SQLite workspace is saved under `output/project/`. Export JSON traces, CSV results and fitted model artifacts where available. Registered agents and history persist across app restarts. Agent selections apply to the current session.
+
+## Reproduce the reference evidence
+
+```powershell
+$env:OMP_NUM_THREADS = '2'
+$env:OPENBLAS_NUM_THREADS = '2'
+$env:NUMBA_NUM_THREADS = '2'
 .\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m scripts.verify_project --output output/project/reference
 ```
 
----
+The verifier drives the Streamlit entry point against an isolated SQLite workspace and checks registration, dispatch, completion, target exclusion and reopening the stored result. It records reference package versions and input SHA-256 hashes. Use a new directory for each run. Durations and run identifiers vary. The delivery ZIP includes the evaluated traces and comparison tables under `evidence/`.
 
-## Ejecución por línea de comandos (`scripts/`)
+| Included dataset | Source and use |
+| --- | --- |
+| `data/breast_cancer.csv` | scikit-learn Breast Cancer Wisconsin dataset, 569 rows, classification target `target`. |
+| `data/diabetes_lab03.csv` | scikit-learn Diabetes dataset, 442 rows, continuous response `target`. It is used for regression and for clustering with the response excluded. |
+| `data/ejemplo_analisis.csv` | Small CSV example included with the course framework. |
 
-### 1. Agrupamiento (No Supervisado)
+## Structure
 
-```powershell
-python -m scripts.ejecutar_no_supervisado data/ejemplo_analisis.csv --salida salida_no_supervisado --semilla 42
-```
+| Path | Responsibility |
+| --- | --- |
+| `app.py`, `ai_framework/ui/` | Streamlit entry point, views, controllers, session state and translations. |
+| `ai_framework/agents/` | Agent definitions, registry, factory, coordinator, event bus and shared analysis state. |
+| `ai_framework/data/`, `ai_framework/models/` | CSV loading, EDA, preprocessing and the model implementations from the labs. |
+| `ai_framework/persistence/` | Local storage for registered agents, experiment history and trained models. |
+| `scripts/`, `tests/` | Reproducible execution and verification. |
+| `docs/project/` | Spanish technical report and diagram source. |
 
-### 2. Clasificación (Potabilidad y Diabetes)
+Build the report from `docs/project/` with two passes of `pdflatex main.tex`, or upload the source files in that directory to Overleaf. The compiled report is included at `report/project.pdf` in the delivery ZIP.
 
-Integrantes: Dylan Elizondo Alvarado (504610652), Joseph Garcia Montero (402680547), Rodrigo Ureña Castillo (118910482) y Mariana Ureña Padilla (119180324).
-
-```powershell
-python -m scripts.preparar_potabilidad data/lab02/water_potability.csv
-python -m scripts.preparar_diabetes data/lab02/diabetes_original.csv
-python -m scripts.ejecutar_clasificacion data/lab02/potabilidad.csv --target Potability --salida salida_reproducida/potabilidad --semilla 42 --fuente https://www.kaggle.com/datasets/adityakadiwal/water-potability
-python -m scripts.ejecutar_clasificacion data/lab02/diabetes.csv --target diabetes --features chol stab.glu hdl ratio location age gender height weight frame bp.1s bp.1d bp.2s bp.2d waist hip time.ppn --incluir-categoricas --salida salida_reproducida/diabetes --semilla 42 --fuente https://hbiostat.org/data/repo/diabetes
-python -m scripts.generar_informe salida_reproducida
-```
-
-### 3. Regresión (Diabetes y Concrete)
-
-```powershell
-python -m scripts.preparar_diabetes
-python -m scripts.ejecutar_regresion data/lab03/diabetes_regresion.csv --target target --feature-simple bmi --salida salida_lab03
-python -m scripts.preparar_concrete Concrete_Data.xls
-python -m scripts.ejecutar_regresion data/lab03/concrete/concrete.csv --target strength --feature-simple cement --salida salida_lab03/concrete --fuente https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength
-python -m scripts.generar_informe salida_lab03/concrete --datos data/lab03/concrete/concrete.csv --procedencia data/lab03/concrete/procedencia.json --salida informe/main.tex
-```
-
-### 4. Empaquetado de entrega
-
-```powershell
-python -m scripts.preparar_entrega --ids ID-1 ID-2 --resultados salida_no_supervisado --informe informe.pdf
-```
-
-- [Preparación y variables de Concrete](data/lab03/concrete/README.md).
-- [Experimentos, informe y resultados verificados](docs/lab03/CONCRETE.md).
-- [API y flujos de regresión](docs/lab03/README.md).
+The prior labs remain reproducible through their English commands and compatibility aliases. See the [Lab 04 guide](docs/lab04/README.md) for that lab's original protocol.
