@@ -244,6 +244,7 @@ class ClassificationResult:
     modelo: Any = field(repr=False)
     parametros: dict[str, Any] = field(default_factory=dict)
     metadatos: dict[str, Any] = field(default_factory=dict)
+    preprocessor: Any = field(default=None, repr=False, compare=False)
 
     @property
     def algorithm(self) -> str:

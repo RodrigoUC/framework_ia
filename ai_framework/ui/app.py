@@ -5,7 +5,10 @@ from __future__ import annotations
 import sys
 
 import streamlit as st
-from ai_framework.ui.i18n import t
+from ai_framework.ui.i18n import render_language_selector, t
+from ai_framework.ui.views.project_view import (
+    render_agent_community, render_experiment_history, render_project_home,
+)
 
 from ai_framework.datasets.diabetes import cargar_diabetes_regresion
 from ai_framework.data.sources import CSVLoader, CargadorCSV, CSVConfig, ConfiguracionCSV
@@ -117,6 +120,7 @@ def main() -> None:
     _aplicar_estilos_atlas()
 
     with st.sidebar:
+        render_language_selector()
         st.button(
             t("actualizar_graficos", "Actualizar gráficos"),
             key="actualizar_graficos",
@@ -136,12 +140,13 @@ def main() -> None:
                 _fn = _candidate
                 break
     datos_cargados, etiqueta, identidad = _fn()
+    project_views = {
+        "project_home": lambda: render_project_home(APP_NAME),
+        "agent_community": render_agent_community,
+        "experiment_history": render_experiment_history,
+    }
     if datos_cargados is None:
-        st.markdown(f"# {APP_NAME}")
-        st.caption(
-            "Etapa 1 · Fuente pendiente. Aplique un CSV o la referencia local desde Fuente de datos para habilitar el análisis."
-        )
-        st.info("Seleccione un CSV local o suba un archivo para comenzar.")
+        project_views[_seleccionar_vista(has_data=False)]()
         return
     _sincronizar_dataset(datos_cargados, identidad)
     _aplicar_preset_regresion(identidad)
@@ -180,6 +185,9 @@ def main() -> None:
             preparacion=st.session_state.get("dataset_preparacion"),
         )
     vista = _seleccionar_vista(disponibilidades)
+    if vista in project_views:
+        project_views[vista]()
+        return
     _render_encabezado_atlas(datos, etiqueta, vista)
     familia = (
         st.session_state.get("sup_tarea")

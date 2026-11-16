@@ -22,7 +22,7 @@ from ai_framework.ui.models.view_catalog import (
 )
 from ai_framework.ui.models.availability import Disponibilidad, hay_evidencia
 from ai_framework.utils.supervised.regression_config import NOMBRES_REGRESORES
-from ai_framework.ui.i18n import t, render_selector_idioma, obtener_idioma
+from ai_framework.ui.i18n import t, obtener_idioma
 
 def _regressor_name(algoritmo: str) -> str:
     lang = obtener_idioma()
@@ -79,9 +79,9 @@ def _resumen_calidad(datos: pd.DataFrame) -> None:
             columna.metric(etiqueta, valor)
 
 
-def _select_view(disponibilidades=None) -> str:
+def _select_view(disponibilidades=None, *, has_data: bool = True) -> str:
     """Render multi-level navigation and return active view."""
-    vista = st.session_state.setdefault("vista_activa", "datos")
+    vista = st.session_state.setdefault("vista_activa", "datos" if has_data else "project_home")
     if vista in {"comparacion", "lab2_experimentos"}:
         vista = "lab2_resultados"
         st.session_state["res_subvista_clasificacion"] = "comparativa"
@@ -97,6 +97,8 @@ def _select_view(disponibilidades=None) -> str:
     elif vista in {"tsne", "umap"}:
         vista = "kmeans"
     st.session_state["vista_activa"] = vista
+    if not has_data and vista not in {"project_home", "agent_community", "experiment_history"}:
+        vista = st.session_state["vista_activa"] = "project_home"
     disponibilidades = disponibilidades or {}
 
     def navigate(destino: str) -> None:
@@ -122,13 +124,17 @@ def _select_view(disponibilidades=None) -> str:
         )
 
     with st.sidebar:
-        render_selector_idioma()
         from ai_framework.ui.views.agents_view import render_llm_sidebar_config
 
         render_llm_sidebar_config()
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_seccion", "Navegación")}</p>', unsafe_allow_html=True
         )
+        boton(t("nav_project_home"), "project_home")
+        boton(t("nav_agent_community"), "agent_community")
+        boton(t("nav_experiment_history"), "experiment_history")
+        if not has_data:
+            return vista
         boton(t("nav_datos", "Datos y preparación"), "datos")
         st.markdown(
             f'<p class="atlas-nav-label">{t("nav_exploracion", "Exploración de datos")}</p>',

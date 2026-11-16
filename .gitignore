@@ -38,3 +38,6 @@ tmp/pdfs/
 
 # Claves locales de los agentes; nunca se versionan.
 .streamlit/secrets.toml
+
+# Local project registry and experiment history.
+/output/project/

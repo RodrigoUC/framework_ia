@@ -6,6 +6,8 @@ import json
 import os
 
 import pandas as pd
+import streamlit as st
+from sklearn.pipeline import Pipeline
 
 from ai_framework.agents.analysis_request import AnalysisRequest, AnalysisResult
 
@@ -27,6 +29,32 @@ from ai_framework.agents import (
 from ai_framework.utils.agents import LLM_PROVIDERS, RULES_ONLY
 from ai_framework.utils.results import ModelingSuggestion
 from ai_framework.agents.run_trace import RunTrace
+from ai_framework.ui.models.project_state import active_project_store
+
+
+def _record_analysis(store, trace, source, operation, output=None) -> dict:
+    table = output if isinstance(output, pd.DataFrame) else getattr(output, "tabla", None)
+    winner = getattr(output, "mejor_algoritmo", None)
+    best = getattr(output, "mejores", {}).get(winner) if winner is not None else output
+    metrics = getattr(best, "metrics", None)
+    if metrics:
+        scalar_metrics = {key: value for key, value in metrics.items() if pd.api.types.is_scalar(value)}
+        result = {**(trace.get("result") or {}), "test_metrics": scalar_metrics}
+        trace = {**trace, "result": result}
+        if table is None:
+            table = pd.DataFrame([scalar_metrics])
+    else:
+        matrix = getattr(best, "etiquetas", None)
+        if isinstance(matrix, pd.Series):
+            table = matrix.rename("cluster").reset_index()
+    csv = table.to_csv(index=False) if isinstance(table, pd.DataFrame) else None
+    model = getattr(best, "modelo", None)
+    preprocessor = getattr(best, "preprocessor", None)
+    if preprocessor is None:
+        preprocessor = getattr(getattr(best, "datos_preparados", None), "transformer", None)
+    if model is not None and preprocessor is not None:
+        model = Pipeline([("preprocessor", preprocessor), ("estimator", model)])
+    return store.record(trace, source, operation, csv, model)
 
 
 def run_configured_analysis(
@@ -35,26 +63,56 @@ def run_configured_analysis(
     """Execute the requested panel operation through the coordinator."""
     trace = RunTrace()
     board = Blackboard(data, target=configuration.get("target"))
-    coordinator = CoordinatorAgent(board, trace.bus, trace=trace, language=language)
+    store = active_project_store()
+    preferences = st.session_state.get("mas_preferences", {}) if store else {}
+    coordinator = CoordinatorAgent(
+        board, trace.bus, trace=trace, language=language, registry=store.registry() if store else None,
+    )
     request = AnalysisRequest(
         specialty, operation,
         tuple(configuration["features"] if features is None else features),
         options,
     )
-    return coordinator.run_configured(request)
+    if store is None:
+        return coordinator.run_configured(request)
+    source = st.session_state.get("fuente_aplicada", (None, "", ""))[1]
+    label = f"{specialty}.{operation}"
+    try:
+        execution = coordinator.run_configured(request, preferred_agent_id=preferences.get(specialty))
+    except Exception as error:
+        if operation != "profile":
+            store.record(trace.summary(error=error), source, label)
+        raise
+    if operation == "profile":
+        return execution
+    evidence = _record_analysis(store, execution.trace, source, label, execution.output)
+    return AnalysisResult(execution.output, evidence)
 
 
 def run_coordinated_analysis(data: pd.DataFrame, label: str, target: str | None, task: str,
                              *, language: str, on_progress=None) -> dict:
     """Run the local coordinator and return a trace even when execution stops."""
     trace = RunTrace()
+    store = active_project_store()
+    preferences = st.session_state.get("mas_preferences", {}) if store else {}
+    output = None
     try:
         board = Blackboard(data, target=target, source=label)
-        agent = CoordinatorAgent(board, trace.bus, language=language, on_progress=on_progress,
-                                 trace=trace).run(task, training_only_screening=True)
+        coordinator = CoordinatorAgent(
+            board, trace.bus, language=language, on_progress=on_progress, trace=trace,
+            registry=store.registry() if store else None,
+        )
+        agent = coordinator.run(task, training_only_screening=True, agent_preferences=preferences)
     except Exception as error:  # pylint: disable=broad-except
-        return trace.summary(error=error)
-    return trace.summary(agent=agent)
+        evidence = trace.summary(error=error)
+    else:
+        evidence = trace.summary(agent=agent)
+        output = next(
+            (board.results[key] for key in ("classification_experiment", "regression_experiment", "cluster_result")
+             if key in board.results),
+            None,
+        )
+    return _record_analysis(store, evidence, label, f"coordinated.{task}", output) if store else evidence
 
 
 def explain_coordinated_run(trace: dict, options: dict, messages: list[dict], *, language: str) -> str:

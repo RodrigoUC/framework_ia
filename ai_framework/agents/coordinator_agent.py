@@ -63,20 +63,22 @@ class CoordinatorAgent:
 
     def run(
         self, task: str = "auto", *, preferred_agent_id: str | None = None,
-        training_only_screening: bool = False,
+        training_only_screening: bool = False, agent_preferences: dict[str, str] | None = None,
     ) -> Agent:
         """Return the agent that completed the request."""
         if task not in {"auto", "clustering"}:
             raise ValueError(f"Unsupported coordinated task: {task!r}.")
 
         options = {"language": self.language, "on_progress": self.on_progress}
-        eda_definition = self.registry.select("profile")
+        preferences = agent_preferences or {}
+        eda_definition = self.registry.select("profile", preferences.get("eda"))
         eda = self.factory.create(eda_definition, self.blackboard, self.llm, **options)
         target = self.blackboard.target
         self.report("Assigned EDA to profile the dataset.")
         self.dispatch(eda, Event(DATASET_LOADED, {"task": task, "target": target}, source=self.name, recipient=eda.name))
 
         if task == "clustering":
+            preferred_agent_id = preferred_agent_id or preferences.get("clustering")
             features = [
                 column for column in self.blackboard.datos.select_dtypes(include="number")
                 if column != target
@@ -95,6 +97,8 @@ class CoordinatorAgent:
             if suggestion.target != target:
                 raise ValueError(f"EDA suggested a different target. Run again with --target {suggestion.target!r}.")
             capability = {"regresion": "regress", "clasificacion": "classify"}[suggestion.task]
+            specialty = {"regresion": "regression", "clasificacion": "classification"}[suggestion.task]
+            preferred_agent_id = preferred_agent_id or preferences.get(specialty)
             if training_only_screening:
                 candidate = self.registry.select(capability, preferred_agent_id)
                 features = self.screen_training_predictors(candidate, eda_definition, target)
@@ -115,12 +119,12 @@ class CoordinatorAgent:
         self.report(f"Completed {specialist.name}.")
         return specialist
 
-    def run_configured(self, request: AnalysisRequest) -> AnalysisResult:
+    def run_configured(self, request: AnalysisRequest, *, preferred_agent_id: str | None = None) -> AnalysisResult:
         """Assign an explicit operation and return its output with the same run's trace."""
         capability = {
             "classification": "classify", "regression": "regress", "clustering": "cluster", "eda": "profile",
         }[request.specialty]
-        definition = self.registry.select(capability)
+        definition = self.registry.select(capability, preferred_agent_id)
         agent = self.factory.create(definition, self.blackboard, self.llm, language=self.language)
         self.decision(
             "assigned", agent=agent.name, name=agent.display_name, specialty=definition.specialty,

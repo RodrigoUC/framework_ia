@@ -346,6 +346,7 @@ def create_classification_result(
         muestra_train=len(train),
         muestra_test=len(evaluacion),
         modelo=modelo,
+        preprocessor=preparados.transformador,
         parametros=modelo.get_params(),
         metadatos={
             **metadatos,
