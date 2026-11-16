@@ -15,6 +15,8 @@ IDIOMAS = {
 
 TEXTOS = {
     "es": {
+        "project_builtin": "Predeterminado",
+        "project_registered": "Registrado",
         "project_duration": "Duración (s)",
         "project_run_completed": "Completado",
         "project_run_failed": "Fallido",
@@ -453,6 +455,8 @@ TEXTOS = {
 
     },
     "en": {
+        "project_builtin": "Default",
+        "project_registered": "Registered",
         "project_duration": "Duration (s)",
         "project_run_completed": "Completed",
         "project_run_failed": "Failed",

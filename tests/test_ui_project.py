@@ -26,14 +26,17 @@ def test_register_assign_and_reopen_history(tmp_path):
     assert app.sidebar.button(key="nav_project_home").label == "Inicio"
     app.sidebar.selectbox(key="selector_idioma_global").set_value("en").run()
     assert app.sidebar.button(key="nav_project_home").label == "Home"
+    app.sidebar.selectbox(key="selector_idioma_global").set_value("es").run()
 
     app.sidebar.button(key="nav_agent_community").click().run()
     app.selectbox(key="mas_specialty").set_value("clustering").run()
-    app.text_input(key="mas_agent_name").set_value("Review clusters")
-    next(button for button in app.button if button.label == "Register agent").click().run()
+    app.text_input(key="mas_agent_name").set_value("Agrupamiento")
+    next(button for button in app.button if button.label == "Registrar agente").click().run()
     assert not app.exception
-    agent = next(agent for agent in ProjectStore(database).registry().list_agents() if agent.name == "Review clusters")
-    app.selectbox(key="mas_preferred_clustering").set_value(agent.agent_id).run()
+    agent = next(agent for agent in ProjectStore(database).registry().list_agents() if agent.name == "Agrupamiento")
+    selector = app.selectbox(key="mas_preferred_clustering")
+    assert selector.options == ["Agrupamiento (Predeterminado)", "Agrupamiento (Registrado)"]
+    selector.set_value(agent.agent_id).run()
 
     data = pd.read_csv(DATA / "diabetes_lab03.csv").iloc[:65]
     app.session_state["fuente_aplicada"] = (data, "diabetes.csv", "local")
@@ -42,7 +45,7 @@ def test_register_assign_and_reopen_history(tmp_path):
     app.selectbox(key="coordinated_task").set_value("clustering")
     app.button(key="coordinated_run").click().run()
     assert not app.exception
-    assert any("Review clusters" in str(item.value) for item in app.markdown)
+    assert any("Agrupamiento" in str(item.value) for item in app.markdown)
     trace = app.session_state["coordinated_result"]
     assert trace["status"] == "completed"
     assert trace["tasks"][-1]["agent"] == agent.agent_id

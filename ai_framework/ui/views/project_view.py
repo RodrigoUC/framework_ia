@@ -20,7 +20,9 @@ def render_project_home(app_name: str) -> None:
 
 
 def display_agent(agent) -> str:
-    return t(f"project_specialty_{agent.specialty}") if agent.name == agent.specialty else agent.name
+    if agent.agent_id == agent.specialty:
+        return f"{t(f'project_specialty_{agent.specialty}')} ({t('project_builtin')})"
+    return f"{agent.name} ({t('project_registered')})"
 
 
 def render_agent_community() -> None:
